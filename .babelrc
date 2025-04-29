@@ -1,0 +1,9 @@
+{
+    "plugins": [
+      ["import", {
+        "libraryName": "antd",
+        "libraryDirectory": "es",
+        "style": "css" // hoặc "less" nếu bạn muốn tùy chỉnh giao diện
+      }]
+    ]
+  }
