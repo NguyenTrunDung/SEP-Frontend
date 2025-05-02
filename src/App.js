@@ -1,10 +1,9 @@
-// src/App.js
 import React from 'react';
-import Home from './page/Home';
+import HomePage from './page/Home';
 
 const App = () => {
   return (
-    <Home />
+    <HomePage />
   );
 };
 
