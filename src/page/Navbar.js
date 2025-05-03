@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Layout, Menu, Input, Row, Col, Modal, List } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined, UserOutlined } from '@ant-design/icons';
+import { Link } from 'react-scroll';
 
 const { Header } = Layout;
 
@@ -25,21 +26,22 @@ const Navbar = () => {
     <Header
       style={{
         backgroundColor: '#000',
-        padding: '0 16px',
+        padding: '0 20px',
         position: 'sticky',
         top: 0,
         zIndex: 10,
-        lineHeight: '40px',
+        lineHeight: '50px',
       }}
     >
-      <Row align="middle" justify="space-between" gutter={[8, 8]}>
+      <Row align="middle" justify="space-between" gutter={[16, 16]}>
         <Col xs={24} sm={16} md={18}>
-          <Row align="middle" gutter={[8, 8]}>
+          <Row align="middle" gutter={[16, 16]}>
             <Col xs={24} sm={12} md={6}>
               <span
                 style={{
                   color: '#fff',
-                  fontSize: 'clamp(12px, 2vw, 14px)',
+                  fontSize: '14px',
+                  fontWeight: '500',
                 }}
               >
                 Hotline: 028 3840 8379
@@ -47,7 +49,7 @@ const Navbar = () => {
             </Col>
             <Col xs={24} sm={12} md={10}>
               <Input
-                placeholder="Tìm kiếm"
+                placeholder="Search"
                 prefix={<SearchOutlined />}
                 size="middle"
                 style={{
@@ -55,6 +57,7 @@ const Navbar = () => {
                   width: '100%',
                   maxWidth: '250px',
                   backgroundColor: '#fff',
+                  paddingLeft: '16px',
                 }}
                 aria-label="Search input"
               />
@@ -68,27 +71,25 @@ const Navbar = () => {
                 onClick={showModal}
                 style={{
                   color: '#fff',
-                  fontSize: 'clamp(12px, 2vw, 14px)',
-                  border: '1px solid #fff',
-                  borderRadius: '4px',
-                  padding: '4px 12px',
+                  fontSize: '14px',
                   cursor: 'pointer',
+                  padding: '8px 16px',
+                  border: '1px solid #fff',
+                  borderRadius: '8px',
                   transition: 'all 0.3s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 role="button"
                 tabIndex={0}
                 onKeyPress={(e) => e.key === 'Enter' && showModal()}
               >
-                {selectedBranch ? `Chi nhánh: ${selectedBranch}` : 'Chọn chi nhánh'}
+                {selectedBranch ? `Branch: ${selectedBranch}` : 'Select branch'}
               </span>
             </Col>
           </Row>
         </Col>
       </Row>
 
-      <Row align="middle" style={{ backgroundColor: '#fff', padding: '8px 16px' }}>
+      <Row align="middle" style={{ backgroundColor: '#fff', padding: '0px 4px' }}>
         <Col xs={12} sm={6} md={4}>
           <img
             src="/images/logo.png"
@@ -107,14 +108,37 @@ const Navbar = () => {
             style={{
               borderBottom: 'none',
               justifyContent: 'flex-end',
-              fontSize: 'clamp(14px, 2vw, 16px)',
+              fontSize: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              marginTop: '4px',
             }}
             items={[
-              { key: 'home', label: 'Trang chủ' },
-              { key: 'menu', label: 'Thực đơn' },
-              { key: 'order', label: 'Đặt hàng' },
-              { key: 'staff', label: 'Nhân viên' },
-              { key: 'contact', label: 'Liên hệ' },
+              { key: 'home', label: <Link to="home" smooth={true} duration={500}>Home</Link> },
+              { key: 'menu', label: <Link to="menu" smooth={true} duration={500}>Menu</Link> },
+              { key: 'order', label: 'Order' },
+              { key: 'staff', label: 'Staff' },
+              { key: 'contact', label: <Link to="contact" smooth={true} duration={500}>Contact</Link> },
+              {
+                key: 'login',
+                label: (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#000',
+                      cursor: 'pointer',
+                      padding: '4px 8px',
+                      transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#1890ff')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#000')}
+                  >
+                    <UserOutlined />
+                  </div>
+                ),
+              },
             ]}
             overflowedIndicator={<span style={{ fontSize: '16px' }}>☰</span>}
           />
@@ -122,7 +146,7 @@ const Navbar = () => {
       </Row>
 
       <Modal
-        title="Chọn chi nhánh"
+        title="Select Branch"
         open={isModalVisible}
         onCancel={handleCancel}
         footer={null}
