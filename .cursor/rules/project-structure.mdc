@@ -1,0 +1,38 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Project Structure Guidelines
+
+## Directory Structure
+```
+src/
+├── assets/           # Static assets (images, fonts, etc.)
+├── components/       # Reusable components
+│   ├── common/      # Shared components (buttons, inputs, etc.)
+│   ├── layout/      # Layout components (header, footer, etc.)
+│   └── features/    # Feature-specific components
+├── hooks/           # Custom React hooks
+├── pages/           # Page components
+├── services/        # API services and external integrations
+├── store/           # State management (Redux/Context)
+├── styles/          # Global styles and theme
+├── utils/           # Utility functions and helpers
+└── constants/       # Application constants
+```
+
+## Key Files
+- [src/App.js](mdc:src/App.js) - Main application component
+- [src/index.js](mdc:src/index.js) - Application entry point
+- [src/store/index.js](mdc:src/store/index.js) - State management setup
+- [src/services/api.js](mdc:src/services/api.js) - API configuration
+
+## Best Practices
+1. Keep components small and focused on a single responsibility
+2. Use feature-based organization for complex features
+3. Maintain clear separation between UI components and business logic
+4. Follow consistent naming conventions:
+   - Components: PascalCase (e.g., `OrderForm.js`)
+   - Utilities: camelCase (e.g., `formatPrice.js`)
+   - Constants: UPPER_SNAKE_CASE

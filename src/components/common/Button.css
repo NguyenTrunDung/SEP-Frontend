@@ -1,0 +1,117 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border: none;
+  outline: none;
+}
+
+/* Variants */
+.button--primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.button--primary:hover {
+  background-color: #0056b3;
+}
+
+.button--secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.button--secondary:hover {
+  background-color: #545b62;
+}
+
+.button--outline {
+  background-color: transparent;
+  border: 1px solid #007bff;
+  color: #007bff;
+}
+
+.button--outline:hover {
+  background-color: #007bff;
+  color: white;
+}
+
+.button--text {
+  background-color: transparent;
+  color: #007bff;
+  padding: 0.25rem 0.5rem;
+}
+
+.button--text:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+/* Sizes */
+.button--small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.button--medium {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+}
+
+.button--large {
+  padding: 0.75rem 1.5rem;
+  font-size: 1.125rem;
+}
+
+/* States */
+.button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.button--full-width {
+  width: 100%;
+}
+
+/* Loading state */
+.button--loading {
+  position: relative;
+  color: transparent;
+}
+
+.button__loader {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.button__loader-dot {
+  width: 4px;
+  height: 4px;
+  background-color: currentColor;
+  border-radius: 50%;
+  animation: button-loader 1.4s infinite ease-in-out both;
+}
+
+.button__loader-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.button__loader-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes button-loader {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+} 
