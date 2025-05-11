@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: This helpfull when I request to use Redux to Management State specially for complicated state
+globs: 
 alwaysApply: false
 ---
 # State Management Guidelines

@@ -1,0 +1,52 @@
+.auth-form-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    background-color: #f0f2f5;
+}
+
+.auth-form-card {
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.auth-form-card .ant-card-body {
+    padding: 32px;
+}
+
+.auth-form-card h2 {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.error-message {
+    color: #ff4d4f;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.login-help {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.login-help p {
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.login-help ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.login-help li {
+    margin-bottom: 4px;
+    color: #666;
+    font-size: 14px;
+} 

@@ -1,0 +1,232 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Ant Design Component Guidelines
+
+## Core Principles
+1. Always use the latest version of Ant Design components
+2. Create reusable components that follow the "define once, use everywhere" principle
+3. Maintain consistency in styling and behavior across the application
+
+## Component Structure
+When creating new components:
+1. Place them in the appropriate directory under `src/components/`
+2. Use TypeScript for better type safety and documentation
+3. Include PropTypes for runtime type checking
+4. Follow the naming convention: `ComponentName.tsx`
+
+## Form Components
+Forms should be created using Ant Design's Form component with the following structure:
+
+```typescript
+import { Form, Input, Button } from 'antd';
+import type { FormInstance } from 'antd';
+
+interface FormProps {
+  onSubmit: (values: any) => void;
+  initialValues?: Record<string, any>;
+  loading?: boolean;
+}
+
+const CustomForm: React.FC<FormProps> = ({ onSubmit, initialValues, loading }) => {
+  const [form] = Form.useForm();
+
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={onSubmit}
+      initialValues={initialValues}
+    >
+      {/* Form items */}
+    </Form>
+  );
+};
+```
+
+## Layout Components
+Use Ant Design's layout components for consistent page structure:
+
+```typescript
+import { Layout, Menu } from 'antd';
+const { Header, Sider, Content } = Layout;
+
+const PageLayout: React.FC = ({ children }) => {
+  return (
+    <Layout>
+      <Header>{/* Header content */}</Header>
+      <Layout>
+        <Sider>{/* Sidebar content */}</Sider>
+        <Content>{children}</Content>
+      </Layout>
+    </Layout>
+  );
+};
+```
+
+## Data Display Components
+For tables, lists, and other data displays:
+
+```typescript
+import { Table, List, Card } from 'antd';
+import type { TableProps } from 'antd';
+
+interface DataTableProps<T> extends Omit<TableProps<T>, 'columns'> {
+  columns: TableProps<T>['columns'];
+  dataSource: T[];
+}
+
+const DataTable = <T extends object>({ columns, dataSource, ...props }: DataTableProps<T>) => {
+  return (
+    <Table
+      columns={columns}
+      dataSource={dataSource}
+      {...props}
+    />
+  );
+};
+```
+
+## Styling Guidelines
+1. Use Ant Design's built-in styling system
+2. Extend themes using CSS-in-JS or CSS modules
+3. Follow the design system's color palette and spacing rules
+
+## Component Composition
+When building complex components:
+1. Break down into smaller, reusable pieces
+2. Use composition over inheritance
+3. Implement proper prop drilling or context when needed
+
+## Error Handling
+Implement consistent error handling:
+
+```typescript
+import { message, notification } from 'antd';
+
+const showError = (error: Error) => {
+  message.error(error.message);
+};
+
+const showSuccess = (message: string) => {
+  notification.success({
+    message: 'Success',
+    description: message,
+  });
+};
+```
+
+## Loading States
+Handle loading states consistently:
+
+```typescript
+import { Spin } from 'antd';
+
+const LoadingWrapper: React.FC<{ loading: boolean }> = ({ loading, children }) => {
+  return (
+    <Spin spinning={loading}>
+      {children}
+    </Spin>
+  );
+};
+```
+
+## Form Validation Rules
+Create reusable validation rules:
+
+```typescript
+import { Rule } from 'antd/lib/form';
+
+export const requiredRule: Rule = {
+  required: true,
+  message: 'This field is required',
+};
+
+export const emailRule: Rule = {
+  type: 'email',
+  message: 'Please enter a valid email',
+};
+```
+
+## Best Practices
+1. Use TypeScript for all new components
+2. Implement proper error boundaries
+3. Use React.memo for performance optimization when needed
+4. Follow the single responsibility principle
+5. Write unit tests for all components
+6. Document components using JSDoc comments
+
+## Example Usage
+Here's an example of a reusable form component:
+
+```typescript
+import { Form, Input, Button } from 'antd';
+import type { FormInstance } from 'antd';
+
+interface AuthFormProps {
+  onSubmit: (values: { email: string; password: string }) => void;
+  loading?: boolean;
+  submitText?: string;
+}
+
+const AuthForm: React.FC<AuthFormProps> = ({
+  onSubmit,
+  loading = false,
+  submitText = 'Submit'
+}) => {
+  const [form] = Form.useForm();
+
+  return (
+    <Form
+      form={form}
+      onFinish={onSubmit}
+      layout="vertical"
+    >
+      <Form.Item
+        name="email"
+        label="Email"
+        rules={[requiredRule, emailRule]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name="password"
+        label="Password"
+        rules={[requiredRule]}
+      >
+        <Input.Password />
+      </Form.Item>
+      <Form.Item>
+        <Button type="primary" htmlType="submit" loading={loading} block>
+          {submitText}
+        </Button>
+      </Form.Item>
+    </Form>
+  );
+};
+```
+
+## Testing Guidelines
+1. Use React Testing Library for component testing
+2. Test user interactions and component behavior
+3. Mock Ant Design components when necessary
+4. Test form validation and submission
+5. Test error states and loading states
+
+## Accessibility
+1. Use semantic HTML elements
+2. Implement proper ARIA attributes
+3. Ensure keyboard navigation works
+4. Test with screen readers
+5. Follow WCAG guidelines
+
+Remember to:
+- Keep components small and focused
+- Use TypeScript for better type safety
+- Implement proper error handling
+- Follow Ant Design's design patterns
+- Write comprehensive tests
+- Document your components
+

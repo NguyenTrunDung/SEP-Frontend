@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Layout, BackTop, Menu } from 'antd';
 import { MenuUnfoldOutlined, MenuFoldOutlined, UserOutlined, FileTextOutlined, ShoppingCartOutlined } from '@ant-design/icons';
-import Navbar from './Navbar';
-import CarouselComponent from './CarouselComponent';
-import MenuComponent from '../components/Menu';
-import ContactComponent from './Contact';
-import FooterComponent from './Footer';
+import Navbar from '../../components/Navbar';
+import CarouselComponent from '../../components/CarouselComponent';
+import MenuComponent from '../../components/Menu';
+import ContactComponent from '../../components/Contact';
+import FooterComponent from '../../components/Footer';
 
 const { Content, Sider } = Layout;
 

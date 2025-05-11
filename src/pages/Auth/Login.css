@@ -1,0 +1,126 @@
+.login-layout {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+}
+
+.login-row {
+  min-height: 100vh;
+}
+
+.login-card {
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.login-header {
+  padding: 24px;
+  background-color: #fff;
+  text-align: center;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.login-title {
+  margin-bottom: 0 !important;
+  color: #1890ff;
+}
+
+.login-subtitle {
+  margin-top: 8px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.login-footer {
+  margin-top: 24px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Override some AuthForm styles */
+.auth-form-container {
+  padding: 0;
+}
+
+.auth-form-card {
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.login-help {
+  background-color: rgba(24, 144, 255, 0.05);
+  border-radius: 4px;
+  padding: 16px;
+  margin-top: 24px;
+}
+
+.login-help p {
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.85);
+  margin-bottom: 8px;
+}
+
+.login-help ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.login-help li {
+  margin-bottom: 6px;
+  color: rgba(0, 0, 0, 0.65);
+  font-size: 13px;
+}
+
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  padding: 1rem;
+}
+
+.login-card h1 {
+  color: #007bff;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.login-card h2 {
+  color: #333;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.error-message {
+  background-color: #fff3f3;
+  color: #dc3545;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  border: 1px solid #ffcdd2;
+} 

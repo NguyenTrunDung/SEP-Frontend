@@ -1,7 +1,7 @@
 ---
-description:
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
 # Component Design Patterns
 
@@ -61,25 +61,5 @@ alwaysApply: false
    - Provide fallback UI
    - Log errors appropriately
 
-## Example Component Structure
-```javascript
-// src/components/features/OrderItem.js
-import React from 'react';
-import PropTypes from 'prop-types';
-import { useOrder } from '../../hooks/useOrder';
 
-const OrderItem = ({ order, onStatusChange }) => {
-  // Component implementation
-};
-
-OrderItem.propTypes = {
-  order: PropTypes.shape({
-    id: PropTypes.string.isRequired,
-    status: PropTypes.string.isRequired,
-    // ... other props
-  }).isRequired,
-  onStatusChange: PropTypes.func.isRequired,
-};
-
-export default React.memo(OrderItem);
 ```

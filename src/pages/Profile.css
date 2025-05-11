@@ -1,0 +1,59 @@
+.profile {
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.profile-card {
+    background-color: white;
+}
+
+.profile-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 1rem;
+}
+
+.profile-header .ant-avatar {
+    margin-bottom: 1rem;
+}
+
+.profile-header .ant-typography {
+    margin: 0;
+}
+
+/* Override Ant Design styles if needed */
+.profile .ant-descriptions {
+    margin-top: 1rem;
+}
+
+.profile .ant-descriptions-item-label {
+    font-weight: 500;
+    width: 120px;
+}
+
+.profile-content {
+    padding: 2rem;
+}
+
+.profile-info {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.info-group {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.info-group label {
+    color: #6c757d;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.info-group p {
+    margin: 0;
+    font-size: 1rem;
+    color: #333;
+} 

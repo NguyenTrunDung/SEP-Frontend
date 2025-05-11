@@ -1,0 +1,39 @@
+.breadcrumbs-container {
+    padding: 1rem;
+    background-color: white;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 1rem;
+}
+
+/* Override Ant Design styles if needed */
+.breadcrumbs-container .ant-breadcrumb {
+    font-size: 14px;
+}
+
+.breadcrumbs-container .ant-breadcrumb a {
+    color: #1890ff;
+}
+
+.breadcrumbs-container .ant-breadcrumb a:hover {
+    color: #40a9ff;
+}
+
+.breadcrumb-link {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.breadcrumb-link:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb-separator {
+    margin: 0 0.5rem;
+    color: #6c757d;
+}
+
+.breadcrumb-current {
+    color: #6c757d;
+    font-size: 0.875rem;
+} 

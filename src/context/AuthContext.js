@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import api from '../services/api/config';
+import { mockAuthService } from '../services/mockAuthService';
 
 const AuthContext = createContext();
 
@@ -38,10 +38,10 @@ export const AuthProvider = ({ children }) => {
         const loadUser = async () => {
             if (state.token) {
                 try {
-                    const response = await api.get('/auth/me');
+                    const user = await mockAuthService.getCurrentUser(state.token);
                     dispatch({
                         type: 'LOGIN_SUCCESS',
-                        payload: { user: response.data, token: state.token },
+                        payload: { user, token: state.token },
                     });
                 } catch (error) {
                     dispatch({ type: 'LOGOUT' });
@@ -55,21 +55,27 @@ export const AuthProvider = ({ children }) => {
     const login = async (credentials) => {
         dispatch({ type: 'LOGIN_START' });
         try {
-            const response = await api.post('/auth/login', credentials);
-            const { user, token } = response.data;
+            const { user, token } = await mockAuthService.login(
+                credentials.email,
+                credentials.password
+            );
             localStorage.setItem('token', token);
             dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token } });
         } catch (error) {
             dispatch({
                 type: 'LOGIN_FAILURE',
-                payload: error.response?.data?.message || 'Login failed',
+                payload: error.message || 'Login failed',
             });
         }
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        dispatch({ type: 'LOGOUT' });
+    const logout = async () => {
+        try {
+            await mockAuthService.logout();
+        } finally {
+            localStorage.removeItem('token');
+            dispatch({ type: 'LOGOUT' });
+        }
     };
 
     return (
