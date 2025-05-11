@@ -1,0 +1,56 @@
+.header {
+  padding: 0;
+  background: #001529;
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-logo {
+  float: left;
+  margin-right: 24px;
+}
+
+.header-logo a {
+  color: white;
+  text-decoration: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.header-nav {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border-bottom: none;
+}
+
+.header-nav .ant-menu-item {
+  margin: 0 4px;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 24px;
+}
+
+.user-info {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 14px;
+}
+
+.logout-button {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.logout-button:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.08);
+} 
