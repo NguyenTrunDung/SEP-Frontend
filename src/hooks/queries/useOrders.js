@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import api from '../services/api/config';
-
+import api from '../../services/api/config';
+// Sample when not use react query. just use axios
 export const useOrders = (userId) => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
