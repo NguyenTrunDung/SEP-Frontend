@@ -157,11 +157,11 @@ import AdminLayout from '../layouts/AdminLayout';
 import DefaultLayout from '../layouts/DefaultLayout';
 import ProtectedRoute from './ProtectedRoute.js';
 // Pages
-import Login from '../pages/Auth/Login';
-import Dashboard from '../pages/Dashboard/Dashboard';
-import Home from '../pages/Home/Home';
-import Profile from '../pages/Profile';
-import Unauthorized from '../pages/Unauthorized';
+import Login from '../Modules/Auth/Login.js';
+import Dashboard from '../Modules/Dashboard/Dashboard.js';
+import Home from '../Modules/Home/Home.js';
+import Profile from '../Modules/Profile.js';
+import Unauthorized from '../Modules/Unauthorized.js';
 //import NotFound from '../pages/NotFound/NotFound';
 
 // Admin pages - adjust paths if they're in the Admin folder
@@ -354,7 +354,7 @@ const router = [
     path: '/dashboard',
     element: <Dashboard />,
     layout: AdminLayout,
-    roles: [ROLES.ADMIN]
+    roles: [ROLES.ADMIN, ROLES.DOCTOR]
   },
   {
     path: '/orders',

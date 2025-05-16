@@ -37,6 +37,8 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const loadUser = async () => {
             if (state.token) {
+                console.log("state", state);
+
                 try {
                     const user = await mockAuthService.getCurrentUser(state.token);
                     dispatch({

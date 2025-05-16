@@ -39,13 +39,13 @@ import { hasRequiredRole, ROLES } from '../constants/roles';
 
 
 
-const ProtectedRoute = ({ children, requiredRole, redirectPath }) => {
+const ProtectedRoute = ({ children, allowedRoles, redirectPath }) => {
     const { user, token, loading } = useAuth();
     const location = useLocation();
 
     // Show loading state if auth is still being determined
     if (loading) {
-        return <div>Loading...</div>; // You could replace with a proper loading component
+        return <div>Loading...</div>;
     }
 
     // Check if user is authenticated
@@ -54,13 +54,17 @@ const ProtectedRoute = ({ children, requiredRole, redirectPath }) => {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    // If no specific role is required, just check authentication
-    if (!requiredRole) {
+    // If no specific roles are required, just check authentication
+    if (!allowedRoles || allowedRoles.length === 0) {
         return children;
     }
 
-    // Check if user has required role
-    if (!user || !hasRequiredRole(user.role, requiredRole)) {
+    // Check if user has any of the allowed roles
+    const hasPermission = allowedRoles.some(role =>
+        hasRequiredRole(user?.role, role)
+    );
+
+    if (!user || !hasPermission) {
         // Redirect to custom path if provided or default unauthorized page
         return <Navigate to={redirectPath || "/unauthorized"} replace />;
     }
@@ -70,7 +74,7 @@ const ProtectedRoute = ({ children, requiredRole, redirectPath }) => {
 
 ProtectedRoute.propTypes = {
     children: PropTypes.node.isRequired,
-    requiredRole: PropTypes.oneOf(['ADMIN', 'DOCTOR', 'PATIENT', 'STAFF']),
+    allowedRoles: PropTypes.array,
     redirectPath: PropTypes.string,
 };
 
