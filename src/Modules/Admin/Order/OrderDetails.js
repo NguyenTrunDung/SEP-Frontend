@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Descriptions, List, Tag, Button, Spin, Select, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useOrder, useUpdateOrderStatus } from '../../../hooks/queries/userOrderQueries';
-import { ORDER_STATUS } from '.../../../mocks/ordersData';
+import { ORDER_STATUS } from '../../../mocks/orderData';
 
 const { Option } = Select;
 

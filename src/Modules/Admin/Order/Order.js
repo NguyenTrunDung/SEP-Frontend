@@ -1,9 +1,10 @@
 // src/pages/Orders/OrderList.js
 import React, { useState } from 'react';
 import { Table, Tag, Button, Space, Select, Input, Form, Spin, message } from 'antd';
-import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { SearchOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons';
 import { useOrders, useUpdateOrderStatus } from '../../../hooks/queries/userOrderQueries';
 import { ORDER_STATUS } from '../../../mocks/orderData';
+import { useNavigate } from 'react-router-dom';
 
 const { Option } = Select;
 
@@ -20,6 +21,7 @@ const OrderList = () => {
     // State for filters
     const [filters, setFilters] = useState({});
     const [form] = Form.useForm();
+    const navigate = useNavigate();
 
     // Get orders with React Query
     const { data: orders, isLoading, isError, refetch } = useOrders(filters);
@@ -39,6 +41,10 @@ const OrderList = () => {
                 },
             }
         );
+    };
+
+    const handleViewDetails = (orderId) => {
+        navigate(`/orders/${orderId}`);
     };
 
     const handleSearch = (values) => {
@@ -102,6 +108,12 @@ const OrderList = () => {
             key: 'actions',
             render: (_, record) => (
                 <Space size="small">
+                    <Button
+                        type="text"
+                        icon={<EyeOutlined />}
+                        onClick={() => handleViewDetails(record.id)}
+                        title="View Details"
+                    />
                     <Select
                         value={record.status}
                         style={{ width: 120 }}
