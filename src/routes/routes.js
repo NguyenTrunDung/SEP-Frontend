@@ -157,14 +157,14 @@ import AdminLayout from '../layouts/AdminLayout';
 import DefaultLayout from '../layouts/DefaultLayout';
 import ProtectedRoute from './ProtectedRoute.js';
 // Pages
-import Login from '../Modules/Auth/Login.js';
-import Dashboard from '../Modules/Dashboard/Dashboard.js';
-import Home from '../Modules/Home/Home.js';
-import Profile from '../Modules/Profile.js';
-import Unauthorized from '../Modules/Unauthorized.js';
+import Login from '../modules/Auth/Login.js';
+import Dashboard from '../modules/Dashboard/Dashboard.js';
+import Home from '../modules/Home/Home.js';
+import Profile from '../modules/Profile.js';
+import Unauthorized from '../modules/Unauthorized.js';
 // Order pages
-import Order from '../Modules/Admin/Order/Order.js';
-import OrderDetails from '../Modules/Admin/Order/OrderDetails.js';
+import Order from '../modules/Admin/Order/Order.js';
+import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
 
 // Define role-specific home redirects
 const roleHomeRedirects = {
