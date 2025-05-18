@@ -12,7 +12,7 @@ const AuthForm = ({
     showTestAccounts = true,
     customFields = [],
     onSuccess,
-    redirectPath = '/dashboard'
+    redirectPath = '/redirect'
 }) => {
     const [form] = Form.useForm();
     const { login, loading, error } = useAuth();

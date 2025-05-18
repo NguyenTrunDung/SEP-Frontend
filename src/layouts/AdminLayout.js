@@ -6,19 +6,27 @@ import {
     DashboardOutlined,
     UserOutlined,
     SettingOutlined,
-    LogoutOutlined
+    LogoutOutlined,
+    ShoppingCartOutlined
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
+import { ROLES } from "../constants/roles";
 
 const { Header, Sider, Content, Footer } = Layout;
 
 const AdminLayout = ({ children }) => {
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = () => {
         logout();
         navigate("/login");
+    };
+
+    // Helper function to check if user has required role
+    const hasRequiredRole = (allowedRoles) => {
+        if (!user || !user.role) return false;
+        return allowedRoles.includes(user.role);
     };
 
     return (
@@ -28,15 +36,35 @@ const AdminLayout = ({ children }) => {
                     <h2>Admin Panel</h2>
                 </div>
                 <Menu mode="inline" defaultSelectedKeys={["dashboard"]}>
-                    <Menu.Item key="dashboard" icon={<DashboardOutlined />}>
-                        <Link to="/admin">Dashboard</Link>
-                    </Menu.Item>
-                    <Menu.Item key="users" icon={<UserOutlined />}>
-                        <Link to="/admin/users">Manage Users</Link>
-                    </Menu.Item>
-                    <Menu.Item key="settings" icon={<SettingOutlined />}>
-                        <Link to="/admin/settings">Settings</Link>
-                    </Menu.Item>
+                    {/* Dashboard - Accessible by Admin and Doctor */}
+                    {hasRequiredRole([ROLES.ADMIN, ROLES.DOCTOR]) && (
+                        <Menu.Item key="dashboard" icon={<DashboardOutlined />}>
+                            <Link to="/dashboard">Dashboard</Link>
+                        </Menu.Item>
+                    )}
+
+                    {/* Orders - Accessible by Admin and Staff */}
+                    {hasRequiredRole([ROLES.ADMIN, ROLES.STAFF]) && (
+                        <Menu.Item key="orders" icon={<ShoppingCartOutlined />}>
+                            <Link to="/orders">Orders</Link>
+                        </Menu.Item>
+                    )}
+
+                    {/* Users Management - Admin only */}
+                    {hasRequiredRole([ROLES.ADMIN]) && (
+                        <Menu.Item key="users" icon={<UserOutlined />}>
+                            <Link to="/admin/users">Manage Users</Link>
+                        </Menu.Item>
+                    )}
+
+                    {/* Settings - Admin only */}
+                    {hasRequiredRole([ROLES.ADMIN]) && (
+                        <Menu.Item key="settings" icon={<SettingOutlined />}>
+                            <Link to="/admin/settings">Settings</Link>
+                        </Menu.Item>
+                    )}
+
+                    {/* Logout - Available for all roles */}
                     <Menu.Item
                         key="logout"
                         icon={<LogoutOutlined />}

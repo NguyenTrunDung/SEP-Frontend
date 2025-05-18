@@ -150,286 +150,195 @@
 
 // src/routes/routes.js
 import React from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { ROLES } from '../constants/roles';
 
 import AdminLayout from '../layouts/AdminLayout';
 import DefaultLayout from '../layouts/DefaultLayout';
 import ProtectedRoute from './ProtectedRoute.js';
 // Pages
-import Login from '../pages/Auth/Login';
-import Dashboard from '../pages/Dashboard/Dashboard';
-import Home from '../pages/Home/Home';
-import Profile from '../pages/Profile';
-import Unauthorized from '../pages/Unauthorized';
-//import NotFound from '../pages/NotFound/NotFound';
-
-// Admin pages - adjust paths if they're in the Admin folder
-// import Orders from '../pages/Admin/Orders';
-// import Menu from '../pages/Admin/Menu';
-// import Users from '../pages/Admin/Users';
+import Login from '../Modules/Auth/Login.js';
+import Dashboard from '../Modules/Dashboard/Dashboard.js';
+import Home from '../Modules/Home/Home.js';
+import Profile from '../Modules/Profile.js';
+import Unauthorized from '../Modules/Unauthorized.js';
+// Order pages
+import Order from '../Modules/Admin/Order/Order.js';
+import OrderDetails from '../Modules/Admin/Order/OrderDetails.js';
 
 // Define role-specific home redirects
-// const roleHomeRedirects = {
-//   [ROLES.ADMIN]: '/dashboard',
-//   [ROLES.DOCTOR]: '/doctor/home',
-//   [ROLES.PATIENT]: '/patient/profile',
-//   [ROLES.STAFF]: '/staff/home'
-// };
+const roleHomeRedirects = {
+  [ROLES.ADMIN]: '/dashboard',
+  [ROLES.DOCTOR]: '/doctor/home',
+  [ROLES.PATIENT]: '/patient/home',
+  [ROLES.STAFF]: '/orders'  // Staff redirects to orders, not dashboard
+};
 
-// const router = createBrowserRouter([
-//   // Public routes
-//   {
-//     path: '/login',
-//     element: <Login />,
-//   },
-//   {
-//     path: '/unauthorized',
-//     element: <Unauthorized />,
-//   },
-
-//   // Admin routes
-//   {
-//     path: '/',
-//     element: <AdminLayout />,
-//     children: [
-//       {
-//         path: 'dashboard',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.ADMIN}>
-//             <Dashboard />
-//           </ProtectedRoute>
-//         ),
-//       },
-//       // {
-//       //   path: 'orders',
-//       //   element: (
-//       //     <ProtectedRoute requiredRole={ROLES.ADMIN}>
-//       //       <Orders />
-//       //     </ProtectedRoute>
-//       //   ),
-//       // },
-//       // {
-//       //   path: 'menu',
-//       //   element: (
-//       //     <ProtectedRoute requiredRole={ROLES.ADMIN}>
-//       //       <Menu />
-//       //     </ProtectedRoute>
-//       //   ),
-//       // },
-//       // {
-//       //   path: 'users',
-//       //   element: (
-//       //     <ProtectedRoute requiredRole={ROLES.ADMIN}>
-//       //       <Users />
-//       //     </ProtectedRoute>
-//       //   ),
-//       // },
-//       // {
-//       //   path: 'profile',
-//       //   element: (
-//       //     <ProtectedRoute requiredRole={ROLES.ADMIN}>
-//       //       <Profile />
-//       //     </ProtectedRoute>
-//       //   ),
-//       // },
-//     ],
-//   },
-
-//   // Doctor routes
-//   {
-//     path: '/doctor',
-//     element: <DefaultLayout />,
-//     children: [
-//       {
-//         path: 'home',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.DOCTOR}>
-//             <Home />
-//           </ProtectedRoute>
-//         ),
-//       },
-//       {
-//         path: 'profile',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.DOCTOR}>
-//             <Profile />
-//           </ProtectedRoute>
-//         ),
-//       },
-//     ],
-//   },
-
-//   // Patient routes
-//   {
-//     path: '/patient',
-//     element: <DefaultLayout />,
-//     children: [
-//       {
-//         path: 'home',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.PATIENT}>
-//             <Home />
-//           </ProtectedRoute>
-//         ),
-//       },
-//       {
-//         path: 'profile',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.PATIENT}>
-//             <Profile />
-//           </ProtectedRoute>
-//         ),
-//       },
-//     ],
-//   },
-
-//   // Staff routes
-//   {
-//     path: '/staff',
-//     element: <DefaultLayout />,
-//     children: [
-//       {
-//         path: 'home',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.STAFF}>
-//             <Home />
-//           </ProtectedRoute>
-//         ),
-//       },
-//       {
-//         path: 'profile',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.STAFF}>
-//             <Profile />
-//           </ProtectedRoute>
-//         ),
-//       },
-//     ],
-//   },
-
-//   // Root redirect based on role
-//   {
-//     path: '/',
-//     element: <DefaultLayout />,
-//     children: [
-//       {
-//         index: true,
-//         element: <Navigate to={({ location }) => {
-//           const user = JSON.parse(localStorage.getItem('user') || '{}');
-//           const redirectPath = user?.role ? roleHomeRedirects[user.role] : '/login';
-//           return redirectPath;
-//         }} replace />,
-//       }
-//     ]
-//   },
-
-//   // Catch all route
-//   // {
-//   //   path: '*',
-//   //   element: <NotFound />
-//   // }
-// ]);
-
-// Export as array of route objects
-const router = [
-  // Public routes
+// Route config with layout and role protection
+const routes = [
+  // Public home route (accessible to everyone)
   {
     path: '/',
-    element: <DefaultLayout />,
+    element: <Home />,
   },
+
+  // Login route
   {
     path: '/login',
     element: <Login />,
-    roles: null
   },
+
+  // Unauthorized route
   {
     path: '/unauthorized',
     element: <Unauthorized />,
-    roles: null
+  },
+
+  // Role-based redirect route (used for redirecting after login)
+  {
+    path: '/redirect',
+    element: (
+      <ProtectedRoute>
+        {({ user }) => {
+          const redirectPath = user?.role ? roleHomeRedirects[user.role] : '/login';
+          return <Navigate to={redirectPath} replace />;
+        }}
+      </ProtectedRoute>
+    ),
   },
 
   // Admin routes
   {
     path: '/dashboard',
-    element: <Dashboard />,
-    layout: AdminLayout,
-    roles: [ROLES.ADMIN]
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <Dashboard />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/orders',
-    element: <DefaultLayout />,
-    layout: AdminLayout,
-    roles: [ROLES.ADMIN]
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.STAFF]}>
+        <AdminLayout>
+          <Order />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
   },
   {
-    path: '/menu',
-    element: <DefaultLayout />,
-    layout: AdminLayout,
-    roles: [ROLES.ADMIN]
+    path: '/orders/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.STAFF]}>
+        <AdminLayout>
+          <OrderDetails />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
   },
   {
-    path: '/users',
-    element: <DefaultLayout />,
-    layout: AdminLayout,
-    roles: [ROLES.ADMIN]
+    path: '/admin/users',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+        <AdminLayout>
+          <div>Users Management</div>
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/settings',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+        <AdminLayout>
+          <div>Settings</div>
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/admin/profile',
-    element: <Profile />,
-    layout: AdminLayout,
-    roles: [ROLES.ADMIN]
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+        <AdminLayout>
+          <Profile />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
   },
 
   // Doctor routes
   {
     path: '/doctor/home',
-    element: <Home />,
-    layout: DefaultLayout,
-    roles: [ROLES.DOCTOR]
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
+        <DefaultLayout>
+          <Home />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/doctor/profile',
-    element: <Profile />,
-    layout: DefaultLayout,
-    roles: [ROLES.DOCTOR]
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
+        <DefaultLayout>
+          <Profile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
   },
 
   // Patient routes
   {
     path: '/patient/home',
-    element: <Home />,
-    layout: DefaultLayout,
-    roles: [ROLES.PATIENT]
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.PATIENT]}>
+        <DefaultLayout>
+          <Home />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/patient/profile',
-    element: <Profile />,
-    layout: DefaultLayout,
-    roles: [ROLES.PATIENT]
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.PATIENT]}>
+        <DefaultLayout>
+          <Profile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
   },
 
   // Staff routes
   {
     path: '/staff/home',
-    element: <Home />,
-    layout: DefaultLayout,
-    roles: [ROLES.STAFF]
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
+        <DefaultLayout>
+          <Home />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/staff/profile',
-    element: <Profile />,
-    layout: DefaultLayout,
-    roles: [ROLES.STAFF]
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
+        <DefaultLayout>
+          <Profile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
   },
-
-  // // Catch all route
-  // {
-  //   path: '*',
-  //   element: <NotFound />,
-  //   roles: null
-  // }
+  // Catch-all route
+  {
+    path: '*',
+    element: <Navigate to="/login" replace />,
+  },
 ];
 
-
-export default router;
+export default routes;

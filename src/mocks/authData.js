@@ -36,9 +36,56 @@ export const mockUsers = [
     },
 ];
 
+// Store active refresh tokens
+export const activeTokens = new Map();
+
+// Token expiration time in seconds (default: 60 minutes)
+export const TOKEN_EXPIRATION = 3600;
+
+// Refresh token expiration time in seconds (default: 7 days)
+export const REFRESH_TOKEN_EXPIRATION = 7 * 24 * 3600;
+
 // Mock token generator
 export const generateToken = (user) => {
     return `mock-token-${user.id}-${Date.now()}`;
+};
+
+// Mock refresh token generator
+export const generateRefreshToken = (user) => {
+    return `mock-refresh-${user.id}-${Date.now()}`;
+};
+
+// Function to extract user ID from token
+export const extractUserIdFromToken = (token) => {
+    return token.split('-')[2];
+};
+
+// Function to validate token
+export const isTokenValid = (token) => {
+    if (!token) return false;
+
+    try {
+        // Our token format is mock-token-{userId}-{timestamp}
+        const tokenParts = token.split('-');
+        if (tokenParts.length < 4 || tokenParts[0] !== 'mock' || tokenParts[1] !== 'token') {
+            console.warn('Token format invalid:', token.substring(0, 15) + '...');
+            return false;
+        }
+
+        const userId = tokenParts[2];
+        const userExists = mockUsers.some(user => user.id === userId);
+
+        console.log('Token validation:', {
+            userId,
+            userExists,
+            token: token.substring(0, 15) + '...'
+        });
+
+        return userExists;
+    } catch (error) {
+        console.error('Token validation error:', error);
+        return false;
+    }
 };
 
 // Simulate API delay
