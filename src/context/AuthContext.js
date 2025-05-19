@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { mockAuthService } from '../services/mockAuthService';
+import { login as authLogin, getCurrentUser, refreshToken as authRefreshToken, logout as authLogout } from '../services/mockAuthService';
 
 const AuthContext = createContext();
 
@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }) => {
                 dispatch({ type: 'SET_LOADING', payload: true });
 
                 try {
-                    const user = await mockAuthService.getCurrentUser(state.token);
+                    const user = await getCurrentUser(state.token);
                     console.log('User loaded successfully:', user);
                     dispatch({
                         type: 'LOGIN_SUCCESS',
@@ -118,7 +118,7 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: 'LOGIN_START' });
         try {
             console.log('Attempting login with:', credentials.email);
-            const { user, token, refreshToken, expiresIn = 3600 } = await mockAuthService.login(
+            const { user, token, refreshToken, expiresIn = 3600 } = await authLogin(
                 credentials.email,
                 credentials.password
             );
@@ -148,7 +148,7 @@ export const AuthProvider = ({ children }) => {
         try {
             console.log('Attempting to refresh token with:', state.refreshToken ? 'refresh token exists' : 'no refresh token');
             const { token, refreshToken: newRefreshToken, expiresIn = 3600 } =
-                await mockAuthService.refreshToken(state.refreshToken);
+                await authRefreshToken(state.refreshToken);
 
             // Calculate new token expiry
             const tokenExpiry = Date.now() + (expiresIn * 1000);
@@ -174,7 +174,7 @@ export const AuthProvider = ({ children }) => {
     const logout = async () => {
         try {
             console.log('Logging out');
-            await mockAuthService.logout();
+            await authLogout();
         } finally {
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
