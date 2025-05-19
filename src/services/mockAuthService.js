@@ -10,111 +10,107 @@ import {
     isTokenValid
 } from '../mocks/authData';
 
-class MockAuthService {
-    async login(email, password) {
-        // Simulate API delay
-        await delay(1000);
+export const login = async (email, password) => {
+    // Simulate API delay
+    await delay(1000);
 
-        // Find user
-        const user = mockUsers.find(
-            (u) => u.email === email && u.password === password
-        );
+    // Find user
+    const user = mockUsers.find(
+        (u) => u.email === email && u.password === password
+    );
 
-        if (!user) {
-            throw new Error('Invalid email or password');
-        }
-
-        // Generate tokens
-        const token = generateToken(user);
-        const refreshToken = generateRefreshToken(user);
-
-        // Store refresh token in active tokens map with expiry
-        const refreshTokenExpiry = Date.now() + (REFRESH_TOKEN_EXPIRATION * 1000);
-        activeTokens.set(refreshToken, {
-            userId: user.id,
-            expiresAt: refreshTokenExpiry
-        });
-
-        // Return user data without password
-        const { password: _, ...userWithoutPassword } = user;
-        return {
-            user: userWithoutPassword,
-            token,
-            refreshToken,
-            expiresIn: TOKEN_EXPIRATION
-        };
+    if (!user) {
+        throw new Error('Invalid email or password');
     }
 
-    async getCurrentUser(token) {
-        // Simulate API delay
-        await delay(500);
+    // Generate tokens
+    const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
 
-        // Validate token
-        if (!isTokenValid(token)) {
-            throw new Error('Invalid or expired token');
-        }
+    // Store refresh token in active tokens map with expiry
+    const refreshTokenExpiry = Date.now() + (REFRESH_TOKEN_EXPIRATION * 1000);
+    activeTokens.set(refreshToken, {
+        userId: user.id,
+        expiresAt: refreshTokenExpiry
+    });
 
-        // Extract user ID from token
-        const userId = extractUserIdFromToken(token);
-        const user = mockUsers.find((u) => u.id === userId);
+    // Return user data without password
+    const { password: _, ...userWithoutPassword } = user;
+    return {
+        user: userWithoutPassword,
+        token,
+        refreshToken,
+        expiresIn: TOKEN_EXPIRATION
+    };
+};
 
-        if (!user) {
-            throw new Error('Invalid token');
-        }
+export const getCurrentUser = async (token) => {
+    // Simulate API delay
+    await delay(500);
 
-        // Return user data without password
-        const { password: _, ...userWithoutPassword } = user;
-        return userWithoutPassword;
+    // Validate token
+    if (!isTokenValid(token)) {
+        throw new Error('Invalid or expired token');
     }
 
-    async refreshToken(refreshToken) {
-        // Simulate API delay
-        await delay(800);
+    // Extract user ID from token
+    const userId = extractUserIdFromToken(token);
+    const user = mockUsers.find((u) => u.id === userId);
 
-        // Check if refresh token exists and is valid
-        const tokenData = activeTokens.get(refreshToken);
-        if (!tokenData) {
-            throw new Error('Invalid refresh token');
-        }
+    if (!user) {
+        throw new Error('Invalid token');
+    }
 
-        // Check if refresh token is expired
-        if (Date.now() > tokenData.expiresAt) {
-            activeTokens.delete(refreshToken);
-            throw new Error('Refresh token expired');
-        }
+    // Return user data without password
+    const { password: _, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+};
 
-        // Find user
-        const user = mockUsers.find(u => u.id === tokenData.userId);
-        if (!user) {
-            throw new Error('User not found');
-        }
+export const refreshToken = async (refreshToken) => {
+    // Simulate API delay
+    await delay(800);
 
-        // Generate new tokens
-        const newToken = generateToken(user);
-        const newRefreshToken = generateRefreshToken(user);
+    // Check if refresh token exists and is valid
+    const tokenData = activeTokens.get(refreshToken);
+    if (!tokenData) {
+        throw new Error('Invalid refresh token');
+    }
 
-        // Invalidate old refresh token
+    // Check if refresh token is expired
+    if (Date.now() > tokenData.expiresAt) {
         activeTokens.delete(refreshToken);
-
-        // Store new refresh token
-        const refreshTokenExpiry = Date.now() + (REFRESH_TOKEN_EXPIRATION * 1000);
-        activeTokens.set(newRefreshToken, {
-            userId: user.id,
-            expiresAt: refreshTokenExpiry
-        });
-
-        return {
-            token: newToken,
-            refreshToken: newRefreshToken,
-            expiresIn: TOKEN_EXPIRATION
-        };
+        throw new Error('Refresh token expired');
     }
 
-    async logout() {
-        // Simulate API delay
-        await delay(500);
-        return true;
+    // Find user
+    const user = mockUsers.find(u => u.id === tokenData.userId);
+    if (!user) {
+        throw new Error('User not found');
     }
-}
 
-export const mockAuthService = new MockAuthService(); 
+    // Generate new tokens
+    const newToken = generateToken(user);
+    const newRefreshToken = generateRefreshToken(user);
+
+    // Invalidate old refresh token
+    activeTokens.delete(refreshToken);
+
+    // Store new refresh token
+    const refreshTokenExpiry = Date.now() + (REFRESH_TOKEN_EXPIRATION * 1000);
+    activeTokens.set(newRefreshToken, {
+        userId: user.id,
+        expiresAt: refreshTokenExpiry
+    });
+
+    return {
+        token: newToken,
+        refreshToken: newRefreshToken,
+        expiresIn: TOKEN_EXPIRATION
+    };
+};
+
+export const logout = async () => {
+    // Simulate API delay
+    await delay(500);
+    return true;
+}; 

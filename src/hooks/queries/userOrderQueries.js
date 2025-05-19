@@ -1,6 +1,6 @@
 // src/hooks/queries/useOrderQueries.js
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { mockOrderService } from '../../services/mockOrderService';
+import { getOrders, getOrderById, createOrder, updateOrderStatus } from '../../services/mockOrderService';
 
 // Query keys
 export const ORDER_KEYS = {
@@ -17,7 +17,7 @@ export const ORDER_KEYS = {
 export const useOrders = (filters = {}, options = {}) => {
     return useQuery({
         queryKey: ORDER_KEYS.list(filters),
-        queryFn: () => mockOrderService.getOrders(filters),
+        queryFn: () => getOrders(filters),
         ...options,
     });
 };
@@ -28,7 +28,7 @@ export const useOrders = (filters = {}, options = {}) => {
 export const useOrder = (orderId, options = {}) => {
     return useQuery({
         queryKey: ORDER_KEYS.detail(orderId),
-        queryFn: () => mockOrderService.getOrderById(orderId),
+        queryFn: () => getOrderById(orderId),
         enabled: !!orderId, // Only run if orderId is provided
         ...options,
     });
@@ -41,7 +41,7 @@ export const useCreateOrder = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (orderData) => mockOrderService.createOrder(orderData),
+        mutationFn: (orderData) => createOrder(orderData),
         onSuccess: () => {
             // Invalidate all order lists after creating a new order
             queryClient.invalidateQueries({ queryKey: ORDER_KEYS.lists() });
@@ -57,7 +57,7 @@ export const useUpdateOrderStatus = () => {
 
     return useMutation({
         mutationFn: ({ orderId, status }) =>
-            mockOrderService.updateOrderStatus(orderId, status),
+            updateOrderStatus(orderId, status),
 
         // Optimistic update
         onMutate: async ({ orderId, status }) => {
