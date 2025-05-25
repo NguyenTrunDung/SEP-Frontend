@@ -13,7 +13,7 @@ export const useOrders = (userId) => {
             setOrders(response.data);
             setError(null);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to fetch orders');
+            setError(err.response?.data?.message); //|| 'Failed to fetch orders'
         } finally {
             setLoading(false);
         }
