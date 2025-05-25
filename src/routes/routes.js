@@ -167,6 +167,8 @@ import Unauthorized from '../modules/Unauthorized.js';
 // Order pages
 import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
+//Managa staff
+import ViewAllStaff from '../modules/Admin/ManagaStaff/ViewAllStaff.js'
 
 // Define role-specific home redirects
 const roleHomeRedirects = {
@@ -245,7 +247,7 @@ const routes = [
     element: (
       <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
         <AdminLayout>
-          <div>Users Management</div>
+          <ViewAllStaff/>
         </AdminLayout>
       </ProtectedRoute>
     ),
