@@ -161,10 +161,14 @@ import Login from '../modules/Auth/Login.js';
 import Dashboard from '../modules/Dashboard/Dashboard.js';
 import Home from '../modules/Home/Home.js';
 import Profile from '../modules/Profile.js';
+import EditProfile from '../modules/EditProfile.js';
+import ChangePassword from '../modules/ChangePassword.js';
 import Unauthorized from '../modules/Unauthorized.js';
 // Order pages
 import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
+//Managa staff
+import ViewAllStaff from '../modules/Admin/ManagaStaff/ViewAllStaff.js'
 
 // Define role-specific home redirects
 const roleHomeRedirects = {
@@ -243,7 +247,7 @@ const routes = [
     element: (
       <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
         <AdminLayout>
-          <div>Users Management</div>
+          <ViewAllStaff/>
         </AdminLayout>
       </ProtectedRoute>
     ),
@@ -268,7 +272,26 @@ const routes = [
       </ProtectedRoute>
     ),
   },
-
+{
+    path: '/admin/edit-profile/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+        <AdminLayout>
+          <EditProfile />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/change-password/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+        <AdminLayout>
+          <ChangePassword />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
   // Doctor routes
   {
     path: '/doctor/home',
@@ -286,6 +309,26 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
         <DefaultLayout>
           <Profile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+{
+    path: '/doctor/edit-profile/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
+        <DefaultLayout>
+          <EditProfile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/doctor/change-password/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
+        <DefaultLayout>
+          <ChangePassword />
         </DefaultLayout>
       </ProtectedRoute>
     ),
@@ -312,6 +355,26 @@ const routes = [
       </ProtectedRoute>
     ),
   },
+  {
+    path: '/patient/edit-profile/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.PATIENT]}>
+        <DefaultLayout>
+         <EditProfile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+{
+    path: '/patient/change-password/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.PATIENT]}>
+        <DefaultLayout>
+         <ChangePassword />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
 
   // Staff routes
   {
@@ -330,6 +393,26 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
         <DefaultLayout>
           <Profile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/staff/edit-profile/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
+        <DefaultLayout>
+          <EditProfile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/staff/change-password/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
+        <DefaultLayout>
+          <ChangePassword />
         </DefaultLayout>
       </ProtectedRoute>
     ),

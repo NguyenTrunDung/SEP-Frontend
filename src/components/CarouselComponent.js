@@ -3,7 +3,7 @@ import { Carousel } from 'antd';
 
 const slides = [
   { src: '/images/ca.jpg', alt: 'Slide 1' },
-  { src: '/images/rau.png', alt: 'Slide 2' },
+  { src: '/images/sua.jpg', alt: 'Slide 2' },
   { src: '/images/sua.jpg', alt: 'Slide 3' },
 ];
 

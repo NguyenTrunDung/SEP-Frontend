@@ -3,7 +3,7 @@ import { Layout, BackTop, Menu } from 'antd';
 import { MenuUnfoldOutlined, MenuFoldOutlined, UserOutlined, FileTextOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import Navbar from '../../components/Navbar';
 import CarouselComponent from '../../components/CarouselComponent';
-import MenuComponent from '../../components/Menu';
+import MenuComponent from '../../components/Dishes/Menu';
 import ContactComponent from '../../components/Contact';
 import FooterComponent from '../../components/Footer';
 

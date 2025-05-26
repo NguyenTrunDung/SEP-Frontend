@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { login as authLogin, getCurrentUser, refreshToken as authRefreshToken, logout as authLogout } from '../services/mockAuthService';
+import { login as authLogin, getCurrentUser, refreshToken as authRefreshToken, logout as authLogout, changePassword as authChangePassword } from '../services/mockAuthService';
+import { mockUsers } from '../mocks/authData';
 
 const AuthContext = createContext();
 
@@ -7,7 +8,7 @@ const initialState = {
     user: null,
     token: localStorage.getItem('token'),
     refreshToken: localStorage.getItem('refreshToken'),
-    loading: true, // Start with loading true
+    loading: true,
     error: null,
     tokenExpiry: localStorage.getItem('tokenExpiry') ? parseInt(localStorage.getItem('tokenExpiry')) : null,
 };
@@ -25,6 +26,11 @@ const authReducer = (state, action) => {
                 tokenExpiry: action.payload.tokenExpiry,
                 loading: false,
                 error: null,
+            };
+        case 'UPDATE_USER':
+            return {
+                ...state,
+                user: action.payload,
             };
         case 'REFRESH_TOKEN':
             return {
@@ -47,11 +53,9 @@ const authReducer = (state, action) => {
 export const AuthProvider = ({ children }) => {
     const [state, dispatch] = useReducer(authReducer, initialState);
 
-    // Check token expiration periodically
     useEffect(() => {
         const checkTokenExpiration = () => {
             if (state.tokenExpiry && Date.now() > state.tokenExpiry) {
-                // Token has expired
                 console.log('Token expired, attempting refresh');
                 if (state.refreshToken) {
                     refreshToken();
@@ -61,9 +65,8 @@ export const AuthProvider = ({ children }) => {
             }
         };
 
-        const tokenCheckInterval = setInterval(checkTokenExpiration, 30000); // Check every 30 seconds
+        const tokenCheckInterval = setInterval(checkTokenExpiration, 30000);
 
-        // Check immediately on mount
         if (state.token) {
             checkTokenExpiration();
         }
@@ -86,12 +89,11 @@ export const AuthProvider = ({ children }) => {
                             user,
                             token: state.token,
                             refreshToken: state.refreshToken,
-                            tokenExpiry: state.tokenExpiry
+                            tokenExpiry: state.tokenExpiry,
                         },
                     });
                 } catch (error) {
                     console.error('Error loading user:', error);
-                    // If getting user fails, try to refresh token
                     if (state.refreshToken) {
                         try {
                             await refreshToken();
@@ -123,7 +125,6 @@ export const AuthProvider = ({ children }) => {
                 credentials.password
             );
 
-            // Calculate token expiry (current time + expiresIn seconds)
             const tokenExpiry = Date.now() + (expiresIn * 1000);
 
             localStorage.setItem('token', token);
@@ -133,7 +134,7 @@ export const AuthProvider = ({ children }) => {
             console.log('Login successful:', { user, tokenExists: !!token });
             dispatch({
                 type: 'LOGIN_SUCCESS',
-                payload: { user, token, refreshToken, tokenExpiry }
+                payload: { user, token, refreshToken, tokenExpiry },
             });
         } catch (error) {
             console.error('Login failed:', error);
@@ -146,11 +147,9 @@ export const AuthProvider = ({ children }) => {
 
     const refreshToken = async () => {
         try {
-            console.log('Attempting to refresh token with:', state.refreshToken ? 'refresh token exists' : 'no refresh token');
-            const { token, refreshToken: newRefreshToken, expiresIn = 3600 } =
-                await authRefreshToken(state.refreshToken);
+            console.log('Attempting to refresh token');
+            const { token, refreshToken: newRefreshToken, expiresIn = 3600 } = await authRefreshToken(state.refreshToken);
 
-            // Calculate new token expiry
             const tokenExpiry = Date.now() + (expiresIn * 1000);
 
             localStorage.setItem('token', token);
@@ -160,7 +159,18 @@ export const AuthProvider = ({ children }) => {
             console.log('Token refreshed successfully');
             dispatch({
                 type: 'REFRESH_TOKEN',
-                payload: { token, refreshToken: newRefreshToken, tokenExpiry }
+                payload: { token, refreshToken: newRefreshToken, tokenExpiry },
+            });
+
+            const user = await getCurrentUser(token);
+            dispatch({
+                type: 'LOGIN_SUCCESS',
+                payload: {
+                    user,
+                    token,
+                    refreshToken: newRefreshToken,
+                    tokenExpiry,
+                },
             });
 
             return true;
@@ -183,6 +193,31 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const updateUser = (updatedUser) => {
+        console.log('Updating user:', updatedUser);
+        const updatedUserData = { ...state.user, ...updatedUser };
+        dispatch({ type: 'UPDATE_USER', payload: updatedUserData });
+        const userIndex = mockUsers.findIndex((u) => u.id === updatedUser.id);
+        if (userIndex !== -1) {
+            mockUsers[userIndex] = { ...mockUsers[userIndex], ...updatedUser };
+        }
+    };
+
+    const changePassword = async (currentPassword, newPassword) => {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        try {
+            console.log('Attempting to change password for user:', state.user.email);
+            const updatedUser = await authChangePassword(state.user.id, currentPassword, newPassword);
+            dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+            console.log('Password changed successfully');
+        } catch (error) {
+            console.error('Password change failed:', error);
+            throw error;
+        } finally {
+            dispatch({ type: 'SET_LOADING', payload: false });
+        }
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -193,6 +228,8 @@ export const AuthProvider = ({ children }) => {
                 login,
                 logout,
                 refreshToken,
+                updateUser,
+                changePassword,
             }}
         >
             {children}
@@ -206,4 +243,4 @@ export const useAuth = () => {
         throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;
-}; 
+};
