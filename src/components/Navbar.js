@@ -1,18 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Input, Row, Col, Modal, List, Spin, Alert } from 'antd';
+import { Layout, Menu, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, Image } from 'antd';
 import { SearchOutlined, UserOutlined } from '@ant-design/icons';
 import { Link as ScrollLink } from 'react-scroll';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useBranches } from '../hooks/queries/useBranches';
 
 const { Header } = Layout;
+const { Text } = Typography;
 
 const Navbar = () => {
   const { branches, loading, error } = useBranches();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState(null);
+  const [isCartModalVisible, setIsCartModalVisible] = useState(false);
+  const [cartItems, setCartItems] = useState([]);
+  const navigate = useNavigate();
 
-  // Hiển thị modal ngay khi trang mở nếu chưa chọn chi nhánh
+  // Load cart items from localStorage on mount
+  useEffect(() => {
+    const savedCart = localStorage.getItem('cartItems');
+    if (savedCart) {
+      setCartItems(JSON.parse(savedCart));
+    }
+  }, []);
+
+  // Save cart items to localStorage whenever cartItems changes
+  useEffect(() => {
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  // Show branch selection modal if no branch is selected
   useEffect(() => {
     if (!selectedBranch) {
       setIsModalVisible(true);
@@ -20,15 +37,34 @@ const Navbar = () => {
   }, [selectedBranch]);
 
   const showModal = () => setIsModalVisible(true);
+
   const handleBranchSelect = (branch) => {
     setSelectedBranch(branch);
     setIsModalVisible(false);
   };
+
   const handleCancel = () => {
-    // Không cho đóng modal nếu chưa chọn chi nhánh
     if (selectedBranch) {
       setIsModalVisible(false);
     }
+  };
+
+  const handleCartClick = () => {
+    setIsCartModalVisible(true);
+  };
+
+  const handleCartModalClose = () => {
+    setIsCartModalVisible(false);
+  };
+
+  const handleGoToCart = () => {
+    setIsCartModalVisible(false);
+    navigate('/cart', { state: { cartItems } });
+  };
+
+  const handleRemoveCartItem = (cartId) => {
+    setCartItems((prevItems) => prevItems.filter((item) => item.cartId !== cartId));
+    message.success('Item removed from cart.');
   };
 
   return (
@@ -104,27 +140,36 @@ const Navbar = () => {
             items={[
               { key: 'home', label: <ScrollLink to="home" smooth={true} duration={500}>Home</ScrollLink> },
               { key: 'menu', label: <ScrollLink to="menu" smooth={true} duration={500}>Menu</ScrollLink> },
-              { key: 'cart', label: <Link to="/cart">Cart</Link> },
+              {
+                key: 'cart',
+                label: (
+                  <span onClick={handleCartClick} style={{ cursor: 'pointer' }}>
+                    Cart
+                  </span>
+                ),
+              },
               { key: 'staff', label: 'Staff' },
               { key: 'contact', label: <ScrollLink to="contact" smooth={true} duration={500}>Contact</ScrollLink> },
               {
                 key: 'login',
                 label: (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      color: '#000',
-                      cursor: 'pointer',
-                      padding: '4px 8px',
-                      transition: 'all 0.3s ease',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#1890ff')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#000')}
-                  >
-                    <UserOutlined />
-                  </div>
+                  <Link to="/login">
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        color: '#000',
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        transition: 'all 0.3s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = '#1890ff')}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = '#000')}
+                    >
+                      <UserOutlined />
+                    </div>
+                  </Link>
                 ),
               },
             ]}
@@ -133,6 +178,7 @@ const Navbar = () => {
         </Col>
       </Row>
 
+      {/* Branch Selection Modal */}
       <Modal
         open={isModalVisible}
         footer={null}
@@ -174,7 +220,6 @@ const Navbar = () => {
         >
           Select branch
         </div>
-
         <div
           style={{
             padding: '16px 20px',
@@ -188,7 +233,6 @@ const Navbar = () => {
           <div style={{ fontWeight: 500, fontSize: '14px', color: '#333', marginBottom: '12px' }}>
             Please select branch to order
           </div>
-
           {loading ? (
             <Spin style={{ display: 'block', textAlign: 'center', padding: '20px' }} />
           ) : error ? (
@@ -236,6 +280,79 @@ const Navbar = () => {
             />
           )}
         </div>
+      </Modal>
+
+      {/* Cart Popup Modal */}
+      <Modal
+        visible={isCartModalVisible}
+        title="Your Cart"
+        onCancel={handleCartModalClose}
+        footer={[
+          <Button key="continue" onClick={handleCartModalClose}>
+            Continue Shopping
+          </Button>,
+          <Button key="cart" type="primary" onClick={handleGoToCart} disabled={cartItems.length === 0}>
+            Go to Cart
+          </Button>,
+        ]}
+        styles={{
+          content: {
+            borderRadius: 12,
+            overflow: 'hidden',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          },
+          body: {
+            padding: '16px 20px',
+            maxHeight: '60vh',
+            overflowY: 'auto',
+          },
+        }}
+      >
+        {cartItems.length === 0 ? (
+          <Text>Your cart is empty.</Text>
+        ) : (
+          <div>
+            {cartItems.map((item) => (
+              <div
+                key={item.cartId}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: 16,
+                  borderBottom: '1px solid #ddd',
+                  paddingBottom: 8,
+                }}
+              >
+                <Image
+                  src={item.image || 'https://via.placeholder.com/50x50?text=No+Image'}
+                  alt={item.dishName}
+                  width={50}
+                  height={50}
+                  style={{ objectFit: 'cover', borderRadius: 4, marginRight: 16 }}
+                />
+                <div style={{ flex: 1 }}>
+                  <Text strong>{item.dishName}</Text>
+                  <br />
+                  <Text>Quantity: {item.quantity}</Text>
+                  <br />
+                  <Text>Price: {(item.price * item.quantity).toLocaleString('vi-VN')} VND</Text>
+                </div>
+                <Button
+                  type="link"
+                  danger
+                  onClick={() => handleRemoveCartItem(item.cartId)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+            <Text strong>
+              Total: {cartItems
+                .reduce((sum, item) => sum + item.price * item.quantity, 0)
+                .toLocaleString('vi-VN')} VND
+            </Text>
+          </div>
+        )}
       </Modal>
     </Header>
   );

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Typography, Tabs, Spin, Alert, Layout, Button, message, Modal, Image, InputNumber } from 'antd';
 import { mockFoodCategories, getMenuById } from '../../mocks/menuData';
 import { useMenus } from '../../hooks/queries/useMenu';
-import { useOrders } from '../../hooks/queries/useOrders';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -94,22 +93,25 @@ const MenuPage = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  const [isCartModalVisible, setIsCartModalVisible] = useState(false);
+  const [cartItems, setCartItems] = useState([]);
   const categoryRefs = useRef({});
   const navigate = useNavigate();
 
   const { menus, loading, error, isUsingMockData } = useMenus({ date: getFormattedDate(activeDay) });
 
-  const getUserId = () => {
-    let id = sessionStorage.getItem('guestUserId');
-    if (!id) {
-      id = uuidv4();
-      sessionStorage.setItem('guestUserId', id);
+  // Load cart items from localStorage on mount
+  useEffect(() => {
+    const savedCart = localStorage.getItem('cartItems');
+    if (savedCart) {
+      setCartItems(JSON.parse(savedCart));
     }
-    return id;
-  };
+  }, []);
 
-  const userId = null;
-  const { loading: ordersLoading, error: ordersError, createOrder } = useOrders(userId || getUserId());
+  // Save cart items to localStorage whenever cartItems changes
+  useEffect(() => {
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+  }, [cartItems]);
 
   useEffect(() => {
     if (selectedCategory) {
@@ -141,23 +143,16 @@ const MenuPage = () => {
     return acc;
   }, {}) : {};
 
-  const handleAddToCart = async (menuItem) => {
-    try {
-      const orderData = {
-        userId: userId || getUserId(),
-        foodId: menuItem.FoodId,
-        dishName: menuItem.dishName,
-        price: menuItem.price,
-        date: getFormattedDate(activeDay),
-        status: 'pending',
-        quantity: quantity,
-      };
-      await createOrder(orderData);
-      message.success(`${menuItem.dishName} added to cart!`);
-      navigate('/cart');
-    } catch (err) {
-      message.error('Failed to add item to cart. Please try again.');
-    }
+  const handleAddToCart = (menuItem) => {
+    const newItem = {
+      ...menuItem,
+      quantity,
+      cartId: uuidv4(),
+      FoodId: menuItem.ID, // Map ID to FoodId for consistency
+    };
+    setCartItems((prevItems) => [...prevItems, newItem]);
+    message.success(`${menuItem.dishName} added to cart!`);
+    setIsCartModalVisible(true);
   };
 
   const handleShowDetails = async (menuItem, e) => {
@@ -178,6 +173,20 @@ const MenuPage = () => {
     setSelectedMenuItem(null);
   };
 
+  const handleCartModalClose = () => {
+    setIsCartModalVisible(false);
+  };
+
+  const handleGoToCart = () => {
+    setIsCartModalVisible(false);
+    navigate('/cart', { state: { cartItems } });
+  };
+
+  const handleRemoveCartItem = (cartId) => {
+    setCartItems((prevItems) => prevItems.filter((item) => item.cartId !== cartId));
+    message.success('Item removed from cart.');
+  };
+
   const formattedDate = formatDisplayDate(getFormattedDate(activeDay));
 
   return (
@@ -186,29 +195,24 @@ const MenuPage = () => {
         <div style={{ maxWidth: 1200, margin: 'auto' }}>
           <MenuComponent activeKey={activeDay} onTabChange={(key) => setActiveDay(key)} />
 
-          {/* Always show the date title */}
           <Title level={4} style={{ marginBottom: 16, textAlign: 'center' }}>
             Menu for {formattedDate}
           </Title>
 
-          {/* Show category circles only if there are menus */}
           {menus.length > 0 && (
             <CategoryCircles
               categories={getFilteredCategories()}
               selectedCategory={selectedCategory}
               onCategorySelect={setSelectedCategory}
-              dateLabel="" // dateLabel already shown above
+              dateLabel=""
             />
           )}
 
           {error && !isUsingMockData && (
             <Alert message={error} type="error" showIcon style={{ marginBottom: 16 }} />
           )}
-          {ordersError && (
-            <Alert message={ordersError} type="error" showIcon style={{ marginBottom: 16 }} />
-          )}
 
-          {loading || ordersLoading ? (
+          {loading ? (
             <Spin size="large" style={{ display: 'block', margin: 'auto' }} />
           ) : menus.length > 0 || isUsingMockData ? (
             <div>
@@ -257,22 +261,18 @@ const MenuPage = () => {
                   </div>
                 ))
               ) : (
-                // If no categories, show a fallback message for mock data or empty
                 <Text
                   style={{ color: 'red', textAlign: 'center', display: 'block', marginTop: 24 }}
                 >
                   No menu available for this day.
                 </Text>
-
               )}
             </div>
           ) : (
-            // When no menus and not loading, show no menu message
             <Text type="secondary" style={{ textAlign: 'center', display: 'block', marginTop: 24 }}>
               No menu available for this day.
             </Text>
           )}
-
           <Modal
             visible={isModalVisible}
             title={selectedMenuItem?.dishName || 'Dish Details'}
@@ -292,23 +292,96 @@ const MenuPage = () => {
                 Add to Cart
               </Button>,
             ]}
+            width={400} // Set a reasonable modal width
+            bodyStyle={{ padding: '16px' }} // Consistent padding
           >
-            <Image
-              src={selectedMenuItem?.image || 'https://via.placeholder.com/400x300?text=No+Image'}
-              alt={selectedMenuItem?.dishName}
-              width="100%"
-              style={{ marginBottom: 16 }}
-            />
-            <Text>{selectedMenuItem?.description || 'No description available.'}</Text>
-            <div style={{ marginTop: 16 }}>
-              <Text strong>Quantity: </Text>
+            <div style={{ textAlign: 'center' }}>
+              <Image
+                src={selectedMenuItem?.image || 'https://via.placeholder.com/300x200?text=No+Image'}
+                alt={selectedMenuItem?.dishName}
+                width={300} // Fixed width for the image
+                height={200} // Fixed height for the image
+                style={{
+                  objectFit: 'cover',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                }}
+              />
+            </div>
+            <Text style={{ display: 'block', marginBottom: '16px', textAlign: 'center' }}>
+              {selectedMenuItem?.description || 'No description available.'}
+            </Text>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '16px' }}>
+              <Text strong style={{ marginRight: '8px' }}>Quantity: </Text>
               <InputNumber
                 min={1}
                 max={10}
                 value={quantity}
                 onChange={setQuantity}
+                size="middle"
               />
             </div>
+          </Modal>
+
+          <Modal
+            visible={isCartModalVisible}
+            title="Your Cart"
+            onCancel={handleCartModalClose}
+            footer={[
+              <Button key="continue" onClick={handleCartModalClose}>
+                Continue Shopping
+              </Button>,
+              <Button key="cart" type="primary" onClick={handleGoToCart} disabled={cartItems.length === 0}>
+                Go to Cart
+              </Button>,
+            ]}
+          >
+            {cartItems.length === 0 ? (
+              <Text>Your cart is empty.</Text>
+            ) : (
+              <div>
+                {cartItems.map((item) => (
+                  <div
+                    key={item.cartId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginBottom: 16,
+                      borderBottom: '1px solid #ddd',
+                      paddingBottom: 8,
+                    }}
+                  >
+                    <Image
+                      src={item.image || 'https://via.placeholder.com/50x50?text=No+Image'}
+                      alt={item.dishName}
+                      width={50}
+                      height={50}
+                      style={{ objectFit: 'cover', borderRadius: 4, marginRight: 16 }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <Text strong>{item.dishName}</Text>
+                      <br />
+                      <Text>Quantity: {item.quantity}</Text>
+                      <br />
+                      <Text>Price: {(item.price * item.quantity).toLocaleString('vi-VN')} VND</Text>
+                    </div>
+                    <Button
+                      type="link"
+                      danger
+                      onClick={() => handleRemoveCartItem(item.cartId)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <Text strong>
+                  Total: {cartItems
+                    .reduce((sum, item) => sum + item.price * item.quantity, 0)
+                    .toLocaleString('vi-VN')} VND
+                </Text>
+              </div>
+            )}
           </Modal>
         </div>
       </Content>
