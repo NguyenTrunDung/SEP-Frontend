@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Button, Space, Input, Tag, Tooltip, Popconfirm, message } from 'antd';
-import { EyeOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
-import ReusableTable from '../common/ReusableTable';
+import { Button, Space, DatePicker, Tag, Tooltip, Popconfirm, message } from 'antd';
+import { EyeOutlined, EditOutlined, DeleteOutlined, CalendarOutlined } from '@ant-design/icons';
+import ReusableTable from '../../../components/common/ReusableTable';
 import PropTypes from 'prop-types';
+import dayjs from 'dayjs';
+import locale from 'antd/locale/vi_VN';
 import './MenuTable.css';
 
 /**
@@ -18,19 +20,40 @@ const MenuTable = ({
     className,
     ...rest
 }) => {
-    const [searchText, setSearchText] = useState('');
+    const [selectedDate, setSelectedDate] = useState(null);
 
-    // Filter data based on search
+    // Get user's locale for date formatting
+    const userLocale = navigator.language || 'vi-VN';
+
+    // Determine date format based on locale
+    const getDateFormat = () => {
+        const locale = userLocale.toLowerCase();
+        if (locale.includes('us') || locale.includes('en-us')) {
+            return 'MM/DD/YYYY';
+        } else if (locale.includes('gb') || locale.includes('en-gb')) {
+            return 'DD/MM/YYYY';
+        } else if (locale.includes('vi')) {
+            return 'DD/MM/YYYY';
+        } else {
+            return 'DD/MM/YYYY'; // Default format
+        }
+    };
+
+    const dateFormat = getDateFormat();
+
+    // Filter data based on selected date
     const filteredData = useMemo(() => {
-        if (!searchText.trim()) return dataSource;
+        if (!selectedDate) return dataSource;
 
-        return dataSource.filter(item =>
-            item.date?.toLowerCase().includes(searchText.toLowerCase()) ||
-            item.id?.toString().includes(searchText) ||
-            (item.serviceTime && searchText.toLowerCase().includes('có')) ||
-            (!item.serviceTime && searchText.toLowerCase().includes('không'))
-        );
-    }, [dataSource, searchText]);
+        const selectedDateStr = selectedDate.format(dateFormat);
+        return dataSource.filter(item => {
+            // Ensure item.date exists and is a string
+            if (!item.date || typeof item.date !== 'string') {
+                return false;
+            }
+            return item.date === selectedDateStr;
+        });
+    }, [dataSource, selectedDate, dateFormat]);
 
     // Handle actions
     const handleView = (record) => {
@@ -57,6 +80,22 @@ const MenuTable = ({
         }
     };
 
+    // Handle date filter change
+    const handleDateChange = (date) => {
+        try {
+            setSelectedDate(date);
+            if (date && dayjs.isDayjs(date)) {
+                const formattedDate = date.format(dateFormat);
+                message.info(`Lọc menu theo ngày: ${formattedDate}`);
+            } else {
+                message.info('Đã xóa bộ lọc ngày');
+            }
+        } catch (error) {
+            console.warn('Date change error:', error);
+            message.error('Có lỗi khi xử lý ngày đã chọn');
+        }
+    };
+
     // Table columns following the Vietnamese interface
     const columns = [
         {
@@ -65,13 +104,28 @@ const MenuTable = ({
             key: 'date',
             width: 120,
             sorter: (a, b) => {
-                // Sort by date
-                const dateA = new Date(a.date.split('/').reverse().join('-'));
-                const dateB = new Date(b.date.split('/').reverse().join('-'));
-                return dateA - dateB;
+                // Sort by date with error handling
+                try {
+                    if (!a.date || !b.date) return 0;
+
+                    const dateA = dayjs(a.date, dateFormat);
+                    const dateB = dayjs(b.date, dateFormat);
+
+                    // Check if dates are valid
+                    if (!dateA.isValid() || !dateB.isValid()) {
+                        return 0;
+                    }
+
+                    return dateA.valueOf() - dateB.valueOf();
+                } catch (error) {
+                    console.warn('Date sorting error:', error);
+                    return 0;
+                }
             },
             render: (date) => (
-                <span className="vietnamese-text">{date}</span>
+                <span className="vietnamese-text">
+                    {date || '-'}
+                </span>
             ),
         },
         {
@@ -170,17 +224,31 @@ const MenuTable = ({
 
     return (
         <div className={`menu-table-container ${className || ''}`}>
-            {/* Search Input */}
+            {/* Date Filter */}
             <div className="menu-table-header">
-                <Input
-                    placeholder="Tìm kiếm thực đơn"
-                    prefix={<SearchOutlined />}
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    allowClear
-                    className="search-input"
-                    style={{ width: 300 }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <CalendarOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
+                    <DatePicker
+                        placeholder="Lọc theo ngày"
+                        value={selectedDate}
+                        onChange={handleDateChange}
+                        allowClear
+                        className="date-filter-input"
+                        style={{ width: 300 }}
+                        format={dateFormat}
+                        showToday
+                        locale={locale.DatePicker}
+                    />
+                    {selectedDate && (
+                        <span style={{
+                            fontSize: '14px',
+                            color: '#666',
+                            fontWeight: '500'
+                        }}>
+                            {filteredData.length} kết quả
+                        </span>
+                    )}
+                </div>
             </div>
 
             {/* Table */}

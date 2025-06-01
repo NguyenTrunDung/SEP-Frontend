@@ -15,9 +15,9 @@ import {
     message
 } from 'antd';
 import { PlusOutlined, MinusCircleOutlined, SearchOutlined } from '@ant-design/icons';
-import ReusableModal from '../common/ReusableModal';
-import ReusableForm from '../common/ReusableForm';
-import { useAntForm } from '../../hooks/useAntForm';
+import ReusableModal from '../../../components/common/ReusableModal';
+import ReusableForm from '../../../components/common/ReusableForm';
+import { useAntForm } from '../../../hooks/useAntForm';
 import PropTypes from 'prop-types';
 import './CreateFoodsMenu.css';
 
