@@ -1,0 +1,339 @@
+/* ReusableTable Component Styles */
+
+.reusable-table-container {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.reusable-table-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.reusable-table .ant-table {
+  border-radius: 0;
+}
+
+.reusable-table .ant-table-thead > tr > th {
+  background: #f8f9fa;
+  color: #262626;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 2px solid #e8e8e8;
+  padding: 16px 12px;
+  transition: background-color 0.3s ease;
+}
+
+.reusable-table .ant-table-thead > tr > th:hover {
+  background: #f0f0f0;
+}
+
+.reusable-table .ant-table-tbody > tr > td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.reusable-table .ant-table-tbody > tr:hover > td {
+  background: #f8f9fa;
+}
+
+.reusable-table .ant-table-tbody > tr:last-child > td {
+  border-bottom: none;
+}
+
+/* Striped rows */
+.reusable-table .ant-table-tbody > tr:nth-child(even) > td {
+  background: #fafafa;
+}
+
+.reusable-table .ant-table-tbody > tr:nth-child(even):hover > td {
+  background: #f0f0f0;
+}
+
+/* Empty state */
+.reusable-table .ant-empty {
+  padding: 40px 20px;
+}
+
+.reusable-table .ant-empty-description {
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+/* Pagination styles */
+.reusable-table .ant-pagination {
+  margin: 16px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.reusable-table .ant-pagination-total-text {
+  margin-right: 16px;
+  color: #595959;
+  font-size: 14px;
+}
+
+.reusable-table .ant-pagination-options {
+  margin-left: 16px;
+}
+
+.reusable-table .ant-pagination-options-size-changer {
+  margin-right: 8px;
+}
+
+/* Sorter styles */
+.reusable-table .ant-table-column-sorter {
+  color: #bfbfbf;
+  transition: color 0.3s ease;
+}
+
+.reusable-table .ant-table-column-sorter:hover {
+  color: #1890ff;
+}
+
+.reusable-table .ant-table-column-sorter-up.active,
+.reusable-table .ant-table-column-sorter-down.active {
+  color: #1890ff;
+}
+
+/* Filter styles */
+.reusable-table .ant-table-filter-trigger {
+  color: #bfbfbf;
+  transition: color 0.3s ease;
+}
+
+.reusable-table .ant-table-filter-trigger:hover {
+  color: #1890ff;
+}
+
+.reusable-table .ant-table-filter-trigger.active {
+  color: #1890ff;
+}
+
+/* Selection styles */
+.reusable-table .ant-table-selection-column {
+  width: 48px;
+  text-align: center;
+}
+
+.reusable-table .ant-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reusable-table .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: #e6f7ff;
+}
+
+.reusable-table .ant-table-tbody > tr.ant-table-row-selected:hover > td {
+  background: #bae7ff;
+}
+
+/* Expandable rows */
+.reusable-table .ant-table-expand-icon-col {
+  width: 48px;
+  text-align: center;
+}
+
+.reusable-table .ant-table-row-expand-icon {
+  color: #1890ff;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.reusable-table .ant-table-row-expand-icon:hover {
+  color: #40a9ff;
+}
+
+.reusable-table .ant-table-row-expand-icon.ant-table-row-expanded {
+  transform: rotate(90deg);
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  .reusable-table .ant-table-thead > tr > th,
+  .reusable-table .ant-table-tbody > tr > td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+  
+  .reusable-table .ant-pagination {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .reusable-table .ant-pagination-total-text {
+    margin-right: 0;
+    margin-bottom: 8px;
+  }
+  
+  .reusable-table .ant-pagination-options {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .reusable-table-container {
+    margin: 0 -16px;
+    border-radius: 0;
+    box-shadow: none;
+    border-top: 1px solid #f0f0f0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .reusable-table .ant-table-thead > tr > th,
+  .reusable-table .ant-table-tbody > tr > td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+  
+  .reusable-table .ant-table-scroll {
+    overflow-x: auto;
+  }
+  
+  .reusable-table .ant-pagination {
+    padding: 0 16px;
+  }
+}
+
+/* Status indicators */
+.reusable-table .status-active {
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.reusable-table .status-inactive {
+  color: #ff4d4f;
+  font-weight: 500;
+}
+
+.reusable-table .status-pending {
+  color: #faad14;
+  font-weight: 500;
+}
+
+/* Action buttons */
+.reusable-table .action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.reusable-table .action-buttons .ant-btn {
+  padding: 4px 8px;
+  height: auto;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.reusable-table .action-buttons .ant-btn-icon-only {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Table fixed header */
+.reusable-table .ant-table-sticky-holder {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Loading overlay */
+.reusable-table .ant-spin-nested-loading > div > .ant-spin {
+  max-height: none;
+}
+
+/* Custom scrollbar */
+.reusable-table .ant-table-body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.reusable-table .ant-table-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.reusable-table .ant-table-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.reusable-table .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Table summary */
+.reusable-table .ant-table-summary {
+  background: #fafafa;
+  border-top: 2px solid #e8e8e8;
+}
+
+.reusable-table .ant-table-summary > tr > th,
+.reusable-table .ant-table-summary > tr > td {
+  font-weight: 600;
+  color: #262626;
+  padding: 12px;
+}
+
+/* Vietnamese specific styling */
+.reusable-table {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+.reusable-table .vietnamese-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #262626;
+}
+
+/* Animation for data changes */
+.reusable-table .ant-table-tbody > tr {
+  transition: all 0.3s ease;
+}
+
+.reusable-table .ant-table-tbody > tr.row-entering {
+  animation: slideInUp 0.3s ease-out;
+}
+
+.reusable-table .ant-table-tbody > tr.row-leaving {
+  animation: slideOutDown 0.3s ease-in;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideOutDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+} 
