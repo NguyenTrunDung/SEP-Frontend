@@ -74,6 +74,7 @@
 import React, { Suspense } from "react";
 import { RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { CartProvider } from './context/CartContext';
 import "./App.css";
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -91,9 +92,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+         <CartProvider>
         <Suspense fallback={<Loading />}>
           <RouterProvider router={router} />
         </Suspense>
+        </CartProvider>
       </AuthProvider>
       {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
     </QueryClientProvider>

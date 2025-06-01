@@ -1,10 +1,9 @@
-// menuData.js
-// Mock Food_Categories data (based on HOMMS.dbo.Food_Categories)
+import { mockBranches } from './branchData';
 export const mockFoodCategories = [
   {
     ID: '1',
-    Name: 'Salads',
-    BranchId: 'branch1',
+    Name: 'Salad',
+    BranchId: '1', // Updated to match ID from branchData.js
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
@@ -15,8 +14,8 @@ export const mockFoodCategories = [
   },
   {
     ID: '2',
-    Name: 'Main Courses',
-    BranchId: 'branch2',
+    Name: 'Món Chính',
+    BranchId: '2', // Updated to match ID from branchData.js
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
@@ -27,8 +26,8 @@ export const mockFoodCategories = [
   },
   {
     ID: '3',
-    Name: 'Soups',
-    BranchId: 'branch1',
+    Name: 'Súp',
+    BranchId: '1', // Updated to match ID from branchData.js
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
@@ -43,18 +42,18 @@ export const mockFoodCategories = [
 export const mockFoods = [
   {
     ID: '1',
-    Name: 'Chicken Salad',
-    BranchId: 'branch1',
+    Name: 'Salad Gà',
+    BranchId: '1', // Updated to match ID from branchData.js
     CategoryId: '1',
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
     UpdatedBy: 'user1',
-    Description: 'Fresh salad with grilled chicken',
+    Description: 'Salad tươi với gà nướng',
     IsSetDish: false,
     IsAddOn: false,
     ForPatient: true,
-    PriceForGuest: 8.99,
+    PriceForGuest: 45000.0,
     PriceForPatient: 7.99,
     PriceForStaff: 6.99,
     DiseaseCategoryId: null,
@@ -63,18 +62,18 @@ export const mockFoods = [
   },
   {
     ID: '2',
-    Name: 'Beef Stir Fry',
-    BranchId: 'branch2',
+    Name: 'Thịt Bò Xào',
+    BranchId: '2', // Updated to match ID from branchData.js
     CategoryId: '2',
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
     UpdatedBy: 'user1',
-    Description: 'Stir-fried beef with vegetables',
+    Description: 'Thịt bò xào với rau củ',
     IsSetDish: false,
     IsAddOn: false,
     ForPatient: false,
-    PriceForGuest: 10.99,
+    PriceForGuest: 35000.000,
     PriceForPatient: 9.99,
     PriceForStaff: 8.99,
     DiseaseCategoryId: null,
@@ -83,18 +82,18 @@ export const mockFoods = [
   },
   {
     ID: '3',
-    Name: 'Vegetable Soup',
-    BranchId: 'branch1',
+    Name: 'Súp Rau',
+    BranchId: '1', // Updated to match ID from branchData.js
     CategoryId: '3',
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
     UpdatedBy: 'user1',
-    Description: 'Healthy vegetable soup',
+    Description: 'Súp rau củ tốt cho sức khỏe',
     IsSetDish: false,
     IsAddOn: false,
     ForPatient: true,
-    PriceForGuest: 5.99,
+    PriceForGuest: 23000.000,
     PriceForPatient: 4.99,
     PriceForStaff: 4.49,
     DiseaseCategoryId: null,
@@ -103,18 +102,18 @@ export const mockFoods = [
   },
   {
     ID: '4',
-    Name: 'Cơm sườn',
-    BranchId: 'branch2',
+    Name: 'Cơm Sườn',
+    BranchId: '2', // Updated to match ID from branchData.js
     CategoryId: '2',
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
     UpdatedBy: 'user1',
-    Description: 'Grilled pork chop with rice',
+    Description: 'Sườn nướng với cơm',
     IsSetDish: false,
     IsAddOn: false,
     ForPatient: false,
-    PriceForGuest: 10.99,
+    PriceForGuest: 50000.000,
     PriceForPatient: 9.99,
     PriceForStaff: 8.99,
     DiseaseCategoryId: null,
@@ -124,25 +123,26 @@ export const mockFoods = [
 ];
 
 // Mock Menus data (based on HOMMS.dbo.Menus)
+
 export const mockMenus = [
   {
     ID: '1',
-    BranchId: 'branch1',
-    Date: '2025-05-24',
+    BranchId: '1',
+    Date: '2025-06-01', // Added for June 1, 2025
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
     UpdatedBy: 'user1',
-    TimeOfDay: null,
+    TimeOfDay: 'Lunch',
     IsTime: true,
     TimeFrom: '12:00:00',
     TimeTo: '14:00:00',
-    FoodId: '1', // Link to Chicken Salad
+    FoodId: '1', // Salad Gà
   },
   {
     ID: '2',
-    BranchId: 'branch2',
-    Date: '2025-05-26',
+    BranchId: '2',
+    Date: '2025-06-01', // Added for June 1, 2025
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
@@ -151,12 +151,12 @@ export const mockMenus = [
     IsTime: true,
     TimeFrom: '18:00:00',
     TimeTo: '20:00:00',
-    FoodId: '2', // Link to Beef Stir Fry
+    FoodId: '2', // Thịt Bò Xào
   },
   {
     ID: '3',
-    BranchId: 'branch1',
-    Date: '2025-05-25',
+    BranchId: '1',
+    Date: '2025-06-01', // Added for June 1, 2025
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
@@ -165,12 +165,12 @@ export const mockMenus = [
     IsTime: false,
     TimeFrom: null,
     TimeTo: null,
-    FoodId: '3', 
+    FoodId: '3', // Súp Rau
   },
   {
     ID: '4',
-    BranchId: 'branch2',
-    Date: '2025-05-25',
+    BranchId: '2',
+    Date: '2025-06-01', // Added for June 1, 2025
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
@@ -179,7 +179,7 @@ export const mockMenus = [
     IsTime: true,
     TimeFrom: '18:00:00',
     TimeTo: '20:00:00',
-    FoodId: '4', 
+    FoodId: '4', // Cơm Sườn
   },
 ];
 
@@ -197,15 +197,15 @@ export const getFilteredMenus = (filters = {}) => {
 
   return result.map((menu) => {
     const food = mockFoods.find((f) => f.ID === menu.FoodId) || {
-      Name: 'Unknown Dish',
+      Name: 'Món Không Xác Định',
       PriceForGuest: 0,
       CategoryId: null,
       Image: null,
-      Description: 'No description available',
+      Description: 'Không có mô tả',
     };
     const category = food.CategoryId
-      ? mockFoodCategories.find((c) => c.ID === food.CategoryId) || { Name: 'Unknown', Image: null }
-      : { Name: 'Unknown', Image: null };
+      ? mockFoodCategories.find((c) => c.ID === food.CategoryId) || { Name: 'Không Xác Định', Image: null }
+      : { Name: 'Không Xác Định', Image: null };
     return {
       ...menu,
       dishName: food.Name,
@@ -223,15 +223,15 @@ export const getMenuById = (menuId) => {
     return null;
   }
   const food = mockFoods.find((f) => f.ID === menu.FoodId) || {
-    Name: 'Unknown Dish',
+    Name: 'Món Không Xác Định',
     PriceForGuest: 0,
     CategoryId: null,
     Image: null,
-    Description: 'No description available',
+    Description: 'Không có mô tả',
   };
   const category = food.CategoryId
-    ? mockFoodCategories.find((c) => c.ID === food.CategoryId) || { Name: 'Unknown', Image: null }
-    : { Name: 'Unknown', Image: null };
+    ? mockFoodCategories.find((c) => c.ID === food.CategoryId) || { Name: 'Không Xác Định', Image: null }
+    : { Name: 'Không Xác Định', Image: null };
   return {
     ...menu,
     dishName: food.Name,

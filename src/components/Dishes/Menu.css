@@ -1,0 +1,7 @@
+.ant-tabs-ink-bar {
+    display: none !important;
+}
+
+.ant-tabs-ink-bar::before {
+    display: none !important;
+}

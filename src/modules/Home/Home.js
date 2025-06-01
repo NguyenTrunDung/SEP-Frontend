@@ -1,153 +1,74 @@
-import React, { useState } from 'react';
-import { Layout, BackTop, Menu } from 'antd';
-import { MenuUnfoldOutlined, MenuFoldOutlined, UserOutlined, FileTextOutlined, ShoppingCartOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Layout, BackTop } from 'antd';
 import Navbar from '../../components/Navbar';
 import CarouselComponent from '../../components/CarouselComponent';
 import MenuComponent from '../../components/Dishes/Menu';
-import ContactComponent from '../../components/Contact';
+import DeseaseComponent from '../../components/Desease';
 import FooterComponent from '../../components/Footer';
 
-const { Content, Sider } = Layout;
+const { Content } = Layout;
 
 const HomePage = () => {
-  // Mock authentication state (replace with actual auth logic, e.g., from context or auth provider)
-  const [user, setUser] = useState(null); // null means not logged in
-  const [collapsed, setCollapsed] = useState(false);
+  // State to persist menu data
+  const [menuState, setMenuState] = useState(() => {
+    // Initialize from localStorage to persist across reloads
+    const savedMenuState = localStorage.getItem('menuState');
+    return savedMenuState ? JSON.parse(savedMenuState) : null;
+  });
 
-  // Mock login function for admin (replace with actual login logic)
-  const handleLoginAsAdmin = () => {
-    setUser({ role: 'admin' });
-  };
+  // Save menu state to localStorage whenever it changes
+  useEffect(() => {
+    if (menuState) {
+      localStorage.setItem('menuState', JSON.stringify(menuState));
+    }
+  }, [menuState]);
 
-  // Mock logout function
-  const handleLogout = () => {
-    setUser(null);
-  };
-
-  const isAdmin = user?.role === 'admin';
-
-  const toggleCollapsed = () => {
-    setCollapsed(!collapsed);
+  // Handler to update menu state when something is saved
+  const handleMenuUpdate = (newMenuData) => {
+    setMenuState(newMenuData);
   };
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {isAdmin && (
-        <Sider
-          collapsible
-          collapsed={collapsed}
-          onCollapse={toggleCollapsed}
-          trigger={null}
-          style={{
-            background: '#001529',
-            position: 'sticky',
-            top: 0,
-            height: '100vh',
-            zIndex: 20,
-          }}
-        >
-          <div
-            style={{
-              padding: '16px',
-              display: 'flex',
-              justifyContent: collapsed ? 'center' : 'space-between',
-              alignItems: 'center',
-              background: '#001529',
-            }}
-          >
-            {!collapsed && <span style={{ color: '#fff', fontSize: '18px' }}>Admin Panel</span>}
-            <div
-              onClick={toggleCollapsed}
-              style={{ color: '#fff', cursor: 'pointer', fontSize: '20px' }}
-              role="button"
-              tabIndex={0}
-              onKeyPress={(e) => e.key === 'Enter' && toggleCollapsed()}
-            >
-              {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            </div>
-          </div>
-          <Menu
-            theme="dark"
-            mode="inline"
-            defaultSelectedKeys={['1']}
-            items={[
-              {
-                key: '1',
-                icon: <UserOutlined />,
-                label: 'Manage Users',
-                onClick: () => console.log('Navigate to Manage Users'),
-              },
-              {
-                key: '2',
-                icon: <FileTextOutlined />,
-                label: 'Manage Menu',
-                onClick: () => console.log('Navigate to Manage Menu'),
-              },
-              {
-                key: '3',
-                icon: <ShoppingCartOutlined />,
-                label: 'Manage Orders',
-                onClick: () => console.log('Navigate to Manage Orders'),
-              },
-              {
-                key: '4',
-                icon: <UserOutlined />,
-                label: 'Logout',
-                onClick: handleLogout,
-              },
-            ]}
-          />
-        </Sider>
-      )}
       <Layout>
         <Navbar />
-        <Content
-          style={{
-            padding: '16px',
-            background: '#fff',
-            marginLeft: isAdmin && !collapsed ? '200px' : isAdmin && collapsed ? '80px' : '0',
-            transition: 'margin-left 0.2s',
-          }}
-        >
-          {/* Mock login button for testing (remove in production) */}
-          {!isAdmin && (
-            <div style={{ padding: '16px', textAlign: 'center' }}>
-              <button
-                onClick={handleLoginAsAdmin}
-                style={{
-                  padding: '8px 16px',
-                  background: '#1890ff',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                }}
-              >
-                Login as Admin
-              </button>
-            </div>
-          )}
-          <div id="home">
+        <Content style={{ padding: '4px', background: '#fff', position: 'relative' }}>
+          <div id="home" style={{ position: 'relative', zIndex: 0 }}>
             <CarouselComponent />
           </div>
-          <div id="menu">
-            <MenuComponent />
+          <div
+            id="menu"
+            style={{
+              marginTop: '-80px', // Overlap the banner and extend into white space
+              background: '#fff',
+              padding: '2px',
+              borderRadius: '2px',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+              position: 'relative',
+              zIndex: 1, // Ensure it sits above the banner
+              width: '100%',
+              maxWidth: '1040px',
+              marginLeft: 'auto',
+              marginRight: 'auto',
+            }}
+          >
+            <MenuComponent menuState={menuState} onMenuUpdate={handleMenuUpdate} />
           </div>
-          <div id="contact">
-            <ContactComponent />
+          <div id="contact" style={{ paddingTop: '10px' }}>
+            <DeseaseComponent />
           </div>
         </Content>
         <BackTop>
           <div
             style={{
-              height: 40,
-              width: 40,
+              height: 50,
+              width: 50,
               borderRadius: '50%',
-              backgroundColor: '#1088e9',
+              backgroundColor: '#4CAF50',
               color: '#fff',
               textAlign: 'center',
-              lineHeight: '40px',
-              fontSize: '20px',
+              lineHeight: '45px',
+              fontSize: '25px',
             }}
           >
             ↑
