@@ -169,6 +169,8 @@ import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
 //Managa staff
 import ViewAllStaff from '../modules/Admin/ManagaStaff/ViewAllStaff.js'
+//Cart
+import Cart from '../components/Cart/ViewCart.js'
 
 // Define role-specific home redirects
 const roleHomeRedirects = {
@@ -196,6 +198,14 @@ const routes = [
   {
     path: '/unauthorized',
     element: <Unauthorized />,
+  },
+  {
+    path: '/cart',
+    element: (
+      <DefaultLayout>
+        <Cart />
+      </DefaultLayout>
+    ),
   },
 
   // Role-based redirect route (used for redirecting after login)
@@ -247,7 +257,7 @@ const routes = [
     element: (
       <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
         <AdminLayout>
-          <ViewAllStaff/>
+          <ViewAllStaff />
         </AdminLayout>
       </ProtectedRoute>
     ),
@@ -272,7 +282,7 @@ const routes = [
       </ProtectedRoute>
     ),
   },
-{
+  {
     path: '/admin/edit-profile/:id',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
@@ -313,7 +323,7 @@ const routes = [
       </ProtectedRoute>
     ),
   },
-{
+  {
     path: '/doctor/edit-profile/:id',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
@@ -360,17 +370,17 @@ const routes = [
     element: (
       <ProtectedRoute allowedRoles={[ROLES.PATIENT]}>
         <DefaultLayout>
-         <EditProfile />
+          <EditProfile />
         </DefaultLayout>
       </ProtectedRoute>
     ),
   },
-{
+  {
     path: '/patient/change-password/:id',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.PATIENT]}>
         <DefaultLayout>
-         <ChangePassword />
+          <ChangePassword />
         </DefaultLayout>
       </ProtectedRoute>
     ),
