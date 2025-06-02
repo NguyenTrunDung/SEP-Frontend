@@ -207,6 +207,7 @@ const Menu = () => {
                         startTime: formData.serviceTime ? '07:00:00' : null,
                         endTime: formData.serviceTime ? '22:00:00' : null,
                     };
+                    console.log("formData: ", formData);
 
                     // Count total selected dishes
                     const totalDishes = Object.keys(formData)

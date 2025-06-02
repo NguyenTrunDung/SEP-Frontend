@@ -8,7 +8,7 @@ import FooterComponent from '../../components/Footer';
 
 const { Content } = Layout;
 
-const HomePage = () => {
+const Home = () => {
   // State to persist menu data
   const [menuState, setMenuState] = useState(() => {
     // Initialize from localStorage to persist across reloads
@@ -80,4 +80,4 @@ const HomePage = () => {
   );
 };
 
-export default HomePage;
+export default Home;
