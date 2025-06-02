@@ -1,8 +1,11 @@
 export const ROLES = {
     ADMIN: 'ADMIN',
     DOCTOR: 'DOCTOR',
+    NURSE: 'NURSE',
+    CASHIER: 'CASHIER',
     PATIENT: 'PATIENT',
     STAFF: 'STAFF',
+    CUSTOMER: 'CUSTOMER',
 };
 
 export const ROLE_HIERARCHY = {

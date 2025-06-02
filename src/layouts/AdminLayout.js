@@ -50,6 +50,13 @@ const AdminLayout = ({ children }) => {
                         </Menu.Item>
                     )}
 
+                    {/* Orders - Accessible by Admin and Staff */}
+                    {hasRequiredRole([ROLES.ADMIN, ROLES.STAFF]) && (
+                        <Menu.Item key="menus" icon={<ShoppingCartOutlined />}>
+                            <Link to="/menus">Thực đơn</Link>
+                        </Menu.Item>
+                    )}
+
                     {/* Users Management - Admin only */}
                     {hasRequiredRole([ROLES.ADMIN]) && (
                         <Menu.Item key="users" icon={<UserOutlined />}>

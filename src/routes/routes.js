@@ -171,6 +171,7 @@ import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
 import ViewAllStaff from '../modules/Admin/ManagaStaff/ViewAllStaff.js'
 //Cart
 import Cart from '../components/Cart/ViewCart.js'
+import Menu from '../modules/Admin/Menu/index.js';
 
 // Define role-specific home redirects
 const roleHomeRedirects = {
@@ -298,6 +299,16 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
         <AdminLayout>
           <ChangePassword />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/menus',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <Menu />
         </AdminLayout>
       </ProtectedRoute>
     ),
