@@ -5,11 +5,10 @@ import ReusableTable from '../../../components/common/ReusableTable';
 import PropTypes from 'prop-types';
 import dayjs from 'dayjs';
 import locale from 'antd/locale/vi_VN';
-import './MenuTable.css';
 
 /**
  * MenuTable component for displaying menu list with Vietnamese interface
- * Follows the structure from the provided UI design
+ * Now uses the unified ReusableTable styling system for consistency
  */
 const MenuTable = ({
     dataSource = [],
@@ -123,7 +122,7 @@ const MenuTable = ({
                 }
             },
             render: (date) => (
-                <span className="vietnamese-text">
+                <span className="vietnamese-text date-column">
                     {date || '-'}
                 </span>
             ),
@@ -155,7 +154,7 @@ const MenuTable = ({
             width: 120,
             align: 'center',
             render: (startTime) => (
-                <span className="vietnamese-text">
+                <span className="vietnamese-text time-column">
                     {startTime || '-'}
                 </span>
             ),
@@ -167,7 +166,7 @@ const MenuTable = ({
             width: 120,
             align: 'center',
             render: (endTime) => (
-                <span className="vietnamese-text">
+                <span className="vietnamese-text time-column">
                     {endTime || '-'}
                 </span>
             ),
@@ -223,9 +222,9 @@ const MenuTable = ({
     ];
 
     return (
-        <div className={`menu-table-container ${className || ''}`}>
-            {/* Date Filter */}
-            <div className="menu-table-header">
+        <div className={`reusable-table-container ${className || ''}`}>
+            {/* Date Filter using the shared header styling */}
+            <div className="reusable-table-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <CalendarOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
                     <DatePicker
@@ -251,7 +250,7 @@ const MenuTable = ({
                 </div>
             </div>
 
-            {/* Table */}
+            {/* Table using the unified ReusableTable component */}
             <ReusableTable
                 columns={columns}
                 dataSource={filteredData}
@@ -264,7 +263,7 @@ const MenuTable = ({
                     showTotal: (total, range) =>
                         `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} thực đơn`,
                 }}
-                className="menu-table"
+                className="reusable-table"
                 {...rest}
             />
         </div>

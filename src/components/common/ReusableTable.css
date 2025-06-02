@@ -1,33 +1,84 @@
-/* ReusableTable Component Styles */
+/* Enhanced ReusableTable Component Styles - Unified System */
 
+/* Container Styles */
 .reusable-table-container {
   background: #fff;
+  padding: 32px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  border: 1px solid #f0f0f0;
+  margin-bottom: 24px;
 }
 
+/* Table Header Styles - Enhanced with consistent layout */
+.reusable-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 16px;
+}
+
+.reusable-table-header .search-input {
+  border-radius: 6px;
+  height: 44px;
+  font-size: 15px;
+  min-width: 250px;
+}
+
+.reusable-table-header .search-input .ant-input {
+  font-size: 15px;
+  padding: 12px 16px;
+}
+
+.reusable-table-header .search-input .ant-input::placeholder {
+  color: #bfbfbf;
+}
+
+/* Date Filter Styling */
+.reusable-table-header .date-filter-input {
+  border-radius: 6px;
+  height: 44px;
+  font-size: 15px;
+}
+
+.reusable-table-header .date-filter-input .ant-picker-input > input {
+  font-size: 15px;
+  padding: 12px 16px;
+}
+
+.reusable-table-header .date-filter-input .ant-picker-input > input::placeholder {
+  color: #bfbfbf;
+}
+
+/* Loading State */
 .reusable-table-loading {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 300px;
+  min-height: 400px;
   background: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Table Core Styles - Enhanced */
 .reusable-table .ant-table {
   border-radius: 0;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
 }
 
 .reusable-table .ant-table-thead > tr > th {
-  background: #f8f9fa;
+  background: #fafafa;
   color: #262626;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   border-bottom: 2px solid #e8e8e8;
-  padding: 16px 12px;
+  padding: 20px 16px;
+  height: 64px;
   transition: background-color 0.3s ease;
 }
 
@@ -36,51 +87,73 @@
 }
 
 .reusable-table .ant-table-tbody > tr > td {
-  padding: 12px;
+  padding: 18px 16px;
   border-bottom: 1px solid #f0f0f0;
-  font-size: 14px;
+  font-size: 15px;
+  height: 64px;
+  vertical-align: middle;
   transition: all 0.3s ease;
 }
 
 .reusable-table .ant-table-tbody > tr:hover > td {
-  background: #f8f9fa;
+  background: #fafafa;
 }
 
 .reusable-table .ant-table-tbody > tr:last-child > td {
   border-bottom: none;
 }
 
-/* Striped rows */
-.reusable-table .ant-table-tbody > tr:nth-child(even) > td {
+/* Striped rows - Optional, can be enabled via className */
+.reusable-table.striped .ant-table-tbody > tr:nth-child(even) > td {
   background: #fafafa;
 }
 
-.reusable-table .ant-table-tbody > tr:nth-child(even):hover > td {
+.reusable-table.striped .ant-table-tbody > tr:nth-child(even):hover > td {
   background: #f0f0f0;
 }
 
 /* Empty state */
 .reusable-table .ant-empty {
-  padding: 40px 20px;
+  padding: 60px 20px;
+}
+
+.reusable-table .ant-empty-image {
+  height: 80px;
+  margin-bottom: 16px;
 }
 
 .reusable-table .ant-empty-description {
   color: #8c8c8c;
-  font-size: 14px;
+  font-size: 15px;
 }
 
-/* Pagination styles */
+/* Enhanced Pagination styles */
 .reusable-table .ant-pagination {
-  margin: 16px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
+  margin-top: 24px;
+  margin-bottom: 0;
+  text-align: center;
+  padding: 20px 0;
+  border-top: 1px solid #f0f0f0;
 }
 
 .reusable-table .ant-pagination-total-text {
-  margin-right: 16px;
   color: #595959;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.reusable-table .ant-pagination .ant-pagination-item {
+  border-radius: 6px;
+  min-width: 36px;
+  height: 36px;
+  line-height: 34px;
   font-size: 14px;
+  font-weight: 500;
+}
+
+.reusable-table .ant-pagination .ant-pagination-item-active {
+  background: #1890ff;
+  border-color: #1890ff;
 }
 
 .reusable-table .ant-pagination-options {
@@ -91,22 +164,25 @@
   margin-right: 8px;
 }
 
-/* Sorter styles */
+/* Enhanced Sorter styles */
 .reusable-table .ant-table-column-sorter {
-  color: #bfbfbf;
-  transition: color 0.3s ease;
+  opacity: 0.6;
+  font-size: 14px;
+  transition: opacity 0.3s ease;
 }
 
 .reusable-table .ant-table-column-sorter:hover {
+  opacity: 1;
   color: #1890ff;
 }
 
 .reusable-table .ant-table-column-sorter-up.active,
 .reusable-table .ant-table-column-sorter-down.active {
   color: #1890ff;
+  opacity: 1;
 }
 
-/* Filter styles */
+/* Enhanced Filter styles */
 .reusable-table .ant-table-filter-trigger {
   color: #bfbfbf;
   transition: color 0.3s ease;
@@ -118,6 +194,25 @@
 
 .reusable-table .ant-table-filter-trigger.active {
   color: #1890ff;
+}
+
+.reusable-table .ant-table-filter-dropdown {
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #d9d9d9;
+  padding: 8px;
+}
+
+.reusable-table .ant-table-filter-dropdown .ant-checkbox-wrapper {
+  padding: 8px 12px;
+  margin: 0;
+  width: 100%;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.reusable-table .ant-table-filter-dropdown .ant-checkbox-wrapper:hover {
+  background: #f5f5f5;
 }
 
 /* Selection styles */
@@ -160,71 +255,23 @@
   transform: rotate(90deg);
 }
 
-/* Responsive design */
-@media (max-width: 1200px) {
-  .reusable-table .ant-table-thead > tr > th,
-  .reusable-table .ant-table-tbody > tr > td {
-    padding: 10px 8px;
-    font-size: 13px;
-  }
-  
-  .reusable-table .ant-pagination {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  .reusable-table .ant-pagination-total-text {
-    margin-right: 0;
-    margin-bottom: 8px;
-  }
-  
-  .reusable-table .ant-pagination-options {
-    margin-left: 0;
-  }
-}
-
-@media (max-width: 768px) {
-  .reusable-table-container {
-    margin: 0 -16px;
-    border-radius: 0;
-    box-shadow: none;
-    border-top: 1px solid #f0f0f0;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  
-  .reusable-table .ant-table-thead > tr > th,
-  .reusable-table .ant-table-tbody > tr > td {
-    padding: 8px 6px;
-    font-size: 12px;
-  }
-  
-  .reusable-table .ant-table-scroll {
-    overflow-x: auto;
-  }
-  
-  .reusable-table .ant-pagination {
-    padding: 0 16px;
-  }
-}
-
-/* Status indicators */
+/* Status indicators - Enhanced */
 .reusable-table .status-active {
   color: #52c41a;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .reusable-table .status-inactive {
   color: #ff4d4f;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .reusable-table .status-pending {
   color: #faad14;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* Action buttons */
+/* Enhanced Action buttons */
 .reusable-table .action-buttons {
   display: flex;
   gap: 8px;
@@ -232,6 +279,49 @@
   justify-content: center;
 }
 
+.reusable-table .action-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  transition: all 0.2s ease;
+  font-size: 16px;
+}
+
+.reusable-table .view-btn {
+  color: #1890ff;
+  background: transparent;
+}
+
+.reusable-table .view-btn:hover {
+  background: #f0f5ff;
+  color: #1890ff;
+}
+
+.reusable-table .edit-btn {
+  color: #faad14;
+  background: transparent;
+}
+
+.reusable-table .edit-btn:hover {
+  background: #fef5e7;
+  color: #faad14;
+}
+
+.reusable-table .delete-btn {
+  color: #ff4d4f;
+  background: transparent;
+}
+
+.reusable-table .delete-btn:hover {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+/* Legacy action buttons for backward compatibility */
 .reusable-table .action-buttons .ant-btn {
   padding: 4px 8px;
   height: auto;
@@ -245,6 +335,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Tag styling */
+.reusable-table .ant-tag {
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  min-width: 60px;
+  text-align: center;
 }
 
 /* Table fixed header */
@@ -294,13 +395,28 @@
 
 /* Vietnamese specific styling */
 .reusable-table {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
 }
 
 .reusable-table .vietnamese-text {
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 15px;
   color: #262626;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+/* Enhanced date/time columns styling */
+.reusable-table .ant-table-tbody > tr > td.date-column {
+  font-weight: 600;
+  color: #262626;
+  font-size: 16px;
+}
+
+.reusable-table .ant-table-tbody > tr > td.time-column {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  color: #595959;
+  font-weight: 500;
 }
 
 /* Animation for data changes */
@@ -336,4 +452,129 @@
     opacity: 0;
     transform: translateY(-20px);
   }
+}
+
+/* Enhanced Responsive design */
+@media (max-width: 1200px) {
+  .reusable-table-container {
+    padding: 24px;
+  }
+  
+  .reusable-table-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+  
+  .reusable-table-header .search-input {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .reusable-table .ant-table-thead > tr > th,
+  .reusable-table .ant-table-tbody > tr > td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+  
+  .reusable-table .action-buttons {
+    gap: 4px;
+  }
+  
+  .reusable-table .action-btn {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .reusable-table .ant-pagination {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .reusable-table .ant-pagination-total-text {
+    margin-right: 0;
+    margin-bottom: 8px;
+  }
+  
+  .reusable-table .ant-pagination-options {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .reusable-table-container {
+    margin: 0 -16px;
+    border-radius: 0;
+    padding: 16px;
+  }
+  
+  .reusable-table .ant-table-thead > tr > th,
+  .reusable-table .ant-table-tbody > tr > td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+  
+  .reusable-table .action-btn {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .reusable-table .ant-table-scroll {
+    overflow-x: auto;
+  }
+  
+  .reusable-table .ant-pagination {
+    padding: 0 16px;
+  }
+}
+
+/* Custom popconfirm styling */
+.ant-popconfirm .ant-popconfirm-title {
+  font-size: 15px;
+  color: #262626;
+  font-weight: 600;
+}
+
+.ant-popconfirm .ant-popconfirm-description {
+  font-size: 14px;
+  color: #595959;
+  margin-top: 8px;
+}
+
+.ant-popconfirm .ant-popconfirm-buttons {
+  margin-top: 12px;
+}
+
+.ant-popconfirm .ant-btn {
+  font-size: 14px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Utility classes for common table patterns */
+.reusable-table .text-center {
+  text-align: center;
+}
+
+.reusable-table .text-right {
+  text-align: right;
+}
+
+.reusable-table .text-left {
+  text-align: left;
+}
+
+.reusable-table .font-mono {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.reusable-table .font-semibold {
+  font-weight: 600;
+}
+
+.reusable-table .font-bold {
+  font-weight: 700;
 } 
