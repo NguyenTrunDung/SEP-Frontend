@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react'
-import { message } from 'antd'
-import { PlusOutlined, MenuOutlined, CalendarOutlined } from '@ant-design/icons'
-import withPageWrapper from '../../../components/common/PageWrapper'
-import MenuTable from './MenuTable'
-import CreateFoodsMenu from './CreateFoodsMenu'
-import { useAntModal } from '../../../hooks/useAntModal'
+import React, { useState, useEffect } from 'react';
+import { message } from 'antd';
+import { PlusOutlined, MenuOutlined, CalendarOutlined } from '@ant-design/icons';
+import withPageWrapper from '../../../components/common/PageWrapper';
+import MenuTable from './MenuTable';
+import CreateFoodsMenu from './CreateFoodsMenu';
+import { useAntModal } from '../../../hooks/useAntModal';
+
+/**
+ * Example: Refactoring the Menu page to use PageWrapper HOC
+ * This shows how to convert the existing Menu page structure to use the HOC
+ */
 
 // Step 1: Extract the main content into a separate component
 const MenuPageContent = ({
@@ -19,7 +24,7 @@ const MenuPageContent = ({
 }) => {
     return (
         <>
-            {/* Menu Table */}
+            {/* Menu Table - this is now the main content */}
             <MenuTable
                 dataSource={menuData}
                 loading={loading}
@@ -45,14 +50,14 @@ const MenuPageContent = ({
 // Step 2: Wrap the content component with PageWrapper HOC
 const MenuPageWithWrapper = withPageWrapper(MenuPageContent);
 
-// Step 3: Main Menu component using the PageWrapper
-const Menu = () => {
+// Step 3: Create the main container component
+const MenuWithWrapperExample = () => {
     const { open, showModal, handleCancel } = useAntModal();
     const [loading, setLoading] = useState(false);
     const [menuData, setMenuData] = useState([]);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    // Mock menu data - replace with actual API calls
+    // Mock menu data - same as original
     const mockMenuData = [
         {
             id: 1,
@@ -89,91 +94,16 @@ const Menu = () => {
             startTime: '17:30:00',
             endTime: '22:30:00',
         },
-        {
-            id: 6,
-            date: '07/05/2025',
-            serviceTime: false,
-            startTime: null,
-            endTime: null,
-        },
-        {
-            id: 7,
-            date: '06/05/2025',
-            serviceTime: false,
-            startTime: null,
-            endTime: null,
-        },
-        {
-            id: 8,
-            date: '05/05/2025',
-            serviceTime: false,
-            startTime: null,
-            endTime: null,
-        },
-        {
-            id: 9,
-            date: '09/05/2025',
-            serviceTime: false,
-            startTime: null,
-            endTime: null,
-        },
-        {
-            id: 10,
-            date: '08/05/2025',
-            serviceTime: false,
-            startTime: null,
-            endTime: null,
-        },
+        // ... more data
     ];
 
-    // Mock dishes data for the create modal
+    // Mock dishes data
     const mockDishes = [
-        // Breakfast items
         { id: 1, name: 'Bánh mì thịt nướng', category: 'breakfast', price: 25000 },
         { id: 2, name: 'Phở bò tái', category: 'breakfast', price: 45000 },
-        { id: 3, name: 'Cháo gà', category: 'breakfast', price: 30000 },
-        { id: 4, name: 'Bánh cuốn', category: 'breakfast', price: 35000 },
-        { id: 5, name: 'Xôi gà', category: 'breakfast', price: 20000 },
-        { id: 6, name: 'Bánh bao', category: 'breakfast', price: 15000 },
-        { id: 7, name: 'Bánh chưng', category: 'breakfast', price: 18000 },
-
-        // Main dishes
         { id: 10, name: 'Cơm sườn nướng', category: 'mainDish', price: 55000 },
         { id: 11, name: 'Cơm gà teriyaki', category: 'mainDish', price: 60000 },
-        { id: 12, name: 'Bún bò Huế', category: 'mainDish', price: 50000 },
-        { id: 13, name: 'Mì Quảng', category: 'mainDish', price: 48000 },
-        { id: 14, name: 'Cơm chiên hải sản', category: 'mainDish', price: 65000 },
-        { id: 15, name: 'Cơm tấm', category: 'mainDish', price: 42000 },
-        { id: 16, name: 'Bún chả', category: 'mainDish', price: 38000 },
-
-        // Other dishes
-        { id: 20, name: 'Nem rán', category: 'otherDish', price: 35000 },
-        { id: 21, name: 'Gỏi cuốn', category: 'otherDish', price: 25000 },
-        { id: 22, name: 'Chả cá Lã Vọng', category: 'otherDish', price: 40000 },
-        { id: 23, name: 'Bánh xèo', category: 'otherDish', price: 30000 },
-        { id: 24, name: 'Bánh tráng nướng', category: 'otherDish', price: 22000 },
-
-        // Beverages
-        { id: 30, name: 'Nước cam tươi', category: 'beverages', price: 15000 },
-        { id: 31, name: 'Trà đá', category: 'beverages', price: 10000 },
-        { id: 32, name: 'Cà phê sữa đá', category: 'beverages', price: 20000 },
-        { id: 33, name: 'Nước dừa', category: 'beverages', price: 18000 },
-        { id: 34, name: 'Sinh tố bơ', category: 'beverages', price: 25000 },
-        { id: 35, name: 'Nước chanh', category: 'beverages', price: 12000 },
-
-        // Desserts
-        { id: 40, name: 'Chè ba màu', category: 'dessert', price: 20000 },
-        { id: 41, name: 'Bánh flan', category: 'dessert', price: 25000 },
-        { id: 42, name: 'Kem dừa', category: 'dessert', price: 22000 },
-        { id: 43, name: 'Chè đậu xanh', category: 'dessert', price: 18000 },
-        { id: 44, name: 'Bánh chuối', category: 'dessert', price: 16000 },
-
-        // Vegetarian
-        { id: 50, name: 'Cơm chiên chay', category: 'vegetarian', price: 45000 },
-        { id: 51, name: 'Bún riêu chay', category: 'vegetarian', price: 40000 },
-        { id: 52, name: 'Đậu hũ sốt cà chua', category: 'vegetarian', price: 35000 },
-        { id: 53, name: 'Mì xào chay', category: 'vegetarian', price: 38000 },
-        { id: 54, name: 'Bánh mì chay', category: 'vegetarian', price: 22000 },
+        // ... more dishes
     ];
 
     // Load menu data
@@ -220,6 +150,7 @@ const Menu = () => {
 
                     message.success(`Menu đã được tạo thành công với ${totalDishes} món ăn!`);
                     setRefreshTrigger(prev => prev + 1);
+                    handleCancel(); // Close modal
                     resolve();
                 } catch (error) {
                     message.error('Có lỗi xảy ra khi tạo menu!');
@@ -232,12 +163,10 @@ const Menu = () => {
     // Handle table actions
     const handleView = (record) => {
         message.info(`Xem chi tiết menu ngày ${record.date}`);
-        // Navigate to menu details page or open detail modal
     };
 
     const handleEdit = (record) => {
         message.info(`Chỉnh sửa menu ngày ${record.date}`);
-        // Open edit modal with menu data
     };
 
     const handleDelete = (record) => {
@@ -250,7 +179,7 @@ const Menu = () => {
         message.success('Đã làm mới danh sách menu');
     };
 
-    // Calculate statistics for optional use
+    // Calculate statistics
     const totalMenus = menuData.length;
     const menusWithService = menuData.filter(menu => menu.serviceTime).length;
     const menusWithoutService = totalMenus - menusWithService;
@@ -274,7 +203,7 @@ const Menu = () => {
             onRefresh={handleRefresh}
             refreshText="Làm mới"
 
-            // Statistics cards (optional - can be enabled by uncommenting)
+            // Statistics cards (optional - can be enabled)
             // showStatistics={true}
             // statistics={[
             //     {
@@ -307,6 +236,37 @@ const Menu = () => {
             onCreateMenu={handleCreateMenu}
         />
     );
-}
+};
 
-export default Menu
+export default MenuWithWrapperExample;
+
+/**
+ * Benefits of using PageWrapper HOC:
+ * 
+ * 1. **Consistent UI**: Same header layout across all admin pages
+ * 2. **Reduced Code**: No need to repeat header structure
+ * 3. **Maintainability**: Changes to header layout affect all pages
+ * 4. **Flexibility**: Easy to add/remove statistics, buttons, etc.
+ * 5. **Responsive**: Built-in responsive design
+ * 
+ * Comparison:
+ * 
+ * Before (Original Menu page):
+ * - 348 lines of code
+ * - Manual header structure
+ * - Hardcoded styling
+ * - Statistics section commented out
+ * 
+ * After (With PageWrapper):
+ * - ~180 lines of actual logic
+ * - Declarative header configuration
+ * - Consistent styling from HOC
+ * - Easy statistics toggle
+ * 
+ * Migration steps:
+ * 1. Extract content into separate component
+ * 2. Wrap with PageWrapper HOC
+ * 3. Move header elements to props
+ * 4. Configure statistics if needed
+ * 5. Remove manual header JSX
+ */ 

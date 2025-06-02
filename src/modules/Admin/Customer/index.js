@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 const { Option } = Select;
 const { Title } = Typography;
 
-const Users = () => {
+const CustomerPage = () => {
   const [form] = Form.useForm();
   const [filterForm] = Form.useForm();
   const [users, setUsers] = useState([]);
@@ -353,12 +353,14 @@ const Users = () => {
             dataSource={users}
             rowKey="id"
             pagination={{ pageSize: 10, showSizeChanger: false }}
-            locale={{ emptyText: (
-              <div style={{ padding: '20px', color: '#888' }}>
-                <UserOutlined style={{ fontSize: 40, marginBottom: 16 }} />
-                <p>No staff available</p>
-              </div>
-            )}}
+            locale={{
+              emptyText: (
+                <div style={{ padding: '20px', color: '#888' }}>
+                  <UserOutlined style={{ fontSize: 40, marginBottom: 16 }} />
+                  <p>No staff available</p>
+                </div>
+              )
+            }}
             style={{ marginTop: 8 }}
             rowClassName={(_, index) => index % 2 === 0 ? 'table-row-light' : 'table-row-dark'}
           />
@@ -481,4 +483,4 @@ const Users = () => {
   );
 };
 
-export default Users;
+export default CustomerPage;
