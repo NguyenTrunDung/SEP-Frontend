@@ -2,9 +2,19 @@
   text-align: center;
 }
 
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;
+}
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Quicksand, sans-serif, -apple-system, blinkmacsystemfont, Segoe UI, roboto, Helvetica Neue, arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol !important;
+    margin: 0;
+    padding: 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {

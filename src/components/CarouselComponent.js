@@ -1,32 +1,21 @@
 import React from 'react';
-import { Carousel } from 'antd';
 
-const slides = [
-  { src: '/images/ca.jpg', alt: 'Slide 1' },
-  { src: '/images/sua.jpg', alt: 'Slide 2' },
-  { src: '/images/sua.jpg', alt: 'Slide 3' },
-];
-
-const CarouselComponent = () => {
+const BannerComponent = () => {
   return (
-    <Carousel autoplay autoplaySpeed={3000} effect="fade">
-      {slides.map((slide, index) => (
-        <div key={index} style={{ position: 'relative', height: '40vh' }}>
-          <img
-            src={slide.src}
-            alt={slide.alt}
-            loading="lazy"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              filter: 'brightness(1.1)',
-            }}
-          />
-        </div>
-      ))}
-    </Carousel>
+    <div style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
+      <img
+        src="/images/banner.png" // Hình banner
+        alt="Banner"
+        loading="lazy"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover', // Giữ nguyên để ảnh bao phủ toàn bộ
+          filter: 'brightness(1.1)',
+        }}
+      />
+    </div>
   );
 };
 
-export default CarouselComponent;
+export default BannerComponent;

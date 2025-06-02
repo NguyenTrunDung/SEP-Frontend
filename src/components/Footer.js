@@ -7,38 +7,47 @@ const FooterComponent = () => {
   return (
     <Footer
       style={{
-        textAlign: 'center',
-        backgroundColor: '#000',
-        color: '#fff',
-        fontSize: '14px',
-        padding: '16px 0',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#b4c80f', // Màu nền
+        color: '#fff', // Màu chữ
+        fontSize: '15px',
+        padding: '20px 50px',
+        fontFamily: 'Quicksand, sans-serif, -apple-system, blinkmacsystemfont, Segoe UI, roboto, Helvetica Neue, arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol !important',
       }}
     >
-      <div>
-        <a href="/privacy-policy" style={{ color: '#fff', margin: '0 15px' }}>
-          Privacy Policy
-        </a>
-        |
-        <a href="/delivery-policy" style={{ color: '#fff', margin: '0 15px' }}>
-          Delivery Policy
-        </a>
-        |
-        <a href="/payment-policy" style={{ color: '#fff', margin: '0 15px' }}>
-          Payment Policy
-        </a>
-        |
-        <a href="/return-policy" style={{ color: '#fff', margin: '0 15px' }}>
-          Return Policy
-        </a>
+      <div style={{ flex: 1, textAlign: 'left' }}>
+        <div>Mã số thuế: 0301483939 do Sở KHDT TP.HCM cấp ngày 18-11-2011</div>
+        <div>Mã số giấy phép ATTT số 118130-FSV-1 do Công ty CP CN và KĐ</div>
+        <div>Vinacontrol cấp ngày 09/01/2024</div>
       </div>
-      <div style={{ marginTop: '10px' }}>
-        Tax ID: 0301483939 issued by the Department of Planning and Investment of Ho Chi Minh City on November 18, 2011
+
+      <div style={{ flex: 1, textAlign: 'left' }}>
+        <div style={{ fontSize: '16px', fontWeight: 'bold' }}>HỆ THỐNG QUẢN LÝ SUẤT ĂN BỆNH VIỆN</div>
+        <div>Địa chỉ: 236/6 Điện Biên Phủ, Phường 17, Quận Ninh Kiều, TP. Cần Thơ</div>
+        <div>Điện thoại: 028 3840 8379</div>
+        <div>Email: homms@gmail.com</div>
+        <img
+          src="/images/logo.png" // Thay bằng URL logo thực tế
+          alt="Đã thông báo"
+          style={{ width: '40px', height: '40px', marginRight: '10px' }}
+        />
       </div>
-      <div>
-        Food Safety License No. 118130-FSV-1 issued by Vinacontrol Certification and Inspection Joint Stock Company on January 9, 2024
-      </div>
-      <div>
-        © {new Date().getFullYear()} SEP490_33. All rights reserved.
+
+      <div style={{ flex: 1, textAlign: 'left' }}>
+        <div>Chính sách bảo mật thông tin</div>
+        <div>Chính sách giao, nhận hàng</div>
+        <div>Chính sách thanh toán</div>
+        <div>Chính sách đổi trả</div>
+        <div>Copyright © Hospital Ordered Meal Management System 2025</div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px' }}>
+          <img
+            src="/images/bct.png" // Thay bằng URL logo thực tế
+            alt="Bộ Công Thương"
+            style={{ width: '40px', height: '40px', marginRight: '10px' }}
+          />
+        </div>
       </div>
     </Footer>
   );

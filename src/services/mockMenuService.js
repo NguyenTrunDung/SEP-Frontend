@@ -2,7 +2,7 @@ import { mockMenus, mockFoods, mockFoodCategories, getFilteredMenus, getMenuById
 import { delay } from '../mocks/authData';
 
 export const getMenus = async (filters = {}) => {
-  await delay(500); // Simulate network delay
+  await delay(500);
   return getFilteredMenus(filters);
 };
 
@@ -25,8 +25,8 @@ export const createMenu = async (menuData) => {
     ? mockFoodCategories.find((c) => c.ID === food.CategoryId) || { Name: 'Unknown', Image: null }
     : { Name: 'Unknown', Image: null };
   const newMenu = {
-    ID: menuData.foodId, // Use foodId as Menus.ID
-    BranchId: menuData.BranchId,
+    ID: menuData.foodId,
+    BranchId: menuData.BranchId, // Use numeric BranchId
     Date: menuData.Date,
     CreatedAt: new Date().toISOString(),
     UpdatedAt: new Date().toISOString(),
@@ -39,7 +39,8 @@ export const createMenu = async (menuData) => {
     dishName: food.Name,
     price: food.PriceForGuest,
     category: category.Name,
-    image: food.Image, // Include image
+    image: food.Image,
+    BranchId: food.BranchId, // Include BranchId
   };
   mockMenus.unshift(newMenu);
   return newMenu;
@@ -76,7 +77,8 @@ export const updateMenu = async (menuId, updatedData) => {
     dishName: food.Name,
     price: food.PriceForGuest,
     category: category.Name,
-    image: food.Image, // Include image
+    image: food.Image,
+    BranchId: food.BranchId, // Include BranchId
   });
   return menu;
 };
