@@ -169,8 +169,7 @@ import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
 //Managa staff
 import ViewAllStaff from '../modules/Admin/ManagaStaff/ViewAllStaff.js'
-//Cart
-import Cart from '../components/Cart/ViewCart.js'
+
 
 // Define role-specific home redirects
 const roleHomeRedirects = {
@@ -199,14 +198,7 @@ const routes = [
     path: '/unauthorized',
     element: <Unauthorized />,
   },
-  {
-    path: '/cart',
-    element: (
-      <DefaultLayout>
-        <Cart />
-      </DefaultLayout>
-    ),
-  },
+  
 
   // Role-based redirect route (used for redirecting after login)
   {

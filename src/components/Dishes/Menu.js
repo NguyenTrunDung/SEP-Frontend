@@ -353,76 +353,171 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
           )}
           <Modal
             visible={isModalVisible}
-            title={
-              <div style={{ backgroundColor: '#b4c80f', color: '#000', textAlign: 'center', padding: '8px', borderRadius: '4px 4px 0 0' }}>
-                {cartItems.some(item => item.FoodId === selectedMenuItem?.ID) ? 'Cập nhật giỏ hàng' : 'Thêm vào giỏ hàng'}
-              </div>
-            }
             onCancel={handleModalClose}
             footer={null}
-            width={400}
-            closeIcon={<span style={{ color: '#000' }}>×</span>}
-            styles={{ content: { padding: '16px', textAlign: 'center' } }}
+            width={600}
+            centered
+            closeIcon={<span style={{ color: '#000', fontSize: '26px' }}>×</span>}
+            styles={{
+              content: {
+                padding: 0,
+                background: '#fff',
+                borderRadius: '8px',
+              },
+              body: {
+                padding: 0,
+              },
+            }}
           >
-            <div>
-              <Image
-                src={selectedMenuItem?.image || 'https://via.placeholder.com/300x200?text=No+Image'}
-                alt={selectedMenuItem?.dishName}
-                width={300}
-                height={200}
+            <div style={{ borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
+              {/* Header */}
+              <div
                 style={{
+                  backgroundColor: '#b4c80f',
+                  color: '#000',
+                  padding: '12px 16px',
+                  fontSize: '18px',
+                }}
+              >
+                {cartItems.some(item => item.FoodId === selectedMenuItem?.ID)
+                  ? 'Cập nhật giỏ hàng'
+                  : 'Thêm vào giỏ hàng'}
+              </div>
+
+              {/* Image sát header */}
+              <img
+                src={
+                  selectedMenuItem?.image ||
+                  'https://via.placeholder.com/600x250?text=No+Image'
+                }
+                alt={selectedMenuItem?.dishName}
+                style={{
+                  width: '100%',
+                  maxHeight: '250px',
                   objectFit: 'cover',
-                  borderRadius: '8px',
-                  marginBottom: '16px',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                  display: 'block',
                 }}
               />
-              <Text style={{ display: 'block', marginBottom: '8px', fontSize: '16px' }}>
-                {selectedMenuItem?.dishName || 'No name'}
-              </Text>
-              <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#666' }}>
-                {selectedMenuItem?.description || 'No description available'}
-              </Text>
-              <Text style={{ display: 'block', marginBottom: '16px', fontSize: '18px', color: '#ff0000' }}>
-                {selectedMenuItem?.price?.toLocaleString('vi-VN') || '0'}đ
-              </Text>
-              <Input.TextArea
-                placeholder="Ghi chú:"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                style={{ marginBottom: '16px', height: '60px', resize: 'none' }}
-              />
-              <div style={{ marginBottom: '16px' }}>
+
+              {/* Dish Info */}
+              <div style={{ padding: '6px 6px 0' }}>
+                <Text
+                  style={{
+                    display: 'block',
+                    fontSize: '15px',
+                    fontWeight: 'bold',
+                    color: '#333',
+                    marginBottom: '1px',
+                  }}
+                >
+                  {selectedMenuItem?.dishName || 'No name'}
+                </Text>
+                <Text
+                  style={{
+                    display: 'block',
+                    fontSize: '15px',
+                    color: '#555',
+                    marginBottom: '1px',
+                  }}
+                >
+                  {selectedMenuItem?.description || 'No description available'}
+                </Text>
+                <Text
+                  style={{
+                    display: 'block',
+                    fontSize: '15px',
+                    fontWeight: 'bold',
+                    color: '#ff0000',
+                    marginBottom: '1px',
+                  }}
+                >
+                  {selectedMenuItem?.price?.toLocaleString('vi-VN') || '0'}đ
+                </Text>
+              </div>
+
+              {/* Note */}
+              <div style={{ padding: '0 6px' }}>
+                <Text
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    color: '#333',
+                    marginBottom: '0px',
+                  }}
+                >
+                  Ghi chú:
+                </Text>
+                <Input.TextArea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  style={{
+                    marginBottom: '20px',
+                    height: '115px',
+                    resize: 'none',
+                  }}
+                  placeholder="Ghi chú..."
+                />
+              </div>
+
+              {/* Quantity Controls */}
+              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                 <Button
-                  style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f', color: '#000', borderRadius: '50%', width: '32px', height: '32px', marginRight: '8px' }}
+                  style={{
+                    backgroundColor: '#b4c80f',
+                    borderColor: '#b4c80f',
+                    color: '#000',
+                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                  }}
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                 >
                   -
                 </Button>
-                <span style={{ fontSize: '16px', margin: '0 8px' }}>{quantity}</span>
+                <span style={{ margin: '0 16px', fontSize: '16px' }}>{quantity}</span>
                 <Button
-                  style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f', color: '#000', borderRadius: '50%', width: '32px', height: '32px', marginLeft: '8px' }}
+                  style={{
+                    backgroundColor: '#b4c80f',
+                    borderColor: '#b4c80f',
+                    color: '#000',
+                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                  }}
                   onClick={() => setQuantity(quantity + 1)}
                 >
                   +
                 </Button>
               </div>
-              <Button
-                style={{
-                  backgroundColor: '#b4c80f',
-                  borderColor: '#b4c80f',
-                  color: '#000',
-                  padding: '10px 20px',
-                  fontSize: '16px',
-                  width: '100%',
-                }}
-                onClick={() => handleAddOrUpdateCart(selectedMenuItem)}
-              >
-                {cartItems.some(item => item.FoodId === selectedMenuItem?.ID) ? 'Cập nhật giỏ hàng' : 'Thêm vào giỏ hàng'}
-              </Button>
+
+              {/* Add/Update Button */}
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '0 10px 16px' }}>
+                <Button
+                  style={{
+                    backgroundColor: '#b4c80f',
+                    borderColor: '#b4c80f',
+                    color: '#000',
+                    width: '100%',
+                    padding: '18px',
+                    fontSize: '16px',
+                    borderRadius: '6px',
+                  }}
+                  onClick={() => handleAddOrUpdateCart(selectedMenuItem)}
+                >
+                  {cartItems.some(item => item.FoodId === selectedMenuItem?.ID)
+                    ? 'Cập nhật giỏ hàng'
+                    : 'Thêm vào giỏ hàng'}
+                </Button>
+              </div>
             </div>
           </Modal>
-          
+
+
         </div>
       </Content>
     </Layout>

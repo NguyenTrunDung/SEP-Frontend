@@ -1,8 +1,6 @@
-// Navbar.js
 import React, { useState, useEffect } from 'react';
-import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message } from 'antd';
+import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, Select, Checkbox } from 'antd';
 import { SearchOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { Link as ScrollLink } from 'react-scroll';
 import { useNavigate } from 'react-router-dom';
 import { useBranches } from '../hooks/queries/useBranches';
 import { useCart } from '../context/CartContext';
@@ -11,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const { Header } = Layout;
 const { Text } = Typography;
+const { Option } = Select;
 
 const Navbar = () => {
   const { branches, loading, error } = useBranches();
@@ -19,10 +18,26 @@ const Navbar = () => {
   const [selectedBranch, setSelectedBranch] = useState(null);
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
   const [cartId, setCartId] = useState(null);
+  const [paymentDetails, setPaymentDetails] = useState({
+    deliveryAddress: '',
+    fullName: '',
+    phoneNumber: '',
+    paymentMethod: '',
+    area: '',
+    room: '',
+    deliveryTime: '',
+    note: '',
+    receiveMethod: 'Giao tận nơi',
+    includeUtensils: false,
+    total: 0,
+    shippingFee: 5000, // Fixed shipping fee
+    orderDetails: '',
+  });
   const navigate = useNavigate();
   const [activeKey, setActiveKey] = useState('home');
 
@@ -50,8 +65,21 @@ const Navbar = () => {
   };
 
   const handleGoToCart = () => {
+    if (cartItems.length === 0) {
+      message.error('Giỏ hàng của bạn đang trống.');
+      return;
+    }
+    const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const shippingFee = paymentDetails.receiveMethod === 'Giao tận nơi' ? 5000 : 0; // Shipping fee only for delivery
+    const utensilsFee = paymentDetails.includeUtensils ? 5000 : 0; // Additional fee for utensils
+    setPaymentDetails({
+      ...paymentDetails,
+      total,
+      shippingFee,
+      orderDetails: cartItems.map((item) => `${item.dishName} x${item.quantity}`).join('\n'),
+    });
     setIsCartModalVisible(false);
-    navigate('/cart', { state: { cartItems } });
+    setIsPaymentModalVisible(true);
   };
 
   const handleRemoveCartItem = (cartId) => {
@@ -106,7 +134,7 @@ const Navbar = () => {
         cartId: uuidv4(),
         FoodId: selectedMenuItem.ID,
         note,
-        BranchId: selectedBranch?.ID, // Thêm BranchId vào giỏ hàng
+        BranchId: selectedBranch?.ID,
       };
       const updatedItems = [...cartItems, newItem];
       setCartItems(updatedItems);
@@ -118,6 +146,33 @@ const Navbar = () => {
     setQuantity(1);
     setNote('');
     setCartId(null);
+    handleCartUpdate();
+  };
+
+  const handlePaymentSubmit = () => {
+    if (!paymentDetails.deliveryAddress || !paymentDetails.phoneNumber) {
+      message.error('Vui lòng điền đầy đủ địa chỉ giao hàng và số điện thoại.');
+      return;
+    }
+    message.success('Đặt món thành công!');
+    setIsPaymentModalVisible(false);
+    setCartItems([]);
+    setPaymentDetails({
+      ...paymentDetails,
+      deliveryAddress: '',
+      fullName: '',
+      phoneNumber: '',
+      paymentMethod: '',
+      area: '',
+      room: '',
+      deliveryTime: '',
+      note: '',
+      receiveMethod: 'Giao tận nơi',
+      includeUtensils: false,
+      total: 0,
+      shippingFee: 5000,
+      orderDetails: '',
+    });
     handleCartUpdate();
   };
 
@@ -303,7 +358,7 @@ const Navbar = () => {
                       <span style={{ fontWeight: 480, color: '#1a1a1a', fontSize: '18px' }}>
                         {branch.Name}
                       </span>
-                      <span style={{ fontSize: '14px', color: '#666', marginTop: 4 }}>
+                      <span style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
                         {branch.Address}
                       </span>
                     </div>
@@ -340,54 +395,55 @@ const Navbar = () => {
             cartItems.length === 0
               ? null
               : [
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '16px',
-                    padding: '10px 0',
-                  }}
-                >
-                  <Button
-                    key="menu"
-                    onClick={() => {
-                      setIsCartModalVisible(false);
-                      setActiveKey('menu');
-                      const menuElement = document.getElementById('menu');
-                      if (menuElement) {
-                        menuElement.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }}
+                  <div
+                    key="footer"
                     style={{
-                      backgroundColor: '#b4c80f',
-                      color: '#000',
-                      border: 'none',
-                      padding: '15px 100px',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: '400',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      gap: '16px',
+                      padding: '10px 0',
                     }}
                   >
-                    Thêm Món
-                  </Button>,
-                  <Button
-                    key="checkout"
-                    type="primary"
-                    onClick={handleGoToCart}
-                    style={{
-                      backgroundColor: '#b4c80f',
-                      color: '#000',
-                      border: 'none',
-                      padding: '15px 80px',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: '400',
-                    }}
-                  >
-                    Tiến Hành Đặt Món
-                  </Button>
-                </div>,
-              ]
+                    <Button
+                      key="menu"
+                      onClick={() => {
+                        setIsCartModalVisible(false);
+                        setActiveKey('menu');
+                        const menuElement = document.getElementById('menu');
+                        if (menuElement) {
+                          menuElement.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      style={{
+                        backgroundColor: '#b4c80f',
+                        color: '#000',
+                        border: 'none',
+                        padding: '15px 100px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '400',
+                      }}
+                    >
+                      Thêm Món
+                    </Button>,
+                    <Button
+                      key="checkout"
+                      type="primary"
+                      onClick={handleGoToCart}
+                      style={{
+                        backgroundColor: '#b4c80f',
+                        color: '#000',
+                        border: 'none',
+                        padding: '15px 80px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '400',
+                      }}
+                    >
+                      Tiến Hành Đặt Món
+                    </Button>
+                  </div>,
+                ]
           }
           width="min(100vw, 600px)"
           centered
@@ -433,16 +489,14 @@ const Navbar = () => {
                       height: 50,
                       objectFit: 'cover',
                       borderRadius: 4,
-                      marginRight: 16
+                      marginRight: 16,
                     }}
                   />
-
                   <div style={{ flex: 1 }}>
-                    {/* Tên món + Icon */}
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'center'
+                      alignItems: 'center',
                     }}>
                       <Text strong>{item.dishName}</Text>
                       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -477,28 +531,24 @@ const Navbar = () => {
                         />
                       </div>
                     </div>
-
-                    {/* Ghi chú */}
                     {item.note && (
                       <Text style={{
                         color: '#999',
                         fontStyle: 'italic',
                         display: 'block',
-                        marginTop: 4
+                        marginTop: 4,
                       }}>
                         Ghi chú: {item.note}
                       </Text>
                     )}
-
-                    {/* Giá + số lượng */}
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginTop: 8
+                      marginTop: 8,
                     }}>
                       <Text>
-                        {(item.price * item.quantity).toLocaleString('vi-VN')} 
+                        {(item.price * item.quantity).toLocaleString('vi-VN')} đ
                       </Text>
                       <div style={{ display: 'flex', alignItems: 'center' }}>
                         <Button
@@ -551,29 +601,24 @@ const Navbar = () => {
                   </div>
                 </div>
               ))}
-
-              {/* Tổng tiền */}
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                marginTop: 16,
               }}>
                 <Text strong style={{ color: 'black' }}>Tạm tính:</Text>
                 <Text style={{ color: 'red' }}>
-                  {cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toLocaleString('vi-VN')} đnp
+                  {cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toLocaleString('vi-VN')} đ
                 </Text>
               </div>
             </div>
           )}
         </Modal>
+
         {/* Edit Cart Item Modal */}
         <Modal
           open={isEditModalVisible}
-          title={
-            <div style={{ backgroundColor: '#b4c80f', color: '#000', textAlign: 'center', padding: '8px', borderRadius: '4px 4px 0 0' }}>
-              Cập nhật giỏ hàng
-            </div>
-          }
           onCancel={() => {
             setIsEditModalVisible(false);
             setIsCartModalVisible(true);
@@ -583,72 +628,351 @@ const Navbar = () => {
             setCartId(null);
           }}
           footer={null}
-          width={400}
+          width={600}
           centered
-          closeIcon={<span style={{ color: '#000' }}>×</span>}
+          closeIcon={<span style={{ color: '#000', fontSize: '26px' }}>×</span>}
           styles={{
-            content: { padding: '16px', background: '#ffffff', borderRadius: '8px', boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)' },
-            mask: { zIndex: 1999, background: 'rgba(0, 0, 0, 0.5)' },
+            content: {
+              padding: 0,
+              background: '#fff',
+              borderRadius: '8px',
+            },
+            body: {
+              padding: 0,
+            },
           }}
         >
-          <div>
+          <div style={{ borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
+            <div
+              style={{
+                backgroundColor: '#b4c80f',
+                color: '#000',
+                padding: '12px 16px',
+                fontSize: '18px',
+              }}
+            >
+              Cập nhật giỏ hàng
+            </div>
             <img
-              src={selectedMenuItem?.image || 'https://via.placeholder.com/300x200?text=No+Image'}
+              src={selectedMenuItem?.image || 'https://via.placeholder.com/600x250?text=No+Image'}
               alt={selectedMenuItem?.dishName}
               style={{
                 width: '100%',
-                height: 'auto',
-                maxHeight: '200px',
+                maxHeight: '250px',
                 objectFit: 'cover',
-                borderRadius: '8px',
-                marginBottom: '16px',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+                display: 'block',
               }}
             />
-            <Text style={{ display: 'block', marginBottom: '8px', fontSize: '16px' }}>
-              {selectedMenuItem?.dishName || 'No name'}
-            </Text>
-            <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#666' }}>
-              {selectedMenuItem?.description || 'No description available'}
-            </Text>
-            <Text style={{ display: 'block', marginBottom: '16px', fontSize: '18px', color: '#ff0000' }}>
-              {selectedMenuItem?.price?.toLocaleString('vi-VN') || '0'}đ
-            </Text>
-            <Input.TextArea
-              placeholder="Ghi chú:"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              style={{ marginBottom: '16px', height: '60px', resize: 'none' }}
-            />
-            <div style={{ marginBottom: '16px', textAlign: 'center' }}>
-              <Button
-                style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f', color: '#000', borderRadius: '50%', width: '32px', height: '32px', marginRight: '8px' }}
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+            <div style={{ padding: '16px' }}>
+              <Text
+                style={{
+                  display: 'block',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  color: '#333',
+                  marginBottom: '8px',
+                }}
               >
-                -
-              </Button>
-              <span style={{ fontSize: '16px', margin: '0 8px' }}>{quantity}</span>
-              <Button
-                style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f', color: '#000', borderRadius: '50%', width: '32px', height: '32px', marginLeft: '8px' }}
-                onClick={() => setQuantity(quantity + 1)}
+                {selectedMenuItem?.dishName || 'No name'}
+              </Text>
+              <Text
+                style={{
+                  display: 'block',
+                  fontSize: '15px',
+                  color: '#555',
+                  marginBottom: '8px',
+                }}
               >
-                +
+                {selectedMenuItem?.description || 'No description'}
+              </Text>
+              <Text
+                style={{
+                  display: 'block',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  color: '#ff0000',
+                  marginBottom: '8px',
+                }}
+              >
+                {selectedMenuItem?.price?.toLocaleString('vi-VN') || '0'} đ
+              </Text>
+              <Text
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  color: '#333',
+                  marginBottom: '8px',
+                }}
+              >
+                Ghi chú:
+              </Text>
+              <Input.TextArea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                style={{
+                  marginBottom: '20px',
+                  height: '115px',
+                  resize: 'none',
+                }}
+              />
+              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                <Button
+                  style={{
+                    backgroundColor: '#b4c80f',
+                    borderColor: '#b4c80f',
+                    color: '#000',
+                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                  }}
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                >
+                  -
+                </Button>
+                <span style={{ margin: '0 16px', fontSize: '16px' }}>{quantity}</span>
+                <Button
+                  style={{
+                    backgroundColor: '#b4c80f',
+                    borderColor: '#b4c80f',
+                    color: '#000',
+                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                  }}
+                  onClick={() => setQuantity(quantity + 1)}
+                >
+                  +
+                </Button>
+              </div>
+              <Button
+                style={{
+                  backgroundColor: '#b4c80f',
+                  borderColor: '#b4c80f',
+                  color: '#000',
+                  width: '100%',
+                  padding: '18px',
+                  fontSize: '16px',
+                  borderRadius: '6px',
+                }}
+                onClick={handleUpdateCart}
+              >
+                Cập Nhật Giỏ Hàng
               </Button>
             </div>
-            <Button
+          </div>
+        </Modal>
+
+        {/* Payment Modal */}
+        <Modal
+          open={isPaymentModalVisible}
+          onCancel={() => {
+            setIsPaymentModalVisible(false);
+            setIsCartModalVisible(true);
+          }}
+          footer={null}
+          width={600}
+          centered
+          closeIcon={<span style={{ color: '#000', fontSize: '26px' }}>×</span>}
+          styles={{
+            content: {
+              padding: 0,
+              background: '#fff',
+              borderRadius: '8px',
+            },
+            body: {
+              padding: 0,
+            },
+          }}
+        >
+          <div style={{ borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
+            <div
               style={{
                 backgroundColor: '#b4c80f',
-                borderColor: '#b4c80f',
                 color: '#000',
-                padding: '10px 20px',
-                fontSize: '16px',
-                width: '100%',
-                borderRadius: '4px',
+                padding: '12px 16px',
+                fontSize: '18px',
+                textAlign: 'center',
               }}
-              onClick={handleUpdateCart}
             >
-              Cập nhật giỏ hàng
-            </Button>
+              Thanh toán
+            </div>
+            <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <Text strong style={{ fontSize: '16px' }}>Thông tin đặt hàng</Text>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+                  Chi nhánh
+                </Text>
+                <Select
+                  value={selectedBranch?.Name}
+                  disabled
+                  style={{ width: '100%', borderRadius: '4px' }}
+                >
+                  <Option value={selectedBranch?.Name}>{selectedBranch?.Name}</Option>
+                </Select>
+              </div>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+                  Họ và tên
+                </Text>
+                <Input
+                  value={paymentDetails.fullName}
+                  onChange={(e) => setPaymentDetails({ ...paymentDetails, fullName: e.target.value })}
+                  style={{ borderRadius: '4px' }}
+                />
+              </div>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+                  Số điện thoại
+                </Text>
+                <Input
+                  value={paymentDetails.phoneNumber}
+                  onChange={(e) => setPaymentDetails({ ...paymentDetails, phoneNumber: e.target.value })}
+                  style={{ borderRadius: '4px' }}
+                />
+              </div>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+                  Địa chỉ giao hàng
+                </Text>
+                <Input
+                  value={paymentDetails.deliveryAddress}
+                  onChange={(e) => setPaymentDetails({ ...paymentDetails, deliveryAddress: e.target.value })}
+                  style={{ borderRadius: '4px' }}
+                />
+              </div>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+                  Hình thức nhận hàng
+                </Text>
+                <Select
+                  value={paymentDetails.receiveMethod}
+                  onChange={(value) => setPaymentDetails({ ...paymentDetails, receiveMethod: value })}
+                  style={{ width: '100%', borderRadius: '4px' }}
+                >
+                  <Option value="Giao tận nơi">Giao tận nơi</Option>
+                  <Option value="Nhận tại quầy">Nhận tại quầy</Option>
+                </Select>
+              </div>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Khu</Text>
+                <Select
+                  value={paymentDetails.area}
+                  onChange={(value) => setPaymentDetails({ ...paymentDetails, area: value })}
+                  style={{ width: '100%', borderRadius: '4px' }}
+                >
+                  <Option value="Khoa Nội">Khoa Nội</Option>
+                  <Option value="Khu hành chính">Khu hành chính</Option>
+                </Select>
+              </div>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Phòng</Text>
+                <Select
+                  value={paymentDetails.room}
+                  onChange={(value) => setPaymentDetails({ ...paymentDetails, room: value })}
+                  style={{ width: '100%', borderRadius: '4px' }}
+                >
+                  <Option value="Phòng hành chính">Phòng hành chính</Option>
+                  <Option value="Phòng B24">Phòng B24</Option>
+                </Select>
+              </div>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+                  Hẹn thời gian giao hàng
+                </Text>
+                <Select
+                  value={paymentDetails.deliveryTime}
+                  onChange={(value) => setPaymentDetails({ ...paymentDetails, deliveryTime: value })}
+                  style={{ width: '100%', borderRadius: '4px' }}
+                >
+                  <Option value="30 phút">30 phút</Option>
+                  <Option value="45 phút">45 phút</Option>
+                  <Option value="60 phút">60 phút</Option>
+                  <Option value="Tuỳ chọn thời gian">Tuỳ chọn thời gian</Option>
+                </Select>
+              </div>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Ghi chú</Text>
+                <Input.TextArea
+                  placeholder="Ghi chú thêm"
+                  value={paymentDetails.note}
+                  onChange={(e) => setPaymentDetails({ ...paymentDetails, note: e.target.value })}
+                  style={{ height: '115px', resize: 'none', borderRadius: '4px' }}
+                />
+              </div>
+              <Checkbox
+                checked={paymentDetails.includeUtensils}
+                onChange={(e) => setPaymentDetails({ ...paymentDetails, includeUtensils: e.target.checked })}
+              >
+                Lấy dụng cụ ăn (+5,000 đ)
+              </Checkbox>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+                  Phương thức thanh toán
+                </Text>
+                <Select
+                  value={paymentDetails.paymentMethod}
+                  onChange={(value) => setPaymentDetails({ ...paymentDetails, paymentMethod: value })}
+                  style={{ width: '100%', borderRadius: '4px' }}
+                >
+                  <Option value="Tiền mặt">Tiền mặt</Option>
+                  <Option value="Thẻ ngân hàng">Thẻ ngân hàng</Option>
+                  <Option value="Chuyển khoản">Chuyển khoản</Option>
+                </Select>
+              </div>
+              <div>
+                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+                  Chi tiết đơn hàng
+                </Text>
+                <Input.TextArea
+                  value={paymentDetails.orderDetails}
+                  readOnly
+                  style={{ height: '100px', resize: 'none', borderRadius: '4px' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text strong style={{ fontSize: '16px' }}>Tạm tính</Text>
+                <Text style={{ fontSize: '16px', color: '#ff0000' }}>
+                  {paymentDetails.total.toLocaleString('vi-VN')} đ
+                </Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text strong style={{ fontSize: '16px' }}>Phí vận chuyển</Text>
+                <Text style={{ fontSize: '16px', color: '#ff0000' }}>
+                  {paymentDetails.shippingFee.toLocaleString('vi-VN')} đ
+                </Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text strong style={{ fontSize: '16px' }}>Phí dụng cụ ăn</Text>
+                <Text style={{ fontSize: '16px', color: '#ff0000' }}>
+                  {(paymentDetails.includeUtensils ? 5000 : 0).toLocaleString('vi-VN')} đ
+                </Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text strong style={{ fontSize: '16px' }}>Tổng cộng</Text>
+                <Text style={{ fontSize: '16px', color: '#ff0000' }}>
+                  {(paymentDetails.total + paymentDetails.shippingFee + (paymentDetails.includeUtensils ? 5000 : 0)).toLocaleString('vi-VN')} đ
+                </Text>
+              </div>
+              <Button
+                style={{
+                  backgroundColor: '#b4c80f',
+                  borderColor: '#b4c80f',
+                  color: '#000',
+                  padding: '18px',
+                  fontSize: '16px',
+                  width: '100%',
+                  borderRadius: '6px',
+                }}
+                onClick={handlePaymentSubmit}
+              >
+                Đặt Món
+              </Button>
+            </div>
           </div>
         </Modal>
       </Header>
@@ -657,7 +981,7 @@ const Navbar = () => {
         <MenuPage
           onCartUpdate={handleCartUpdate}
           onShowCart={handleCartClick}
-          selectedBranch={selectedBranch} // Truyền selectedBranch vào MenuPage
+          selectedBranch={selectedBranch}
         />
       )}
     </>
