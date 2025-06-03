@@ -20,7 +20,6 @@ import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
 
 //Cart
-import Cart from '../components/Cart/ViewCart.js'
 import Menu from '../modules/Admin/Menu/index.js';
 import CustomerPage from '../modules/Admin/Customer/index.js';
 
