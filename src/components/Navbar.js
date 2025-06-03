@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, Select, Checkbox } from 'antd';
+import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, Select, Checkbox, ConfigProvider } from 'antd';
 import { SearchOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useBranches } from '../hooks/queries/useBranches';
 import { useCart } from '../context/CartContext';
 import MenuPage from '../components/Dishes/Menu';
 import { v4 as uuidv4 } from 'uuid';
+import locale from 'antd/locale/vi_VN';
 
 const { Header } = Layout;
 const { Text } = Typography;
@@ -34,8 +35,9 @@ const Navbar = () => {
     note: '',
     receiveMethod: 'Giao tận nơi',
     includeUtensils: false,
+    showPaymentMethod: false,
     total: 0,
-    shippingFee: 5000, // Fixed shipping fee
+    shippingFee: 5000,
     orderDetails: '',
   });
   const navigate = useNavigate();
@@ -70,8 +72,8 @@ const Navbar = () => {
       return;
     }
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const shippingFee = paymentDetails.receiveMethod === 'Giao tận nơi' ? 5000 : 0; // Shipping fee only for delivery
-    const utensilsFee = paymentDetails.includeUtensils ? 5000 : 0; // Additional fee for utensils
+    const shippingFee = paymentDetails.receiveMethod === 'Giao tận nơi' ? 5000 : 0;
+    const utensilsFee = paymentDetails.includeUtensils ? 5000 : 0;
     setPaymentDetails({
       ...paymentDetails,
       total,
@@ -104,7 +106,7 @@ const Navbar = () => {
         dishName: itemToEdit.dishName,
         price: itemToEdit.price,
         image: itemToEdit.image,
-        description: itemToEdit.description || 'No description available',
+        description: itemToEdit.description || 'Không có mô tả',
       });
       setQuantity(itemToEdit.quantity);
       setNote(itemToEdit.note || '');
@@ -169,6 +171,7 @@ const Navbar = () => {
       note: '',
       receiveMethod: 'Giao tận nơi',
       includeUtensils: false,
+      showPaymentMethod: false,
       total: 0,
       shippingFee: 5000,
       orderDetails: '',
@@ -177,7 +180,7 @@ const Navbar = () => {
   };
 
   return (
-    <>
+    <ConfigProvider locale={locale}>
       <Header
         style={{
           backgroundColor: '#fff',
@@ -285,7 +288,6 @@ const Navbar = () => {
           </Col>
         </Row>
 
-        {/* Branch Selection Modal */}
         <Modal
           open={isModalVisible}
           footer={null}
@@ -369,7 +371,6 @@ const Navbar = () => {
           </div>
         </Modal>
 
-        {/* Cart Modal */}
         <Modal
           key={cartItems.length}
           open={isCartModalVisible}
@@ -395,55 +396,55 @@ const Navbar = () => {
             cartItems.length === 0
               ? null
               : [
-                  <div
-                    key="footer"
+                <div
+                  key="footer"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '16px',
+                    padding: '10px 0',
+                  }}
+                >
+                  <Button
+                    key="menu"
+                    onClick={() => {
+                      setIsCartModalVisible(false);
+                      setActiveKey('menu');
+                      const menuElement = document.getElementById('menu');
+                      if (menuElement) {
+                        menuElement.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
                     style={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      gap: '16px',
-                      padding: '10px 0',
+                      backgroundColor: '#b4c80f',
+                      color: '#000',
+                      border: 'none',
+                      padding: '15px 100px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '400',
                     }}
                   >
-                    <Button
-                      key="menu"
-                      onClick={() => {
-                        setIsCartModalVisible(false);
-                        setActiveKey('menu');
-                        const menuElement = document.getElementById('menu');
-                        if (menuElement) {
-                          menuElement.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      }}
-                      style={{
-                        backgroundColor: '#b4c80f',
-                        color: '#000',
-                        border: 'none',
-                        padding: '15px 100px',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        fontWeight: '400',
-                      }}
-                    >
-                      Thêm Món
-                    </Button>,
-                    <Button
-                      key="checkout"
-                      type="primary"
-                      onClick={handleGoToCart}
-                      style={{
-                        backgroundColor: '#b4c80f',
-                        color: '#000',
-                        border: 'none',
-                        padding: '15px 80px',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        fontWeight: '400',
-                      }}
-                    >
-                      Tiến Hành Đặt Món
-                    </Button>
-                  </div>,
-                ]
+                    Thêm Món
+                  </Button>,
+                  <Button
+                    key="checkout"
+                    type="primary"
+                    onClick={handleGoToCart}
+                    style={{
+                      backgroundColor: '#b4c80f',
+                      color: '#000',
+                      border: 'none',
+                      padding: '15px 80px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '400',
+                    }}
+                  >
+                    Tiến Hành Đặt Món
+                  </Button>
+                </div>,
+              ]
           }
           width="min(100vw, 600px)"
           centered
@@ -616,7 +617,6 @@ const Navbar = () => {
           )}
         </Modal>
 
-        {/* Edit Cart Item Modal */}
         <Modal
           open={isEditModalVisible}
           onCancel={() => {
@@ -673,7 +673,7 @@ const Navbar = () => {
                   marginBottom: '8px',
                 }}
               >
-                {selectedMenuItem?.dishName || 'No name'}
+                {selectedMenuItem?.dishName || 'Không có tên'}
               </Text>
               <Text
                 style={{
@@ -683,7 +683,7 @@ const Navbar = () => {
                   marginBottom: '8px',
                 }}
               >
-                {selectedMenuItem?.description || 'No description'}
+                {selectedMenuItem?.description || 'Không có mô tả'}
               </Text>
               <Text
                 style={{
@@ -710,6 +710,7 @@ const Navbar = () => {
               <Input.TextArea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
+                placeholder="Ghi chú..."
                 style={{
                   marginBottom: '20px',
                   height: '115px',
@@ -767,7 +768,6 @@ const Navbar = () => {
           </div>
         </Modal>
 
-        {/* Payment Modal */}
         <Modal
           open={isPaymentModalVisible}
           onCancel={() => {
@@ -786,22 +786,25 @@ const Navbar = () => {
             },
             body: {
               padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '100vh',
             },
           }}
         >
-          <div style={{ borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
+          <div style={{ borderRadius: '8px 8px 0 0', overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div
               style={{
                 backgroundColor: '#b4c80f',
                 color: '#000',
                 padding: '12px 16px',
                 fontSize: '18px',
-                textAlign: 'center',
+                textAlign: 'left',
               }}
             >
               Thanh toán
             </div>
-            <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <Text strong style={{ fontSize: '16px' }}>Thông tin đặt hàng</Text>
               <div>
                 <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
@@ -822,6 +825,7 @@ const Navbar = () => {
                 <Input
                   value={paymentDetails.fullName}
                   onChange={(e) => setPaymentDetails({ ...paymentDetails, fullName: e.target.value })}
+                  placeholder="Nhập họ và tên"
                   style={{ borderRadius: '4px' }}
                 />
               </div>
@@ -832,6 +836,7 @@ const Navbar = () => {
                 <Input
                   value={paymentDetails.phoneNumber}
                   onChange={(e) => setPaymentDetails({ ...paymentDetails, phoneNumber: e.target.value })}
+                  placeholder="Nhập số điện thoại"
                   style={{ borderRadius: '4px' }}
                 />
               </div>
@@ -842,6 +847,7 @@ const Navbar = () => {
                 <Input
                   value={paymentDetails.deliveryAddress}
                   onChange={(e) => setPaymentDetails({ ...paymentDetails, deliveryAddress: e.target.value })}
+                  placeholder="Nhập địa chỉ giao hàng"
                   style={{ borderRadius: '4px' }}
                 />
               </div>
@@ -851,7 +857,7 @@ const Navbar = () => {
                 </Text>
                 <Select
                   value={paymentDetails.receiveMethod}
-                  onChange={(value) => setPaymentDetails({ ...paymentDetails, receiveMethod: value })}
+                  onChange={(value) => setPaymentDetails({ ...paymentDetails, receiveMethod: value, shippingFee: value === 'Giao tận nơi' ? 5000 : 0 })}
                   style={{ width: '100%', borderRadius: '4px' }}
                 >
                   <Option value="Giao tận nơi">Giao tận nơi</Option>
@@ -863,6 +869,7 @@ const Navbar = () => {
                 <Select
                   value={paymentDetails.area}
                   onChange={(value) => setPaymentDetails({ ...paymentDetails, area: value })}
+                  placeholder="Chọn khu"
                   style={{ width: '100%', borderRadius: '4px' }}
                 >
                   <Option value="Khoa Nội">Khoa Nội</Option>
@@ -874,6 +881,7 @@ const Navbar = () => {
                 <Select
                   value={paymentDetails.room}
                   onChange={(value) => setPaymentDetails({ ...paymentDetails, room: value })}
+                  placeholder="Chọn phòng"
                   style={{ width: '100%', borderRadius: '4px' }}
                 >
                   <Option value="Phòng hành chính">Phòng hành chính</Option>
@@ -887,6 +895,7 @@ const Navbar = () => {
                 <Select
                   value={paymentDetails.deliveryTime}
                   onChange={(value) => setPaymentDetails({ ...paymentDetails, deliveryTime: value })}
+                  placeholder="Chọn thời gian giao hàng"
                   style={{ width: '100%', borderRadius: '4px' }}
                 >
                   <Option value="30 phút">30 phút</Option>
@@ -908,15 +917,17 @@ const Navbar = () => {
                 checked={paymentDetails.includeUtensils}
                 onChange={(e) => setPaymentDetails({ ...paymentDetails, includeUtensils: e.target.checked })}
               >
-                Lấy dụng cụ ăn (+5,000 đ)
+                Lấy dụng cụ ăn
               </Checkbox>
-              <div>
+
+              <div style={{ marginTop: '8px' }}>
                 <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
                   Phương thức thanh toán
                 </Text>
                 <Select
                   value={paymentDetails.paymentMethod}
                   onChange={(value) => setPaymentDetails({ ...paymentDetails, paymentMethod: value })}
+                  placeholder="Chọn phương thức thanh toán"
                   style={{ width: '100%', borderRadius: '4px' }}
                 >
                   <Option value="Tiền mặt">Tiền mặt</Option>
@@ -924,38 +935,70 @@ const Navbar = () => {
                   <Option value="Chuyển khoản">Chuyển khoản</Option>
                 </Select>
               </div>
-              <div>
-                <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
-                  Chi tiết đơn hàng
-                </Text>
-                <Input.TextArea
-                  value={paymentDetails.orderDetails}
-                  readOnly
-                  style={{ height: '100px', resize: 'none', borderRadius: '4px' }}
-                />
+              <div style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}>
+                <div style={{ fontWeight: '600', marginBottom: '8px' }}>Chi tiết đơn hàng</div>
+                {cartItems.map((item) => (
+                  <div
+                    key={item.cartId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginBottom: '12px',
+                      gap: '12px',
+                    }}
+                  >
+                    <img
+                      src={item.image || 'https://via.placeholder.com/50x50?text=No+Image'}
+                      alt={item.dishName}
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        objectFit: 'cover',
+                        borderRadius: '8px',
+                        border: '1px solid #eee',
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '500', marginBottom: '4px' }}>{item.dishName}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                        <div style={{ color: '#000' }}>
+                          {(item.price).toLocaleString('vi-VN')}đ
+                        </div>
+                        <div style={{ color: '#888' }}>
+                          x{item.quantity}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ fontWeight: '500', color: '#ff0000' }}>
+                      {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #ddd' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text strong style={{ fontSize: '16px' }}>Tạm tính</Text>
-                <Text style={{ fontSize: '16px', color: '#ff0000' }}>
-                  {paymentDetails.total.toLocaleString('vi-VN')} đ
+                <Text style={{ fontSize: '16px', color: '#000' }}>
+                  {paymentDetails.total.toLocaleString('vi-VN')}đ
                 </Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text strong style={{ fontSize: '16px' }}>Phí vận chuyển</Text>
-                <Text style={{ fontSize: '16px', color: '#ff0000' }}>
-                  {paymentDetails.shippingFee.toLocaleString('vi-VN')} đ
+                <Text style={{ fontSize: '16px', color: '#000' }}>
+                  {paymentDetails.shippingFee.toLocaleString('vi-VN')}đ
                 </Text>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text strong style={{ fontSize: '16px' }}>Phí dụng cụ ăn</Text>
-                <Text style={{ fontSize: '16px', color: '#ff0000' }}>
-                  {(paymentDetails.includeUtensils ? 5000 : 0).toLocaleString('vi-VN')} đ
-                </Text>
-              </div>
+              {paymentDetails.includeUtensils && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text strong style={{ fontSize: '16px' }}>Phí dụng cụ ăn</Text>
+                  <Text style={{ fontSize: '16px', color: '#000' }}>5.000đ</Text>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text strong style={{ fontSize: '16px' }}>Tổng cộng</Text>
                 <Text style={{ fontSize: '16px', color: '#ff0000' }}>
-                  {(paymentDetails.total + paymentDetails.shippingFee + (paymentDetails.includeUtensils ? 5000 : 0)).toLocaleString('vi-VN')} đ
+                  {(paymentDetails.total + paymentDetails.shippingFee + (paymentDetails.includeUtensils ? 5000 : 0)).toLocaleString('vi-VN')}đ
                 </Text>
               </div>
               <Button
@@ -984,7 +1027,7 @@ const Navbar = () => {
           selectedBranch={selectedBranch}
         />
       )}
-    </>
+    </ConfigProvider>
   );
 };
 
