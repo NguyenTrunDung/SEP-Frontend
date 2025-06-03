@@ -4,7 +4,6 @@ import { SearchOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom';
 import { useBranches } from '../hooks/queries/useBranches';
 import { useCart } from '../context/CartContext';
-import MenuPage from '../components/Dishes/Menu';
 import { v4 as uuidv4 } from 'uuid';
 import locale from 'antd/locale/vi_VN';
 
@@ -16,7 +15,11 @@ const Navbar = () => {
   const { branches, loading, error } = useBranches();
   const { cartItems, setCartItems } = useCart();
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState(null);
+  const [selectedBranch, setSelectedBranch] = useState(() => {
+    const savedBranch = localStorage.getItem('selectedBranch');
+    return savedBranch ? JSON.parse(savedBranch) : null;
+  });
+  const [hasCheckedBranch, setHasCheckedBranch] = useState(false);
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
@@ -44,15 +47,17 @@ const Navbar = () => {
   const [activeKey, setActiveKey] = useState('home');
 
   useEffect(() => {
-    if (!selectedBranch) {
+    if (!selectedBranch && !hasCheckedBranch) {
       setIsModalVisible(true);
+      setHasCheckedBranch(true);
     }
-  }, [selectedBranch]);
+  }, [selectedBranch, hasCheckedBranch]);
 
   const showModal = () => setIsModalVisible(true);
 
   const handleBranchSelect = (branch) => {
     setSelectedBranch(branch);
+    localStorage.setItem('selectedBranch', JSON.stringify(branch));
     setIsModalVisible(false);
   };
 
@@ -89,13 +94,6 @@ const Navbar = () => {
     setCartItems(updatedItems);
     console.log('Removed item, new cartItems:', updatedItems);
     message.success('Đã xóa món khỏi giỏ hàng.');
-  };
-
-  const handleMenuClick = (key) => {
-    setActiveKey(key);
-    if (key === 'cart') {
-      handleCartClick();
-    }
   };
 
   const handleEditCartItem = (cartId) => {
@@ -179,6 +177,32 @@ const Navbar = () => {
     handleCartUpdate();
   };
 
+  const handleMenuClick = (key) => {
+    setActiveKey(key);
+    if (key === 'cart') {
+      handleCartClick();
+    } else if (key === 'contact') {
+      navigate('/contact');
+    } else {
+      const routes = {
+        home: '/',
+       
+      
+      };
+      const section = document.getElementById(key);
+      if (section) {
+        const headerHeight = 139; // 40px (top bar) + 99px (main header)
+        const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
+        window.scrollTo({
+          top: sectionPosition - headerHeight,
+          behavior: 'smooth',
+        });
+      } else if (routes[key]) {
+        navigate(routes[key]);
+      }
+    }
+  };
+
   return (
     <ConfigProvider locale={locale}>
       <Header
@@ -236,13 +260,19 @@ const Navbar = () => {
         <Row align="middle" style={{ backgroundColor: '#fff', padding: '0 20px', height: '99px' }}>
           <Col xs={12} sm={6} md={4}>
             <img
-              src="/images/logo.png"
+              src="/images/lg.png"
               alt="Logo"
               style={{ height: 'clamp(50px, 10vw, 80px)', maxHeight: '76px', objectFit: 'contain' }}
             />
           </Col>
           <Col xs={12} sm={18} md={20} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            {['home', 'menu', 'cart', 'staff', 'contact'].map((key) => (
+            {[
+              { key: 'home', label: 'TRANG CHỦ', route: '/' },
+              { key: 'menu', label: 'THỰC ĐƠN'},
+              { key: 'cart', label: 'GIỎ HÀNG' },
+              { key: 'staff', label: 'NHÂN VIÊN'},
+              { key: 'contact', label: 'LIÊN HỆ', route: '/contact' },
+            ].map(({ key, label, route }) => (
               <Button
                 key={key}
                 type={activeKey === key ? 'primary' : 'default'}
@@ -255,34 +285,31 @@ const Navbar = () => {
                   borderRadius: '2px',
                   padding: '8px 16px',
                   fontWeight: 'bold',
+                  position: 'relative',
                 }}
               >
-                {key === 'home' ? 'TRANG CHỦ' : key === 'menu' ? 'THỰC ĐƠN' : key === 'cart' ? (
-                  <>
-                    GIỎ HÀNG
-                    {cartItems.length > 0 && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: '-10px',
-                          right: '-10px',
-                          backgroundColor: '#ff0000',
-                          color: '#fff',
-                          borderRadius: '50%',
-                          width: '20px',
-                          height: '20px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        {cartItems.reduce((total, item) => total + item.quantity, 0)}
-                      </span>
-                    )}
-                  </>
-                ) : key === 'staff' ? 'NHÂN VIÊN' : 'LIÊN HỆ'}
+                {label}
+                {key === 'cart' && cartItems.length > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '-10px',
+                      right: '-10px',
+                      backgroundColor: '#ff0000',
+                      color: '#fff',
+                      borderRadius: '50%',
+                      width: '20px',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {cartItems.reduce((total, item) => total + item.quantity, 0)}
+                  </span>
+                )}
               </Button>
             ))}
           </Col>
@@ -409,11 +436,7 @@ const Navbar = () => {
                     key="menu"
                     onClick={() => {
                       setIsCartModalVisible(false);
-                      setActiveKey('menu');
-                      const menuElement = document.getElementById('menu');
-                      if (menuElement) {
-                        menuElement.scrollIntoView({ behavior: 'smooth' });
-                      }
+                      navigate('/menu');
                     }}
                     style={{
                       backgroundColor: '#b4c80f',
@@ -919,7 +942,6 @@ const Navbar = () => {
               >
                 Lấy dụng cụ ăn
               </Checkbox>
-
               <div style={{ marginTop: '8px' }}>
                 <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
                   Phương thức thanh toán
@@ -1019,14 +1041,6 @@ const Navbar = () => {
           </div>
         </Modal>
       </Header>
-
-      {activeKey === 'menu' && (
-        <MenuPage
-          onCartUpdate={handleCartUpdate}
-          onShowCart={handleCartClick}
-          selectedBranch={selectedBranch}
-        />
-      )}
     </ConfigProvider>
   );
 };

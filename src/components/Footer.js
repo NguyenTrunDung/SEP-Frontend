@@ -29,7 +29,7 @@ const FooterComponent = () => {
         <div>Điện thoại: 028 3840 8379</div>
         <div>Email: homms@gmail.com</div>
         <img
-          src="/images/logo.png" // Thay bằng URL logo thực tế
+          src="/images/lg.png" // Thay bằng URL logo thực tế
           alt="Đã thông báo"
           style={{ width: '40px', height: '40px', marginRight: '10px' }}
         />
@@ -43,7 +43,7 @@ const FooterComponent = () => {
         <div>Copyright © Hospital Ordered Meal Management System 2025</div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px' }}>
           <img
-            src="/images/bct.png" // Thay bằng URL logo thực tế
+            src="/images/bct.png" 
             alt="Bộ Công Thương"
             style={{ width: '40px', height: '40px', marginRight: '10px' }}
           />

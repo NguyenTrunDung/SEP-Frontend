@@ -20,9 +20,13 @@ import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
 
 //Cart
+
 import Menu from '../modules/Admin/Menu/index.js';
 import CustomerPage from '../modules/Admin/Customer/index.js';
 
+import ContactPage from '../components/Contact.js';
+import Navbar from '../components/Navbar.js';
+import FooterComponent from '../components/Footer.js';
 
 // Define role-specific home redirects
 const roleHomeRedirects = {
@@ -51,7 +55,17 @@ const routes = [
     path: '/unauthorized',
     element: <Unauthorized />,
   },
-  
+{
+    path: '/contact',
+    element: (
+      <div>
+        <Navbar />
+        <ContactPage />
+        <FooterComponent />
+      </div>
+    ),
+  }
+,
 
   // Role-based redirect route (used for redirecting after login)
   {
