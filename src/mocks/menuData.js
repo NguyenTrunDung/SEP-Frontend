@@ -128,7 +128,7 @@ export const mockMenus = [
   {
     ID: '1',
     BranchId: '1',
-    Date: '2025-06-01', // Added for June 1, 2025
+    Date: '2025-06-03', // Added for June 1, 2025
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
@@ -142,7 +142,7 @@ export const mockMenus = [
   {
     ID: '2',
     BranchId: '2',
-    Date: '2025-06-01', // Added for June 1, 2025
+    Date: '2025-06-03', // Added for June 1, 2025
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
@@ -156,7 +156,7 @@ export const mockMenus = [
   {
     ID: '3',
     BranchId: '1',
-    Date: '2025-06-01', // Added for June 1, 2025
+    Date: '2025-06-02', // Added for June 1, 2025
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
@@ -170,7 +170,7 @@ export const mockMenus = [
   {
     ID: '4',
     BranchId: '2',
-    Date: '2025-06-01', // Added for June 1, 2025
+    Date: '2025-06-02', // Added for June 1, 2025
     CreatedAt: '2025-05-19T10:00:00',
     UpdatedAt: '2025-05-19T10:00:00',
     CreatedBy: 'user1',
