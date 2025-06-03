@@ -1,152 +1,3 @@
-// // src/routes/index.jsx
-// import React from 'react';
-// import { createBrowserRouter, Navigate } from 'react-router-dom';
-// import { ROLES } from '../constants/roles';
-// import ProtectedRoute from './ProtectedRoute';
-// import AdminLayout from '../components/layout/AdminLayout';
-// import DefaultLayout from '../components/layout/DefaultLayout';
-
-// // Pages
-// import Login from '../pages/Auth/Login';
-// import Dashboard from '../pages/Dashboard/Dashboard';
-// import Home from '../pages/Home/Home';
-// import Orders from '../pages/Orders/Orders';
-// import Menu from '../pages/Menu/Menu';
-// import Users from '../pages/Users/Users';
-// import Unauthorized from '../pages/Unauthorized/Unauthorized';
-// import NotFound from '../pages/NotFound/NotFound';
-
-// // Define role-specific home redirects
-// const roleHomeRedirects = {
-//   [ROLES.ADMIN]: '/dashboard',
-//   [ROLES.DOCTOR]: '/doctor/appointments',
-//   [ROLES.PATIENT]: '/patient/profile',
-//   [ROLES.STAFF]: '/staff/dashboard'
-// };
-
-// const router = createBrowserRouter([
-//   // Public routes
-//   {
-//     path: '/login',
-//     element: <Login />,
-//   },
-//   {
-//     path: '/unauthorized',
-//     element: <Unauthorized />,
-//   },
-
-//   // Admin routes
-//   {
-//     path: '/',
-//     element: <AdminLayout />,
-//     children: [
-//       {
-//         path: 'dashboard',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.ADMIN}>
-//             <Dashboard />
-//           </ProtectedRoute>
-//         ),
-//       },
-//       {
-//         path: 'orders',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.ADMIN}>
-//             <Orders />
-//           </ProtectedRoute>
-//         ),
-//       },
-//       {
-//         path: 'menu',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.ADMIN}>
-//             <Menu />
-//           </ProtectedRoute>
-//         ),
-//       },
-//       {
-//         path: 'users',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.ADMIN}>
-//             <Users />
-//           </ProtectedRoute>
-//         ),
-//       },
-//     ],
-//   },
-
-//   // Doctor routes
-//   {
-//     path: '/doctor',
-//     element: <DefaultLayout />,
-//     children: [
-//       {
-//         path: 'appointments',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.DOCTOR}>
-//             <Home />
-//           </ProtectedRoute>
-//         ),
-//       },
-//       // Other doctor routes
-//     ],
-//   },
-
-//   // Patient routes
-//   {
-//     path: '/patient',
-//     element: <DefaultLayout />,
-//     children: [
-//       {
-//         path: 'profile',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.PATIENT}>
-//             <Home />
-//           </ProtectedRoute>
-//         ),
-//       },
-//       // Other patient routes
-//     ],
-//   },
-
-//   // Staff routes
-//   {
-//     path: '/staff',
-//     element: <DefaultLayout />,
-//     children: [
-//       {
-//         path: 'dashboard',
-//         element: (
-//           <ProtectedRoute requiredRole={ROLES.STAFF}>
-//             <Home />
-//           </ProtectedRoute>
-//         ),
-//       },
-//       // Other staff routes
-//     ],
-//   },
-
-//   // Root redirect based on role
-//   {
-//     path: '/',
-//     element: (
-//       <ProtectedRoute>
-//         {({ user }) => {
-//           const redirectPath = user?.role ? roleHomeRedirects[user.role] : '/login';
-//           return <Navigate to={redirectPath} replace />;
-//         }}
-//       </ProtectedRoute>
-//     ),
-//   },
-
-//   // Catch all route
-//   {
-//     path: '*',
-//     element: <NotFound />
-//   }
-// ]);
-
-// export default router;
 
 // src/routes/routes.js
 import React from 'react';
@@ -167,10 +18,12 @@ import Unauthorized from '../modules/Unauthorized.js';
 // Order pages
 import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
-//Managa staff
-import ViewAllStaff from '../modules/Admin/ManagaStaff/ViewAllStaff.js'
 
+//Cart
+import Cart from '../components/Cart/ViewCart.js'
 import Menu from '../modules/Admin/Menu/index.js';
+import CustomerPage from '../modules/Admin/Customer/index.js';
+
 
 // Define role-specific home redirects
 const roleHomeRedirects = {
@@ -250,7 +103,7 @@ const routes = [
     element: (
       <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
         <AdminLayout>
-          <ViewAllStaff />
+          <CustomerPage />
         </AdminLayout>
       </ProtectedRoute>
     ),
