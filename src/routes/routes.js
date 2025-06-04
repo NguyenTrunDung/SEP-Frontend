@@ -22,7 +22,7 @@ import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
 //Cart
 
 import Menu from '../modules/Admin/Menu/index.js';
-import CustomerPage from '../modules/Admin/Customer/index.js';
+import CustomerPage from '../modules/Admin/Staff/index.js';
 
 import ContactPage from '../components/Contact.js';
 import Navbar from '../components/Navbar.js';
@@ -260,9 +260,9 @@ const routes = [
     path: '/staff/home',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <DefaultLayout>
+        <AdminLayout>
           <Home />
-        </DefaultLayout>
+        </AdminLayout>
       </ProtectedRoute>
     ),
   },
@@ -270,9 +270,9 @@ const routes = [
     path: '/staff/profile',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <DefaultLayout>
+        <AdminLayout>
           <Profile />
-        </DefaultLayout>
+        </AdminLayout>
       </ProtectedRoute>
     ),
   },
@@ -280,9 +280,9 @@ const routes = [
     path: '/staff/edit-profile/:id',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <DefaultLayout>
+        <AdminLayout>
           <EditProfile />
-        </DefaultLayout>
+        </AdminLayout>
       </ProtectedRoute>
     ),
   },
@@ -290,9 +290,9 @@ const routes = [
     path: '/staff/change-password/:id',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <DefaultLayout>
+        <AdminLayout>
           <ChangePassword />
-        </DefaultLayout>
+        </AdminLayout>
       </ProtectedRoute>
     ),
   },
