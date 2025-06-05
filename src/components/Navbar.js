@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, Select, Checkbox, ConfigProvider, Avatar, Dropdown, Menu } from 'antd';
+import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, Select, Checkbox, ConfigProvider, Avatar } from 'antd';
 import { SearchOutlined, DeleteOutlined, EditOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useBranches } from '../hooks/queries/useBranches';
@@ -30,6 +30,7 @@ const Navbar = () => {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [isProfilePopupVisible, setIsProfilePopupVisible] = useState(false);
+  const [isUserMenuVisible, setIsUserMenuVisible] = useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
@@ -193,6 +194,8 @@ const Navbar = () => {
       navigate('/contact');
     } else if (key === 'staff' && user?.role === ROLES.NURSE) {
       navigate('/nurse/home');
+    } else if (key === 'employee') {
+      setIsUserMenuVisible(true);
     } else {
       const routes = {
         home: '/',
@@ -220,35 +223,15 @@ const Navbar = () => {
       return;
     }
     setIsProfilePopupVisible(true);
+    setIsUserMenuVisible(false);
   };
 
   const handleLogout = () => {
     console.log('Logging out user:', user);
     logout();
     navigate('/login');
+    setIsUserMenuVisible(false);
   };
-
-  const userMenu = (
-    <Menu>
-      <Menu.Item
-        key="profile"
-        icon={<UserOutlined />}
-        onClick={handleProfileClick}
-        style={{ fontSize: '15px' }}
-      >
-        Thông tin cá nhân
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item
-        key="logout"
-        icon={<LogoutOutlined />}
-        onClick={handleLogout}
-        style={{ color: '#ff4d4f' }}
-      >
-        <span style={{ fontSize: '15px' }}>Đăng xuất</span>
-      </Menu.Item>
-    </Menu>
-  );
 
   return (
     <ConfigProvider locale={locale}>
@@ -262,6 +245,7 @@ const Navbar = () => {
           fontFamily: 'Quicksand, sans-serif',
         }}
       >
+        {/* Other parts of the Header remain unchanged */}
         <div style={{ backgroundColor: '#b4c80f', padding: '8px 20px', height: '40px', lineHeight: '26px' }}>
           <Row align="middle" justify="end">
             <Col style={{ marginRight: '8px' }}>
@@ -318,6 +302,7 @@ const Navbar = () => {
               { key: 'menu', label: 'THỰC ĐƠN' },
               { key: 'cart', label: 'GIỎ HÀNG' },
               { key: 'staff', label: user?.role === ROLES.NURSE ? 'BỆNH NHÂN' : 'NHÂN VIÊN', route: user?.role === ROLES.NURSE ? '/nurse/home' : '/staff' },
+              { key: 'employee', label: 'NHÂN VIÊN' },
               { key: 'contact', label: 'LIÊN HỆ', route: '/contact' },
             ].map(({ key, label, route }) => (
               <Button
@@ -359,26 +344,10 @@ const Navbar = () => {
                 )}
               </Button>
             ))}
-            {user && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '16px' }}>
-                <Text style={{ fontSize: '15px', color: '#666' }}>
-                  Xin chào, <strong style={{ color: '#262626' }}>{user?.name || user?.email || 'N/A'}</strong>
-                </Text>
-                <Dropdown overlay={userMenu} placement="bottomRight" trigger={['click']}>
-                  <Avatar
-                    size="default"
-                    icon={<UserOutlined />}
-                    style={{
-                      backgroundColor: '#1890ff',
-                      cursor: 'pointer',
-                    }}
-                  />
-                </Dropdown>
-              </div>
-            )}
           </Col>
         </Row>
 
+        {/* Other modals (branch selection, cart, edit cart, payment) remain unchanged */}
         <Modal
           open={isModalVisible}
           footer={null}
@@ -1104,7 +1073,124 @@ const Navbar = () => {
             </div>
           </div>
         </Modal>
+        <Modal
+          open={isUserMenuVisible}
+          onCancel={() => setIsUserMenuVisible(false)}
+          footer={null}
+          centered
+          width={500}
+          closeIcon={<span style={{ color: '#000', fontSize: '26px' }}>×</span>}
 
+          styles={{
+            content: { padding: 0, borderRadius: 8 },
+            body: { padding: 0 },
+            header: { display: 'none' },
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
+            <div
+              style={{
+                backgroundColor: '#b4c80f',
+                color: '#000',
+                padding: '16px 20px',
+                fontSize: '20px',
+                fontWeight: 600,
+              }}
+            >
+              Nhân viên
+            </div>
+            <div style={{ padding: '16px', background: '#fff' }}>
+              {user && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <Text style={{ fontSize: '15px', color: '#666' }}>
+                    Xin chào, <strong style={{ color: '#262626' }}>{user?.name || user?.email || 'N/A'}</strong>
+                  </Text>
+                  {/* <Avatar
+                    size="default"
+                    icon={<UserOutlined />}
+                    style={{ backgroundColor: '#1890ff' }}
+                  /> */}
+                </div>
+              )}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  
+                  
+                }}
+              >
+                <Button
+                  icon={<UserOutlined />}
+                  onClick={() => {
+                    handleProfileClick();
+                    setIsUserMenuVisible(false);
+                  }}
+                  style={{
+                    textAlign: 'center',
+                    fontSize: '15px',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  Ví của bạn
+                </Button>
+                <Button
+                  icon={<SearchOutlined />}
+                  onClick={() => {
+                    message.info('Chức năng Đơn hàng đã đặt chưa được triển khai.');
+                    setIsUserMenuVisible(false);
+                  }}
+                  style={{
+                    textAlign: 'left',
+                    fontSize: '15px',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  Đơn hàng đã đặt
+                </Button>
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    handleProfileClick();
+                    setIsUserMenuVisible(false);
+                  }}
+                  style={{
+                    textAlign: 'left',
+                    fontSize: '15px',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  Thông tin hồ sơ
+                </Button>
+                <Button
+                  icon={<LogoutOutlined />}
+                  onClick={() => {
+                    handleLogout();
+                    setIsUserMenuVisible(false);
+                  }}
+                  style={{
+                    textAlign: 'left',
+                    fontSize: '15px',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    color: '#ff4d4f',
+                    
+                  }}
+                >
+                  Đăng xuất
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Modal>
         <ProfilePopup
           visible={isProfilePopupVisible}
           onClose={() => setIsProfilePopupVisible(false)}
