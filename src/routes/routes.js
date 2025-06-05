@@ -28,12 +28,12 @@ import ContactPage from '../components/Contact.js';
 import Navbar from '../components/Navbar.js';
 import FooterComponent from '../components/Footer.js';
 
-// Define role-specific home redirects
 const roleHomeRedirects = {
-  [ROLES.ADMIN]: '/dashboard',
-  [ROLES.DOCTOR]: '/doctor/home',
-  [ROLES.PATIENT]: '/patient/home',
-  [ROLES.STAFF]: '/orders'  // Staff redirects to orders, not dashboard
+    [ROLES.ADMIN]: '/dashboard',
+    [ROLES.DOCTOR]: '/doctor/home',
+    [ROLES.NURSE]: '/nurse/home',
+    [ROLES.PATIENT]: '/patient/home',
+    [ROLES.STAFF]: '/orders'
 };
 
 // Route config with layout and role protection
@@ -296,11 +296,52 @@ const routes = [
       </ProtectedRoute>
     ),
   },
-  // Catch-all route
-  {
-    path: '*',
-    element: <Navigate to="/login" replace />,
-  },
+  // Nurse routes
+    {
+        path: '/nurse/home',
+        element: (
+            <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+                <DefaultLayout>
+                    <Home />
+                </DefaultLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/nurse/profile',
+        element: (
+            <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+                <DefaultLayout>
+                    <Profile />
+                </DefaultLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/nurse/edit-profile/:id',
+        element: (
+            <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+                <DefaultLayout>
+                    <EditProfile />
+                </DefaultLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/nurse/change-password/:id',
+        element: (
+            <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+                <DefaultLayout>
+                    <ChangePassword />
+                </DefaultLayout>
+            </ProtectedRoute>
+        ),
+    },
+    // Catch-all route
+    {
+        path: '*',
+        element: <Navigate to="/login" replace />,
+    },
 ];
 
 export default routes;

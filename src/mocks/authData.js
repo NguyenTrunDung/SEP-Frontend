@@ -34,6 +34,14 @@ export const mockUsers = [
         role: ROLES.STAFF,
         department: 'Canteen',
     },
+    {
+        id: '5',
+        email: 'nurse@hospital.com',
+        password: 'nurse123',
+        name: 'Sarah Wilson',
+        role: ROLES.NURSE,
+        department: 'Nursing',
+    },
 ];
 
 // Store active refresh tokens

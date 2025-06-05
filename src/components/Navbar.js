@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, Select, Checkbox, ConfigProvider } from 'antd';
-import { SearchOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, Select, Checkbox, ConfigProvider, Avatar, Dropdown, Menu } from 'antd';
+import { SearchOutlined, DeleteOutlined, EditOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useBranches } from '../hooks/queries/useBranches';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { ROLES } from '../constants/roles';
 import { v4 as uuidv4 } from 'uuid';
 import locale from 'antd/locale/vi_VN';
+import ProfilePopup from '../components/Nurse/ViewProfilebyNurse';
 
 const { Header } = Layout;
 const { Text } = Typography;
@@ -14,6 +17,9 @@ const { Option } = Select;
 const Navbar = () => {
   const { branches, loading, error } = useBranches();
   const { cartItems, setCartItems } = useCart();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState(() => {
     const savedBranch = localStorage.getItem('selectedBranch');
@@ -23,6 +29,7 @@ const Navbar = () => {
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
+  const [isProfilePopupVisible, setIsProfilePopupVisible] = useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
@@ -43,15 +50,19 @@ const Navbar = () => {
     shippingFee: 5000,
     orderDetails: '',
   });
-  const navigate = useNavigate();
   const [activeKey, setActiveKey] = useState('home');
 
   useEffect(() => {
+    console.log('Navbar - Current path:', location.pathname);
     if (!selectedBranch && !hasCheckedBranch) {
       setIsModalVisible(true);
       setHasCheckedBranch(true);
     }
-  }, [selectedBranch, hasCheckedBranch]);
+  }, [selectedBranch, hasCheckedBranch, location.pathname]);
+
+  useEffect(() => {
+    console.log('Navbar - User data:', { user, role: user?.role });
+  }, [user]);
 
   const showModal = () => setIsModalVisible(true);
 
@@ -78,7 +89,6 @@ const Navbar = () => {
     }
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const shippingFee = paymentDetails.receiveMethod === 'Giao tận nơi' ? 5000 : 0;
-    const utensilsFee = paymentDetails.includeUtensils ? 5000 : 0;
     setPaymentDetails({
       ...paymentDetails,
       total,
@@ -121,9 +131,7 @@ const Navbar = () => {
 
     if (cartId) {
       const updatedItems = cartItems.map((item) =>
-        item.cartId === cartId
-          ? { ...item, quantity, note }
-          : item
+        item.cartId === cartId ? { ...item, quantity, note } : item
       );
       setCartItems(updatedItems);
       message.success(`${selectedMenuItem.dishName} đã được cập nhật trong giỏ hàng!`);
@@ -183,15 +191,16 @@ const Navbar = () => {
       handleCartClick();
     } else if (key === 'contact') {
       navigate('/contact');
+    } else if (key === 'staff' && user?.role === ROLES.NURSE) {
+      navigate('/nurse/home');
     } else {
       const routes = {
         home: '/',
-       
-      
+        staff: user?.role === ROLES.NURSE ? '/nurse/home' : '/staff',
       };
       const section = document.getElementById(key);
       if (section) {
-        const headerHeight = 139; // 40px (top bar) + 99px (main header)
+        const headerHeight = 139;
         const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
         window.scrollTo({
           top: sectionPosition - headerHeight,
@@ -202,6 +211,44 @@ const Navbar = () => {
       }
     }
   };
+
+  const handleProfileClick = () => {
+    if (!user || !user.role) {
+      console.error('User or user.role is undefined, redirecting to login');
+      message.error('Không thể truy cập hồ sơ. Vui lòng đăng nhập lại.');
+      navigate('/login');
+      return;
+    }
+    setIsProfilePopupVisible(true);
+  };
+
+  const handleLogout = () => {
+    console.log('Logging out user:', user);
+    logout();
+    navigate('/login');
+  };
+
+  const userMenu = (
+    <Menu>
+      <Menu.Item
+        key="profile"
+        icon={<UserOutlined />}
+        onClick={handleProfileClick}
+        style={{ fontSize: '15px' }}
+      >
+        Thông tin cá nhân
+      </Menu.Item>
+      <Menu.Divider />
+      <Menu.Item
+        key="logout"
+        icon={<LogoutOutlined />}
+        onClick={handleLogout}
+        style={{ color: '#ff4d4f' }}
+      >
+        <span style={{ fontSize: '15px' }}>Đăng xuất</span>
+      </Menu.Item>
+    </Menu>
+  );
 
   return (
     <ConfigProvider locale={locale}>
@@ -265,12 +312,12 @@ const Navbar = () => {
               style={{ height: 'clamp(50px, 10vw, 80px)', maxHeight: '76px', objectFit: 'contain' }}
             />
           </Col>
-          <Col xs={12} sm={18} md={20} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Col xs={12} sm={18} md={20} style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
             {[
               { key: 'home', label: 'TRANG CHỦ', route: '/' },
-              { key: 'menu', label: 'THỰC ĐƠN'},
+              { key: 'menu', label: 'THỰC ĐƠN' },
               { key: 'cart', label: 'GIỎ HÀNG' },
-              { key: 'staff', label: 'NHÂN VIÊN'},
+              { key: 'staff', label: user?.role === ROLES.NURSE ? 'BỆNH NHÂN' : 'NHÂN VIÊN', route: user?.role === ROLES.NURSE ? '/nurse/home' : '/staff' },
               { key: 'contact', label: 'LIÊN HỆ', route: '/contact' },
             ].map(({ key, label, route }) => (
               <Button
@@ -312,6 +359,23 @@ const Navbar = () => {
                 )}
               </Button>
             ))}
+            {user && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '16px' }}>
+                <Text style={{ fontSize: '15px', color: '#666' }}>
+                  Xin chào, <strong style={{ color: '#262626' }}>{user?.name || user?.email || 'N/A'}</strong>
+                </Text>
+                <Dropdown overlay={userMenu} placement="bottomRight" trigger={['click']}>
+                  <Avatar
+                    size="default"
+                    icon={<UserOutlined />}
+                    style={{
+                      backgroundColor: '#1890ff',
+                      cursor: 'pointer',
+                    }}
+                  />
+                </Dropdown>
+              </div>
+            )}
           </Col>
         </Row>
 
@@ -1040,6 +1104,11 @@ const Navbar = () => {
             </div>
           </div>
         </Modal>
+
+        <ProfilePopup
+          visible={isProfilePopupVisible}
+          onClose={() => setIsProfilePopupVisible(false)}
+        />
       </Header>
     </ConfigProvider>
   );
