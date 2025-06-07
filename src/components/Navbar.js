@@ -1,6 +1,7 @@
+// src/components/Navbar.js
 import React, { useState, useEffect } from 'react';
 import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar } from 'antd';
-import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined  } from '@ant-design/icons';
+import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useBranches } from '../hooks/queries/useBranches';
 import { useCart } from '../context/CartContext';
@@ -10,7 +11,8 @@ import locale from 'antd/locale/vi_VN';
 import ProfilePopup from '../components/Nurse/ViewProfilebyNurse';
 import CartModal from '../components/Cart/Cart';
 import PaymentModal from '../components/Payment/Payment';
-import OrderHistoryModal from '../components/OrderHistory/OrderHistory'; 
+import OrderHistoryModal from '../components/OrderHistory/OrderHistory';
+import WalletModal from '../components/Wallet/Wallet';
 
 const { Header } = Layout;
 const { Text } = Typography;
@@ -30,7 +32,8 @@ const Navbar = () => {
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [isProfilePopupVisible, setIsProfilePopupVisible] = useState(false);
   const [isUserMenuVisible, setIsUserMenuVisible] = useState(false);
-  const [isOrderHistoryVisible, setIsOrderHistoryVisible] = useState(false); // New state for order history modal
+  const [isOrderHistoryVisible, setIsOrderHistoryVisible] = useState(false);
+  const [isWalletModalVisible, setIsWalletModalVisible] = useState(false); // New state for wallet modal
   const [paymentDetails, setPaymentDetails] = useState({
     deliveryAddress: '',
     fullName: '',
@@ -125,6 +128,11 @@ const Navbar = () => {
 
   const handleOrderHistoryClick = () => {
     setIsOrderHistoryVisible(true);
+    setIsUserMenuVisible(false);
+  };
+
+  const handleWalletClick = () => {
+    setIsWalletModalVisible(true);
     setIsUserMenuVisible(false);
   };
 
@@ -404,10 +412,7 @@ const Navbar = () => {
               >
                 <Button
                   icon={<WalletOutlined />}
-                  onClick={() => {
-                    handleProfileClick();
-                    setIsUserMenuVisible(false);
-                  }}
+                  onClick={handleWalletClick}
                   style={{
                     textAlign: 'center',
                     fontSize: '15px',
@@ -473,6 +478,11 @@ const Navbar = () => {
         <OrderHistoryModal
           visible={isOrderHistoryVisible}
           onClose={() => setIsOrderHistoryVisible(false)}
+        />
+
+        <WalletModal
+          visible={isWalletModalVisible}
+          onClose={() => setIsWalletModalVisible(false)}
         />
       </Header>
     </ConfigProvider>
