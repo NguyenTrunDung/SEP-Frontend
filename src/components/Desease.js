@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // Updated disease data with ingredients instead of dishes
 const diseases = [
   {
-    img: "images/benh1.jpg",
+    img: "/images/benh1.jpg",
     heading: "Tiểu Đường",
     description:
       "Tiểu đường là tình trạng lượng đường trong máu tăng cao kéo dài do rối loạn chuyển hóa insulin. Bệnh có thể dẫn đến biến chứng nghiêm trọng về tim mạch, thận, thần kinh và thị lực nếu không kiểm soát tốt.",
@@ -18,7 +18,7 @@ const diseases = [
     ],
   },
   {
-    img: "images/benh2.jpg",
+    img: "/images/benh2.jpg",
     heading: "Huyết Áp Cao",
     description:
       "Huyết áp cao thường không có triệu chứng rõ rệt nhưng làm tăng nguy cơ đột quỵ và các bệnh tim mạch nghiêm trọng nếu không kiểm soát tốt.",
@@ -32,7 +32,7 @@ const diseases = [
     ],
   },
   {
-    img: "images/benh3.jpg",
+    img: "/images/benh3.jpg",
     heading: "Đột Quỵ",
     description:
       "Đột quỵ xảy ra khi máu không thể lưu thông lên não, gây tổn thương tế bào não, có thể dẫn đến tàn tật hoặc tử vong nếu không được cấp cứu kịp thời.",

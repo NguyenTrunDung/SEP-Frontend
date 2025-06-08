@@ -20,16 +20,20 @@ import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
 
 //Cart
+
 import Menu from '../modules/Admin/Menu/index.js';
-import CustomerPage from '../modules/Admin/Customer/index.js';
+import CustomerPage from '../modules/Admin/Staff/index.js';
 
+import ContactPage from '../components/Contact.js';
+import Navbar from '../components/Navbar.js';
+import FooterComponent from '../components/Footer.js';
 
-// Define role-specific home redirects
 const roleHomeRedirects = {
-  [ROLES.ADMIN]: '/dashboard',
-  [ROLES.DOCTOR]: '/doctor/home',
-  [ROLES.PATIENT]: '/patient/home',
-  [ROLES.STAFF]: '/orders'  // Staff redirects to orders, not dashboard
+    [ROLES.ADMIN]: '/dashboard',
+    [ROLES.DOCTOR]: '/doctor/home',
+    [ROLES.NURSE]: '/nurse/home',
+    [ROLES.PATIENT]: '/patient/home',
+    [ROLES.STAFF]: '/orders'
 };
 
 // Route config with layout and role protection
@@ -51,7 +55,17 @@ const routes = [
     path: '/unauthorized',
     element: <Unauthorized />,
   },
-  
+{
+    path: '/contact',
+    element: (
+      <div>
+        <Navbar />
+        <ContactPage />
+        <FooterComponent />
+      </div>
+    ),
+  }
+,
 
   // Role-based redirect route (used for redirecting after login)
   {
@@ -246,9 +260,9 @@ const routes = [
     path: '/staff/home',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <DefaultLayout>
+        <AdminLayout>
           <Home />
-        </DefaultLayout>
+        </AdminLayout>
       </ProtectedRoute>
     ),
   },
@@ -256,9 +270,9 @@ const routes = [
     path: '/staff/profile',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <DefaultLayout>
+        <AdminLayout>
           <Profile />
-        </DefaultLayout>
+        </AdminLayout>
       </ProtectedRoute>
     ),
   },
@@ -266,9 +280,9 @@ const routes = [
     path: '/staff/edit-profile/:id',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <DefaultLayout>
+        <AdminLayout>
           <EditProfile />
-        </DefaultLayout>
+        </AdminLayout>
       </ProtectedRoute>
     ),
   },
@@ -276,17 +290,58 @@ const routes = [
     path: '/staff/change-password/:id',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <DefaultLayout>
+        <AdminLayout>
           <ChangePassword />
-        </DefaultLayout>
+        </AdminLayout>
       </ProtectedRoute>
     ),
   },
-  // Catch-all route
-  {
-    path: '*',
-    element: <Navigate to="/login" replace />,
-  },
+  // Nurse routes
+    {
+        path: '/nurse/home',
+        element: (
+            <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+                <DefaultLayout>
+                    <Home />
+                </DefaultLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/nurse/profile',
+        element: (
+            <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+                <DefaultLayout>
+                    <Profile />
+                </DefaultLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/nurse/edit-profile/:id',
+        element: (
+            <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+                <DefaultLayout>
+                    <EditProfile />
+                </DefaultLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/nurse/change-password/:id',
+        element: (
+            <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+                <DefaultLayout>
+                    <ChangePassword />
+                </DefaultLayout>
+            </ProtectedRoute>
+        ),
+    },
+    // Catch-all route
+    {
+        path: '*',
+        element: <Navigate to="/login" replace />,
+    },
 ];
 
 export default routes;

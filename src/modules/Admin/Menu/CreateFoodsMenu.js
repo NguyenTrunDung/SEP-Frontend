@@ -12,83 +12,100 @@ import {
     InputNumber,
     List,
     Typography,
-    message
+    message,
 } from 'antd';
-import { PlusOutlined, MinusCircleOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, MinusCircleOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import PropTypes from 'prop-types';
 import './CreateFoodsMenu.css';
 
+// Initialize Cloudinary upload widget
+const openCloudinaryWidget = (cb) => {
+    window.cloudinary.openUploadWidget(
+        {
+            cloudName: 'depxkho4m',
+            uploadPreset: 'sep490',
+            sources: ['local', 'url', 'camera'],
+            multiple: false,
+            resourceType: 'image',
+            clientAllowedFormats: ['png', 'jpg', 'jpeg'],
+            maxFileSize: 5000000, // 5MB
+        },
+        (error, result) => {
+            if (!error && result && result.event === 'success') {
+                console.log('Cloudinary upload successful:', result.info);
+                cb(result.info.secure_url);
+            } else if (error) {
+                console.error('Cloudinary upload error:', error);
+                message.error('Lỗi khi tải lên hình ảnh!');
+            }
+        }
+    );
+};
+
 const { Text } = Typography;
 
-/**
- * Component for creating food menu with categories
- * Enhanced with improved food selection and search functionality
- */
 const CreateFoodsMenu = ({
     open,
     onCancel,
     onSubmit,
     initialValues = {},
     availableDishes = [],
-    loading = false
+    loading = false,
 }) => {
     const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(initialValues);
     const [serviceTime, setServiceTime] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [showFoodList, setShowFoodList] = useState({});
 
-    // Menu categories as shown in the UI
+    // Menu categories
     const menuCategories = [
         { key: 'breakfast', label: 'Điểm tâm', color: '#52c41a' },
         { key: 'mainDish', label: 'Món chính', color: '#1890ff' },
         { key: 'otherDish', label: 'Món Khác', color: '#722ed1' },
         { key: 'beverages', label: 'Nước giải khát', color: '#fa541c' },
         { key: 'dessert', label: 'Tráng miệng', color: '#eb2f96' },
-        { key: 'vegetarian', label: 'Món Chay', color: '#13c2c2' }
+        { key: 'vegetarian', label: 'Món Chay', color: '#13c2c2' },
     ];
 
-    // Get currently selected dish IDs for a category
+    // Get selected dish IDs for a category
     const getSelectedDishIds = (categoryKey) => {
         const categoryData = form.getFieldValue(categoryKey) || [];
-        return categoryData.map(item => item.dishId).filter(Boolean);
+        return categoryData.map((item) => item.dishId).filter(Boolean);
     };
 
-    // Get available dishes for a category (excluding already selected ones)
+    // Get available dishes for a category
     const getAvailableDishesByCategory = (categoryKey) => {
         const selectedIds = getSelectedDishIds(categoryKey);
-        return availableDishes.filter(dish =>
-            dish.category === categoryKey && !selectedIds.includes(dish.id)
+        return availableDishes.filter(
+            (dish) => dish.category === categoryKey && !selectedIds.includes(dish.id)
         );
     };
 
     // Filter dishes based on search term
     const getFilteredDishes = (dishes) => {
         if (!searchTerm.trim()) return dishes;
-        return dishes.filter(dish =>
+        return dishes.filter((dish) =>
             dish.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
     };
 
-    // Get visible categories based on search results
+    // Visible categories based on search
     const visibleCategories = useMemo(() => {
         if (!searchTerm.trim()) return menuCategories;
-
-        return menuCategories.filter(category => {
+        return menuCategories.filter((category) => {
             const categoryDishes = getAvailableDishesByCategory(category.key);
             const filteredDishes = getFilteredDishes(categoryDishes);
             return filteredDishes.length > 0;
         });
     }, [searchTerm, availableDishes]);
 
-    // Handle search input change
+    // Handle search input
     const handleSearchChange = (e) => {
         const value = e.target.value;
         setSearchTerm(value);
-
-        // Reset food list visibility when searching
         if (value.trim()) {
             setShowFoodList({});
         }
@@ -108,20 +125,20 @@ const CreateFoodsMenu = ({
             staffPrice: Math.round((dish.price || 0) * 0.8),
             discount: 0,
             autoDiscount: false,
-            maxDiscount: 0
+            maxDiscount: 0,
+            imageUrl: '', // Ensure imageUrl is always included
         };
 
-        const updatedCategoryData = [...categoryData, newItem];
+        console.log(`Dish added to ${categoryKey}:`, newItem);
 
         form.setFieldsValue({
             ...currentValues,
-            [categoryKey]: updatedCategoryData
+            [categoryKey]: [...categoryData, newItem],
         });
 
-        // Hide food list after selection
-        setShowFoodList(prev => ({
+        setShowFoodList((prev) => ({
             ...prev,
-            [categoryKey]: false
+            [categoryKey]: false,
         }));
 
         message.success(`Đã thêm ${dish.name} vào menu`);
@@ -133,31 +150,53 @@ const CreateFoodsMenu = ({
         const categoryData = currentValues[categoryKey] || [];
         const removedItem = categoryData[index];
 
-        const updatedCategoryData = categoryData.filter((_, i) => i !== index);
-
         form.setFieldsValue({
             ...currentValues,
-            [categoryKey]: updatedCategoryData
+            [categoryKey]: categoryData.filter((_, i) => i !== index),
         });
 
         if (removedItem && removedItem.dishId) {
-            const removedDish = availableDishes.find(dish => dish.id === removedItem.dishId);
+            const removedDish = availableDishes.find((dish) => dish.id === removedItem.dishId);
             if (removedDish) {
                 message.info(`Đã xóa ${removedDish.name} khỏi menu`);
             }
         }
     };
 
+    // Handle image upload for a specific dish
+    const handleImageUpload = (categoryKey, name, url) => {
+        console.log(`Image uploaded for ${categoryKey} dish index ${name}: ${url}`);
+        const currentValues = form.getFieldsValue();
+        const categoryData = currentValues[categoryKey] || [];
+        const updatedCategoryData = categoryData.map((item, index) =>
+            index === name ? { ...item, imageUrl: url } : item
+        );
+
+        console.log('Before update - Category data:', categoryData);
+        console.log('After update - Category data:', updatedCategoryData);
+
+        form.setFieldsValue({
+            ...currentValues,
+            [categoryKey]: updatedCategoryData,
+        });
+
+        console.log(`Image URL for ${categoryKey}[${name}]:`, form.getFieldValue([categoryKey, name, 'imageUrl']));
+        console.log('Updated form values after image upload:', form.getFieldsValue());
+        message.success('Hình ảnh đã được tải lên thành công!');
+    };
+
     // Toggle food list visibility
     const toggleFoodList = (categoryKey) => {
-        setShowFoodList(prev => ({
+        setShowFoodList((prev) => ({
             ...prev,
-            [categoryKey]: !prev[categoryKey]
+            [categoryKey]: !prev[categoryKey],
         }));
     };
 
     const handleFormSubmit = async (values) => {
+        console.log('Form data being submitted:', values);
         const result = await handleSubmit(async (formData) => {
+            console.log('Processed form data:', formData);
             if (onSubmit) {
                 await onSubmit(formData);
             }
@@ -165,7 +204,10 @@ const CreateFoodsMenu = ({
 
         if (result.success) {
             message.success('Menu đã được tạo thành công!');
+            console.log('Menu creation successful, form data:', values);
             handleCancel();
+        } else {
+            console.error('Menu creation failed:', result.error);
         }
     };
 
@@ -179,136 +221,186 @@ const CreateFoodsMenu = ({
         }
     };
 
-    // Render compact dish configuration in one row
-    const renderCompactDishConfig = (categoryKey, name, restField, selectedDish) => (
-        <div className="dish-config-compact">
-            <Row gutter={[8, 8]} align="middle">
-                <Col span={3}>
-                    <Form.Item
-                        {...restField}
-                        name={[name, 'quantity']}
-                        rules={[{ required: true, message: 'Số lượng!' }]}
-                        style={{ marginBottom: 0 }}
-                    >
-                        <InputNumber
-                            min={1}
-                            max={999}
-                            placeholder="1"
+    // Render compact dish configuration with image
+    const renderCompactDishConfig = (categoryKey, name, restField, selectedDish) => {
+        const imageUrl = form.getFieldValue([categoryKey, name, 'imageUrl']);
+        console.log(`Rendering dish ${selectedDish.name} in ${categoryKey}[${name}] with imageUrl:`, imageUrl);
+
+        return (
+            <div className="dish-config-compact">
+                <Row gutter={[8, 8]} align="middle">
+                    <Col span={3}>
+                        <Form.Item
+                            {...restField}
+                            name={[name, 'quantity']}
+                            rules={[{ required: true, message: 'Số lượng!' }]}
+                            style={{ marginBottom: 0 }}
+                        >
+                            <InputNumber min={1} max={999} placeholder="1" size="small" style={{ width: '100%' }} />
+                        </Form.Item>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                            Số lượng
+                        </Text>
+                    </Col>
+
+                    <Col span={4}>
+                        <Form.Item
+                            {...restField}
+                            name={[name, 'guestPrice']}
+                            rules={[{ required: true, message: 'Giá khách!' }]}
+                            style={{ marginBottom: 0 }}
+                        >
+                            <InputNumber
+                                min={0}
+                                placeholder="25,000"
+                                size="small"
+                                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                                style={{ width: '100%' }}
+                                addonAfter="đ"
+                            />
+                        </Form.Item>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                            Giá cho Khách
+                        </Text>
+                    </Col>
+
+                    <Col span={4}>
+                        <Form.Item
+                            {...restField}
+                            name={[name, 'patientPrice']}
+                            rules={[{ required: true, message: 'Giá BN!' }]}
+                            style={{ marginBottom: 0 }}
+                        >
+                            <InputNumber
+                                min={0}
+                                placeholder="20,000"
+                                size="small"
+                                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                                style={{ width: '100%' }}
+                                addonAfter="đ"
+                            />
+                        </Form.Item>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                            Giá cho Bệnh Nhân
+                        </Text>
+                    </Col>
+
+                    <Col span={4}>
+                        <Form.Item
+                            {...restField}
+                            name={[name, 'staffPrice']}
+                            rules={[{ required: true, message: 'Giá NV!' }]}
+                            style={{ marginBottom: 0 }}
+                        >
+                            <InputNumber
+                                min={0}
+                                placeholder="20,000"
+                                size="small"
+                                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                                style={{ width: '100%' }}
+                                addonAfter="đ"
+                            />
+                        </Form.Item>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                            Giá cho Nhân Viên
+                        </Text>
+                    </Col>
+
+                    <Col span={3}>
+                        <Form.Item
+                            {...restField}
+                            name={[name, 'discount']}
+                            style={{ marginBottom: 0 }}
+                        >
+                            <InputNumber
+                                min={0}
+                                placeholder="0"
+                                size="small"
+                                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                                style={{ width: '100%' }}
+                                addonAfter="đ"
+                            />
+                        </Form.Item>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                            Giảm giá
+                        </Text>
+                    </Col>
+
+                    <Col span={3}>
+                        <Form.Item
+                            {...restField}
+                            name={[name, 'largeQuantity']}
+                            valuePropName="checked"
+                            style={{ marginBottom: 0 }}
+                        >
+                            <Checkbox size="small">Số lượng nhiều</Checkbox>
+                        </Form.Item>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                            Test
+                        </Text>
+                    </Col>
+
+                    <Col span={3}>
+                        <Button
+                            type="text"
+                            danger
+                            icon={<MinusCircleOutlined />}
                             size="small"
+                            onClick={() => handleFoodRemove(categoryKey, name)}
                             style={{ width: '100%' }}
-                        />
-                    </Form.Item>
-                    <Text type="secondary" style={{ fontSize: '11px' }}>Số lượng</Text>
-                </Col>
+                            title="Xóa món ăn"
+                        >
+                            Xóa
+                        </Button>
+                    </Col>
 
-                <Col span={4}>
-                    <Form.Item
-                        {...restField}
-                        name={[name, 'guestPrice']}
-                        rules={[{ required: true, message: 'Giá khách!' }]}
-                        style={{ marginBottom: 0 }}
-                    >
-                        <InputNumber
-                            min={0}
-                            placeholder="25,000"
+                    <Col span={3}>
+                        <Form.Item
+                            {...restField}
+                            name={[name, 'imageUrl']}
+                            style={{ display: 'none' }}
+                        >
+                            <Input />
+                        </Form.Item>
+                        <Button
+                            type="default"
+                            icon={<UploadOutlined />}
                             size="small"
-                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                            onClick={() =>
+                                openCloudinaryWidget((url) => handleImageUpload(categoryKey, name, url))
+                            }
                             style={{ width: '100%' }}
-                            addonAfter="đ"
+                        >
+                            Tải hình
+                        </Button>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                            Hình ảnh
+                        </Text>
+                    </Col>
+                </Row>
+                <Form.Item
+                    {...restField}
+                    name={[name, 'imageUrl']}
+                    noStyle
+                >
+                    <Input type="hidden" />
+                </Form.Item>
+                {imageUrl && (
+                    <div style={{ marginTop: 8 }}>
+                        <img
+                            src={imageUrl}
+                            alt="Dish"
+                            style={{ maxWidth: '100px', maxHeight: '100px', objectFit: 'cover', borderRadius: '4px' }}
                         />
-                    </Form.Item>
-                    <Text type="secondary" style={{ fontSize: '11px' }}>Giá cho Khách</Text>
-                </Col>
-
-                <Col span={4}>
-                    <Form.Item
-                        {...restField}
-                        name={[name, 'patientPrice']}
-                        rules={[{ required: true, message: 'Giá BN!' }]}
-                        style={{ marginBottom: 0 }}
-                    >
-                        <InputNumber
-                            min={0}
-                            placeholder="20,000"
-                            size="small"
-                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                            style={{ width: '100%' }}
-                            addonAfter="đ"
-                        />
-                    </Form.Item>
-                    <Text type="secondary" style={{ fontSize: '11px' }}>Giá cho Bệnh Nhân</Text>
-                </Col>
-
-                <Col span={4}>
-                    <Form.Item
-                        {...restField}
-                        name={[name, 'staffPrice']}
-                        rules={[{ required: true, message: 'Giá NV!' }]}
-                        style={{ marginBottom: 0 }}
-                    >
-                        <InputNumber
-                            min={0}
-                            placeholder="20,000"
-                            size="small"
-                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                            style={{ width: '100%' }}
-                            addonAfter="đ"
-                        />
-                    </Form.Item>
-                    <Text type="secondary" style={{ fontSize: '11px' }}>Giá cho Nhân Viên</Text>
-                </Col>
-
-                <Col span={3}>
-                    <Form.Item
-                        {...restField}
-                        name={[name, 'discount']}
-                        style={{ marginBottom: 0 }}
-                    >
-                        <InputNumber
-                            min={0}
-                            placeholder="0"
-                            size="small"
-                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                            style={{ width: '100%' }}
-                            addonAfter="đ"
-                        />
-                    </Form.Item>
-                    <Text type="secondary" style={{ fontSize: '11px' }}>Giảm giá</Text>
-                </Col>
-
-                <Col span={3}>
-                    <Form.Item
-                        {...restField}
-                        name={[name, 'largeQuantity']}
-                        valuePropName="checked"
-                        style={{ marginBottom: 0 }}
-                    >
-                        <Checkbox size="small">Số lượng nhiều</Checkbox>
-                        <Text type="secondary" style={{ fontSize: '11px' }}>Test</Text>
-
-                    </Form.Item>
-                </Col>
-
-                <Col span={3}>
-                    <Button
-                        type="text"
-                        danger
-                        icon={<MinusCircleOutlined />}
-                        size="small"
-                        onClick={() => handleFoodRemove(categoryKey, name)}
-                        style={{ width: '100%' }}
-                        title="Xóa món ăn"
-                    >
-                        Xóa
-                    </Button>
-                </Col>
-            </Row>
-        </div>
-    );
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     // Render food list for category
     const renderFoodList = (categoryKey, categoryLabel) => {
@@ -331,10 +423,7 @@ const CreateFoodsMenu = ({
                     size="small"
                     dataSource={filteredDishes}
                     renderItem={(dish) => (
-                        <List.Item
-                            className="food-list-item"
-                            onClick={() => handleFoodSelect(categoryKey, dish)}
-                        >
+                        <List.Item className="food-list-item" onClick={() => handleFoodSelect(categoryKey, dish)}>
                             <div className="food-item-content">
                                 <div className="food-name">{dish.name}</div>
                                 <div className="food-price">{dish.price?.toLocaleString()}đ</div>
@@ -372,13 +461,11 @@ const CreateFoodsMenu = ({
                             </Button>
                         </div>
 
-                        {/* Food List */}
                         {isShowingFoodList && renderFoodList(categoryKey, categoryLabel)}
 
-                        {/* Selected Dishes */}
                         {fields.map(({ key, name, ...restField }) => {
-                            const selectedDish = availableDishes.find(dish =>
-                                dish.id === form.getFieldValue([categoryKey, name, 'dishId'])
+                            const selectedDish = availableDishes.find(
+                                (dish) => dish.id === form.getFieldValue([categoryKey, name, 'dishId'])
                             );
 
                             if (!selectedDish) return null;
@@ -390,7 +477,6 @@ const CreateFoodsMenu = ({
                                         <Text type="secondary"> - {selectedDish.price?.toLocaleString()}đ</Text>
                                     </div>
 
-                                    {/* Hidden field for dishId */}
                                     <Form.Item
                                         {...restField}
                                         name={[name, 'dishId']}
@@ -399,7 +485,6 @@ const CreateFoodsMenu = ({
                                         <Input />
                                     </Form.Item>
 
-                                    {/* Compact Configuration */}
                                     {renderCompactDishConfig(categoryKey, name, restField, selectedDish)}
                                 </div>
                             );
@@ -437,20 +522,14 @@ const CreateFoodsMenu = ({
                     date: null,
                     serviceTime: false,
                     search: '',
-                    ...initialValues
+                    ...initialValues,
                 }}
                 className={formLoading || loading ? 'form-loading' : ''}
             >
-                {/* Date Picker */}
                 <Form.Item
                     name="date"
                     label="Ngày"
-                    rules={[
-                        {
-                            required: true,
-                            message: 'Vui lòng chọn ngày!',
-                        },
-                    ]}
+                    rules={[{ required: true, message: 'Vui lòng chọn ngày!' }]}
                     className="date-picker-field"
                 >
                     <DatePicker
@@ -460,21 +539,13 @@ const CreateFoodsMenu = ({
                     />
                 </Form.Item>
 
-                {/* Service Time Checkbox */}
                 <Form.Item name="serviceTime" valuePropName="checked" className="service-time-checkbox">
-                    <Checkbox
-                        checked={serviceTime}
-                        onChange={(e) => setServiceTime(e.target.checked)}
-                    >
+                    <Checkbox checked={serviceTime} onChange={(e) => setServiceTime(e.target.checked)}>
                         Thời gian phục vụ
                     </Checkbox>
                 </Form.Item>
 
-                {/* Enhanced Search */}
-                <Form.Item
-                    label="Chọn món ăn"
-                    className="dish-search-input"
-                >
+                <Form.Item label="Chọn món ăn" className="dish-search-input">
                     <Input
                         placeholder="Tìm kiếm món ăn theo tên... (ví dụ: bánh)"
                         value={searchTerm}
@@ -493,7 +564,6 @@ const CreateFoodsMenu = ({
 
                 <Divider />
 
-                {/* Dynamic Menu Categories */}
                 <div className="menu-categories-scroll">
                     {visibleCategories.length === 0 ? (
                         <div className="no-search-results">
@@ -511,21 +581,12 @@ const CreateFoodsMenu = ({
                     )}
                 </div>
 
-                {/* Form Actions */}
                 <Form.Item className="form-actions">
                     <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                        <Button
-                            onClick={handleCancel}
-                            size="large"
-                        >
+                        <Button onClick={handleCancel} size="large">
                             Hủy
                         </Button>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={formLoading || loading}
-                            size="large"
-                        >
+                        <Button type="primary" htmlType="submit" loading={formLoading || loading} size="large">
                             Lưu Menu
                         </Button>
                     </Space>
@@ -546,9 +607,10 @@ CreateFoodsMenu.propTypes = {
             name: PropTypes.string.isRequired,
             category: PropTypes.string.isRequired,
             price: PropTypes.number,
+            imageUrl: PropTypes.string,
         })
     ),
     loading: PropTypes.bool,
 };
 
-export default CreateFoodsMenu; 
+export default CreateFoodsMenu;

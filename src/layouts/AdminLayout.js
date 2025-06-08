@@ -1,4 +1,3 @@
-// src/layouts/AdminLayout.js
 import React, { useMemo } from "react";
 import { Layout, Menu, Avatar, Dropdown, Typography } from "antd";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -53,7 +52,18 @@ const AdminLayout = ({ children }) => {
     const userMenu = (
         <Menu>
             <Menu.Item key="profile" icon={<UserOutlined />}>
-                <span style={{ fontSize: '15px' }}>Thông tin cá nhân</span>
+                <Link
+                    to={
+                        user?.role === ROLES.ADMIN ? "/admin/profile" :
+                        user?.role === ROLES.DOCTOR ? "/doctor/profile" :
+                        user?.role === ROLES.PATIENT ? "/patient/profile" :
+                        user?.role === ROLES.STAFF ? "/staff/profile" :
+                        "#"
+                    }
+                    style={{ fontSize: '15px' }}
+                >
+                    Thông tin cá nhân
+                </Link>
             </Menu.Item>
             <Menu.Divider />
             <Menu.Item

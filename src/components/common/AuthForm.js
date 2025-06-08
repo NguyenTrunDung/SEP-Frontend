@@ -95,6 +95,7 @@ const AuthForm = ({
                         <ul>
                             <li>Admin: admin@hospital.com / admin123</li>
                             <li>Doctor: doctor@hospital.com / doctor123</li>
+                            <li>Nurse: nurse@hospital.com / nurse123</li>
                             <li>Patient: patient@hospital.com / patient123</li>
                             <li>Staff: staff@hospital.com / staff123</li>
                         </ul>
