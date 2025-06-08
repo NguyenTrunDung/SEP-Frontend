@@ -20,6 +20,7 @@ api.interceptors.request.use(
 
         // Add branch context for multi-tenancy
         const currentBranchId = environment.multiTenant.getCurrentBranchId();
+        console.log('currentBranchId', currentBranchId);
         if (currentBranchId && !requestConfig.headers['X-Branch-Id']) {
             requestConfig.headers['X-Branch-Id'] = currentBranchId;
         }

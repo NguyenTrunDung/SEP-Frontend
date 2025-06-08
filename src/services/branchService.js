@@ -7,13 +7,16 @@ export const branchService = {
      */
     async getAllBranches() {
         try {
-            const response = await api.get('/api/v1/branches');
+            const response = await api.get(environment.api.endpoints.branch.list);
+
+            // Extract the branches array from the API response
+            const branches = response.data?.data || [];
 
             if (environment.features.enableLogging) {
-                console.log('✅ Fetched all branches:', response.data?.length, 'branches');
+                console.log('✅ Fetched all branches:', branches.length, 'branches');
             }
 
-            return response.data;
+            return branches;
         } catch (error) {
             if (environment.features.enableLogging) {
                 console.error('❌ Failed to fetch branches:', error.message);
@@ -28,13 +31,16 @@ export const branchService = {
      */
     async getDefaultBranch() {
         try {
-            const response = await api.get('/api/v1/branches/default');
+            const response = await api.get(environment.api.endpoints.branch.default);
+
+            // Extract the branch data from the API response
+            const branch = response.data?.data || null;
 
             if (environment.features.enableLogging) {
-                console.log('✅ Fetched default branch:', response.data?.name);
+                console.log('✅ Fetched default branch:', branch?.name);
             }
 
-            return response.data;
+            return branch;
         } catch (error) {
             if (environment.features.enableLogging) {
                 console.error('❌ Failed to fetch default branch:', error.message);
@@ -49,16 +55,18 @@ export const branchService = {
      */
     async setCurrentBranch(branchId) {
         try {
-            const response = await api.post(`/api/v1/branches/set-current/${branchId}`);
-
+            const response = await api.post(environment.api.endpoints.branch.setCurrent(branchId));
             // Store branch ID locally
             environment.multiTenant.setCurrentBranchId(branchId);
+
+            // Extract the result data from the API response
+            const result = response.data?.data || response.data;
 
             if (environment.features.enableLogging) {
                 console.log('✅ Set current branch:', branchId);
             }
 
-            return response.data;
+            return result;
         } catch (error) {
             if (environment.features.enableLogging) {
                 console.error('❌ Failed to set current branch:', error.message);
@@ -73,13 +81,16 @@ export const branchService = {
      */
     async getCurrentBranch() {
         try {
-            const response = await api.get('/api/v1/branches/current');
+            const response = await api.get(environment.api.endpoints.branch.current);
+
+            // Extract the branch data from the API response
+            const branch = response.data?.data || null;
 
             if (environment.features.enableLogging) {
-                console.log('✅ Fetched current branch:', response.data?.name);
+                console.log('✅ Fetched current branch:', branch?.name);
             }
 
-            return response.data;
+            return branch;
         } catch (error) {
             if (environment.features.enableLogging) {
                 console.error('❌ Failed to fetch current branch:', error.message);
@@ -94,7 +105,7 @@ export const branchService = {
      */
     async secureAction() {
         try {
-            const response = await api.get('/api/v1/branches/secure-action');
+            const response = await api.get(environment.api.endpoints.branch.secureAction);
 
             if (environment.features.enableLogging) {
                 console.log('✅ Secure action completed');
@@ -115,7 +126,7 @@ export const branchService = {
      */
     async getAdminSystemUser(branchCode) {
         try {
-            const response = await api.get('/api/v1/branches/admin-system-user', {
+            const response = await api.get(environment.api.endpoints.branch.adminSystemUser, {
                 params: { branchCode }
             });
 
@@ -139,7 +150,7 @@ export const branchService = {
     async assignAdminSystem(userId, branchCode) {
         try {
             const response = await api.post(
-                `/api/v1/branches/assign-admin-system/${userId}`,
+                environment.api.endpoints.branch.assignAdminSystem(userId),
                 null,
                 {
                     params: { branchCode }
@@ -165,7 +176,7 @@ export const branchService = {
      */
     async listAdminSystemUsers(branchCode) {
         try {
-            const response = await api.get('/api/v1/branches/admin-system-users', {
+            const response = await api.get(environment.api.endpoints.branch.adminSystemUsers, {
                 params: { branchCode }
             });
 

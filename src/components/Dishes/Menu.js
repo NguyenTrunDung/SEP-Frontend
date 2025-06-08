@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ConfigProvider, Typography, Tabs, Spin, Alert, Layout, Button, message, Modal, Image, Input, Select } from 'antd';
 import PropTypes from 'prop-types';
 import { mockFoodCategories, getMenuById } from '../../mocks/menuData';
-import { useMenus } from '../../hooks/queries/useMenu';
+import { useMenus, useMenuCategories } from '../../hooks/queries/useMenu';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useCart } from '../../context/CartContext';
@@ -145,13 +145,39 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   const [note, setNote] = useState('');
   const categoryRefs = useRef({});
 
-  const { menus, loading, error, isUsingMockData } = useMenus({ date: getFormattedDate(activeDay) });
+  // Use React Query hooks for menu data with branch context
+  const {
+    data: menuData,
+    isLoading: loading,
+    error,
+    refetch: refreshMenus
+  } = useMenus({ date: getFormattedDate(activeDay) });
+
+  // Extract data from the response
+  const foods = menuData?.foods || [];
+  const categories = menuData?.categories || [];
+  const isUsingMockData = menuData?.isUsingMockData || false;
 
   useEffect(() => {
     if (selectedCategory) {
-      categoryRefs.current[selectedCategory]?.scrollIntoView({ behavior: 'smooth' });
+      const targetElement = categoryRefs.current[selectedCategory];
+      if (targetElement) {
+        console.log('Scrolling to category:', selectedCategory);
+        targetElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest'
+        });
+      } else {
+        console.warn('Category ref not found for:', selectedCategory);
+      }
     }
   }, [selectedCategory]);
+
+  // Clear selected category when switching days
+  useEffect(() => {
+    setSelectedCategory(null);
+  }, [activeDay]);
 
   const formatDisplayDate = (dateStr) => {
     try {
@@ -168,16 +194,48 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   };
 
   const getFilteredCategories = () => {
-    const menuCategories = [...new Set(menus.map((menu) => menu.category))];
-    if (menuCategories.length === 0 && isUsingMockData) {
+    // Use categories from API response first, fallback to mock if needed
+    if (categories.length > 0) {
+      return categories.map(cat => ({
+        ID: cat.id,
+        Name: cat.name,
+        Image: cat.imageUrl
+      }));
+    }
+
+    // Fallback: extract categories from foods or use mock data
+    const foodCategories = [...new Set(foods.map((food) => food.categoryId))];
+    if (foodCategories.length === 0 && isUsingMockData) {
       return mockFoodCategories;
     }
-    return mockFoodCategories.filter((category) => menuCategories.includes(category.Name));
+
+    // Create category objects from food data using the same categoryMap logic
+    const uniqueCategories = [];
+    foods.forEach(food => {
+      if (!uniqueCategories.find(cat => cat.ID === food.categoryId)) {
+        const categoryName = categoryMap[food.categoryId] || food.category || `Category ${food.categoryId}`;
+        uniqueCategories.push({
+          ID: food.categoryId,
+          Name: categoryName,
+          Image: null
+        });
+      }
+    });
+
+    return uniqueCategories;
   };
 
-  const groupedMenus = menus.length > 0 ? menus.reduce((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
+  // Create a map of categoryId to category name for easy lookup
+  const categoryMap = categories.reduce((map, cat) => {
+    map[cat.id] = cat.name;
+    return map;
+  }, {});
+
+  const groupedFoods = foods.length > 0 ? foods.reduce((acc, item) => {
+    // Use category name from the categories array, fallback to item.category or generic name
+    const categoryKey = categoryMap[item.categoryId] || item.category || `Category ${item.categoryId}`;
+    if (!acc[categoryKey]) acc[categoryKey] = [];
+    acc[categoryKey].push(item);
     return acc;
   }, {}) : {};
 
@@ -188,24 +246,29 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
       return;
     }
 
-    const existingItem = cartItems.find((item) => item.FoodId === menuItem.ID);
+    const existingItem = cartItems.find((item) => item.FoodId === menuItem.id);
     if (existingItem) {
       const updatedItems = cartItems.map((item) =>
-        item.FoodId === menuItem.ID ? { ...item, quantity, note } : item
+        item.FoodId === menuItem.id ? { ...item, quantity, note } : item
       );
       setCartItems(updatedItems);
-      message.success(`${menuItem.dishName} đã được cập nhật trong giỏ hàng!`);
+      message.success(`${menuItem.name} đã được cập nhật trong giỏ hàng!`);
     } else {
       const newItem = {
         ...menuItem,
         quantity,
         cartId: uuidv4(),
-        FoodId: menuItem.ID,
+        FoodId: menuItem.id,
+        // Map API properties to cart format
+        dishName: menuItem.name,
+        price: menuItem.priceForGuest,
+        image: menuItem.imageUrl,
+        ID: menuItem.id,
         note,
       };
       const updatedItems = [...cartItems, newItem];
       setCartItems(updatedItems);
-      message.success(`${menuItem.dishName} đã được thêm vào giỏ hàng!`);
+      message.success(`${menuItem.name} đã được thêm vào giỏ hàng!`);
     }
 
     if (onCartUpdate) onCartUpdate();
@@ -215,9 +278,16 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
 
   const handleShowDetails = async (menuItem) => {
     try {
-      const detailedMenu = await getMenuById(menuItem.ID);
+      // For API data, use the item directly (it already has all details)
+      // For mock data, fetch detailed information
+      let detailedMenu = menuItem;
+
+      if (isUsingMockData) {
+        detailedMenu = await getMenuById(menuItem.id);
+      }
+
       setSelectedMenuItem(detailedMenu);
-      const existingItem = cartItems.find((item) => item.FoodId === menuItem.ID);
+      const existingItem = cartItems.find((item) => item.FoodId === menuItem.id);
       if (existingItem) {
         setQuantity(existingItem.quantity);
         setNote(existingItem.note || '');
@@ -251,95 +321,123 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
               {formattedDate}
             </Title>
 
-            {menus.length > 0 && (
+            {foods.length > 0 && (
               <CategoryCircles
                 categories={getFilteredCategories()}
                 selectedCategory={selectedCategory}
-                onCategorySelect={setSelectedCategory}
+                onCategorySelect={(categoryName) => {
+                  console.log('Category selected:', categoryName); // Debug log
+                  setSelectedCategory(categoryName);
+                }}
                 dateLabel=""
               />
             )}
 
             {error && !isUsingMockData && (
-              <Alert message={error} type="error" showIcon style={{ marginBottom: 16 }} />
+              <Alert message={error?.message || 'Failed to load menu'} type="error" showIcon style={{ marginBottom: 16 }} />
             )}
 
             {loading ? (
               <Spin size="large" style={{ display: 'block', margin: 'auto' }} />
-            ) : menus.length > 0 || isUsingMockData ? (
+            ) : foods.length > 0 || isUsingMockData ? (
               <div>
-                {Object.keys(groupedMenus).length > 0 ? (
-                  Object.keys(groupedMenus).map((category) => (
-                    <div key={category} style={{ marginBottom: '32px' }} ref={(el) => (categoryRefs.current[category] = el)}>
-                      <Title level={4} style={{ marginBottom: 16, color: '#000' }}>
-                        {category}
-                      </Title>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-                        {groupedMenus[category].map((item) => {
-                          const isInCart = cartItems.some(cartItem => cartItem.FoodId === item.ID);
+                {Object.keys(groupedFoods).length > 0 ? (
+                  Object.keys(groupedFoods).map((category) => {
+                    console.log('Rendering category section:', category); // Debug log
+                    return (
+                      <div
+                        key={category}
+                        style={{
+                          marginBottom: '32px',
+                          paddingTop: '20px', // Add some padding for better scroll positioning
+                          scrollMarginTop: '140px' // Account for fixed header
+                        }}
+                        ref={(el) => {
+                          if (el) {
+                            categoryRefs.current[category] = el;
+                            console.log('Set ref for category:', category); // Debug log
+                          }
+                        }}
+                      >
+                        <Title
+                          level={4}
+                          style={{
+                            marginBottom: 16,
+                            color: '#000',
+                            backgroundColor: selectedCategory === category ? '#f0f0f0' : 'transparent',
+                            padding: '8px 0',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          {category}
+                        </Title>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                          {groupedFoods[category].map((item) => {
+                            const isInCart = cartItems.some(cartItem => cartItem.FoodId === item.id);
 
-                          return (
-                            <div
-                              key={item.ID}
-                              style={{
-                                border: '1px solid #ddd',
-                                borderRadius: 4,
-                                padding: 10,
-                                width: 220,
-                                boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
-                                background: '#fff',
-                                position: 'relative',
-                              }}
-                            >
-                              <Image
-                                width={200}
-                                height={140}
-                                src={item.image || 'https://via.placeholder.com/200x140?text=No+Image'}
-                                alt={item.dishName}
-                                preview={false}
-                                style={{ objectFit: 'cover', borderRadius: 4, marginBottom: 8 }}
-                              />
-                              {isInCart && (
-                                <div style={{
-                                  position: 'absolute',
-                                  top: 8,
-                                  right: 8,
-                                  backgroundColor: '#b4c80f',
-                                  color: '#fff',
-                                  padding: '4px 8px',
-                                  borderRadius: '4px',
-                                  fontSize: '16px',
-                                }}>
-                                  Đã thêm: {cartItems.find(cartItem => cartItem.FoodId === item.ID)?.quantity || 0}
-                                </div>
-                              )}
-                              <Title level={5} style={{ marginBottom: 8 }}>{item.dishName}</Title>
-                              <div style={{ marginBottom: 4 }}>
-                                <Text strong style={{ fontSize: 14, color: '#222' }}>
-                                  {item.price.toLocaleString('vi-VN')}đ
-                                </Text>
-                              </div>
-                              <Button
+                            return (
+                              <div
+                                key={item.id}
                                 style={{
-                                  backgroundColor: '#b4c80f',
-                                  borderColor: '#b4c80f',
-                                  color: '#000',
-                                  float: 'left',
-                                  padding: '14px 12px',
-                                  fontSize: '15px',
+                                  border: '1px solid #ddd',
+                                  borderRadius: 4,
+                                  padding: 10,
+                                  width: 220,
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                                  background: '#fff',
+                                  position: 'relative',
                                 }}
-                                type="primary"
-                                size="small"
-                                onClick={() => handleShowDetails(item)}
                               >
-                                {isInCart ? 'Cập nhật giỏ hàng' : 'Thêm'}
-                              </Button>
-                            </div>
-                          );
-                        })}
+                                <Image
+                                  width={200}
+                                  height={140}
+                                  src={item.imageUrl || 'https://via.placeholder.com/200x140?text=No+Image'}
+                                  alt={item.name}
+                                  preview={false}
+                                  style={{ objectFit: 'cover', borderRadius: 4, marginBottom: 8 }}
+                                />
+                                {isInCart && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: 8,
+                                    right: 8,
+                                    backgroundColor: '#b4c80f',
+                                    color: '#fff',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '16px',
+                                  }}>
+                                    Đã thêm: {cartItems.find(cartItem => cartItem.FoodId === item.id)?.quantity || 0}
+                                  </div>
+                                )}
+                                <Title level={5} style={{ marginBottom: 8 }}>{item.name}</Title>
+                                <div style={{ marginBottom: 4 }}>
+                                  <Text strong style={{ fontSize: 14, color: '#222' }}>
+                                    {item.priceForGuest.toLocaleString('vi-VN')}đ
+                                  </Text>
+                                </div>
+                                <Button
+                                  style={{
+                                    backgroundColor: '#b4c80f',
+                                    borderColor: '#b4c80f',
+                                    color: '#000',
+                                    float: 'left',
+                                    padding: '14px 12px',
+                                    fontSize: '15px',
+                                  }}
+                                  type="primary"
+                                  size="small"
+                                  onClick={() => handleShowDetails(item)}
+                                >
+                                  {isInCart ? 'Cập nhật giỏ hàng' : 'Thêm'}
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <Text
                     style={{ color: 'red', textAlign: 'center', display: 'block', marginTop: 24 }}
@@ -381,7 +479,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                     fontSize: '18px',
                   }}
                 >
-                  {cartItems.some(item => item.FoodId === selectedMenuItem?.ID)
+                  {cartItems.some(item => item.FoodId === selectedMenuItem?.id)
                     ? 'Cập nhật giỏ hàng'
                     : 'Thêm vào giỏ hàng'}
                 </div>
@@ -389,10 +487,11 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                 {/* Image sát header */}
                 <img
                   src={
+                    selectedMenuItem?.imageUrl ||
                     selectedMenuItem?.image ||
                     'https://via.placeholder.com/600x250?text=No+Image'
                   }
-                  alt={selectedMenuItem?.dishName}
+                  alt={selectedMenuItem?.name || selectedMenuItem?.dishName}
                   style={{
                     width: '100%',
                     maxHeight: '250px',
@@ -412,7 +511,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                       marginBottom: '1px',
                     }}
                   >
-                    {selectedMenuItem?.dishName || 'No name'}
+                    {selectedMenuItem?.name || selectedMenuItem?.dishName || 'No name'}
                   </Text>
                   <Text
                     style={{
@@ -433,7 +532,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                       marginBottom: '1px',
                     }}
                   >
-                    {selectedMenuItem?.price?.toLocaleString('vi-VN') || '0'}đ
+                    {(selectedMenuItem?.priceForGuest || selectedMenuItem?.price)?.toLocaleString('vi-VN') || '0'}đ
                   </Text>
                 </div>
 
@@ -511,7 +610,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                     }}
                     onClick={() => handleAddOrUpdateCart(selectedMenuItem)}
                   >
-                    {cartItems.some(item => item.FoodId === selectedMenuItem?.ID)
+                    {cartItems.some(item => item.FoodId === selectedMenuItem?.id)
                       ? 'Cập nhật giỏ hàng'
                       : 'Thêm vào giỏ hàng'}
                   </Button>

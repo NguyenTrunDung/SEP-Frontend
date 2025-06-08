@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar } from 'antd';
 import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useBranches } from '../hooks/queries/useBranches';
+import { useBranches, useSwitchBranch } from '../hooks/queries/userBranchesQueries';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../constants/roles';
@@ -18,7 +18,8 @@ const { Header } = Layout;
 const { Text } = Typography;
 
 const Navbar = () => {
-  const { branches, loading, error } = useBranches();
+  const { data: branchesData, isLoading: loading, isError, error } = useBranches();
+  const switchBranchMutation = useSwitchBranch();
   const { cartItems, setCartItems } = useCart();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -28,6 +29,9 @@ const Navbar = () => {
     const savedBranch = localStorage.getItem('selectedBranch');
     return savedBranch ? JSON.parse(savedBranch) : null;
   });
+
+  // Ensure branches is always an array
+  const branches = Array.isArray(branchesData) ? branchesData : [];
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [isProfilePopupVisible, setIsProfilePopupVisible] = useState(false);
@@ -64,10 +68,21 @@ const Navbar = () => {
 
   const showModal = () => setIsModalVisible(true);
 
-  const handleBranchSelect = (branch) => {
-    setSelectedBranch(branch);
-    localStorage.setItem('selectedBranch', JSON.stringify(branch));
-    setIsModalVisible(false);
+  const handleBranchSelect = async (branch) => {
+    try {
+      // Use the switchBranch mutation for proper API integration
+      await switchBranchMutation.mutateAsync(branch.id);
+
+      // Update local state and storage
+      setSelectedBranch(branch);
+      localStorage.setItem('selectedBranch', JSON.stringify(branch));
+      setIsModalVisible(false);
+
+      message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
+    } catch (error) {
+      console.error('Failed to switch branch:', error);
+      message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
+    }
   };
 
   const handleCartClick = () => {
@@ -142,12 +157,12 @@ const Navbar = () => {
     { key: 'cart', label: 'GIỎ HÀNG' },
     ...(user?.role === ROLES.NURSE
       ? [
-          { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/home' },
-          { key: 'employee', label: 'NHÂN VIÊN' },
-        ]
+        { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/home' },
+        { key: 'employee', label: 'NHÂN VIÊN' },
+      ]
       : user?.role === ROLES.GUEST
-      ? []
-      : [{ key: 'staff', label: 'NHÂN VIÊN', route: '/staff' }]
+        ? []
+        : [{ key: 'staff', label: 'NHÂN VIÊN', route: '/staff' }]
     ),
     { key: 'contact', label: 'LIÊN HỆ', route: '/contact' },
   ];
@@ -200,7 +215,7 @@ const Navbar = () => {
                   borderRadius: '8px',
                 }}
               >
-                {selectedBranch ? `Chi nhánh: ${selectedBranch.Name}` : 'Chọn chi nhánh'}
+                {selectedBranch ? `Chi nhánh: ${selectedBranch.name}` : 'Chọn chi nhánh'}
               </span>
             </Col>
           </Row>
@@ -297,9 +312,9 @@ const Navbar = () => {
             </div>
             {loading ? (
               <Spin style={{ display: 'block', textAlign: 'center', padding: '20px' }} />
-            ) : error ? (
+            ) : isError ? (
               <Alert
-                message={error}
+                message={error?.message || 'Không thể tải danh sách chi nhánh'}
                 type="error"
                 showIcon
                 style={{ marginBottom: '16px', borderRadius: 0 }}
@@ -329,10 +344,10 @@ const Navbar = () => {
                   >
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontWeight: 480, color: '#1a1a1a', fontSize: '18px' }}>
-                        {branch.Name}
+                        {branch.name}
                       </span>
                       <span style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
-                        {branch.Address}
+                        {branch.address}
                       </span>
                     </div>
                   </List.Item>
