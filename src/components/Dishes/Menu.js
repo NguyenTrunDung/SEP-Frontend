@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ConfigProvider, Typography, Tabs, Spin, Alert, Layout, Button, message, Modal, Image, Input, Select } from 'antd';
 import PropTypes from 'prop-types';
 import { mockFoodCategories, getMenuById } from '../../mocks/menuData';
-import { useMenus, useMenuCategories } from '../../hooks/queries/useMenu';
+import { useMenus, useMenuCategories } from '../../hooks/queries/useMenuQueries';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useCart } from '../../context/CartContext';
