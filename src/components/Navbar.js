@@ -13,6 +13,7 @@ import CartModal from '../components/Cart/Cart';
 import PaymentModal from '../components/Payment/Payment';
 import OrderHistoryModal from '../components/OrderHistory/OrderHistory';
 import WalletModal from '../components/Wallet/Wallet';
+import UserHeader from '../components/common/UserHeader';
 
 const { Header } = Layout;
 const { Text } = Typography;
@@ -102,12 +103,16 @@ const Navbar = () => {
       navigate('/contact');
     } else if (key === 'staff' && user?.role === ROLES.NURSE) {
       navigate('/nurse/home');
-    } else if (key === 'employee' && user?.role === ROLES.NURSE) {
-      setIsUserMenuVisible(true);
-    } else {
+    }
+    // Commented out since "employee" menu item is now handled by UserHeader component
+    // else if (key === 'employee' && user?.role === ROLES.NURSE) {
+    //   setIsUserMenuVisible(true);
+    // } 
+    else {
       const routes = {
         home: '/',
-        staff: user?.role === ROLES.NURSE ? '/nurse/home' : '/staff',
+        // Commented out since staff menu items are now handled by UserHeader component
+        // staff: user?.role === ROLES.NURSE ? '/nurse/home' : '/staff',
       };
       const section = document.getElementById(key);
       if (section) {
@@ -155,14 +160,17 @@ const Navbar = () => {
     { key: 'home', label: 'TRANG CHỦ', route: '/' },
     { key: 'menu', label: 'THỰC ĐƠN' },
     { key: 'cart', label: 'GIỎ HÀNG' },
+    // Commented out NHÂN VIÊN menu items since UserHeader now handles user/employee functionality
     ...(user?.role === ROLES.NURSE
       ? [
         { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/home' },
-        { key: 'employee', label: 'NHÂN VIÊN' },
+        // { key: 'employee', label: 'NHÂN VIÊN' }, // Now handled by UserHeader component
       ]
       : user?.role === ROLES.GUEST
         ? []
-        : [{ key: 'staff', label: 'NHÂN VIÊN', route: '/staff' }]
+        : [
+          // { key: 'staff', label: 'NHÂN VIÊN', route: '/staff' } // Now handled by UserHeader component
+        ]
     ),
     { key: 'contact', label: 'LIÊN HỆ', route: '/contact' },
   ];
@@ -180,43 +188,76 @@ const Navbar = () => {
         }}
       >
         <div style={{ backgroundColor: '#b4c80f', padding: '8px 20px', height: '40px', lineHeight: '26px' }}>
-          <Row align="middle" justify="end">
-            <Col style={{ marginRight: '8px' }}>
-              <span style={{ color: '#fff', fontSize: '14px', fontWeight: '500' }}>
-                Hotline: 028 3840 8379
-              </span>
-            </Col>
-            <Col style={{ marginRight: '8px' }}>
-              <span style={{ color: '#fff', fontSize: '14px' }}>|</span>
-            </Col>
-            <Col style={{ marginRight: '16px' }}>
-              <span
-                style={{
-                  color: '#fff',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                <SearchOutlined style={{ marginRight: '4px' }} />
-                Tra Cứu Đơn Hàng
-              </span>
-            </Col>
+          <Row align="middle" justify="space-between">
+            {/* Left side - can be used for additional info or left empty */}
             <Col>
-              <span
-                onClick={showModal}
-                style={{
-                  color: '#fff',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  padding: '4px 12px',
-                  border: '1px solid #fff',
-                  borderRadius: '8px',
-                }}
-              >
-                {selectedBranch ? `Chi nhánh: ${selectedBranch.name}` : 'Chọn chi nhánh'}
-              </span>
+              {/* Reserved for future use */}
+            </Col>
+
+            {/* Right side - Hotline, Order Tracking, Branch Selection, User Header */}
+            <Col>
+              <Row align="middle" gutter={16}>
+                <Col>
+                  <span style={{ color: '#fff', fontSize: '14px', fontWeight: '500' }}>
+                    Hotline: 028 3840 8379
+                  </span>
+                </Col>
+                <Col>
+                  <span style={{ color: '#fff', fontSize: '14px' }}>|</span>
+                </Col>
+                <Col>
+                  <span
+                    style={{
+                      color: '#fff',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <SearchOutlined style={{ marginRight: '4px' }} />
+                    Tra Cứu Đơn Hàng
+                  </span>
+                </Col>
+                <Col>
+                  <span style={{ color: '#fff', fontSize: '14px' }}>|</span>
+                </Col>
+                <Col>
+                  <span
+                    onClick={showModal}
+                    style={{
+                      color: '#fff',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      padding: '4px 12px',
+                      border: '1px solid #fff',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    {selectedBranch ? `Chi nhánh: ${selectedBranch.name}` : 'Chọn chi nhánh'}
+                  </span>
+                </Col>
+                <Col>
+                  <span style={{ color: '#fff', fontSize: '14px' }}>|</span>
+                </Col>
+                <Col>
+                  {/* UserHeader Component */}
+                  <UserHeader
+                    showGreeting={true}
+                    avatarSize="small"
+                    guestButtonStyle="link"
+                    useCustomModal={true}
+                    onAvatarClick={() => setIsUserMenuVisible(true)}
+                    style={{
+                      gap: '8px',
+                    }}
+                    greetingStyle={{ color: '#fff', fontSize: '14px' }}
+                    onLogout={() => {
+                      handleLogout();
+                    }}
+                  />
+                </Col>
+              </Row>
             </Col>
           </Row>
         </div>

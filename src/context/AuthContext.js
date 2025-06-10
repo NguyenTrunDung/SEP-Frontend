@@ -1,16 +1,23 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { login as authLogin, getCurrentUser, refreshToken as authRefreshToken, logout as authLogout, changePassword as authChangePassword } from '../services/mockAuthService';
-import { mockUsers } from '../mocks/authData';
+import { authService } from '../services/authService';
+import { mapBackendRoleToFrontend, hasAdminAccess, shouldUseGuestLayout } from '../constants/roles';
 
 const AuthContext = createContext();
 
 const initialState = {
     user: null,
-    token: localStorage.getItem('token'),
+    token: localStorage.getItem('jwtToken'),
     refreshToken: localStorage.getItem('refreshToken'),
     loading: true,
     error: null,
-    tokenExpiry: localStorage.getItem('tokenExpiry') ? parseInt(localStorage.getItem('tokenExpiry')) : null,
+    tokenExpiry: localStorage.getItem('tokenExpiryTime'),
+    refreshTokenExpiry: localStorage.getItem('refreshTokenExpiryTime'),
+    permissions: authService.getPermissions(),
+    userBranches: authService.getUserBranches(),
+    defaultBranch: authService.getDefaultBranch(),
+    selectedBranch: authService.getSelectedBranch(),
+    branchRole: authService.getBranchRole(),
+    isSystemAdmin: authService.getIsSystemAdmin(),
 };
 
 const authReducer = (state, action) => {
@@ -18,33 +25,96 @@ const authReducer = (state, action) => {
         case 'LOGIN_START':
             return { ...state, loading: true, error: null };
         case 'LOGIN_SUCCESS':
+            // Map backend roles to frontend role for compatibility
+            // Use the default branch or first available branch to get branchRoleName
+            const defaultBranch = action.payload.defaultBranch ||
+                (action.payload.userBranches && action.payload.userBranches.length > 0 ? action.payload.userBranches[0] : null);
+            const branchRoleName = defaultBranch?.branchRoleName ||
+                (action.payload.userBranches && action.payload.userBranches.length > 0 ? action.payload.userBranches[0].branchRoleName : null);
+
+            const mappedUser = {
+                ...action.payload.user,
+                role: mapBackendRoleToFrontend(
+                    action.payload.user.roles,
+                    branchRoleName,
+                    action.payload.userBranches
+                )
+            };
+
             return {
                 ...state,
-                user: action.payload.user,
-                token: action.payload.token,
+                user: mappedUser,
+                token: action.payload.accessToken,
                 refreshToken: action.payload.refreshToken,
-                tokenExpiry: action.payload.tokenExpiry,
+                tokenExpiry: action.payload.tokenExpiryTime,
+                refreshTokenExpiry: action.payload.refreshTokenExpiryTime,
+                permissions: action.payload.permissions || [],
+                userBranches: action.payload.userBranches || [],
+                defaultBranch: action.payload.defaultBranch,
+                isSystemAdmin: action.payload.isSystemAdmin || false,
                 loading: false,
                 error: null,
             };
         case 'UPDATE_USER':
+            // Map backend roles if they exist in the update
+            const updatedUser = action.payload.roles
+                ? {
+                    ...state.user,
+                    ...action.payload,
+                    role: mapBackendRoleToFrontend(
+                        action.payload.roles,
+                        state.userBranches && state.userBranches.length > 0 ? state.userBranches[0].branchRoleName : null,
+                        state.userBranches
+                    )
+                }
+                : { ...state.user, ...action.payload };
+
             return {
                 ...state,
-                user: action.payload,
+                user: updatedUser,
             };
         case 'REFRESH_TOKEN':
             return {
                 ...state,
-                token: action.payload.token,
+                token: action.payload.accessToken,
                 refreshToken: action.payload.refreshToken,
-                tokenExpiry: action.payload.tokenExpiry,
+                tokenExpiry: action.payload.tokenExpiryTime,
+                refreshTokenExpiry: action.payload.refreshTokenExpiryTime,
+            };
+        case 'SELECT_BRANCH':
+            return {
+                ...state,
+                token: action.payload.accessToken,
+                selectedBranch: action.payload.selectedBranch,
+                branchRole: action.payload.branchRole,
+                permissions: action.payload.availablePermissions || [],
+            };
+        case 'UPDATE_PERMISSIONS':
+            return {
+                ...state,
+                permissions: action.payload,
             };
         case 'LOGIN_FAILURE':
             return { ...state, loading: false, error: action.payload };
         case 'LOGOUT':
-            return { ...initialState, token: null, refreshToken: null, tokenExpiry: null, loading: false };
+            return {
+                ...initialState,
+                token: null,
+                refreshToken: null,
+                tokenExpiry: null,
+                refreshTokenExpiry: null,
+                permissions: [],
+                userBranches: [],
+                defaultBranch: null,
+                selectedBranch: null,
+                branchRole: null,
+                isSystemAdmin: false,
+                loading: false
+            };
         case 'SET_LOADING':
             return { ...state, loading: action.payload };
+        case 'CLEAR_ERROR':
+            return { ...state, error: null };
         default:
             return state;
     }
@@ -53,18 +123,21 @@ const authReducer = (state, action) => {
 export const AuthProvider = ({ children }) => {
     const [state, dispatch] = useReducer(authReducer, initialState);
 
+    // Token expiration check
     useEffect(() => {
         const checkTokenExpiration = () => {
-            if (state.tokenExpiry && Date.now() > state.tokenExpiry) {
-                console.log('Token expired, attempting refresh');
-                if (state.refreshToken) {
+            if (authService.isTokenExpired()) {
+                console.log('🔄 Token expired, attempting refresh...');
+                if (state.refreshToken && !authService.isRefreshTokenExpired()) {
                     refreshToken();
                 } else {
+                    console.log('🚫 Refresh token expired, logging out...');
                     logout();
                 }
             }
         };
 
+        // Check immediately and then every 30 seconds
         const tokenCheckInterval = setInterval(checkTokenExpiration, 30000);
 
         if (state.token) {
@@ -72,33 +145,33 @@ export const AuthProvider = ({ children }) => {
         }
 
         return () => clearInterval(tokenCheckInterval);
-    }, [state.token, state.tokenExpiry, state.refreshToken]);
+    }, [state.token, state.refreshToken]);
 
+    // Load user on app start if token exists
     useEffect(() => {
         const loadUser = async () => {
-            if (state.token) {
-                console.log('Loading user with token:', state.token ? state.token.substring(0, 15) + '...' : null);
+            if (state.token && !authService.isTokenExpired()) {
+                console.log('🔄 Loading user with existing token...');
                 dispatch({ type: 'SET_LOADING', payload: true });
 
                 try {
-                    const user = await getCurrentUser(state.token);
-                    console.log('User loaded successfully:', user);
+                    const user = await authService.getCurrentUser();
+                    console.log('✅ User loaded successfully:', user);
+
+                    // Update user data while preserving other auth state
                     dispatch({
-                        type: 'LOGIN_SUCCESS',
-                        payload: {
-                            user,
-                            token: state.token,
-                            refreshToken: state.refreshToken,
-                            tokenExpiry: state.tokenExpiry,
-                        },
+                        type: 'UPDATE_USER',
+                        payload: user,
                     });
                 } catch (error) {
-                    console.error('Error loading user:', error);
-                    if (state.refreshToken) {
+                    console.error('❌ Error loading user:', error);
+
+                    // Try to refresh token if user fetch fails
+                    if (state.refreshToken && !authService.isRefreshTokenExpired()) {
                         try {
                             await refreshToken();
                         } catch (refreshError) {
-                            console.error('Error refreshing token:', refreshError);
+                            console.error('❌ Error refreshing token:', refreshError);
                             logout();
                         }
                     } else {
@@ -108,74 +181,73 @@ export const AuthProvider = ({ children }) => {
                     dispatch({ type: 'SET_LOADING', payload: false });
                 }
             } else {
-                console.log('No token found, skipping user load');
+                console.log('ℹ️ No valid token found, skipping user load');
                 dispatch({ type: 'SET_LOADING', payload: false });
             }
         };
 
         loadUser();
-    }, [state.token]);
+    }, []);
 
     const login = async (credentials) => {
         dispatch({ type: 'LOGIN_START' });
         try {
-            console.log('Attempting login with:', credentials.email);
-            const { user, token, refreshToken, expiresIn = 3600 } = await authLogin(
-                credentials.email,
-                credentials.password
-            );
+            console.log('🔐 Attempting login with:', credentials.email);
 
-            const tokenExpiry = Date.now() + (expiresIn * 1000);
+            const authData = await authService.login(credentials);
 
-            localStorage.setItem('token', token);
-            localStorage.setItem('refreshToken', refreshToken);
-            localStorage.setItem('tokenExpiry', tokenExpiry.toString());
+            const branchRoleName = authData.defaultBranch?.branchRoleName ||
+                (authData.userBranches && authData.userBranches.length > 0 ? authData.userBranches[0].branchRoleName : null);
 
-            console.log('Login successful:', { user, tokenExists: !!token });
+            console.log('✅ Login successful:', {
+                user: authData.user?.email,
+                frontendRole: mapBackendRoleToFrontend(authData.user?.roles, branchRoleName, authData.userBranches),
+                backendRoles: authData.user?.roles,
+                branchRoleName: branchRoleName,
+                permissions: authData.permissions?.length || 0,
+                branches: authData.userBranches?.length || 0,
+                isSystemAdmin: authData.isSystemAdmin
+            });
+
             dispatch({
                 type: 'LOGIN_SUCCESS',
-                payload: { user, token, refreshToken, tokenExpiry },
+                payload: authData,
             });
         } catch (error) {
-            console.error('Login failed:', error);
+            console.error('❌ Login failed:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Login failed';
             dispatch({
                 type: 'LOGIN_FAILURE',
-                payload: error.message || 'Login failed',
+                payload: errorMessage,
             });
         }
     };
 
     const refreshToken = async () => {
         try {
-            console.log('Attempting to refresh token');
-            const { token, refreshToken: newRefreshToken, expiresIn = 3600 } = await authRefreshToken(state.refreshToken);
+            console.log('🔄 Attempting to refresh token...');
+            const tokenData = await authService.refreshToken();
 
-            const tokenExpiry = Date.now() + (expiresIn * 1000);
-
-            localStorage.setItem('token', token);
-            localStorage.setItem('refreshToken', newRefreshToken);
-            localStorage.setItem('tokenExpiry', tokenExpiry.toString());
-
-            console.log('Token refreshed successfully');
+            console.log('✅ Token refreshed successfully');
             dispatch({
                 type: 'REFRESH_TOKEN',
-                payload: { token, refreshToken: newRefreshToken, tokenExpiry },
+                payload: tokenData,
             });
 
-            const user = await getCurrentUser(token);
-            dispatch({
-                type: 'LOGIN_SUCCESS',
-                payload: {
-                    user,
-                    token,
-                    refreshToken: newRefreshToken,
-                    tokenExpiry,
-                },
-            });
+            // Reload user data with new token
+            try {
+                const user = await authService.getCurrentUser();
+                dispatch({
+                    type: 'UPDATE_USER',
+                    payload: user,
+                });
+            } catch (userError) {
+                console.warn('⚠️ Failed to reload user after token refresh:', userError);
+            }
 
             return true;
         } catch (error) {
-            console.error('Token refresh failed:', error);
+            console.error('❌ Token refresh failed:', error);
             logout();
             return false;
         }
@@ -183,55 +255,111 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            console.log('Logging out');
-            await authLogout();
+            console.log('🚪 Logging out...');
+            await authService.logout();
+        } catch (error) {
+            console.warn('⚠️ Logout API call failed:', error);
         } finally {
-            localStorage.removeItem('token');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('tokenExpiry');
             dispatch({ type: 'LOGOUT' });
+            console.log('✅ Logout completed');
+        }
+    };
+
+    const selectBranch = async (branchId) => {
+        try {
+            console.log('🏢 Selecting branch:', branchId);
+            const branchData = await authService.selectBranch(branchId);
+
+            console.log('✅ Branch selected successfully:', branchData.selectedBranch?.name);
+            dispatch({
+                type: 'SELECT_BRANCH',
+                payload: branchData,
+            });
+
+            return branchData;
+        } catch (error) {
+            console.error('❌ Branch selection failed:', error);
+            throw error;
         }
     };
 
     const updateUser = (updatedUser) => {
-        console.log('Updating user:', updatedUser);
-        const updatedUserData = { ...state.user, ...updatedUser };
-        dispatch({ type: 'UPDATE_USER', payload: updatedUserData });
-        const userIndex = mockUsers.findIndex((u) => u.id === updatedUser.id);
-        if (userIndex !== -1) {
-            mockUsers[userIndex] = { ...mockUsers[userIndex], ...updatedUser };
-        }
+        console.log('👤 Updating user:', updatedUser);
+        dispatch({ type: 'UPDATE_USER', payload: updatedUser });
     };
 
     const changePassword = async (currentPassword, newPassword) => {
         dispatch({ type: 'SET_LOADING', payload: true });
         try {
-            console.log('Attempting to change password for user:', state.user.email);
-            const updatedUser = await authChangePassword(state.user.id, currentPassword, newPassword);
-            dispatch({ type: 'UPDATE_USER', payload: updatedUser });
-            console.log('Password changed successfully');
+            console.log('🔒 Attempting to change password for user:', state.user?.email);
+            await authService.changePassword({
+                currentPassword,
+                newPassword
+            });
+            console.log('✅ Password changed successfully');
         } catch (error) {
-            console.error('Password change failed:', error);
+            console.error('❌ Password change failed:', error);
             throw error;
         } finally {
             dispatch({ type: 'SET_LOADING', payload: false });
         }
     };
 
+    // Permission helper functions
+    const hasPermission = (permission) => {
+        return authService.hasPermission(permission);
+    };
+
+    const hasAnyPermission = (permissionList) => {
+        return authService.hasAnyPermission(permissionList);
+    };
+
+    const clearError = () => {
+        dispatch({ type: 'CLEAR_ERROR' });
+    };
+
+    // Enhanced authentication context value
+    const contextValue = {
+        // User data
+        user: state.user,
+        token: state.token,
+        refreshToken: state.refreshToken,
+        loading: state.loading,
+        error: state.error,
+
+        // Permission data
+        permissions: state.permissions,
+        hasPermission,
+        hasAnyPermission,
+
+        // Branch data
+        userBranches: state.userBranches,
+        defaultBranch: state.defaultBranch,
+        selectedBranch: state.selectedBranch,
+        branchRole: state.branchRole,
+        isSystemAdmin: state.isSystemAdmin,
+
+        // Role helper functions
+        hasAdminAccess: () => hasAdminAccess(state.user?.role),
+        shouldUseGuestLayout: () => shouldUseGuestLayout(state.user?.role),
+
+        // Authentication actions
+        login,
+        logout,
+        refreshToken,
+        selectBranch,
+        updateUser,
+        changePassword,
+        clearError,
+
+        // Auth state checks
+        isAuthenticated: authService.isAuthenticated(),
+        isTokenExpired: authService.isTokenExpired(),
+        isRefreshTokenExpired: authService.isRefreshTokenExpired(),
+    };
+
     return (
-        <AuthContext.Provider
-            value={{
-                user: state.user,
-                token: state.token,
-                loading: state.loading,
-                error: state.error,
-                login,
-                logout,
-                refreshToken,
-                updateUser,
-                changePassword,
-            }}
-        >
+        <AuthContext.Provider value={contextValue}>
             {children}
         </AuthContext.Provider>
     );

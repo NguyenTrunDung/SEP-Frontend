@@ -1,27 +1,28 @@
 import React, { useMemo } from "react";
-import { Layout, Menu, Avatar, Dropdown, Typography } from "antd";
+import { Layout, Menu, Typography } from "antd";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
     DashboardOutlined,
     UserOutlined,
     SettingOutlined,
-    LogoutOutlined,
     ShoppingCartOutlined,
-    MenuOutlined
+    MenuOutlined,
+    WalletOutlined,
+    FireOutlined
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
+import UserHeader from "../components/common/UserHeader";
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Title, Text } = Typography;
 
 const AdminLayout = ({ children }) => {
-    const { logout, user } = useAuth();
+    const { user, hasPermission } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
     const handleLogout = () => {
-        logout();
         navigate("/login");
     };
 
@@ -31,6 +32,21 @@ const AdminLayout = ({ children }) => {
         return allowedRoles.includes(user.role);
     };
 
+    // Helper function to check permission or role (for better flexibility)
+    const canAccess = (allowedRoles = [], requiredPermissions = []) => {
+        // Check roles first
+        if (allowedRoles.length > 0 && hasRequiredRole(allowedRoles)) {
+            return true;
+        }
+
+        // Check permissions if available
+        if (requiredPermissions.length > 0) {
+            return requiredPermissions.some(permission => hasPermission && hasPermission(permission));
+        }
+
+        return false;
+    };
+
     // Map routes to menu keys for active state persistence
     const getSelectedMenuKey = useMemo(() => {
         const pathname = location.pathname;
@@ -38,44 +54,19 @@ const AdminLayout = ({ children }) => {
         if (pathname === "/dashboard") return ["dashboard"];
         if (pathname === "/orders") return ["orders"];
         if (pathname === "/menus") return ["menus"];
+        if (pathname === "/kitchen") return ["kitchen"];
+        if (pathname === "/cashier") return ["cashier"];
         if (pathname === "/admin/users") return ["users"];
         if (pathname === "/admin/settings") return ["settings"];
 
         // Default fallback based on role
-        if (hasRequiredRole([ROLES.ADMIN, ROLES.DOCTOR])) return ["dashboard"];
-        if (hasRequiredRole([ROLES.ADMIN, ROLES.STAFF])) return ["orders"];
+        if (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])) return ["dashboard"];
+        if (hasRequiredRole([ROLES.CASHIER])) return ["cashier"];
+        if (hasRequiredRole([ROLES.KITCHEN])) return ["kitchen"];
+        if (hasRequiredRole([ROLES.STAFF, ROLES.NURSE])) return ["orders"];
 
         return [];
     }, [location.pathname, user]);
-
-    // User dropdown menu for header
-    const userMenu = (
-        <Menu>
-            <Menu.Item key="profile" icon={<UserOutlined />}>
-                <Link
-                    to={
-                        user?.role === ROLES.ADMIN ? "/admin/profile" :
-                        user?.role === ROLES.DOCTOR ? "/doctor/profile" :
-                        user?.role === ROLES.PATIENT ? "/patient/profile" :
-                        user?.role === ROLES.STAFF ? "/staff/profile" :
-                        "#"
-                    }
-                    style={{ fontSize: '15px' }}
-                >
-                    Thông tin cá nhân
-                </Link>
-            </Menu.Item>
-            <Menu.Divider />
-            <Menu.Item
-                key="logout"
-                icon={<LogoutOutlined />}
-                onClick={handleLogout}
-                style={{ color: '#ff4d4f' }}
-            >
-                <span style={{ fontSize: '15px' }}>Đăng xuất</span>
-            </Menu.Item>
-        </Menu>
-    );
 
     const siderStyle = {
         background: '#fff',
@@ -113,8 +104,11 @@ const AdminLayout = ({ children }) => {
                     selectedKeys={getSelectedMenuKey}
                     style={menuStyle}
                     items={[
-                        // Dashboard - Accessible by Admin and Doctor
-                        hasRequiredRole([ROLES.ADMIN, ROLES.DOCTOR]) && {
+                        // Dashboard - Accessible by Admin, Branch Manager, Manager, and Doctor
+                        canAccess(
+                            [ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR],
+                            ['overview:view']
+                        ) && {
                             key: "dashboard",
                             icon: <DashboardOutlined style={{ fontSize: '18px' }} />,
                             label: (
@@ -124,8 +118,11 @@ const AdminLayout = ({ children }) => {
                             ),
                         },
 
-                        // Orders - Accessible by Admin and Staff
-                        hasRequiredRole([ROLES.ADMIN, ROLES.STAFF]) && {
+                        // Orders - Accessible by Admin, Branch Manager, Manager, Staff, and Nurse
+                        canAccess(
+                            [ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.NURSE],
+                            ['orders:view']
+                        ) && {
                             key: "orders",
                             icon: <ShoppingCartOutlined style={{ fontSize: '18px' }} />,
                             label: (
@@ -135,8 +132,39 @@ const AdminLayout = ({ children }) => {
                             ),
                         },
 
-                        // Menus - Accessible by Admin and Staff
-                        hasRequiredRole([ROLES.ADMIN, ROLES.STAFF]) && {
+                        // Cashier - Accessible by Cashier and Admin
+                        canAccess(
+                            [ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.CASHIER],
+                            ['wallet:view', 'orders:edit']
+                        ) && {
+                            key: "cashier",
+                            icon: <WalletOutlined style={{ fontSize: '18px' }} />,
+                            label: (
+                                <Link to="/cashier" style={{ fontSize: '16px', fontWeight: '500' }}>
+                                    Thu ngân
+                                </Link>
+                            ),
+                        },
+
+                        // Kitchen - Accessible by Kitchen Staff and Admin
+                        canAccess(
+                            [ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.KITCHEN],
+                            ['kitchen:view']
+                        ) && {
+                            key: "kitchen",
+                            icon: <FireOutlined style={{ fontSize: '18px' }} />,
+                            label: (
+                                <Link to="/kitchen" style={{ fontSize: '16px', fontWeight: '500' }}>
+                                    Bếp
+                                </Link>
+                            ),
+                        },
+
+                        // Menus - Accessible by Admin, Branch Manager, Manager, and Staff
+                        canAccess(
+                            [ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF],
+                            ['foods:view']
+                        ) && {
                             key: "menus",
                             icon: <MenuOutlined style={{ fontSize: '18px' }} />,
                             label: (
@@ -146,8 +174,11 @@ const AdminLayout = ({ children }) => {
                             ),
                         },
 
-                        // Users Management - Admin only
-                        hasRequiredRole([ROLES.ADMIN]) && {
+                        // Users Management - Admin and Branch Manager only
+                        canAccess(
+                            [ROLES.ADMIN, ROLES.BRANCH_MANAGER],
+                            ['users:view']
+                        ) && {
                             key: "users",
                             icon: <UserOutlined style={{ fontSize: '18px' }} />,
                             label: (
@@ -158,7 +189,10 @@ const AdminLayout = ({ children }) => {
                         },
 
                         // Settings - Admin only
-                        hasRequiredRole([ROLES.ADMIN]) && {
+                        canAccess(
+                            [ROLES.ADMIN],
+                            ['system:settings']
+                        ) && {
                             key: "settings",
                             icon: <SettingOutlined style={{ fontSize: '18px' }} />,
                             label: (
@@ -186,21 +220,7 @@ const AdminLayout = ({ children }) => {
                     <div />
 
                     {/* User info and dropdown */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Text style={{ fontSize: '15px', color: '#666' }}>
-                            Xin chào, <strong style={{ color: '#262626' }}>{user?.firstName || user?.email}</strong>
-                        </Text>
-                        <Dropdown overlay={userMenu} placement="bottomRight" arrow>
-                            <Avatar
-                                size="default"
-                                icon={<UserOutlined />}
-                                style={{
-                                    backgroundColor: '#1890ff',
-                                    cursor: 'pointer'
-                                }}
-                            />
-                        </Dropdown>
-                    </div>
+                    <UserHeader onLogout={handleLogout} />
                 </Header>
 
                 <Content style={{ margin: "24px 16px 0" }}>

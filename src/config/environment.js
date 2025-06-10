@@ -28,8 +28,7 @@ const environment = {
         // API endpoints - using dynamic version
         get endpoints() {
             return {
-                // Auth endpoints (no version prefix)
-                auth: '/api/auth',
+
 
                 // Versioned endpoints using dynamic version
                 branches: this.getVersionedPath('/branches'),
@@ -37,6 +36,14 @@ const environment = {
                 foodCategories: this.getVersionedPath('/foodcategories'),
                 orders: this.getVersionedPath('/orders'),
                 users: this.getVersionedPath('/users'),
+
+                // Authentication endpoints
+                authentication: {
+                    login: this.getVersionedPath('/auth/login'),
+                    logout: this.getVersionedPath('/auth/logout'),
+                    refreshToken: this.getVersionedPath('/auth/refresh-token'),
+                    changePassword: this.getVersionedPath('/auth/change-password'),
+                },
 
                 // Branch-specific endpoints
                 branch: {

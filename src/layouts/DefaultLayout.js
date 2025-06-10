@@ -7,6 +7,7 @@ import Carousel from '../components/CarouselComponent';
 import Menu from '../components/Dishes/Menu';
 import Desease from '../components/Desease';
 import FooterComponent from '../components/Footer';
+import UserHeader from '../components/common/UserHeader';
 
 const { Content } = Layout;
 
