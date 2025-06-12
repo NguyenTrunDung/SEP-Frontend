@@ -31,7 +31,7 @@ const openCloudinaryWidget = (cb) => {
             multiple: false,
             resourceType: 'image',
             clientAllowedFormats: ['png', 'jpg', 'jpeg'],
-            maxFileSize: 5000000, // 5MB
+            maxFileSize: 5000000,
         },
         (error, result) => {
             if (!error && result && result.event === 'success') {

@@ -1,7 +1,7 @@
 // src/services/orderService.js
 import { mockOrders, getFilteredOrders, getOrderById, ORDER_STATUS } from '../mocks/orderData';
 import { delay } from '../mocks/authData';
-import api, { environment } from './api/config';
+import api, { environment } from '../services/api/config';
 
 export const orderService = {
     /**

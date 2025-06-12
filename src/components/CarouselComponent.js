@@ -2,7 +2,7 @@ import React from 'react';
 
 const BannerComponent = () => {
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', width: 'auto', height: '580px', overflow: 'hidden' }}>
       <img
         src="/images/banner.png" // Hình banner
         alt="Banner"

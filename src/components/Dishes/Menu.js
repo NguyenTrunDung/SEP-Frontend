@@ -1,8 +1,8 @@
+// components/MenuPage.js
 import locale from 'antd/locale/vi_VN';
 import React, { useState, useEffect, useRef } from 'react';
-import { ConfigProvider, Typography, Tabs, Spin, Alert, Layout, Button, message, Modal, Image, Input, Select } from 'antd';
+import { ConfigProvider, Typography, Tabs, Spin, Alert, Layout, Button, message, Modal, Image, Input } from 'antd';
 import PropTypes from 'prop-types';
-import { mockFoodCategories, getMenuById } from '../../mocks/menuData';
 import { useMenus } from '../../hooks/queries/useMenu';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,7 +12,6 @@ import './Menu.css';
 const { Content } = Layout;
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
-const { Option } = Select;
 
 // Hàm tạo danh sách các ngày trong tuần bằng tiếng Việt
 const getVietnameseDays = () => {
@@ -24,7 +23,7 @@ const getVietnameseDays = () => {
     const date = new Date(baseDate);
     date.setDate(baseDate.getDate() + i);
     const dayName = formatter.format(date);
-    days.push(dayName.charAt(0).toUpperCase() + dayName.slice(1)); // Viết hoa chữ cái đầu
+    days.push(dayName.charAt(0).toUpperCase() + dayName.slice(1));
   }
 
   return days;
@@ -40,11 +39,7 @@ const MenuComponent = ({ activeKey, onTabChange }) => {
       centered
       size="large"
       animated={false}
-      tabBarStyle={{
-        marginBottom: 5,
-        backgroundColor: 'transparent',
-        border: 'none',
-      }}
+      tabBarStyle={{ marginBottom: 5, backgroundColor: 'transparent', border: 'none' }}
       tabBarGutter={0.5}
       tabBarExtraContent={<div style={{ display: 'none' }} />}
     >
@@ -81,13 +76,7 @@ const CategoryCircles = ({ categories, selectedCategory, onCategorySelect, dateL
           <div
             key={category.ID}
             onClick={() => onCategorySelect(isSelected ? null : category.Name)}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-            }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.3s' }}
           >
             <div
               style={{
@@ -145,7 +134,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   const [note, setNote] = useState('');
   const categoryRefs = useRef({});
 
-  const { menus, loading, error, isUsingMockData } = useMenus({ date: getFormattedDate(activeDay) });
+  const { menus, categories, loading, error, refreshMenus } = useMenus({ date: getFormattedDate(activeDay) });
 
   useEffect(() => {
     if (selectedCategory) {
@@ -158,7 +147,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
       const date = new Date(dateStr);
       const weekdayFormatter = new Intl.DateTimeFormat('vi-VN', { weekday: 'long' });
       const dateFormatter = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const weekday = weekdayFormatter.format(date).toUpperCase(); // Chuyển toàn bộ ngày trong tuần thành chữ in hoa
+      const weekday = weekdayFormatter.format(date).toUpperCase();
       const formattedDate = dateFormatter.format(date);
       return `Thực đơn ${weekday} - ${formattedDate}`;
     } catch (error) {
@@ -168,16 +157,13 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   };
 
   const getFilteredCategories = () => {
-    const menuCategories = [...new Set(menus.map((menu) => menu.category))];
-    if (menuCategories.length === 0 && isUsingMockData) {
-      return mockFoodCategories;
-    }
-    return mockFoodCategories.filter((category) => menuCategories.includes(category.Name));
+    return categories.length > 0 ? categories : [];
   };
 
   const groupedMenus = menus.length > 0 ? menus.reduce((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
+    const categoryName = item.category || 'Chưa phân loại';
+    if (!acc[categoryName]) acc[categoryName] = [];
+    acc[categoryName].push(item);
     return acc;
   }, {}) : {};
 
@@ -188,10 +174,10 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
       return;
     }
 
-    const existingItem = cartItems.find((item) => item.FoodId === menuItem.ID);
+    const existingItem = cartItems.find((item) => item.ID === menuItem.ID);
     if (existingItem) {
       const updatedItems = cartItems.map((item) =>
-        item.FoodId === menuItem.ID ? { ...item, quantity, note } : item
+        item.ID === menuItem.ID ? { ...item, quantity, note } : item
       );
       setCartItems(updatedItems);
       message.success(`${menuItem.dishName} đã được cập nhật trong giỏ hàng!`);
@@ -200,7 +186,6 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
         ...menuItem,
         quantity,
         cartId: uuidv4(),
-        FoodId: menuItem.ID,
         note,
       };
       const updatedItems = [...cartItems, newItem];
@@ -213,22 +198,17 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
     handleModalClose();
   };
 
-  const handleShowDetails = async (menuItem) => {
-    try {
-      const detailedMenu = await getMenuById(menuItem.ID);
-      setSelectedMenuItem(detailedMenu);
-      const existingItem = cartItems.find((item) => item.FoodId === menuItem.ID);
-      if (existingItem) {
-        setQuantity(existingItem.quantity);
-        setNote(existingItem.note || '');
-      } else {
-        setQuantity(1);
-        setNote('');
-      }
-      setIsModalVisible(true);
-    } catch (err) {
-      message.error('Không thể tải chi tiết món ăn.');
+  const handleShowDetails = (menuItem) => {
+    setSelectedMenuItem(menuItem);
+    const existingItem = cartItems.find((item) => item.ID === menuItem.ID);
+    if (existingItem) {
+      setQuantity(existingItem.quantity);
+      setNote(existingItem.note || '');
+    } else {
+      setQuantity(1);
+      setNote('');
     }
+    setIsModalVisible(true);
   };
 
   const handleModalClose = () => {
@@ -251,7 +231,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
               {formattedDate}
             </Title>
 
-            {menus.length > 0 && (
+            {menus.length > 0 && categories.length > 0 && (
               <CategoryCircles
                 categories={getFilteredCategories()}
                 selectedCategory={selectedCategory}
@@ -260,13 +240,13 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
               />
             )}
 
-            {error && !isUsingMockData && (
+            {error && (
               <Alert message={error} type="error" showIcon style={{ marginBottom: 16 }} />
             )}
 
             {loading ? (
               <Spin size="large" style={{ display: 'block', margin: 'auto' }} />
-            ) : menus.length > 0 || isUsingMockData ? (
+            ) : menus.length > 0 ? (
               <div>
                 {Object.keys(groupedMenus).length > 0 ? (
                   Object.keys(groupedMenus).map((category) => (
@@ -276,7 +256,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                       </Title>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
                         {groupedMenus[category].map((item) => {
-                          const isInCart = cartItems.some(cartItem => cartItem.FoodId === item.ID);
+                          const isInCart = cartItems.some(cartItem => cartItem.ID === item.ID);
 
                           return (
                             <div
@@ -310,13 +290,13 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                                   borderRadius: '4px',
                                   fontSize: '16px',
                                 }}>
-                                  Đã thêm: {cartItems.find(cartItem => cartItem.FoodId === item.ID)?.quantity || 0}
+                                  Đã thêm: {cartItems.find(cartItem => cartItem.ID === item.ID)?.quantity || 0}
                                 </div>
                               )}
                               <Title level={5} style={{ marginBottom: 8 }}>{item.dishName}</Title>
                               <div style={{ marginBottom: 4 }}>
                                 <Text strong style={{ fontSize: 14, color: '#222' }}>
-                                  {item.price.toLocaleString('vi-VN')}đ
+                                  {item.price?.toLocaleString('vi-VN') || '0'}đ
                                 </Text>
                               </div>
                               <Button
@@ -341,9 +321,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                     </div>
                   ))
                 ) : (
-                  <Text
-                    style={{ color: 'red', textAlign: 'center', display: 'block', marginTop: 24 }}
-                  >
+                  <Text style={{ color: 'red', textAlign: 'center', display: 'block', marginTop: 24 }}>
                     Chưa có thực đơn.
                   </Text>
                 )}
@@ -361,157 +339,64 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
               centered
               closeIcon={<span style={{ color: '#000', fontSize: '26px' }}>×</span>}
               styles={{
-                content: {
-                  padding: 0,
-                  background: '#fff',
-                  borderRadius: '8px',
-                },
-                body: {
-                  padding: 0,
-                },
+                content: { padding: 0, background: '#fff', borderRadius: '8px' },
+                body: { padding: 0 },
               }}
             >
               <div style={{ borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
-                {/* Header */}
-                <div
-                  style={{
-                    backgroundColor: '#b4c80f',
-                    color: '#000',
-                    padding: '12px 16px',
-                    fontSize: '18px',
-                  }}
-                >
-                  {cartItems.some(item => item.FoodId === selectedMenuItem?.ID)
+                <div style={{ backgroundColor: '#b4c80f', color: '#000', padding: '12px 16px', fontSize: '18px' }}>
+                  {cartItems.some(item => item.ID === selectedMenuItem?.ID)
                     ? 'Cập nhật giỏ hàng'
                     : 'Thêm vào giỏ hàng'}
                 </div>
-
-                {/* Image sát header */}
                 <img
-                  src={
-                    selectedMenuItem?.image ||
-                    'https://via.placeholder.com/600x250?text=No+Image'
-                  }
+                  src={selectedMenuItem?.image || 'https://via.placeholder.com/600x250?text=No+Image'}
                   alt={selectedMenuItem?.dishName}
-                  style={{
-                    width: '100%',
-                    maxHeight: '250px',
-                    objectFit: 'cover',
-                    display: 'block',
-                  }}
+                  style={{ width: '100%', maxHeight: '250px', objectFit: 'cover', display: 'block' }}
                 />
-
-                {/* Dish Info */}
                 <div style={{ padding: '6px 6px 0' }}>
-                  <Text
-                    style={{
-                      display: 'block',
-                      fontSize: '15px',
-                      fontWeight: 'bold',
-                      color: '#333',
-                      marginBottom: '1px',
-                    }}
-                  >
+                  <Text style={{ display: 'block', fontSize: '15px', fontWeight: 'bold', color: '#333', marginBottom: '1px' }}>
                     {selectedMenuItem?.dishName || 'No name'}
                   </Text>
-                  <Text
-                    style={{
-                      display: 'block',
-                      fontSize: '15px',
-                      color: '#555',
-                      marginBottom: '1px',
-                    }}
-                  >
+                  <Text style={{ display: 'block', fontSize: '15px', color: '#555', marginBottom: '1px' }}>
                     {selectedMenuItem?.description || 'No description available'}
                   </Text>
-                  <Text
-                    style={{
-                      display: 'block',
-                      fontSize: '15px',
-                      fontWeight: 'bold',
-                      color: '#ff0000',
-                      marginBottom: '1px',
-                    }}
-                  >
+                  <Text style={{ display: 'block', fontSize: '15px', fontWeight: 'bold', color: '#ff0000', marginBottom: '1px' }}>
                     {selectedMenuItem?.price?.toLocaleString('vi-VN') || '0'}đ
                   </Text>
                 </div>
-
-                {/* Note */}
                 <div style={{ padding: '0 6px' }}>
-                  <Text
-                    style={{
-                      display: 'block',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      color: '#333',
-                      marginBottom: '0px',
-                    }}
-                  >
+                  <Text style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#333', marginBottom: '0px' }}>
                     Ghi chú:
                   </Text>
                   <Input.TextArea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    style={{
-                      marginBottom: '20px',
-                      height: '115px',
-                      resize: 'none',
-                    }}
+                    style={{ marginBottom: '20px', height: '115px', resize: 'none' }}
                     placeholder="Ghi chú..."
                   />
                 </div>
-
-                {/* Quantity Controls */}
                 <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                   <Button
-                    style={{
-                      backgroundColor: '#b4c80f',
-                      borderColor: '#b4c80f',
-                      color: '#000',
-                      borderRadius: '50%',
-                      width: '36px',
-                      height: '36px',
-                      fontSize: '18px',
-                      fontWeight: 'bold',
-                    }}
+                    style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f', color: '#000', borderRadius: '50%', width: '36px', height: '36px', fontSize: '18px', fontWeight: 'bold' }}
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   >
                     -
                   </Button>
                   <span style={{ margin: '0 16px', fontSize: '16px' }}>{quantity}</span>
                   <Button
-                    style={{
-                      backgroundColor: '#b4c80f',
-                      borderColor: '#b4c80f',
-                      color: '#000',
-                      borderRadius: '50%',
-                      width: '36px',
-                      height: '36px',
-                      fontSize: '18px',
-                      fontWeight: 'bold',
-                    }}
+                    style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f', color: '#000', borderRadius: '50%', width: '36px', height: '36px', fontSize: '18px', fontWeight: 'bold' }}
                     onClick={() => setQuantity(quantity + 1)}
                   >
                     +
                   </Button>
                 </div>
-
-                {/* Add/Update Button */}
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '0 10px 16px' }}>
                   <Button
-                    style={{
-                      backgroundColor: '#b4c80f',
-                      borderColor: '#b4c80f',
-                      color: '#000',
-                      width: '100%',
-                      padding: '18px',
-                      fontSize: '16px',
-                      borderRadius: '6px',
-                    }}
+                    style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f', color: '#000', width: '100%', padding: '18px', fontSize: '16px', borderRadius: '6px' }}
                     onClick={() => handleAddOrUpdateCart(selectedMenuItem)}
                   >
-                    {cartItems.some(item => item.FoodId === selectedMenuItem?.ID)
+                    {cartItems.some(item => item.ID === selectedMenuItem?.ID)
                       ? 'Cập nhật giỏ hàng'
                       : 'Thêm vào giỏ hàng'}
                   </Button>

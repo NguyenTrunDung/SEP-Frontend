@@ -1,44 +1,72 @@
+// hooks/queries/useMenu.js
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api/config';
-import { getFilteredMenus } from '../../mocks/menuData';
 
 export const useMenus = (filters = {}) => {
   const [menus, setMenus] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isUsingMockData, setIsUsingMockData] = useState(false);
 
-  const fetchMenus = useCallback(async () => {
+  const fetchMenusAndCategories = useCallback(async () => {
     try {
       setLoading(true);
-      setIsUsingMockData(false); // Reset to prioritize BE data
-      const response = await api.get('/menus', { params: filters });
-      setMenus(response.data);
+      const branchId = localStorage.getItem('selectedBranch') ? JSON.parse(localStorage.getItem('selectedBranch')).id : '1';
+      const date = filters.date || new Date().toISOString().split('T')[0];
+      console.log('Fetching with params:', { date, branchId });
+
+      // Fetch menus and foods by date
+      const menuByDateResponse = await api.get(`/api/v1/public/menus/menu-by-date`, {
+        params: { date, branchId },
+      });
+      console.log('Full menu by date response:', menuByDateResponse.data);
+      const { foods: foodDtos } = menuByDateResponse.data.data || { foods: [] };
+
+      // Fetch categories by date
+      const categoriesResponse = await api.get(`/api/v1/public/menus/categories/by-date`, {
+        params: { date, branchId },
+      });
+      console.log('Full categories response:', categoriesResponse.data);
+      const categoryDtos = categoriesResponse.data.data || [];
+
+      // Map foods to menu format
+      const mappedMenus = foodDtos.map(food => {
+        const categoryName = categoryDtos.find(c => c.id === food.categoryId)?.name || 'Chưa phân loại';
+        console.log('Mapping food:', { food, categoryName });
+        return {
+          ID: food.id, // Sửa từ id
+          BranchId: branchId,
+          Date: date,
+          dishName: food.name || 'Unnamed Dish',
+          price: food.priceForGuest || 0,
+          category: categoryName,
+          image: food.imageUrl || 'https://via.placeholder.com/200x140', // Sửa từ imageUrl
+          description: food.description || 'No description',
+        };
+      });
+
+      setMenus(mappedMenus);
+      setCategories(categoryDtos);
       setError(null);
     } catch (err) {
-      // Fall back to mock data on failure
-      try {
-        const mockData = getFilteredMenus(filters);
-        setMenus(mockData);
-        setIsUsingMockData(true);
-        setError(); //'Failed to fetch menus from server, using offline data.'
-      } catch (mockErr) {
-        setError(); //'Failed to fetch menus and load offline data.'
-      }
+      console.error('API Error:', err.response?.data || err.message);
+      setMenus([]);
+      setCategories([]);
+      setError('Failed to fetch menus from server. Details: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
-  }, [filters.date]); // Dependency on filters.date
+  }, [filters.date]);
 
   useEffect(() => {
-    fetchMenus();
-  }, [fetchMenus]);
+    fetchMenusAndCategories();
+  }, [fetchMenusAndCategories]);
 
   return {
     menus,
+    categories,
     loading,
     error,
-    isUsingMockData, // Expose for UI feedback
-    refreshMenus: fetchMenus,
+    refreshMenus: fetchMenusAndCategories,
   };
 };

@@ -1,24 +1,23 @@
-// src/components/Navbar.js
+// components/Navbar.js
 import React, { useState, useEffect } from 'react';
-import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar } from 'antd';
-import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined } from '@ant-design/icons';
+import { Layout, Row, Col, Button, Typography, message, ConfigProvider, Modal } from 'antd';
+import { SearchOutlined, UserOutlined, LogoutOutlined, WalletOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useBranches } from '../hooks/queries/useBranches';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../constants/roles';
-import locale from 'antd/locale/vi_VN';
+import locale from 'antd/es/locale/vi_VN';
 import ProfilePopup from '../components/Nurse/ViewProfilebyNurse';
 import CartModal from '../components/Cart/Cart';
 import PaymentModal from '../components/Payment/Payment';
 import OrderHistoryModal from '../components/OrderHistory/OrderHistory';
 import WalletModal from '../components/Wallet/Wallet';
+import BranchSelector from '../components/Branch/BranchSelector';
 
 const { Header } = Layout;
 const { Text } = Typography;
 
 const Navbar = () => {
-  const { branches, loading, error } = useBranches();
   const { cartItems, setCartItems } = useCart();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -28,12 +27,16 @@ const Navbar = () => {
     const savedBranch = localStorage.getItem('selectedBranch');
     return savedBranch ? JSON.parse(savedBranch) : null;
   });
+  const [isInitialLoad, setIsInitialLoad] = useState(() => {
+    const isFreshLoad = sessionStorage.getItem('isInitialLoad') !== 'false';
+    return isFreshLoad;
+  });
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [isProfilePopupVisible, setIsProfilePopupVisible] = useState(false);
   const [isUserMenuVisible, setIsUserMenuVisible] = useState(false);
   const [isOrderHistoryVisible, setIsOrderHistoryVisible] = useState(false);
-  const [isWalletModalVisible, setIsWalletModalVisible] = useState(false); // New state for wallet modal
+  const [isWalletModalVisible, setIsWalletModalVisible] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState({
     deliveryAddress: '',
     fullName: '',
@@ -53,30 +56,41 @@ const Navbar = () => {
   const [activeKey, setActiveKey] = useState('home');
 
   useEffect(() => {
-    if (!selectedBranch) {
+    if (isInitialLoad && !user) {
       setIsModalVisible(true);
+      sessionStorage.setItem('isInitialLoad', 'false');
+      setIsInitialLoad(false);
     }
-  }, [selectedBranch]);
+  }, [isInitialLoad, user]);
 
   useEffect(() => {
-    console.log('Navbar - User data:', { user, role: user?.role });
-  }, [user]);
+    const handleBeforeUnload = () => {
+      sessionStorage.setItem('isInitialLoad', 'true');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   const showModal = () => setIsModalVisible(true);
 
   const handleBranchSelect = (branch) => {
-    setSelectedBranch(branch);
-    localStorage.setItem('selectedBranch', JSON.stringify(branch));
+    // Đảm bảo branch có cấu trúc đúng (name, id, address, etc.)
+    const selectedBranchData = {
+      id: branch.id,
+      name: branch.name,
+      address: branch.address,
+      phone: branch.phone,
+      email: branch.email,
+    };
+    setSelectedBranch(selectedBranchData);
+    localStorage.setItem('selectedBranch', JSON.stringify(selectedBranchData));
     setIsModalVisible(false);
   };
 
   const handleCartClick = () => {
-    console.log('Opening cart modal with cartItems:', cartItems);
     setIsCartModalVisible(true);
-  };
-
-  const handleCartUpdate = () => {
-    console.log('Cart updated, new cartItems:', cartItems);
   };
 
   const handleMenuClick = (key) => {
@@ -110,7 +124,6 @@ const Navbar = () => {
 
   const handleProfileClick = () => {
     if (!user || !user.role) {
-      console.error('User or user.role is undefined, redirecting to login');
       message.error('Không thể truy cập hồ sơ. Vui lòng đăng nhập lại.');
       navigate('/login');
       return;
@@ -120,7 +133,6 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
-    console.log('Logging out user:', user);
     logout();
     navigate('/login');
     setIsUserMenuVisible(false);
@@ -143,13 +155,16 @@ const Navbar = () => {
     ...(user?.role === ROLES.NURSE
       ? [
           { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/home' },
-          { key: 'employee', label: 'NHÂN VIÊN' },
+          { key: 'contact', label: 'LIÊN HỆ', route: '/contact' },
+          { key: 'employee', icon: <UserOutlined />, label: 'NHÂN VIÊN' },
         ]
       : user?.role === ROLES.GUEST
-      ? []
-      : [{ key: 'staff', label: 'NHÂN VIÊN', route: '/staff' }]
+      ? [{ key: 'contact', label: 'LIÊN HỆ', route: '/contact' }]
+      : [
+          { key: 'contact', label: 'LIÊN HỆ', route: '/contact' },
+          { key: 'staff', icon: <UserOutlined />, label: 'NHÂN VIÊN', route: '/staff' },
+        ]
     ),
-    { key: 'contact', label: 'LIÊN HỆ', route: '/contact' },
   ];
 
   return (
@@ -183,6 +198,7 @@ const Navbar = () => {
                   display: 'flex',
                   alignItems: 'center',
                 }}
+                onClick={() => navigate('/order-tracking')}
               >
                 <SearchOutlined style={{ marginRight: '4px' }} />
                 Tra Cứu Đơn Hàng
@@ -200,7 +216,7 @@ const Navbar = () => {
                   borderRadius: '8px',
                 }}
               >
-                {selectedBranch ? `Chi nhánh: ${selectedBranch.Name}` : 'Chọn chi nhánh'}
+                {selectedBranch ? `Chi nhánh: ${selectedBranch.name || 'N/A'}` : 'Chọn chi nhánh'} {/* Sử dụng selectedBranch.name */}
               </span>
             </Col>
           </Row>
@@ -215,7 +231,7 @@ const Navbar = () => {
             />
           </Col>
           <Col xs={12} sm={18} md={20} style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-            {menuItems.map(({ key, label, route }) => (
+            {menuItems.map(({ key, label, icon, route }) => (
               <Button
                 key={key}
                 type={activeKey === key ? 'primary' : 'default'}
@@ -229,9 +245,13 @@ const Navbar = () => {
                   padding: '8px 16px',
                   fontWeight: 'bold',
                   position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
+                icon={key === 'employee' || (key === 'staff' && user?.role !== ROLES.NURSE) ? icon : null}
+                aria-label={label}
               >
-                {label}
+                {(key === 'employee' || (key === 'staff' && user?.role !== ROLES.NURSE)) ? null : label}
                 {key === 'cart' && cartItems.length > 0 && (
                   <span
                     style={{
@@ -258,89 +278,12 @@ const Navbar = () => {
           </Col>
         </Row>
 
-        <Modal
-          open={isModalVisible}
-          footer={null}
-          centered
-          closable={true}
-          onCancel={() => setIsModalVisible(false)}
-          width="min(100vw, 600px)"
-          style={{ padding: 0, margin: 0, top: 0 }}
-          modalRender={(node) => <div style={{ margin: 0, padding: 0 }}>{node}</div>}
-          styles={{
-            mask: { background: 'rgba(0, 0, 0, 0.6)' },
-            content: { padding: 0, margin: 0, borderRadius: 5 },
-            body: { padding: 0, margin: 0 },
-          }}
-        >
-          <div
-            style={{
-              background: '#b4c80f',
-              color: '#000',
-              padding: '16px 20px',
-              fontSize: '20px',
-              fontWeight: 600,
-            }}
-          >
-            Chọn chi nhánh
-          </div>
-          <div
-            style={{
-              padding: '20px 20px',
-              background: '#fff',
-              maxHeight: '70vh',
-              overflowY: 'auto',
-            }}
-          >
-            <div style={{ fontWeight: 500, fontSize: '16px', color: '#333', marginBottom: '12px' }}>
-              Quý khách vui lòng chọn chi nhánh đặt hàng
-            </div>
-            {loading ? (
-              <Spin style={{ display: 'block', textAlign: 'center', padding: '20px' }} />
-            ) : error ? (
-              <Alert
-                message={error}
-                type="error"
-                showIcon
-                style={{ marginBottom: '16px', borderRadius: 0 }}
-              />
-            ) : (
-              <List
-                dataSource={branches}
-                renderItem={(branch) => (
-                  <List.Item
-                    onClick={() => handleBranchSelect(branch)}
-                    style={{
-                      cursor: 'pointer',
-                      padding: '16px 20px',
-                      borderRadius: 0,
-                      marginBottom: 8,
-                      background: '#fff',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f5f5f5';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#fff';
-                    }}
-                    role="option"
-                    tabIndex={0}
-                    onKeyPress={(e) => e.key === 'Enter' && handleBranchSelect(branch)}
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontWeight: 480, color: '#1a1a1a', fontSize: '18px' }}>
-                        {branch.Name}
-                      </span>
-                      <span style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
-                        {branch.Address}
-                      </span>
-                    </div>
-                  </List.Item>
-                )}
-              />
-            )}
-          </div>
-        </Modal>
+        <BranchSelector
+          isVisible={isModalVisible}
+          onClose={() => setIsModalVisible(false)}
+          onSelect={handleBranchSelect}
+          selectedBranch={selectedBranch}
+        />
 
         <CartModal
           isCartModalVisible={isCartModalVisible}
@@ -351,7 +294,6 @@ const Navbar = () => {
           paymentDetails={paymentDetails}
           setPaymentDetails={setPaymentDetails}
           selectedBranch={selectedBranch}
-          handleCartUpdate={handleCartUpdate}
         />
 
         <PaymentModal
@@ -363,7 +305,6 @@ const Navbar = () => {
           paymentDetails={paymentDetails}
           setPaymentDetails={setPaymentDetails}
           selectedBranch={selectedBranch}
-          handleCartUpdate={handleCartUpdate}
         />
 
         <Modal
@@ -377,10 +318,6 @@ const Navbar = () => {
             content: { padding: 0, borderRadius: 8 },
             body: { padding: 0 },
             header: { display: 'none' },
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
           }}
         >
           <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
@@ -436,10 +373,7 @@ const Navbar = () => {
                 </Button>
                 <Button
                   icon={<UserOutlined />}
-                  onClick={() => {
-                    handleProfileClick();
-                    setIsUserMenuVisible(false);
-                  }}
+                  onClick={handleProfileClick}
                   style={{
                     textAlign: 'left',
                     fontSize: '15px',
@@ -451,10 +385,7 @@ const Navbar = () => {
                 </Button>
                 <Button
                   icon={<LogoutOutlined />}
-                  onClick={() => {
-                    handleLogout();
-                    setIsUserMenuVisible(false);
-                  }}
+                  onClick={handleLogout}
                   style={{
                     textAlign: 'left',
                     fontSize: '15px',
