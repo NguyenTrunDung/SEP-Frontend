@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, InputNumber, Button, Space, message } from 'antd';
+import { Form, Input, Button, Space, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
@@ -43,7 +43,6 @@ const CreateFoodCategory = ({
       form.setFieldsValue({
         id: formData.id,
         name: formData.name,
-        sort: formData.sort || 0,
         imageUrl: formData.imageUrl || '',
       });
       setImageUrl(formData.imageUrl || '');
@@ -113,14 +112,6 @@ const CreateFoodCategory = ({
         </Form.Item>
 
         <Form.Item
-          name="sort"
-          label="Thứ tự"
-          rules={[{ required: true, message: 'Vui lòng nhập thứ tự!' }]}
-        >
-          <InputNumber placeholder="0" style={{ width: '100%' }} min={0} />
-        </Form.Item>
-
-        <Form.Item
           name="imageUrl"
           label="Hình ảnh"
         >
@@ -167,7 +158,6 @@ CreateFoodCategory.propTypes = {
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     name: PropTypes.string,
     imageUrl: PropTypes.string,
-    sort: PropTypes.number,
   }),
 };
 

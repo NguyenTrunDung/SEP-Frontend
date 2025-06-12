@@ -30,6 +30,7 @@ import FooterComponent from '../components/Footer.js';
 import FoodCategories from '../modules/Admin/FoodCategories/index.js';
 import Food from '../modules/Admin/Food/index.js'
 import Login from '../modules/Auth/Login.js';
+import Register from '../modules/Auth/Register.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
@@ -59,6 +60,10 @@ const routes = [
     path: '/login',
     element: <Login />,
   },
+  {
+    path: '/register',
+    element: <Register />,
+},
 
   // Unauthorized route
   {
