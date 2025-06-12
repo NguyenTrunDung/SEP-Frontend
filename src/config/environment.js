@@ -15,15 +15,64 @@ const environment = {
             return this.baseURL;
         },
 
-        // API endpoints
-        endpoints: {
-            auth: '/api/auth',
-            branches: '/api/v1/branches',
-            foods: '/api/v1/foods',
-            foodCategories: '/api/v1/foodcategories',
-            publicMenus: '/api/v1/public/menus',
-            orders: '/api/v1/orders',
-            users: '/api/v1/users'
+        // Dynamic endpoint builder
+        buildEndpoint(path) {
+            return path.startsWith('/api/') ? path : `/api/${this.version}${path}`;
+        },
+
+        // Get versioned API path
+        getVersionedPath(path) {
+            return `/api/${this.version}${path}`;
+        },
+
+        // API endpoints - using dynamic version
+        get endpoints() {
+            return {
+
+
+                // Versioned endpoints using dynamic version
+                branches: this.getVersionedPath('/branches'),
+                foods: this.getVersionedPath('/foods'),
+                foodCategories: this.getVersionedPath('/foodcategories'),
+                orders: this.getVersionedPath('/orders'),
+                users: this.getVersionedPath('/users'),
+
+                // Authentication endpoints
+                authentication: {
+                    login: this.getVersionedPath('/auth/login'),
+                    logout: this.getVersionedPath('/auth/logout'),
+                    refreshToken: this.getVersionedPath('/auth/refresh-token'),
+                    changePassword: this.getVersionedPath('/auth/change-password'),
+                },
+
+                // Branch-specific endpoints
+                branch: {
+                    list: this.getVersionedPath('/branches'),
+                    default: this.getVersionedPath('/branches/default'),
+                    current: this.getVersionedPath('/branches/current'),
+                    setCurrent: (branchId) => this.getVersionedPath(`/branches/set-current/${branchId}`),
+                    secureAction: this.getVersionedPath('/branches/secure-action'),
+                    adminSystemUser: this.getVersionedPath('/branches/admin-system-user'),
+                    assignAdminSystem: (userId) => this.getVersionedPath(`/branches/assign-admin-system/${userId}`),
+                    adminSystemUsers: this.getVersionedPath('/branches/admin-system-users')
+                },
+
+                // Public menu endpoints
+                publicMenus: {
+                    menuByDate: this.getVersionedPath('/public/menus/menu-by-date'),
+                    categoriesByDate: this.getVersionedPath('/public/menus/categories/by-date'),
+                    foodsByCategory: (categoryId) => this.getVersionedPath(`/public/menus/categories/${categoryId}/foods`)
+                }
+            };
+        },
+
+        // Get versioned endpoint
+        getEndpoint(key) {
+            const endpoint = this.endpoints[key];
+            if (!endpoint) {
+                throw new Error(`API endpoint '${key}' not found`);
+            }
+            return endpoint;
         }
     },
 

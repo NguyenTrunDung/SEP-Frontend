@@ -1,4 +1,3 @@
-
 // src/routes/routes.js
 import React from 'react';
 import { Navigate } from 'react-router-dom';
@@ -8,7 +7,7 @@ import AdminLayout from '../layouts/AdminLayout';
 import DefaultLayout from '../layouts/DefaultLayout';
 import ProtectedRoute from './ProtectedRoute.js';
 // Pages
-import Login from '../modules/Auth/Login.js';
+// import Login from '../modules/Auth/Login.js';
 import Dashboard from '../modules/Dashboard/Dashboard.js';
 import Home from '../modules/Home/Home.js';
 import Profile from '../modules/Profile.js';
@@ -27,15 +26,24 @@ import CustomerPage from '../modules/Admin/Staff/index.js';
 import ContactPage from '../components/Contact.js';
 import Navbar from '../components/Navbar.js';
 import FooterComponent from '../components/Footer.js';
+
 import FoodCategories from '../modules/Admin/FoodCategories/index.js';
 import Food from '../modules/Admin/Food/index.js'
+import Login from '../modules/Auth/Login.js';
 
 const roleHomeRedirects = {
+  [ROLES.SYSTEM_ADMIN]: '/dashboard',
   [ROLES.ADMIN]: '/dashboard',
-  [ROLES.DOCTOR]: '/doctor/home',
-  [ROLES.NURSE]: '/nurse/home',
+  [ROLES.BRANCH_MANAGER]: '/dashboard',
+  [ROLES.MANAGER]: '/dashboard',
+
+  [ROLES.NURSE]: '/nurse/home',          // Nurses go to guest-like interface
   [ROLES.PATIENT]: '/patient/home',
-  [ROLES.STAFF]: '/orders'
+  [ROLES.STAFF]: '/orders',
+  [ROLES.CASHIER]: '/orders',
+  [ROLES.KITCHEN]: '/orders',
+  [ROLES.GUEST]: '/nurse/home'           // Guests also use the same interface as nurses
+
 };
 
 // Route config with layout and role protection
@@ -86,7 +94,7 @@ const routes = [
   {
     path: '/dashboard',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.DOCTOR]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR]}>
         <AdminLayout>
           <Dashboard />
         </AdminLayout>
@@ -96,7 +104,7 @@ const routes = [
   {
     path: '/orders',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.STAFF]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
         <AdminLayout>
           <Order />
         </AdminLayout>
@@ -106,7 +114,7 @@ const routes = [
   {
     path: '/orders/:id',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.STAFF]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
         <AdminLayout>
           <OrderDetails />
         </AdminLayout>
@@ -116,7 +124,7 @@ const routes = [
   {
     path: '/admin/users',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
         <AdminLayout>
           <CustomerPage />
         </AdminLayout>
@@ -126,7 +134,7 @@ const routes = [
   {
     path: '/admin/settings',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN]}>
         <AdminLayout>
           <div>Settings</div>
         </AdminLayout>
@@ -136,7 +144,7 @@ const routes = [
   {
     path: '/admin/profile',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
         <AdminLayout>
           <Profile />
         </AdminLayout>
@@ -146,7 +154,7 @@ const routes = [
   {
     path: '/admin/edit-profile/:id',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
         <AdminLayout>
           <EditProfile />
         </AdminLayout>
@@ -156,7 +164,7 @@ const routes = [
   {
     path: '/admin/change-password/:id',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
         <AdminLayout>
           <ChangePassword />
         </AdminLayout>
@@ -166,7 +174,7 @@ const routes = [
   {
     path: '/menus',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.DOCTOR]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
         <AdminLayout>
           <Menu />
         </AdminLayout>
@@ -176,7 +184,7 @@ const routes = [
   {
     path: '/food-categories',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.STAFF]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
         <AdminLayout>
           <FoodCategories />
         </AdminLayout>
@@ -186,138 +194,15 @@ const routes = [
   {
     path: '/foods', // Added Foods route
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.STAFF]}>
+     <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
         <AdminLayout>
           <Food />
         </AdminLayout>
       </ProtectedRoute>
     ),
   },
-  // Doctor routes
-  {
-    path: '/doctor/home',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
-        <DefaultLayout>
-          <Home />
-        </DefaultLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/doctor/profile',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
-        <DefaultLayout>
-          <Profile />
-        </DefaultLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/doctor/edit-profile/:id',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
-        <DefaultLayout>
-          <EditProfile />
-        </DefaultLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/doctor/change-password/:id',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
-        <DefaultLayout>
-          <ChangePassword />
-        </DefaultLayout>
-      </ProtectedRoute>
-    ),
-  },
+  
 
-  // Patient routes
-  {
-    path: '/patient/home',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.PATIENT]}>
-        <DefaultLayout>
-          <Home />
-        </DefaultLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/patient/profile',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.PATIENT]}>
-        <DefaultLayout>
-          <Profile />
-        </DefaultLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/patient/edit-profile/:id',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.PATIENT]}>
-        <DefaultLayout>
-          <EditProfile />
-        </DefaultLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/patient/change-password/:id',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.PATIENT]}>
-        <DefaultLayout>
-          <ChangePassword />
-        </DefaultLayout>
-      </ProtectedRoute>
-    ),
-  },
-
-  // Staff routes
-  {
-    path: '/staff/home',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <AdminLayout>
-          <Home />
-        </AdminLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/staff/profile',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <AdminLayout>
-          <Profile />
-        </AdminLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/staff/edit-profile/:id',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <AdminLayout>
-          <EditProfile />
-        </AdminLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/staff/change-password/:id',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.STAFF]}>
-        <AdminLayout>
-          <ChangePassword />
-        </AdminLayout>
-      </ProtectedRoute>
-    ),
-  },
   // Nurse routes
   {
     path: '/nurse/home',
@@ -329,36 +214,50 @@ const routes = [
       </ProtectedRoute>
     ),
   },
+  // {
+  //   path: '/nurse/profile',
+  //   element: (
+  //     <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+  //       <DefaultLayout>
+  //         <Profile />
+  //       </DefaultLayout>
+  //     </ProtectedRoute>
+  //   ),
+  // },
+  // {
+  //   path: '/nurse/edit-profile/:id',
+  //   element: (
+  //     <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+  //       <DefaultLayout>
+  //         <EditProfile />
+  //       </DefaultLayout>
+  //     </ProtectedRoute>
+  //   ),
+  // },
+  // {
+  //   path: '/nurse/change-password/:id',
+  //   element: (
+  //     <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+  //       <DefaultLayout>
+  //         <ChangePassword />
+  //       </DefaultLayout>
+  //     </ProtectedRoute>
+  //   ),
+  // },
+
+
+  // Kitchen specific routes (if needed later)
   {
-    path: '/nurse/profile',
+    path: '/kitchen',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
-        <DefaultLayout>
-          <Profile />
-        </DefaultLayout>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.KITCHEN]}>
+        <AdminLayout>
+          <Order />
+        </AdminLayout>
       </ProtectedRoute>
     ),
   },
-  {
-    path: '/nurse/edit-profile/:id',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
-        <DefaultLayout>
-          <EditProfile />
-        </DefaultLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/nurse/change-password/:id',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
-        <DefaultLayout>
-          <ChangePassword />
-        </DefaultLayout>
-      </ProtectedRoute>
-    ),
-  },
+
   // Catch-all route
   {
     path: '*',

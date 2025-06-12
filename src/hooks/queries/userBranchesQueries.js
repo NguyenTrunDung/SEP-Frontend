@@ -1,0 +1,177 @@
+// useBranches.js
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { branchService } from '../../services/branchService';
+
+// Query keys for branch-related queries
+export const BRANCH_KEYS = {
+    all: ['branches'],
+    lists: () => [...BRANCH_KEYS.all, 'list'],
+    details: () => [...BRANCH_KEYS.all, 'detail'],
+    current: () => [...BRANCH_KEYS.all, 'current'],
+    default: () => [...BRANCH_KEYS.all, 'default'],
+    adminSystem: (branchCode) => [...BRANCH_KEYS.all, 'adminSystem', branchCode],
+    adminUsers: (branchCode) => [...BRANCH_KEYS.all, 'adminUsers', branchCode],
+};
+
+/**
+ * Hook for fetching all branches
+ */
+export const useBranches = (options = {}) => {
+    return useQuery({
+        queryKey: BRANCH_KEYS.lists(),
+        queryFn: () => branchService.getAllBranches(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
+        refetchOnWindowFocus: false,
+        ...options,
+    });
+};
+
+/**
+ * Hook for fetching the current branch
+ */
+export const useCurrentBranch = (options = {}) => {
+    return useQuery({
+        queryKey: BRANCH_KEYS.current(),
+        queryFn: () => branchService.getCurrentBranch(),
+        staleTime: 30 * 1000, // 30 seconds
+        cacheTime: 2 * 60 * 1000, // 2 minutes
+        refetchOnWindowFocus: false,
+        ...options,
+    });
+};
+
+/**
+ * Hook for fetching the default branch
+ */
+export const useDefaultBranch = (options = {}) => {
+    return useQuery({
+        queryKey: BRANCH_KEYS.default(),
+        queryFn: () => branchService.getDefaultBranch(),
+        staleTime: 30 * 60 * 1000, // 30 minutes
+        cacheTime: 60 * 60 * 1000, // 1 hour
+        refetchOnWindowFocus: false,
+        ...options,
+    });
+};
+
+/**
+ * Hook for fetching admin system user for a branch
+ */
+export const useAdminSystemUser = (branchCode, options = {}) => {
+    return useQuery({
+        queryKey: BRANCH_KEYS.adminSystem(branchCode),
+        queryFn: () => branchService.getAdminSystemUser(branchCode),
+        enabled: !!branchCode, // Only run if branchCode is provided
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        ...options,
+    });
+};
+
+/**
+ * Hook for fetching admin system users for a branch
+ */
+export const useAdminSystemUsers = (branchCode, options = {}) => {
+    return useQuery({
+        queryKey: BRANCH_KEYS.adminUsers(branchCode),
+        queryFn: () => branchService.listAdminSystemUsers(branchCode),
+        enabled: !!branchCode, // Only run if branchCode is provided
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        ...options,
+    });
+};
+
+/**
+ * Hook for setting current branch
+ */
+export const useSetCurrentBranch = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (branchId) => branchService.setCurrentBranch(branchId),
+        onSuccess: (data, branchId) => {
+            // Update current branch cache
+            queryClient.setQueryData(BRANCH_KEYS.current(), data);
+
+            // Invalidate queries that depend on branch context
+            queryClient.invalidateQueries({ queryKey: ['foods'] });
+            queryClient.invalidateQueries({ queryKey: ['foodCategories'] });
+            queryClient.invalidateQueries({ queryKey: ['menus'] });
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+        },
+        onError: () => {
+            // Remove current branch from cache on error
+            queryClient.removeQueries({ queryKey: BRANCH_KEYS.current() });
+        },
+    });
+};
+
+/**
+ * Hook for switching branch (combines set current branch and get current branch)
+ */
+export const useSwitchBranch = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (branchId) => branchService.switchBranch(branchId),
+        onMutate: async (branchId) => {
+            // Optimistically update current branch ID in localStorage
+            const previousBranchId = localStorage.getItem('currentBranchId');
+            return { previousBranchId };
+        },
+        onSuccess: (branchData) => {
+            // Update current branch cache with full branch data
+            queryClient.setQueryData(BRANCH_KEYS.current(), branchData);
+
+            // Invalidate all branch-dependent queries
+            queryClient.invalidateQueries({ queryKey: ['foods'] });
+            queryClient.invalidateQueries({ queryKey: ['foodCategories'] });
+            queryClient.invalidateQueries({ queryKey: ['menus'] });
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+        },
+        onError: (error, branchId, context) => {
+            // Restore previous branch ID on error
+            if (context?.previousBranchId) {
+                localStorage.setItem('currentBranchId', context.previousBranchId);
+            } else {
+                localStorage.removeItem('currentBranchId');
+            }
+
+            // Remove current branch from cache
+            queryClient.removeQueries({ queryKey: BRANCH_KEYS.current() });
+        },
+    });
+};
+
+/**
+ * Hook for assigning admin system user
+ */
+export const useAssignAdminSystem = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ userId, branchCode }) =>
+            branchService.assignAdminSystem(userId, branchCode),
+        onSuccess: (data, { branchCode }) => {
+            // Invalidate admin system queries for this branch
+            queryClient.invalidateQueries({
+                queryKey: BRANCH_KEYS.adminSystem(branchCode)
+            });
+            queryClient.invalidateQueries({
+                queryKey: BRANCH_KEYS.adminUsers(branchCode)
+            });
+        },
+    });
+};
+
+/**
+ * Hook for secure action (requires orders:add permission)
+ */
+export const useSecureAction = () => {
+    return useMutation({
+        mutationFn: () => branchService.secureAction(),
+    });
+};
+
+// Re-export for backward compatibility with existing components
+export { useBranches as default };
