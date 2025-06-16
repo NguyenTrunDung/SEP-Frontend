@@ -31,6 +31,7 @@ import FoodCategories from '../modules/Admin/FoodCategories/index.js';
 import Food from '../modules/Admin/Food/index.js'
 import Login from '../modules/Auth/Login.js';
 import Register from '../modules/Auth/Register.js';
+import PatientComponent from '../components/Nurse/Patient/PatientComponent.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
@@ -219,37 +220,46 @@ const routes = [
       </ProtectedRoute>
     ),
   },
-  // {
-  //   path: '/nurse/profile',
-  //   element: (
-  //     <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
-  //       <DefaultLayout>
-  //         <Profile />
-  //       </DefaultLayout>
-  //     </ProtectedRoute>
-  //   ),
-  // },
-  // {
-  //   path: '/nurse/edit-profile/:id',
-  //   element: (
-  //     <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
-  //       <DefaultLayout>
-  //         <EditProfile />
-  //       </DefaultLayout>
-  //     </ProtectedRoute>
-  //   ),
-  // },
-  // {
-  //   path: '/nurse/change-password/:id',
-  //   element: (
-  //     <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
-  //       <DefaultLayout>
-  //         <ChangePassword />
-  //       </DefaultLayout>
-  //     </ProtectedRoute>
-  //   ),
-  // },
-
+  {
+    path: '/nurse/profile',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+        <DefaultLayout>
+          <Profile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/nurse/edit-profile/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+        <DefaultLayout>
+          <EditProfile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/nurse/change-password/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+        <DefaultLayout>
+          <ChangePassword />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+{
+    path: '/nurse/patient',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+        <Navbar />
+        <PatientComponent/>
+        <FooterComponent />
+      </ProtectedRoute>
+    ),
+  },
 
   // Kitchen specific routes (if needed later)
   {
