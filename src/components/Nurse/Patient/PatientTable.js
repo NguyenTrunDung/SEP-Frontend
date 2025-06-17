@@ -1,145 +1,661 @@
-// src/components/nurse/PatientTable.js
-import React, { useState, useMemo } from 'react';
-import { Button, Input, Tooltip, message } from 'antd';
-import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
+import { createElement, useState, useMemo, useRef, useEffect } from 'react';
+import { ConfigProvider, Button, Space, Input, Tooltip, Popconfirm, message, Modal, Typography, Image, Select } from 'antd';
+import { EyeOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import ReusableTable from '../../../components/common/ReusableTable';
 import PropTypes from 'prop-types';
+import { getAllowedFoodsForPatient, addOrderForPatient } from '../../../mocks/patientData';
+import locale from 'antd/locale/vi_VN';
 
-const PatientTable = ({
-  dataSource = [],
-  loading = false,
-  onView,
-  className,
-  onSearch,
-  ...rest
-}) => {
+const { Title, Text } = Typography;
+
+// Custom debounce function
+const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
+
+const getVietnameseDays = () => {
+  const formatter = new Intl.DateTimeFormat('vi-VN', { weekday: 'long' });
+  const days = [];
+  const baseDate = new Date(2025, 5, 16); // Start from Monday (16/6/2025)
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(baseDate);
+    date.setDate(baseDate.getDate() + i);
+    const dayName = formatter.format(date);
+    days.push({
+      label: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+      value: (i + 1).toString(),
+    });
+  }
+
+  return days;
+};
+
+const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => {
   const [searchText, setSearchText] = useState('');
+  const [foodModalVisible, setFoodModalVisible] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [availableFoods, setAvailableFoods] = useState([]);
+  const [selectedFoods, setSelectedFoods] = useState([]);
+  const [patientOrders, setPatientOrders] = useState({});
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedFood, setSelectedFood] = useState(null);
+  const [quantity, setQuantity] = useState(1);
+  const [note, setNote] = useState('');
+  const [activeDay, setActiveDay] = useState('2'); // Default to Tuesday (17/6/2025)
+  const categoryRefs = useRef({});
+
+  const vietnameseDays = getVietnameseDays();
+
+  const dayToMenuMap = {
+    '1': 'Menu thứ 2',
+    '2': 'Menu thứ 3',
+    '3': 'Menu thứ 4',
+    '4': 'Menu thứ 5',
+    '5': 'Menu thứ 6',
+    '6': 'Menu thứ 7',
+    '7': 'Menu chủ nhật',
+  };
 
   const filteredData = useMemo(() => {
     if (!searchText.trim()) return dataSource;
-    return dataSource.filter(
-      (item) =>
-        item.FullName.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.MedicalRecordNumber.toLowerCase().includes(searchText.toLowerCase())
+    const searchLower = searchText.trim().toLowerCase();
+    return dataSource.filter(item => 
+      (item.FullName || '').toLowerCase().includes(searchLower) ||
+      (item.MedicalRecordNumber || '').toLowerCase().includes(searchLower)
     );
   }, [dataSource, searchText]);
 
-  const handleSearch = (value) => {
+  // Debounced search handler
+  const debouncedSearch = useMemo(() => debounce((value) => {
+    if (value.trim()) {
+      message.info(`Lọc bệnh nhân theo: ${value.trim()}`);
+    } else {
+      message.info('Đã xóa bộ lọc tìm kiếm');
+    }
+  }, 200), []);
+
+  const handleSearch = (e) => {
+    const value = e.target.value;
     setSearchText(value);
-    if (onSearch) onSearch(value);
+    debouncedSearch(value);
   };
 
-  const handleView = (record) => {
-    if (onView) onView(record);
-    else message.info(`Xem chi tiết bệnh nhân ${record.FullName}`);
+  const handleSearchEnter = (value) => {
+    setSearchText(value);
+    if (value.trim()) {
+      message.info(`Lọc bệnh nhân theo: ${value.trim()}`);
+    } else {
+      message.info('Đã xóa bộ lọc tìm kiếm');
+    }
   };
+
+  const handleAddToMenu = async (record) => {
+    setSelectedPatient(record);
+    try {
+      const foods = await getAllowedFoodsForPatient(record.Id, dayToMenuMap[activeDay]);
+      setAvailableFoods(foods);
+      setSelectedFoods([]);
+      setFoodModalVisible(true);
+    } catch (error) {
+      message.error('Lỗi khi tải danh sách món ăn');
+    }
+  };
+
+  const handleShowDetails = (food) => {
+    setSelectedFood(food);
+    const existingOrder = patientOrders[selectedPatient?.Id]?.find(item => item.Id === food.Id);
+    if (existingOrder) {
+      setQuantity(existingOrder.quantity || 1);
+      setNote(existingOrder.note || '');
+    } else {
+      setQuantity(1);
+      setNote('');
+    }
+    setDetailModalVisible(true);
+  };
+
+  const handleAddOrUpdateOrder = () => {
+    if (!selectedFood) return;
+    const existingOrder = patientOrders[selectedPatient?.Id]?.find(item => item.Id === selectedFood.Id);
+    const newFood = {
+      ...selectedFood,
+      quantity,
+      note,
+    };
+
+    if (existingOrder) {
+      setPatientOrders({
+        ...patientOrders,
+        [selectedPatient.Id]: patientOrders[selectedPatient.Id].map(item =>
+          item.Id === selectedFood.Id ? newFood : item
+        ),
+      });
+      message.success(`${selectedFood.Name} đã được cập nhật!`);
+    } else {
+      setPatientOrders({
+        ...patientOrders,
+        [selectedPatient.Id]: [
+          ...(patientOrders[selectedPatient.Id] || []),
+          newFood,
+        ],
+      });
+      setSelectedFoods([...selectedFoods, selectedFood.Id]);
+      message.success(`${selectedFood.Name} đã được thêm!`);
+    }
+    setDetailModalVisible(false);
+  };
+
+  const handleConfirmFoodOrder = async () => {
+    if (!selectedFoods.length) {
+      message.warning('Vui lòng chọn ít nhất một món ăn');
+      return;
+    }
+    try {
+      const result = await addOrderForPatient(selectedPatient.Id, selectedFoods, nurseId, dayToMenuMap[activeDay]);
+      if (result.success) {
+        message.success(`Đã thêm món ăn cho bệnh nhân ${selectedPatient.FullName} vào ${dayToMenuMap[activeDay]}`);
+        setFoodModalVisible(false);
+      } else {
+        message.error('Lỗi khi thêm món ăn');
+      }
+    } catch (error) {
+      message.error('Lỗi khi thêm món ăn');
+    }
+  };
+
+  const handleDayChange = async (value) => {
+    setActiveDay(value);
+    if (selectedPatient) {
+      try {
+        const foods = await getAllowedFoodsForPatient(selectedPatient.Id, dayToMenuMap[value]);
+        setAvailableFoods(foods);
+      } catch (error) {
+        message.error('Lỗi khi tải danh sách món ăn');
+      }
+    }
+  };
+
+  const groupedFoods = useMemo(() => {
+    const diseaseName = selectedPatient?.DiseaseCategoryNames || 'Phù hợp';
+    return availableFoods.reduce((acc, food) => {
+      if (!acc[diseaseName]) acc[diseaseName] = [];
+      acc[diseaseName].push(food);
+      return acc;
+    }, {});
+  }, [availableFoods, selectedPatient]);
+
+  useEffect(() => {
+    if (selectedPatient) {
+      handleDayChange(activeDay);
+    }
+  }, [selectedPatient]);
 
   const columns = [
     {
       title: 'MÃ HỒ SƠ',
       dataIndex: 'MedicalRecordNumber',
       key: 'MedicalRecordNumber',
-      width: 120,
       sorter: (a, b) => a.MedicalRecordNumber.localeCompare(b.MedicalRecordNumber),
-      render: (text) => <span className="vietnamese-text">{text}</span>,
+      render: (text) => createElement('span', { className: 'vietnamese-text' }, text || '-'),
     },
     {
       title: 'HỌ TÊN',
       dataIndex: 'FullName',
       key: 'FullName',
       sorter: (a, b) => a.FullName.localeCompare(b.FullName),
-      render: (text) => <span className="vietnamese-text">{text}</span>,
+      render: (text) => createElement('span', { className: 'vietnamese-text' }, text || '-'),
+    },
+    {
+      title: 'GIỚI TÍNH',
+      dataIndex: 'Gender',
+      key: 'Gender',
+      render: (text) => createElement('span', { className: 'vietnamese-text' }, text || '-'),
     },
     {
       title: 'PHÒNG',
       dataIndex: 'RoomNumber',
       key: 'RoomNumber',
-      width: 100,
-      render: (text) => <span className="vietnamese-text">{text || '-'}</span>,
+      sorter: (a, b) => a.RoomNumber - b.RoomNumber,
+      render: (text) => createElement('span', { className: 'vietnamese-text' }, text || '-'),
     },
     {
       title: 'GIƯỜNG',
       dataIndex: 'BedNumber',
       key: 'BedNumber',
-      width: 100,
-      render: (text) => <span className="vietnamese-text">{text || '-'}</span>,
+      sorter: (a, b) => a.BedNumber - b.BedNumber,
+      render: (text) => createElement('span', { className: 'vietnamese-text' }, text || '-'),
     },
     {
-      title: 'BÁC SĨ ĐIỀU TRỊ',
-      dataIndex: 'AttendingPhysician',
-      key: 'AttendingPhysician',
-      render: (text) => <span className="vietnamese-text">{text || '-'}</span>,
-    },
-    {
-      title: 'TRẠNG THÁI',
-      dataIndex: 'IsActive',
-      key: 'IsActive',
-      width: 120,
-      align: 'center',
-      filters: [
-        { text: 'Đang điều trị', value: true },
-        { text: 'Đã xuất viện', value: false },
-      ],
-      onFilter: (value, record) => record.IsActive === value,
-      render: (value) => (
-        <span className="vietnamese-text">{value ? 'Đang điều trị' : 'Đã xuất viện'}</span>
-      ),
+      title: 'NHÓM BỆNH',
+      dataIndex: 'DiseaseCategoryNames',
+      key: 'DiseaseCategoryNames',
+      sorter: (a, b) => (a.DiseaseCategoryNames || '').localeCompare(b.DiseaseCategoryNames || ''),
+      render: (text) => createElement('span', { className: 'vietnamese-text' }, text || 'Chưa xác định'),
     },
     {
       title: 'HÀNH ĐỘNG',
       key: 'actions',
-      width: 120,
+      width: 180,
       align: 'center',
-      render: (_, record) => (
-        <div className="action-buttons">
-          <Tooltip title="Xem chi tiết">
-            <Button
-              type="text"
-              icon={<EyeOutlined />}
-              onClick={() => handleView(record)}
-              className="action-btn view-btn"
-              size="small"
-            />
-          </Tooltip>
-        </div>
+      render: (_, record) => createElement(
+        'div',
+        { className: 'action-buttons' },
+        [
+          createElement(
+            Tooltip,
+            { title: 'Xem chi tiết', key: 'view' },
+            createElement(
+              Button,
+              {
+                type: 'text',
+                icon: createElement(EyeOutlined),
+                onClick: () => onView(record),
+                className: 'action-btn view-btn',
+                size: 'small',
+              }
+            )
+          ),
+          createElement(
+            Tooltip,
+            { title: 'Thêm món ăn', key: 'add-to-menu' },
+            createElement(
+              Popconfirm,
+              {
+                title: 'Thêm món ăn',
+                description: `Thêm món ăn cho bệnh nhân ${record.FullName}?`,
+                onConfirm: () => handleAddToMenu(record),
+                okText: 'Thêm',
+                cancelText: 'Hủy',
+                okButtonProps: { type: 'primary' },
+              },
+              createElement(
+                Button,
+                {
+                  type: 'text',
+                  icon: createElement(PlusOutlined),
+                  className: 'action-btn add-btn',
+                  size: 'small',
+                }
+              )
+            )
+          ),
+        ]
       ),
     },
   ];
 
-  return (
-    <div className={`reusable-table-container ${className || ''}`}>
-      <div className="reusable-table-header">
-        <Input.Search
-          placeholder="Tìm kiếm theo tên hoặc mã hồ sơ"
-          value={searchText}
-          onChange={(e) => handleSearch(e.target.value)}
-          onSearch={handleSearch}
-          allowClear
-          style={{ width: 300 }}
-          prefix={<SearchOutlined />}
-        />
-        {searchText && (
-          <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>
-            {filteredData.length} kết quả
-          </span>
-        )}
-      </div>
-      <ReusableTable
-        columns={columns}
-        dataSource={filteredData}
-        loading={loading}
-        rowKey="Id"
-        pagination={{
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) =>
-            `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} bệnh nhân`,
-        }}
-        className="reusable-table"
-        {...rest}
-      />
-    </div>
+  return createElement(
+    ConfigProvider, { locale },
+    createElement(
+      'div',
+      { className: 'reusable-table-container' },
+      [
+        createElement(
+          'div',
+          {
+            className: 'reusable-table-header',
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              position: 'sticky',
+              top: 0,
+              background: '#fff',
+              zIndex: 10,
+              padding: '16px 0',
+              borderBottom: '1px solid #f0f0f0',
+            }
+          },
+          [
+            createElement(Input, {
+              placeholder: 'Tìm kiếm bệnh nhân',
+              value: searchText,
+              onChange: handleSearch,
+              onPressEnter: (e) => handleSearchEnter(e.target.value),
+              style: { width: 300 },
+              allowClear: true,
+              prefix: createElement(SearchOutlined, { style: { fontSize: '16px', color: '#1890ff' } }),
+            }),
+            createElement(
+              'span',
+              { style: { fontSize: '14px', color: '#666', fontWeight: '500' } },
+              `${filteredData.length} kết quả`
+            ),
+          ]
+        ),
+        createElement(ReusableTable, {
+          columns,
+          dataSource: filteredData,
+          loading,
+          rowKey: 'Id',
+          expandable: {
+            expandedRowRender: (record) =>
+              patientOrders[record.Id]?.length ? (
+                createElement('div', { style: { padding: 16 } }, [
+                  createElement(Title, { level: 5 }, 'Danh sách món ăn đã thêm'),
+                  createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16 } },
+                    patientOrders[record.Id].map(item => (
+                      createElement('div', {
+                        key: item.Id,
+                        style: {
+                          border: '1px solid #ddd',
+                          borderRadius: 4,
+                          padding: 10,
+                          width: 220,
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                          background: '#fff',
+                          position: 'relative',
+                        }
+                      }, [
+                        createElement(Image, {
+                          width: 200,
+                          height: 140,
+                          src: item.Image || 'https://via.placeholder.com/200x140?text=No+Image',
+                          alt: item.Name,
+                          preview: false,
+                          style: { objectFit: 'cover', borderRadius: 4, marginBottom: 8 }
+                        }),
+                        createElement('div', {
+                          style: {
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            backgroundColor: '#b4c80f',
+                            color: '#fff',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '16px',
+                          }
+                        }, `Số lượng: ${item.quantity || 1}`),
+                        createElement(Title, { level: 5, style: { marginBottom: 8 } }, item.Name),
+                        createElement('div', { style: { marginBottom: 4 } }, [
+                          createElement(Text, { strong: true, style: { fontSize: 14, color: '#222' } },
+                            `${item.PriceForPatient.toLocaleString('vi-VN')}đ`
+                          ),
+                        ]),
+                        item.note && createElement(Text, { style: { fontSize: 12, color: '#555' } }, `Ghi chú: ${item.note}`),
+                      ])
+                    ))
+                  ),
+                ])
+              ) : (
+                createElement('p', null, 'Chưa có món ăn nào được thêm.')
+              ),
+          },
+          pagination: {
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) =>
+              `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} bệnh nhân`,
+          },
+          className: 'reusable-table',
+        }),
+        createElement(Modal, {
+          title: `Thêm món ăn cho ${selectedPatient?.FullName}`,
+          open: foodModalVisible,
+          onCancel: () => setFoodModalVisible(false),
+          okText: 'Xác nhận',
+          cancelText: 'Hủy',
+          centered: true,
+          width: 1200,
+          footer: [
+            createElement(Button, {
+              key: 'cancel',
+              onClick: () => setFoodModalVisible(false),
+            }, 'Hủy'),
+            createElement(Button, {
+              key: 'submit',
+              type: 'primary',
+              onClick: handleConfirmFoodOrder,
+            }, 'Xác nhận'),
+          ],
+        }, [
+          createElement(Space, { style: { width: '100%', marginBottom: 16 } }, [
+            createElement(Select, {
+              style: { width: 200 },
+              placeholder: 'Chọn ngày',
+              value: activeDay,
+              onChange: handleDayChange,
+              options: vietnameseDays,
+            }),
+          ]),
+          Object.keys(groupedFoods).length > 0 ? (
+            createElement('div', {}, 
+              Object.keys(groupedFoods).map(category => (
+                createElement('div', {
+                  key: category,
+                  style: { marginBottom: '32px', paddingTop: '20px', scrollMarginTop: '140px' },
+                  ref: (el) => { if (el) categoryRefs.current[category] = el; }
+                }, [
+                  createElement(Title, {
+                    level: 4,
+                    style: {
+                      marginBottom: 16,
+                      color: '#000',
+                      backgroundColor: '#f0f0f0',
+                      padding: '8px 0',
+                      borderRadius: '4px'
+                    }
+                  }, category),
+                  createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16 } },
+                    groupedFoods[category].map(food => {
+                      const isInOrder = patientOrders[selectedPatient?.Id]?.some(item => item.Id === food.Id);
+                      return createElement('div', {
+                        key: food.Id,
+                        style: {
+                          border: '1px solid #ddd',
+                          borderRadius: 4,
+                          padding: 10,
+                          width: 220,
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                          background: '#fff',
+                          position: 'relative',
+                        }
+                      }, [
+                        createElement(Image, {
+                          width: 200,
+                          height: 140,
+                          src: food.Image || 'https://via.placeholder.com/200x140?text=No+Image',
+                          alt: food.Name,
+                          preview: false,
+                          style: { objectFit: 'cover', borderRadius: 4, marginBottom: 8 }
+                        }),
+                        isInOrder && createElement('div', {
+                          style: {
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            backgroundColor: '#b4c80f',
+                            color: '#fff',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '16px',
+                          }
+                        }, `Số lượng: ${patientOrders[selectedPatient?.Id]?.find(item => item.Id === food.Id)?.quantity || 1}`),
+                        createElement(Title, { level: 5, style: { marginBottom: 8 } }, food.Name),
+                        createElement('div', { style: { marginBottom: 4 } }, [
+                          createElement(Text, { strong: true, style: { fontSize: 14, color: '#222' } },
+                            `${food.PriceForPatient.toLocaleString('vi-VN')}đ`
+                          ),
+                        ]),
+                        createElement(Button, {
+                          style: {
+                            backgroundColor: '#b4c80f',
+                            borderColor: '#b4c80f',
+                            color: '#000',
+                            float: 'left',
+                            padding: '14px 12px',
+                            fontSize: '15px',
+                          },
+                          type: 'primary',
+                          size: 'small',
+                          onClick: () => handleShowDetails(food),
+                        }, isInOrder ? 'Cập nhật' : 'Thêm'),
+                      ]);
+                    })
+                  ),
+                ])
+              ))
+            )
+          ) : (
+            createElement(Text, {
+              type: 'secondary',
+              style: { textAlign: 'center', display: 'block', marginTop: 24 }
+            }, 'Không có món ăn phù hợp.')
+          ),
+          selectedFoods.length > 0 && createElement(
+            'div',
+            { style: { marginTop: 16 } },
+            [
+              createElement(Title, { level: 5 }, 'Món ăn đã chọn:'),
+              createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16 } },
+                patientOrders[selectedPatient?.Id]?.filter(food => selectedFoods.includes(food.Id)).map(food => (
+                  createElement('div', {
+                    key: food.Id,
+                    style: {
+                      border: '1px solid #ddd',
+                      borderRadius: 4,
+                      padding: 10,
+                      width: 220,
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                      background: '#fff',
+                      position: 'relative',
+                    }
+                  }, [
+                    createElement(Image, {
+                      width: 200,
+                      height: 140,
+                      src: food.Image || 'https://via.placeholder.com/200x140?text=No+Image',
+                      alt: food.Name,
+                      preview: false,
+                      style: { objectFit: 'cover', borderRadius: 4, marginBottom: 8 }
+                    }),
+                    createElement('div', {
+                      style: {
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        backgroundColor: '#b4c80f',
+                        color: '#fff',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '16px',
+                      }
+                    }, `Số lượng: ${food.quantity || 1}`),
+                    createElement(Title, { level: 5, style: { marginBottom: 8 } }, food.Name),
+                    createElement('div', { style: { marginBottom: 4 } }, [
+                      createElement(Text, { strong: true, style: { fontSize: 14, color: '#222' } },
+                        `${food.PriceForPatient.toLocaleString('vi-VN')}đ`
+                      ),
+                    ]),
+                    food.note && createElement(Text, { style: { fontSize: 12, color: '#555' } }, `Ghi chú: ${food.note}`),
+                  ])
+                ))
+              ),
+            ]
+          ),
+        ]),
+        createElement(Modal, {
+          visible: detailModalVisible,
+          onCancel: () => setDetailModalVisible(false),
+          footer: null,
+          width: 600,
+          centered: true,
+          closeIcon: createElement('span', { style: { color: '#000', fontSize: '26px' } }, '×'),
+          styles: {
+            content: { padding: 0, background: '#fff', borderRadius: '8px' },
+            body: { padding: 0 },
+          },
+        }, [
+          createElement('div', { style: { borderRadius: '8px 8px 0 0', overflow: 'hidden' } }, [
+            createElement('div', {
+              style: {
+                backgroundColor: '#b4c80f',
+                color: '#000',
+                padding: '12px 16px',
+                fontSize: '18px',
+              }
+            }, patientOrders[selectedPatient?.Id]?.some(item => item.Id === selectedFood?.Id) ? 'Cập nhật món ăn' : 'Thêm món ăn'),
+            createElement('img', {
+              src: selectedFood?.Image || 'https://via.placeholder.com/600x250?text=No+Image',
+              alt: selectedFood?.Name,
+              style: { width: '100%', maxHeight: '250px', objectFit: 'cover', display: 'block' },
+            }),
+            createElement('div', { style: { padding: '6px 6px 0' } }, [
+              createElement(Text, {
+                style: { display: 'block', fontSize: '15px', fontWeight: 'bold', color: '#333', marginBottom: '1px' }
+              }, selectedFood?.Name || 'Không có tên'),
+              createElement(Text, {
+                style: { display: 'block', fontSize: '15px', color: '#555', marginBottom: '1px' }
+              }, selectedFood?.Description || 'Không có mô tả'),
+              createElement(Text, {
+                style: { display: 'block', fontSize: '15px', fontWeight: 'bold', color: '#ff0000', marginBottom: '1px' }
+              }, `${selectedFood?.PriceForPatient.toLocaleString('vi-VN')}đ`),
+            ]),
+            createElement('div', { style: { padding: '0 6px' } }, [
+              createElement(Text, {
+                style: { display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#333', marginBottom: '0px' }
+              }, 'Ghi chú:'),
+              createElement(Input.TextArea, {
+                value: note,
+                onChange: (e) => setNote(e.target.value),
+                style: { marginBottom: '20px', height: '115px', resize: 'none' },
+                placeholder: 'Ghi chú...',
+              }),
+            ]),
+            createElement('div', { style: { textAlign: 'center', marginBottom: '16px' } }, [
+              createElement(Button, {
+                style: {
+                  backgroundColor: '#b4c80f',
+                  borderColor: '#b4c80f',
+                  color: '#000',
+                  borderRadius: '50%',
+                  width: '36px',
+                  height: '36px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                },
+                onClick: () => setQuantity(Math.max(1, quantity - 1)),
+              }, '-'),
+              createElement('span', { style: { margin: '0 16px', fontSize: '16px' } }, quantity),
+              createElement(Button, {
+                style: {
+                  backgroundColor: '#b4c80f',
+                  borderColor: '#b4c80f',
+                  color: '#000',
+                  borderRadius: '50%',
+                  width: '36px',
+                  height: '36px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                },
+                onClick: () => setQuantity(quantity + 1),
+              }, '+'),
+            ]),
+            createElement('div', { style: { display: 'flex', justifyContent: 'center', padding: '0 10px 16px' } }, [
+              createElement(Button, {
+                style: {
+                  backgroundColor: '#b4c80f',
+                  borderColor: '#b4c80f',
+                  color: '#000',
+                  width: '100%',
+                  padding: '18px',
+                  fontSize: '16px',
+                  borderRadius: '6px',
+                },
+                onClick: handleAddOrUpdateOrder,
+              }, patientOrders[selectedPatient?.Id]?.some(item => item.Id === selectedFood?.Id) ? 'Cập nhật món ăn' : 'Thêm món ăn'),
+            ]),
+          ]),
+        ]),
+      ]
+    )
   );
 };
 
@@ -149,16 +665,16 @@ PatientTable.propTypes = {
       Id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       MedicalRecordNumber: PropTypes.string.isRequired,
       FullName: PropTypes.string.isRequired,
-      RoomNumber: PropTypes.string,
-      BedNumber: PropTypes.string,
-      AttendingPhysician: PropTypes.string,
-      IsActive: PropTypes.bool.isRequired,
+      Gender: PropTypes.string,
+      RoomNumber: PropTypes.number,
+      BedNumber: PropTypes.number,
+      DiseaseCategoryNames: PropTypes.string,
+      IsActive: PropTypes.bool,
     })
   ),
   loading: PropTypes.bool,
   onView: PropTypes.func,
-  onSearch: PropTypes.func,
-  className: PropTypes.string,
+  nurseId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
 };
 
 export default PatientTable;

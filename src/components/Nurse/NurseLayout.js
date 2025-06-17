@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../constants/roles';
 import UserHeader from '../common/UserHeader';
 
-const { Header, Sider, Content, Footer } = Layout;
+const { Header, Content, Footer } = Layout;
 const { Title, Text } = Typography;
 
 const NurseLayout = ({ children }) => {
@@ -28,106 +28,87 @@ const NurseLayout = ({ children }) => {
       return true;
     }
     if (requiredPermissions.length > 0) {
-      return requiredPermissions.some(permission => hasPermission && hasPermission(permission));
+      return requiredPermissions.some((permission) => hasPermission && hasPermission(permission));
     }
     return false;
   };
 
   const getSelectedMenuKey = useMemo(() => {
     const pathname = location.pathname;
-    if (pathname === '/patients') return ['patients'];
+    if (pathname === '/nurse/patient') return ['patients'];
     if (pathname === '/patient-groups') return ['patient-groups'];
     return [];
   }, [location.pathname]);
 
-  const siderStyle = {
+  const headerStyle = {
     background: '#fff',
-    borderRight: '1px solid #f0f0f0',
-    boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
+    padding: '0 24px',
+    borderBottom: '1px solid #f0f0f0',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    height: 64,
   };
 
   const logoStyle = {
-    padding: '24px 20px',
-    textAlign: 'center',
-    borderBottom: '1px solid #f0f0f0',
-    background: '#fafafa',
+    display: 'flex',
+    alignItems: 'center',
+    marginRight: 24,
   };
 
   const menuStyle = {
+    flex: 1,
     border: 'none',
     fontSize: '16px',
     fontWeight: '500',
+    lineHeight: '64px',
   };
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={280} theme="light" style={siderStyle}>
+      <Header style={headerStyle}>
         <div style={logoStyle}>
-          <Title level={3} style={{ margin: 0, color: '#1890ff', fontSize: '20px' }}>
+          <Title level={3} style={{ margin: 0, color: '#1890ff', fontSize: '18px' }}>
             🏥 Hệ Thống Quản Lý
           </Title>
-          <Text style={{ color: '#666', fontSize: '14px' }}>
+          <Text style={{ color: '#666', fontSize: '12px', marginLeft: 8 }}>
             Căn tin Bệnh viện
           </Text>
         </div>
         <Menu
-          mode="inline"
+          mode="horizontal"
           selectedKeys={getSelectedMenuKey}
           style={menuStyle}
           items={[
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.NURSE], ['patients:view']) && {
               key: 'patients',
-              icon: <UserOutlined style={{ fontSize: '18px' }} />,
+              icon: <UserOutlined style={{ fontSize: '16px' }} />,
               label: <Link to="/nurse/patient">Quản lý bệnh nhân</Link>,
             },
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.NURSE], ['patient-groups:view']) && {
               key: 'patient-groups',
-              icon: <TeamOutlined style={{ fontSize: '18px' }} />,
+              icon: <TeamOutlined style={{ fontSize: '16px' }} />,
               label: <Link to="/patient-groups">Nhóm bệnh</Link>,
             },
           ].filter(Boolean)}
         />
-      </Sider>
-      <Layout>
-        <Header
+        <UserHeader onLogout={handleLogout} />
+      </Header>
+      <Content style={{ margin: '24px 16px 0' }}>
+        <div
           style={{
+            padding: 24,
             background: '#fff',
-            padding: '0 24px',
-            borderBottom: '1px solid #f0f0f0',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+            minHeight: 360,
+            borderRadius: 8,
+            border: '1px solid #f0f0f0',
           }}
         >
-          <div />
-          <UserHeader onLogout={handleLogout} />
-        </Header>
-        <Content style={{ margin: '24px 16px 0' }}>
-          <div
-            style={{
-              padding: 24,
-              background: '#fff',
-              minHeight: 360,
-              borderRadius: 8,
-              border: '1px solid #f0f0f0',
-            }}
-          >
-            {children}
-          </div>
-        </Content>
-        <Footer
-          style={{
-            textAlign: 'center',
-            color: '#666',
-            fontSize: '14px',
-            background: '#fafafa',
-            borderTop: '1px solid #f0f0f0',
-          }}
-        >
-          
-        </Footer>
-      </Layout>
+          {children}
+        </div>
+      </Content>
+     
     </Layout>
   );
 };
