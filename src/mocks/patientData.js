@@ -165,13 +165,14 @@ const mockDiseaseCategories = [
 ];
 
 const mockDiseaseCategoryFoodRestrictions = [
+  // Món ăn hiện có
   {
     Id: 1,
     BranchId: 1,
-    DiseaseCategoryId: 1,
-    FoodId: 1,
+    DiseaseCategoryId: 1, // Tiểu đường type 2
+    FoodId: 1, // Cơm gạo lứt
     RestrictionLevel: 'Allowed',
-    Reason: 'Thích hợp cho tiểu đường',
+    Reason: 'Thích hợp cho tiểu đường, ít đường',
     AlternativeRecommendations: 'Gạo trắng thay bằng gạo lứt',
     IsActive: true,
     RequiresPhysicianOverride: false,
@@ -182,8 +183,8 @@ const mockDiseaseCategoryFoodRestrictions = [
   {
     Id: 2,
     BranchId: 1,
-    DiseaseCategoryId: 2,
-    FoodId: 2,
+    DiseaseCategoryId: 2, // Cao huyết áp
+    FoodId: 2, // Rau luộc
     RestrictionLevel: 'Allowed',
     Reason: 'Ít muối, tốt cho huyết áp',
     AlternativeRecommendations: 'Không dùng mắm',
@@ -196,8 +197,8 @@ const mockDiseaseCategoryFoodRestrictions = [
   {
     Id: 3,
     BranchId: 2,
-    DiseaseCategoryId: 3,
-    FoodId: 3,
+    DiseaseCategoryId: 3, // Viêm gan B
+    FoodId: 3, // Cá hấp
     RestrictionLevel: 'Allowed',
     Reason: 'Giàu protein, tốt cho viêm gan',
     AlternativeRecommendations: 'Không chiên dầu',
@@ -207,29 +208,162 @@ const mockDiseaseCategoryFoodRestrictions = [
     CreatedBy: 'ADMIN001',
     IsDeleted: false,
   },
+  // Thêm liên kết cho món mới - Tiểu đường type 2
+  {
+    Id: 4,
+    BranchId: 1,
+    DiseaseCategoryId: 1,
+    FoodId: 4, // Salad rau củ
+    RestrictionLevel: 'Allowed',
+    Reason: 'Không đường, ít calo, phù hợp cho tiểu đường',
+    AlternativeRecommendations: 'Không thêm sốt mayonnaise',
+    IsActive: true,
+    RequiresPhysicianOverride: false,
+    CreatedAt: '2025-01-01',
+    CreatedBy: 'ADMIN001',
+    IsDeleted: false,
+  },
+  {
+    Id: 5,
+    BranchId: 1,
+    DiseaseCategoryId: 1,
+    FoodId: 5, // Cháo yến mạch
+    RestrictionLevel: 'Allowed',
+    Reason: 'Giàu chất xơ, kiểm soát đường huyết',
+    AlternativeRecommendations: 'Không thêm đường hoặc sữa ngọt',
+    IsActive: true,
+    RequiresPhysicianOverride: false,
+    CreatedAt: '2025-01-01',
+    CreatedBy: 'ADMIN001',
+    IsDeleted: false,
+  },
+  // Thêm liên kết cho món mới - Cao huyết áp
+  {
+    Id: 6,
+    BranchId: 1,
+    DiseaseCategoryId: 2,
+    FoodId: 6, // Gà luộc
+    RestrictionLevel: 'Allowed',
+    Reason: 'Ít muối, không da, tốt cho huyết áp',
+    AlternativeRecommendations: 'Không dùng nước chấm mặn',
+    IsActive: true,
+    RequiresPhysicianOverride: false,
+    CreatedAt: '2025-01-01',
+    CreatedBy: 'ADMIN001',
+    IsDeleted: false,
+  },
+  {
+    Id: 7,
+    BranchId: 1,
+    DiseaseCategoryId: 2,
+    FoodId: 7, // Súp bí đỏ
+    RestrictionLevel: 'Allowed',
+    Reason: 'Không muối, ít calo, tốt cho huyết áp',
+    AlternativeRecommendations: 'Không thêm kem',
+    IsActive: true,
+    RequiresPhysicianOverride: false,
+    CreatedAt: '2025-01-01',
+    CreatedBy: 'ADMIN001',
+    IsDeleted: false,
+  },
+  // Thêm liên kết cho món mới - Viêm gan B
+  {
+    Id: 8,
+    BranchId: 2,
+    DiseaseCategoryId: 3,
+    FoodId: 8, // Thịt bò xào nấm
+    RestrictionLevel: 'Allowed',
+    Reason: 'Giàu protein, ít dầu, tốt cho viêm gan',
+    AlternativeRecommendations: 'Dùng dầu thực vật ít',
+    IsActive: true,
+    RequiresPhysicianOverride: false,
+    CreatedAt: '2025-01-01',
+    CreatedBy: 'ADMIN001',
+    IsDeleted: false,
+  },
+  {
+    Id: 9,
+    BranchId: 2,
+    DiseaseCategoryId: 3,
+    FoodId: 9, // Đậu phụ hấp
+    RestrictionLevel: 'Allowed',
+    Reason: 'Giàu protein, không dầu, tốt cho viêm gan',
+    AlternativeRecommendations: 'Hấp không thêm dầu',
+    IsActive: true,
+    RequiresPhysicianOverride: false,
+    CreatedAt: '2025-01-01',
+    CreatedBy: 'ADMIN001',
+    IsDeleted: false,
+  },
 ];
 
 const mockFoods = [
+  // Món ăn hiện có
   {
     Id: 1,
     Name: 'Cơm gạo lứt',
-    Description: 'Thích hợp cho tiểu đường',
+    Description: 'Thích hợp cho tiểu đường, ít đường, giàu chất xơ',
     Image: '/images/comgaolut.jpg',
     PriceForPatient: 25000,
   },
   {
     Id: 2,
     Name: 'Rau luộc',
-    Description: 'Ít muối, tốt cho huyết áp',
+    Description: 'Ít muối, tốt cho huyết áp, giàu vitamin',
     Image: '/images/rauluoc.jpg',
     PriceForPatient: 15000,
   },
   {
     Id: 3,
     Name: 'Cá hấp',
-    Description: 'Giàu protein, tốt cho viêm gan',
+    Description: 'Giàu protein, tốt cho viêm gan, ít dầu mỡ',
     Image: '/images/ca.jpg',
     PriceForPatient: 35000,
+  },
+  // Thêm món mới cho tiểu đường type 2 (hạn chế đường, tinh bột)
+  {
+    Id: 4,
+    Name: 'Salad rau củ',
+    Description: 'Rau xanh, cà rốt, dưa leo, không đường, ít calo',
+    Image: '/images/saladraucu.jpg',
+    PriceForPatient: 20000,
+  },
+  {
+    Id: 5,
+    Name: 'Cháo yến mạch',
+    Description: 'Giàu chất xơ, kiểm soát đường huyết, không đường',
+    Image: '/images/chaoyenmach.jpg',
+    PriceForPatient: 20000,
+  },
+  // Thêm món mới cho cao huyết áp (hạn chế muối, chất béo)
+  {
+    Id: 6,
+    Name: 'Gà luộc',
+    Description: 'Thịt gà không da, ít muối, giàu protein',
+    Image: '/images/galuoc.jpg',
+    PriceForPatient: 30000,
+  },
+  {
+    Id: 7,
+    Name: 'Súp bí đỏ',
+    Description: 'Không muối, ít calo, tốt cho huyết áp',
+    Image: '/images/supbido.jpg',
+    PriceForPatient: 18000,
+  },
+  // Thêm món mới cho viêm gan B (giàu protein, hạn chế dầu mỡ)
+  {
+    Id: 8,
+    Name: 'Thịt bò xào nấm',
+    Description: 'Thịt bò nạc, nấm tươi, ít dầu, giàu protein',
+    Image: '/images/thitboxaonam.jpg',
+    PriceForPatient: 40000,
+  },
+  {
+    Id: 9,
+    Name: 'Đậu phụ hấp',
+    Description: 'Đậu phụ tươi, hấp nhẹ, giàu protein, không dầu',
+    Image: '/images/dauhuuap.jpg',
+    PriceForPatient: 15000,
   },
 ];
 const mockMenus = [
@@ -292,13 +426,34 @@ const mockMenus = [
 ];
 
 const mockMenuFoods = [
-  { MenuId: 1, FoodId: 1 }, // Thứ 2: Cơm gạo lứt
-  { MenuId: 2, FoodId: 2 }, // Thứ 3: Rau luộc
-  { MenuId: 3, FoodId: 3 }, // Thứ 4: Cá hấp
-  { MenuId: 4, FoodId: 1 }, // Thứ 5: Cơm gạo lứt
-  { MenuId: 5, FoodId: 2 }, // Thứ 6: Rau luộc
-  { MenuId: 6, FoodId: 3 }, // Thứ 7: Cá hấp
-  { MenuId: 7, FoodId: 1 }, // Chủ nhật: Cơm gạo lứt
+  // Thứ 2
+  { MenuId: 1, FoodId: 1 }, // Cơm gạo lứt (Tiểu đường)
+  { MenuId: 1, FoodId: 4 }, // Salad rau củ (Tiểu đường)
+  { MenuId: 1, FoodId: 6 }, // Gà luộc (Cao huyết áp)
+  // Thứ 3
+  { MenuId: 2, FoodId: 2 }, // Rau luộc (Cao huyết áp)
+  { MenuId: 2, FoodId: 5 }, // Cháo yến mạch (Tiểu đường)
+  { MenuId: 2, FoodId: 8 }, // Thịt bò xào nấm (Viêm gan B)
+  // Thứ 4
+  { MenuId: 3, FoodId: 3 }, // Cá hấp (Viêm gan B)
+  { MenuId: 3, FoodId: 7 }, // Súp bí đỏ (Cao huyết áp)
+  { MenuId: 3, FoodId: 4 }, // Salad rau củ (Tiểu đường)
+  // Thứ 5
+  { MenuId: 4, FoodId: 1 }, // Cơm gạo lứt (Tiểu đường)
+  { MenuId: 4, FoodId: 6 }, // Gà luộc (Cao huyết áp)
+  { MenuId: 4, FoodId: 9 }, // Đậu phụ hấp (Viêm gan B)
+  // Thứ 6
+  { MenuId: 5, FoodId: 2 }, // Rau luộc (Cao huyết áp)
+  { MenuId: 5, FoodId: 5 }, // Cháo yến mạch (Tiểu đường)
+  { MenuId: 5, FoodId: 8 }, // Thịt bò xào nấm (Viêm gan B)
+  // Thứ 7
+  { MenuId: 6, FoodId: 3 }, // Cá hấp (Viêm gan B)
+  { MenuId: 6, FoodId: 7 }, // Súp bí đỏ (Cao huyết áp)
+  { MenuId: 6, FoodId: 1 }, // Cơm gạo lứt (Tiểu đường)
+  // Chủ nhật
+  { MenuId: 7, FoodId: 4 }, // Salad rau củ (Tiểu đường)
+  { MenuId: 7, FoodId: 6 }, // Gà luộc (Cao huyết áp)
+  { MenuId: 7, FoodId: 9 }, // Đậu phụ hấp (Viêm gan B)
 ];
 
 // Hàm lấy danh sách bệnh nhân với nhóm bệnh

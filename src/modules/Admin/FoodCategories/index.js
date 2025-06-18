@@ -3,18 +3,24 @@ import { message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import withPageWrapper from '../../../components/common/PageWrapper';
 import FoodCategoriesTable from './FoodCategoriesTable';
-import CreateFoodCategory from './CreateFoodCategory';
+import AddFoodCategory from '../FoodCategories/CreateFoodCategory';
+import EditFoodCategory from '../FoodCategories/EditFoodCategory';
+import FoodCategoryDetails from './FoodCategoryDetails';
 import { useAntModal } from '../../../hooks/useAntModal';
 import { useFoodCategories } from '../../../hooks/queries/useFoodCategories';
 import { foodCategoryService } from '../../../services/foodCategoryService';
 import { useFoodCategoryContext } from '../../../context/FoodCategoryContext';
+import { environment } from '../../../services/api/config';
 
 const FoodCategoriesPageContent = ({
   categoriesData,
   loading,
   onEdit,
   onDelete,
-  modalProps,
+  onViewDetails,
+  addModalProps,
+  editModalProps,
+  detailsModalProps,
   onCreateOrUpdate,
 }) => {
   return (
@@ -24,12 +30,23 @@ const FoodCategoriesPageContent = ({
         loading={loading}
         onEdit={onEdit}
         onDelete={onDelete}
+        onViewDetails={onViewDetails}
       />
-      <CreateFoodCategory
-        open={modalProps.open}
-        onCancel={modalProps.handleCancel}
+      <AddFoodCategory
+        open={addModalProps.open}
+        onCancel={addModalProps.handleCancel}
         onSubmit={onCreateOrUpdate}
-        initialValues={{ sort: 0 }}
+      />
+      <EditFoodCategory
+        open={editModalProps.open}
+        onCancel={editModalProps.handleCancel}
+        onSubmit={onCreateOrUpdate}
+        formData={editModalProps.formData}
+      />
+      <FoodCategoryDetails
+        open={detailsModalProps.open}
+        onCancel={detailsModalProps.handleCancel}
+        category={detailsModalProps.category}
       />
     </>
   );
@@ -38,58 +55,64 @@ const FoodCategoriesPageContent = ({
 const FoodCategoriesPageWithWrapper = withPageWrapper(FoodCategoriesPageContent);
 
 const FoodCategories = () => {
-  const { open, showModal, handleCancel } = useAntModal();
+  const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
+  const { open: editOpen, showModal: showEditModal, handleCancel: handleEditCancel } = useAntModal();
+  const { open: detailsOpen, showModal: showDetailsModal, handleCancel: handleDetailsCancel } = useAntModal();
   const { triggerRefresh } = useFoodCategoryContext();
-  const { categories } = useFoodCategories(1); // Hardcoded branchId
+  const branchId = environment.multiTenant.getCurrentBranchId() || '1';
+  const { categories, isLoading, error } = useFoodCategories(branchId);
   const [categoriesData, setCategoriesData] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [loading, setLoading] = useState(false);
-
-  const fetchCategoriesData = async () => {
-    setLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API delay
-      setCategoriesData(categories);
-    } catch (error) {
-      message.error('Không thể tải dữ liệu danh mục!');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [editCategory, setEditCategory] = useState(null);
 
   useEffect(() => {
-    fetchCategoriesData();
-  }, [categories, refreshTrigger]);
+    if (error) {
+      message.error(error.message || 'Không thể tải dữ liệu danh mục.');
+      setCategoriesData([]);
+    } else {
+      setCategoriesData(categories || []);
+      if (categories?.length > 0) {
+        message.success(`Tải ${categories.length} danh mục thành công!`);
+      }
+    }
+  }, [categories, error, refreshTrigger]);
 
   const handleCreateOrUpdate = async (formData) => {
     return new Promise((resolve, reject) => {
       setTimeout(async () => {
         try {
-          const formDataPayload = new FormData();
-          formDataPayload.append('name', formData.name);
-          formDataPayload.append('sort', formData.sort);
-          formDataPayload.append('imageUrl', formData.imageUrl || '');
+          const payload = {
+            name: formData.name,
+            sort: parseInt(formData.sort, 10) || 0,
+            imageUrl: formData.imageUrl || '',
+            branchId: parseInt(branchId, 10),
+          };
 
+          let response;
           if (formData.id) {
-            await foodCategoryService.updateFoodCategory(formData.id, formDataPayload, 1);
+            response = await foodCategoryService.updateFoodCategory(formData.id, payload, branchId);
             message.success('Cập nhật danh mục thành công!');
+            setCategoriesData((prevData) =>
+              prevData.map((item) => (item.id === formData.id ? { ...item, ...response.data.data } : item))
+            );
           } else {
-            await foodCategoryService.createFoodCategory(formDataPayload, 1);
+            response = await foodCategoryService.createFoodCategory(payload, branchId);
             message.success('Tạo danh mục thành công!');
+            setCategoriesData((prevData) => [response.data.data, ...prevData]);
           }
 
-          setCategoriesData(prevData => {
-            if (formData.id) {
-              return prevData.map(item => (item.id === formData.id ? { ...item, ...formData } : item));
-            }
-            return [{ id: Date.now(), ...formData }, ...prevData];
-          });
-
-          setRefreshTrigger(prev => prev + 1);
-          handleCancel();
-          resolve();
+          setRefreshTrigger((prev) => prev + 1);
+          triggerRefresh();
+          if (formData.id) {
+            handleEditCancel();
+          } else {
+            handleAddCancel();
+          }
+          resolve(response.data);
         } catch (error) {
-          message.error(error.message || 'Có lỗi xảy ra khi lưu danh mục!');
+          const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi lưu danh mục!';
+          message.error(errorMessage);
           reject(error);
         }
       }, 1500);
@@ -97,21 +120,29 @@ const FoodCategories = () => {
   };
 
   const handleEdit = (record) => {
-    showModal(record);
+    setEditCategory(record);
+    showEditModal();
   };
 
   const handleDelete = async (record) => {
     try {
-      await foodCategoryService.deleteFoodCategory(record.id, 1);
-      setCategoriesData(prevData => prevData.filter(item => item.id !== record.id));
+      await foodCategoryService.deleteFoodCategory(record.id, branchId);
+      setCategoriesData((prevData) => prevData.filter((item) => item.id !== record.id));
       message.success(`Đã xóa danh mục ${record.name}`);
+      triggerRefresh();
     } catch (error) {
-      message.error(error.message || 'Không thể xóa danh mục.');
+      const errorMessage = error.response?.data?.message || 'Không thể xóa danh mục.';
+      message.error(errorMessage);
     }
   };
 
+  const handleViewDetails = (record) => {
+    setSelectedCategory(record);
+    showDetailsModal();
+  };
+
   const handleRefresh = () => {
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
     message.success('Đã làm mới danh sách danh mục');
     triggerRefresh();
   };
@@ -121,18 +152,21 @@ const FoodCategories = () => {
       pageTitle="Quản Lý Danh Mục Món Ăn"
       pageDescription="Tạo và quản lý danh mục món ăn một cách dễ dàng và hiệu quả"
       pageIcon="🍽️"
-      loading={loading}
+      loading={isLoading}
       primaryButton={{
         text: 'Thêm Danh Mục Mới',
         icon: <PlusOutlined />,
-        onClick: showModal,
+        onClick: showAddModal,
       }}
       onRefresh={handleRefresh}
       refreshText="Làm mới"
       categoriesData={categoriesData}
       onEdit={handleEdit}
       onDelete={handleDelete}
-      modalProps={{ open, handleCancel }}
+      onViewDetails={handleViewDetails}
+      addModalProps={{ open: addOpen, handleCancel: handleAddCancel }}
+      editModalProps={{ open: editOpen, handleCancel: handleEditCancel, formData: editCategory }}
+      detailsModalProps={{ open: detailsOpen, handleCancel: handleDetailsCancel, category: selectedCategory }}
       onCreateOrUpdate={handleCreateOrUpdate}
     />
   );

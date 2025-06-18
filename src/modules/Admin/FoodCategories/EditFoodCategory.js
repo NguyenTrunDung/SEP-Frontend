@@ -28,16 +28,23 @@ const openCloudinaryWidget = (cb) => {
   );
 };
 
-const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
-  const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm();
+const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
+  const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(formData || {});
   const [imageUrl, setImageUrl] = useState('');
 
   useEffect(() => {
-    if (!open) {
+    if (formData && open) {
+      form.setFieldsValue({
+        id: formData.id,
+        name: formData.name,
+        imageUrl: formData.imageUrl || '',
+      });
+      setImageUrl(formData.imageUrl || '');
+    } else if (!open) {
       resetForm();
       setImageUrl('');
     }
-  }, [open, resetForm]);
+  }, [formData, open, form, resetForm]);
 
   const handleFormSubmit = async (values) => {
     const result = await handleSubmit(async (formData) => {
@@ -48,7 +55,7 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
     });
 
     if (result.success) {
-      message.success('Tạo danh mục thành công!');
+      message.success('Cập nhật danh mục thành công!');
       handleCancel();
     }
   };
@@ -82,7 +89,7 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
 
   return (
     <ReusableModal
-      title="Thêm Danh Mục Mới"
+      title="Sửa Danh Mục"
       open={open}
       onCancel={handleCancel}
       footer={null}
@@ -95,6 +102,13 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
         layout="vertical"
         className={formLoading ? 'form-loading' : ''}
       >
+        <Form.Item
+          name="id"
+          hidden
+        >
+          <Input />
+        </Form.Item>
+
         <Form.Item
           name="name"
           label="Tên danh mục"
@@ -132,8 +146,6 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
             {imageUrl && (
               <div
                 style={{
-                  WebkitBoxSizing: 'border-box',
-                  boxSizing: 'border-box',
                   position: 'relative',
                   maxWidth: '200px',
                   marginTop: '8px',
@@ -180,7 +192,7 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
               Hủy
             </Button>
             <Button type="primary" htmlType="submit" loading={formLoading} size="large">
-              Lưu Danh Mục
+              Cập Nhật
             </Button>
           </Space>
         </Form.Item>
@@ -189,10 +201,15 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
   );
 };
 
-AddFoodCategory.propTypes = {
+EditFoodCategory.propTypes = {
   open: PropTypes.bool.isRequired,
   onCancel: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,
+  formData: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    name: PropTypes.string,
+    imageUrl: PropTypes.string,
+  }).isRequired,
 };
 
-export default AddFoodCategory;
+export default EditFoodCategory;

@@ -69,17 +69,18 @@ const Navbar = () => {
   const showModal = () => setIsModalVisible(true);
 
   const handleBranchSelect = async (branch) => {
-    try {
-      await switchBranchMutation.mutateAsync(branch.id);
-      setSelectedBranch(branch);
-      localStorage.setItem('selectedBranch', JSON.stringify(branch));
-      setIsModalVisible(false);
-      message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
-    } catch (error) {
-      console.error('Failed to switch branch:', error);
-      message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
-    }
-  };
+  try {
+    await switchBranchMutation.mutateAsync(branch.id);
+    setSelectedBranch(branch);
+    localStorage.setItem('selectedBranch', JSON.stringify(branch));
+    localStorage.setItem('currentBranchId', branch.id); // Sync with multiTenant
+    setIsModalVisible(false);
+    message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
+  } catch (error) {
+    console.error('Failed to switch branch:', error);
+    message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
+  }
+};
 
   const handleCartClick = () => {
     console.log('Opening cart modal with cartItems:', cartItems);

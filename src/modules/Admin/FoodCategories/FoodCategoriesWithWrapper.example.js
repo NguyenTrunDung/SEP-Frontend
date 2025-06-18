@@ -5,11 +5,8 @@ import withPageWrapper from '../../../components/common/PageWrapper';
 import FoodCategoriesTable from './FoodCategoriesTable';
 import CreateFoodCategory from './CreateFoodCategory';
 import { useAntModal } from '../../../hooks/useAntModal';
-
-/**
- * Example: Refactoring the FoodCategories page to use PageWrapper HOC
- * This shows how to structure the FoodCategories page with the HOC
- */
+import { foodCategoryService } from './api/foodCategoryService';
+import { environment } from './api/config';
 
 const FoodCategoriesPageContent = ({
   categoriesData,
@@ -45,22 +42,20 @@ const FoodCategoriesWithWrapperExample = () => {
   const [categoriesData, setCategoriesData] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Mock categories data
-  const mockCategoriesData = [
-    { id: 1, name: 'Điểm tâm', sort: 1, imageUrl: 'https://example.com/breakfast.jpg' },
-    { id: 2, name: 'Món chính', sort: 2, imageUrl: 'https://example.com/main.jpg' },
-    { id: 3, name: 'Nước giải khát', sort: 3, imageUrl: null },
-    { id: 4, name: 'Tráng miệng', sort: 4, imageUrl: 'https://example.com/dessert.jpg' },
-    { id: 5, name: 'Món chay', sort: 5, imageUrl: null },
-  ];
-
   const fetchCategoriesData = async () => {
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setCategoriesData(mockCategoriesData);
+      const branchId = environment.multiTenant.getCurrentBranchId() || '1';
+      console.log('🔍 Fetching categories with branchId:', branchId);
+      console.log('🔍 Token:', environment.auth.getToken());
+      const categories = await foodCategoryService.getFoodCategories(branchId);
+      console.log('✅ Raw API response (fetch):', categories);
+      setCategoriesData(categories?.data || categories || []);
+      message.success(`Tải ${categories?.data?.length || categories?.length || 0} danh mục thành công!`);
     } catch (error) {
-      message.error('Không thể tải dữ liệu danh mục!');
+      console.error('❌ Error fetching categories:', error.message, error.response?.data);
+      message.error('Không thể tải dữ liệu danh mục: ' + (error.message || 'Lỗi không xác định'));
+      setCategoriesData([]);
     } finally {
       setLoading(false);
     }
@@ -71,42 +66,66 @@ const FoodCategoriesWithWrapperExample = () => {
   }, [refreshTrigger]);
 
   const handleCreateOrUpdate = async (formData) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        try {
-          const newCategory = {
-            id: formData.id || Date.now(),
-            name: formData.name,
-            sort: formData.sort,
-            imageUrl: formData.imageUrl || null,
-          };
+    const branchId = environment.multiTenant.getCurrentBranchId() || '1';
+    try {
+      console.log('🔍 FormData received:', formData);
+      const jsonData = {
+        name: formData.name || '', // Ensure non-null
+        imageUrl: formData.imageUrl || '',
+        sort: formData.sort != null ? parseInt(formData.sort, 10) : 0, // Handle null/undefined
+      };
 
-          setCategoriesData(prevData => {
-            if (formData.id) {
-              return prevData.map(item => (item.id === formData.id ? newCategory : item));
-            }
-            return [newCategory, ...prevData];
-          });
+      console.log('🔍 JSON Data sending:', jsonData);
 
-          message.success(formData.id ? 'Cập nhật danh mục thành công!' : 'Tạo danh mục thành công!');
-          setRefreshTrigger(prev => prev + 1);
-          handleCancel();
-          resolve();
-        } catch (error) {
-          message.error('Có lỗi xảy ra khi lưu danh mục!');
-          reject(error);
-        }
-      }, 1500);
-    });
+      let response;
+      if (formData.id) {
+        response = await foodCategoryService.updateFoodCategory(formData.id, jsonData, branchId);
+        message.success('Cập nhật danh mục thành công!');
+      } else {
+        response = await foodCategoryService.createFoodCategory(jsonData, branchId);
+        message.success('Tạo danh mục thành công!');
+      }
+
+      console.log('✅ API response (create/update):', response);
+      const updatedCategory = response?.data;
+      if (updatedCategory) {
+        setCategoriesData(prevData => {
+          if (formData.id) {
+            return prevData.map(item =>
+              item.id === formData.id ? { ...item, ...updatedCategory } : item
+            );
+          } else {
+            return [updatedCategory, ...prevData];
+          }
+        });
+      }
+
+      setRefreshTrigger(prev => prev + 1);
+      handleCancel();
+      return response;
+    } catch (error) {
+      console.error('❌ Error saving category:', error.message, error.response?.data);
+      message.error('Có lỗi xảy ra khi lưu danh mục: ' + (error.response?.data?.message || error.message));
+      throw error;
+    }
   };
 
   const handleEdit = (record) => {
+    console.log('🔍 Editing category:', record);
     showModal(record);
   };
 
-  const handleDelete = (record) => {
-    setCategoriesData(prevData => prevData.filter(item => item.id !== record.id));
-    message.success(`Đã xóa danh mục ${record.name}`);
+  const handleDelete = async (record) => {
+    const branchId = environment.multiTenant.getCurrentBranchId() || '1';
+    try {
+      await foodCategoryService.deleteFoodCategory(record.id, branchId);
+      message.success(`Đã xóa danh mục ${record.name}`);
+      setCategoriesData(prevData => prevData.filter(item => item.id !== record.id));
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('❌ Error deleting category:', error.message, error.response?.data);
+      message.error('Không thể xóa danh mục!');
+    }
   };
 
   const handleRefresh = () => {
@@ -137,4 +156,3 @@ const FoodCategoriesWithWrapperExample = () => {
 };
 
 export default FoodCategoriesWithWrapperExample;
-

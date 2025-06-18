@@ -1,6 +1,7 @@
+// FoodCategoriesTable.jsx
 import React, { useState, useMemo } from 'react';
 import { Button, Space, Input, Tooltip, Popconfirm, message } from 'antd';
-import { EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import ReusableTable from '../../../components/common/ReusableTable';
 import PropTypes from 'prop-types';
 
@@ -9,6 +10,7 @@ const FoodCategoriesTable = ({
   loading = false,
   onEdit,
   onDelete,
+  onViewDetails,
   className,
   ...rest
 }) => {
@@ -24,8 +26,7 @@ const FoodCategoriesTable = ({
   const handleEdit = (record) => {
     if (onEdit) {
       onEdit(record);
-    } else {
-      message.info(`Chỉnh sửa danh mục ${record.name}`);
+      message.info(`Bắt đầu chỉnh sửa danh mục ${record.name}`);
     }
   };
 
@@ -34,6 +35,14 @@ const FoodCategoriesTable = ({
       onDelete(record);
     } else {
       message.success(`Đã xóa danh mục ${record.name}`);
+    }
+  };
+
+  const handleViewDetails = (record) => {
+    if (onViewDetails) {
+      onViewDetails(record);
+    } else {
+      message.info(`Xem chi tiết danh mục ${record.name}`);
     }
   };
 
@@ -79,6 +88,15 @@ const FoodCategoriesTable = ({
       align: 'center',
       render: (_, record) => (
         <div className="action-buttons">
+          <Tooltip title="Xem chi tiết">
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewDetails(record)}
+              className="action-btn view-btn"
+              size="small"
+            />
+          </Tooltip>
           <Tooltip title="Chỉnh sửa">
             <Button
               type="text"
@@ -161,6 +179,7 @@ FoodCategoriesTable.propTypes = {
   loading: PropTypes.bool,
   onEdit: PropTypes.func,
   onDelete: PropTypes.func,
+  onViewDetails: PropTypes.func,
   className: PropTypes.string,
 };
 

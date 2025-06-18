@@ -336,30 +336,29 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
           expandable: {
             expandedRowRender: (record) =>
               patientOrders[record.Id]?.length ? (
-                createElement('div', { style: { padding: 16 } }, [
-                  createElement(Title, { level: 5 }, 'Danh sách món ăn đã thêm'),
-                  createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16 } },
+                createElement('div', { style: { padding: '16px', background: '#fafafa', borderRadius: '8px' } }, [
+                  createElement(Title, { level: 5, style: { marginBottom: '16px', color: '#333' } }, 'Danh sách món ăn đã thêm'),
+                  createElement('div', { 
+                    style: { 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
+                      gap: '16px' 
+                    }
+                  },
                     patientOrders[record.Id].map(item => (
                       createElement('div', {
                         key: item.Id,
+                        className: 'food-card',
                         style: {
-                          border: '1px solid #ddd',
-                          borderRadius: 4,
-                          padding: 10,
-                          width: 220,
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                          border: '1px solid #e8e8e8',
+                          borderRadius: '8px',
+                          padding: '12px',
                           background: '#fff',
+                          transition: 'transform 0.2s, box-shadow 0.2s',
                           position: 'relative',
+                          overflow: 'hidden',
                         }
                       }, [
-                        createElement(Image, {
-                          width: 200,
-                          height: 140,
-                          src: item.Image || 'https://via.placeholder.com/200x140?text=No+Image',
-                          alt: item.Name,
-                          preview: false,
-                          style: { objectFit: 'cover', borderRadius: 4, marginBottom: 8 }
-                        }),
                         createElement('div', {
                           style: {
                             position: 'absolute',
@@ -369,22 +368,56 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
                             color: '#fff',
                             padding: '4px 8px',
                             borderRadius: '4px',
-                            fontSize: '16px',
+                            fontSize: '14px',
+                            fontWeight: '500',
                           }
-                        }, `Số lượng: ${item.quantity || 1}`),
-                        createElement(Title, { level: 5, style: { marginBottom: 8 } }, item.Name),
-                        createElement('div', { style: { marginBottom: 4 } }, [
-                          createElement(Text, { strong: true, style: { fontSize: 14, color: '#222' } },
-                            `${item.PriceForPatient.toLocaleString('vi-VN')}đ`
-                          ),
+                        }, `x${item.quantity || 1}`),
+                        createElement(Title, { 
+                          level: 5, 
+                          style: { 
+                            marginBottom: '8px', 
+                            fontSize: '16px', 
+                            color: '#222',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          } 
+                        }, item.Name),
+                        createElement('div', { style: { marginBottom: '8px' } }, [
+                          createElement(Text, { 
+                            strong: true, 
+                            style: { fontSize: '14px', color: '#b41400' } 
+                          }, `${item.PriceForPatient.toLocaleString('vi-VN')}đ`),
                         ]),
-                        item.note && createElement(Text, { style: { fontSize: 12, color: '#555' } }, `Ghi chú: ${item.note}`),
+                        item.note && createElement(Text, { 
+                          style: { 
+                            fontSize: '12px', 
+                            color: '#666', 
+                            display: 'block',
+                            whiteSpace: 'pre-wrap',
+                            marginBottom: '8px'
+                          } 
+                        }, `Ghi chú: ${item.note}`),
+                        createElement(Button, {
+                          type: 'text',
+                          danger: true,
+                          size: 'small',
+                          style: { position: 'absolute', bottom: '8px', right: '8px' },
+                          onClick: () => {
+                            setPatientOrders({
+                              ...patientOrders,
+                              [record.Id]: patientOrders[record.Id].filter(food => food.Id !== item.Id),
+                            });
+                            setSelectedFoods(selectedFoods.filter(foodId => foodId !== item.Id));
+                            message.success(`Đã xóa ${item.Name} khỏi danh sách`);
+                          },
+                        }, 'Xóa'),
                       ])
                     ))
                   ),
                 ])
               ) : (
-                createElement('p', null, 'Chưa có món ăn nào được thêm.')
+                createElement('p', { style: { padding: '16px', color: '#666' } }, 'Chưa có món ăn nào được thêm.')
               ),
           },
           pagination: {
@@ -436,35 +469,41 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
                   createElement(Title, {
                     level: 4,
                     style: {
-                      marginBottom: 16,
-                      color: '#000',
+                      marginBottom: '16px',
+                      color: '#333',
                       backgroundColor: '#f0f0f0',
-                      padding: '8px 0',
-                      borderRadius: '4px'
+                      padding: '8px 16px',
+                      borderRadius: '6px'
                     }
                   }, category),
-                  createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16 } },
+                  createElement('div', { 
+                    style: { 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
+                      gap: '16px' 
+                    }
+                  },
                     groupedFoods[category].map(food => {
                       const isInOrder = patientOrders[selectedPatient?.Id]?.some(item => item.Id === food.Id);
                       return createElement('div', {
                         key: food.Id,
+                        className: 'food-card',
                         style: {
-                          border: '1px solid #ddd',
-                          borderRadius: 4,
-                          padding: 10,
-                          width: 220,
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                          border: '1px solid #e8e8e8',
+                          borderRadius: '8px',
+                          padding: '12px',
                           background: '#fff',
+                          transition: 'transform 0.2s, box-shadow 0.2s',
                           position: 'relative',
                         }
                       }, [
                         createElement(Image, {
-                          width: 200,
+                          width: '100%',
                           height: 140,
                           src: food.Image || 'https://via.placeholder.com/200x140?text=No+Image',
                           alt: food.Name,
                           preview: false,
-                          style: { objectFit: 'cover', borderRadius: 4, marginBottom: 8 }
+                          style: { objectFit: 'cover', borderRadius: '6px', marginBottom: '12px' }
                         }),
                         isInOrder && createElement('div', {
                           style: {
@@ -475,23 +514,36 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
                             color: '#fff',
                             padding: '4px 8px',
                             borderRadius: '4px',
-                            fontSize: '16px',
+                            fontSize: '14px',
+                            fontWeight: '500',
                           }
-                        }, `Số lượng: ${patientOrders[selectedPatient?.Id]?.find(item => item.Id === food.Id)?.quantity || 1}`),
-                        createElement(Title, { level: 5, style: { marginBottom: 8 } }, food.Name),
-                        createElement('div', { style: { marginBottom: 4 } }, [
-                          createElement(Text, { strong: true, style: { fontSize: 14, color: '#222' } },
-                            `${food.PriceForPatient.toLocaleString('vi-VN')}đ`
-                          ),
+                        }, `x${patientOrders[selectedPatient?.Id]?.find(item => item.Id === food.Id)?.quantity || 1}`),
+                        createElement(Title, { 
+                          level: 5, 
+                          style: { 
+                            marginBottom: '8px', 
+                            fontSize: '16px', 
+                            color: '#222',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          } 
+                        }, food.Name),
+                        createElement('div', { style: { marginBottom: '8px' } }, [
+                          createElement(Text, { 
+                            strong: true, 
+                            style: { fontSize: '14px', color: '#b41400' } 
+                          }, `${food.PriceForPatient.toLocaleString('vi-VN')}đ`),
                         ]),
                         createElement(Button, {
                           style: {
                             backgroundColor: '#b4c80f',
                             borderColor: '#b4c80f',
                             color: '#000',
-                            float: 'left',
-                            padding: '14px 12px',
-                            fontSize: '15px',
+                            width: '100%',
+                            padding: '6px 12px',
+                            fontSize: '14px',
+                            borderRadius: '6px',
                           },
                           type: 'primary',
                           size: 'small',
@@ -508,57 +560,6 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
               type: 'secondary',
               style: { textAlign: 'center', display: 'block', marginTop: 24 }
             }, 'Không có món ăn phù hợp.')
-          ),
-          selectedFoods.length > 0 && createElement(
-            'div',
-            { style: { marginTop: 16 } },
-            [
-              createElement(Title, { level: 5 }, 'Món ăn đã chọn:'),
-              createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16 } },
-                patientOrders[selectedPatient?.Id]?.filter(food => selectedFoods.includes(food.Id)).map(food => (
-                  createElement('div', {
-                    key: food.Id,
-                    style: {
-                      border: '1px solid #ddd',
-                      borderRadius: 4,
-                      padding: 10,
-                      width: 220,
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
-                      background: '#fff',
-                      position: 'relative',
-                    }
-                  }, [
-                    createElement(Image, {
-                      width: 200,
-                      height: 140,
-                      src: food.Image || 'https://via.placeholder.com/200x140?text=No+Image',
-                      alt: food.Name,
-                      preview: false,
-                      style: { objectFit: 'cover', borderRadius: 4, marginBottom: 8 }
-                    }),
-                    createElement('div', {
-                      style: {
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        backgroundColor: '#b4c80f',
-                        color: '#fff',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '16px',
-                      }
-                    }, `Số lượng: ${food.quantity || 1}`),
-                    createElement(Title, { level: 5, style: { marginBottom: 8 } }, food.Name),
-                    createElement('div', { style: { marginBottom: 4 } }, [
-                      createElement(Text, { strong: true, style: { fontSize: 14, color: '#222' } },
-                        `${food.PriceForPatient.toLocaleString('vi-VN')}đ`
-                      ),
-                    ]),
-                    food.note && createElement(Text, { style: { fontSize: 12, color: '#555' } }, `Ghi chú: ${food.note}`),
-                  ])
-                ))
-              ),
-            ]
           ),
         ]),
         createElement(Modal, {
@@ -582,30 +583,30 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
                 fontSize: '18px',
               }
             }, patientOrders[selectedPatient?.Id]?.some(item => item.Id === selectedFood?.Id) ? 'Cập nhật món ăn' : 'Thêm món ăn'),
-            createElement('img', {
-              src: selectedFood?.Image || 'https://via.placeholder.com/600x250?text=No+Image',
-              alt: selectedFood?.Name,
+            selectedFood?.Image && createElement('img', {
+              src: selectedFood.Image || 'https://via.placeholder.com/600x250?text=No+Image',
+              alt: selectedFood.Name,
               style: { width: '100%', maxHeight: '250px', objectFit: 'cover', display: 'block' },
             }),
-            createElement('div', { style: { padding: '6px 6px 0' } }, [
+            createElement('div', { style: { padding: '12px 16px' } }, [
               createElement(Text, {
-                style: { display: 'block', fontSize: '15px', fontWeight: 'bold', color: '#333', marginBottom: '1px' }
+                style: { display: 'block', fontSize: '16px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }
               }, selectedFood?.Name || 'Không có tên'),
               createElement(Text, {
-                style: { display: 'block', fontSize: '15px', color: '#555', marginBottom: '1px' }
+                style: { display: 'block', fontSize: '14px', color: '#555', marginBottom: '8px' }
               }, selectedFood?.Description || 'Không có mô tả'),
               createElement(Text, {
-                style: { display: 'block', fontSize: '15px', fontWeight: 'bold', color: '#ff0000', marginBottom: '1px' }
+                style: { display: 'block', fontSize: '16px', fontWeight: 'bold', color: '#b41400', marginBottom: '12px' }
               }, `${selectedFood?.PriceForPatient.toLocaleString('vi-VN')}đ`),
             ]),
-            createElement('div', { style: { padding: '0 6px' } }, [
+            createElement('div', { style: { padding: '0 16px' } }, [
               createElement(Text, {
-                style: { display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#333', marginBottom: '0px' }
+                style: { display: 'block', fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }
               }, 'Ghi chú:'),
               createElement(Input.TextArea, {
                 value: note,
                 onChange: (e) => setNote(e.target.value),
-                style: { marginBottom: '20px', height: '115px', resize: 'none' },
+                style: { marginBottom: '20px', height: '100px', resize: 'none' },
                 placeholder: 'Ghi chú...',
               }),
             ]),
@@ -638,14 +639,14 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
                 onClick: () => setQuantity(quantity + 1),
               }, '+'),
             ]),
-            createElement('div', { style: { display: 'flex', justifyContent: 'center', padding: '0 10px 16px' } }, [
+            createElement('div', { style: { display: 'flex', justifyContent: 'center', padding: '0 16px 16px' } }, [
               createElement(Button, {
                 style: {
                   backgroundColor: '#b4c80f',
                   borderColor: '#b4c80f',
                   color: '#000',
                   width: '100%',
-                  padding: '18px',
+                  padding: '10px',
                   fontSize: '16px',
                   borderRadius: '6px',
                 },
