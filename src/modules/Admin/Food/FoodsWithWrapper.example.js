@@ -6,11 +6,6 @@ import FoodsTable from './FoodsTable';
 import CreateFood from './CreateFood';
 import { useAntModal } from '../../../hooks/useAntModal';
 
-/**
- * Example: Refactoring the Foods page to use PageWrapper HOC
- * This shows how to structure the Foods page with the HOC
- */
-
 const FoodsPageContent = ({
   foodsData,
   loading,
@@ -18,6 +13,8 @@ const FoodsPageContent = ({
   onDelete,
   modalProps,
   onCreateOrUpdate,
+  selectedFood,
+  nextSort,
 }) => {
   return (
     <>
@@ -31,7 +28,8 @@ const FoodsPageContent = ({
         open={modalProps.open}
         onCancel={modalProps.handleCancel}
         onSubmit={onCreateOrUpdate}
-        initialValues={{ priceForGuest: 0 }}
+        initialValues={{ priceForGuest: 0, priceForPatient: 0, priceForStaff: 0, sort: nextSort }}
+        formData={selectedFood}
       />
     </>
   );
@@ -44,23 +42,15 @@ const FoodsWithWrapperExample = () => {
   const [loading, setLoading] = useState(false);
   const [foodsData, setFoodsData] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedFood, setSelectedFood] = useState(null);
 
-  // Mock foods data
+  // Mock foods data with corrected structure
   const mockFoodsData = [
-    { id: 1, name: 'Bánh mì', categoryId: 1, description: 'Bánh mì đặc biệt', priceForGuest: 20000, imageUrl: 'https://example.com/banhmi.jpg' },
-    { id: 2, name: 'Phở bò', categoryId: 2, description: 'Phở bò tái', priceForGuest: 50000, imageUrl: null },
-    { id: 3, name: 'Coca Cola', categoryId: 3, description: 'Nước ngọt', priceForGuest: 15000, imageUrl: 'https://example.com/coke.jpg' },
-    { id: 4, name: 'Chè đậu', categoryId: 4, description: 'Chè đậu xanh', priceForGuest: 10000, imageUrl: null },
-    { id: 5, name: 'Salad rau', categoryId: 5, description: 'Salad chay', priceForGuest: 30000, imageUrl: 'https://example.com/salad.jpg' },
-  ];
-
-  // Mock categories for table display
-  const mockCategories = [
-    { id: 1, name: 'Điểm tâm' },
-    { id: 2, name: 'Món chính' },
-    { id: 3, name: 'Nước giải khát' },
-    { id: 4, name: 'Tráng miệng' },
-    { id: 5, name: 'Món chay' },
+    { id: 1, name: 'Bánh mì', categoryId: 1, description: 'Bánh mì đặc biệt', priceForGuest: 25000, priceForPatient: 20000, priceForStaff: 20000, sort: 1, imageUrl: 'https://example.com/banhmi.jpg' },
+    { id: 2, name: 'Phở bò', categoryId: 2, description: 'Phở bò tái', priceForGuest: 50000, priceForPatient: 45000, priceForStaff: 45000, sort: 2, imageUrl: null },
+    { id: 3, name: 'Coca Cola', categoryId: 3, description: 'Nước ngọt', priceForGuest: 15000, priceForPatient: 12000, priceForStaff: 12000, sort: 3, imageUrl: 'https://example.com/coke.jpg' },
+    { id: 4, name: 'Chè đậu', categoryId: 4, description: 'Chè đậu xanh', priceForGuest: 10000, priceForPatient: 8000, priceForStaff: 8000, sort: 4, imageUrl: null },
+    { id: 5, name: 'Salad rau', categoryId: 5, description: 'Salad chay', priceForGuest: 30000, priceForPatient: 25000, priceForStaff: 25000, sort: 5, imageUrl: 'https://example.com/salad.jpg' },
   ];
 
   const fetchFoodsData = async () => {
@@ -79,6 +69,11 @@ const FoodsWithWrapperExample = () => {
     fetchFoodsData();
   }, [refreshTrigger]);
 
+  // Calculate next sort value
+  const nextSort = foodsData.length > 0
+    ? Math.max(...foodsData.map(item => item.sort || 0)) + 1
+    : 1;
+
   const handleCreateOrUpdate = async (formData) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
@@ -89,6 +84,9 @@ const FoodsWithWrapperExample = () => {
             categoryId: formData.categoryId,
             description: formData.description || '',
             priceForGuest: formData.priceForGuest,
+            priceForPatient: formData.priceForPatient,
+            priceForStaff: formData.priceForStaff,
+            sort: formData.sort,
             imageUrl: formData.imageUrl || null,
           };
 
@@ -102,6 +100,7 @@ const FoodsWithWrapperExample = () => {
           message.success(formData.id ? 'Cập nhật món ăn thành công!' : 'Tạo món ăn thành công!');
           setRefreshTrigger(prev => prev + 1);
           handleCancel();
+          setSelectedFood(null);
           resolve();
         } catch (error) {
           message.error('Có lỗi xảy ra khi lưu món ăn!');
@@ -112,7 +111,8 @@ const FoodsWithWrapperExample = () => {
   };
 
   const handleEdit = (record) => {
-    showModal(record);
+    setSelectedFood(record);
+    showModal();
   };
 
   const handleDelete = (record) => {
@@ -134,7 +134,10 @@ const FoodsWithWrapperExample = () => {
       primaryButton={{
         text: 'Thêm Món Ăn Mới',
         icon: <PlusOutlined />,
-        onClick: showModal,
+        onClick: () => {
+          setSelectedFood(null);
+          showModal();
+        },
       }}
       onRefresh={handleRefresh}
       refreshText="Làm mới"
@@ -143,6 +146,8 @@ const FoodsWithWrapperExample = () => {
       onDelete={handleDelete}
       modalProps={{ open, handleCancel }}
       onCreateOrUpdate={handleCreateOrUpdate}
+      selectedFood={selectedFood}
+      nextSort={nextSort}
     />
   );
 };

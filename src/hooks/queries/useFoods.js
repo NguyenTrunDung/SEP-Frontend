@@ -1,34 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { foodService } from '../../services/foodService';
-import { message } from 'antd';
 
-export const useFoods = (filters = {}) => {
-  const [foods, setFoods] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const fetchFoods = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await foodService.getFoods(filters.branchId);
-      setFoods(response || []);
-      setError(null);
-    } catch (err) {
-      setError('Không thể tải món ăn.');
-      message.error('Không thể tải món ăn.');
-    } finally {
-      setLoading(false);
-    }
-  }, [filters.branchId]);
-
-  useEffect(() => {
-    fetchFoods();
-  }, [fetchFoods]);
+export const useFoods = (branchId = '1') => {
+  const query = useQuery({
+    queryKey: ['foods', branchId],
+    queryFn: () => foodService.getFoods(branchId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
 
   return {
-    foods,
-    loading,
-    error,
-    refreshFoods: fetchFoods,
+    foods: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
   };
 };

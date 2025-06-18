@@ -47,14 +47,17 @@ const CreateFood = ({
         categoryId: formData.categoryId,
         description: formData.description,
         priceForGuest: formData.priceForGuest,
+        priceForPatient: formData.priceForPatient,
+        priceForStaff: formData.priceForStaff,
+        sort: formData.sort,
         imageUrl: formData.imageUrl || '',
       });
       setImageUrl(formData.imageUrl || '');
     } else {
-      form.resetFields();
+      form.setFieldsValue(initialValues);
       setImageUrl('');
     }
-  }, [formData, form]);
+  }, [formData, initialValues, form]);
 
   const handleFormSubmit = async (values) => {
     const result = await handleSubmit(async (formData) => {
@@ -139,7 +142,7 @@ const CreateFood = ({
         <Form.Item
           name="priceForGuest"
           label="Giá cho khách"
-          rules={[{ required: true, message: 'Vui lòng nhập giá!' }]}
+          rules={[{ required: true, message: 'Vui lòng nhập giá cho khách!' }]}
         >
           <InputNumber
             placeholder="0"
@@ -149,6 +152,51 @@ const CreateFood = ({
             parser={value => value.replace(/\$\s?|(,*)/g, '')}
           />
         </Form.Item>
+
+        <Form.Item
+          name="priceForPatient"
+          label="Giá cho bệnh nhân"
+          rules={[{ required: true, message: 'Vui lòng nhập giá cho bệnh nhân!' }]}
+        >
+          <InputNumber
+            placeholder="0"
+            style={{ width: '100%' }}
+            min={0}
+            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            parser={value => value.replace(/\$\s?|(,*)/g, '')}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="priceForStaff"
+          label="Giá cho nhân viên"
+          rules={[{ required: true, message: 'Vui lòng nhập giá cho nhân viên!' }]}
+        >
+          <InputNumber
+            placeholder="0"
+            style={{ width: '100%' }}
+            min={0}
+            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            parser={value => value.replace(/\$\s?|(,*)/g, '')}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="sort"
+          label="Thứ tự sắp xếp"
+          rules={[{ required: true, message: 'Vui lòng nhập thứ tự sắp xếp!' }]}
+        >
+          <InputNumber
+            placeholder="0"
+            style={{ width: '100%' }}
+            min={0}
+            step={1}
+            readOnly // không cho gõ
+            onKeyDown={(e) => e.preventDefault()} 
+            onMouseDown={(e) => e.preventDefault()} 
+          />
+        </Form.Item>
+
 
         <Form.Item
           name="imageUrl"
@@ -199,6 +247,9 @@ CreateFood.propTypes = {
     categoryId: PropTypes.number,
     description: PropTypes.string,
     priceForGuest: PropTypes.number,
+    priceForPatient: PropTypes.number,
+    priceForStaff: PropTypes.number,
+    sort: PropTypes.number,
     imageUrl: PropTypes.string,
   }),
 };
