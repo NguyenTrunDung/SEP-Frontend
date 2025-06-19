@@ -11,45 +11,47 @@ const api = axios.create({
 
 // Request interceptor with multi-tenant support
 api.interceptors.request.use(
-  (requestConfig) => {
-    const token = environment.auth.getToken();
-    if (token) {
-      requestConfig.headers.Authorization = `Bearer ${token}`;
-    }
+    (requestConfig) => {
+        // Add JWT token
+        const token = environment.auth.getToken();
+        if (token) {
+            requestConfig.headers.Authorization = `Bearer ${token}`;
+        }
 
-    const currentBranchId = environment.multiTenant.getCurrentBranchId() || '1'; // Fallback
-    console.log('Interceptor - currentBranchId:', currentBranchId);
+        // Add branch context for multi-tenancy
+        const currentBranchId = environment.multiTenant.getCurrentBranchId();
+        console.log('currentBranchId', currentBranchId);
+        if (currentBranchId && !requestConfig.headers['X-Branch-Id']) {
+            requestConfig.headers['X-Branch-Id'] = currentBranchId;
+        }
 
-    if (currentBranchId && !requestConfig.headers['X-Branch-Id']) {
-      requestConfig.headers['X-Branch-Id'] = currentBranchId;
-    }
+        // Add branch query parameter for branch-specific endpoints
+        if (requestConfig.addBranchParam && currentBranchId) {
+            requestConfig.params = { ...requestConfig.params, branchId: currentBranchId };
+        }
 
-    // Force branchId for foodcategories endpoint
-    if (requestConfig.url.includes('/api/v1/foodcategories')) {
-      requestConfig.params = {
-        ...requestConfig.params,
-        branchId: requestConfig.params?.branchId || currentBranchId,
-      };
-    }
+        // Log request in development
+        if (environment.features.enableLogging && environment.app.isDevelopment) {
+            console.log('🌐 API Request:', {
+                method: requestConfig.method?.toUpperCase(),
+                url: requestConfig.url,
+                headers: {
+                    ...requestConfig.headers,
+                    Authorization: requestConfig.headers.Authorization ? '[HIDDEN]' : undefined
+                },
+                data: requestConfig.data,
+                params: requestConfig.params
+            });
+        }
 
-    if (environment.features.enableLogging && environment.app.isDevelopment) {
-      console.log('🌐 API Request:', {
-        method: requestConfig.method?.toUpperCase(),
-        url: requestConfig.url,
-        headers: { ...requestConfig.headers, Authorization: '[HIDDEN]' },
-        data: requestConfig.data,
-        params: requestConfig.params,
-      });
+        return requestConfig;
+    },
+    (error) => {
+        if (environment.features.enableLogging) {
+            console.error('❌ API Request Error:', error);
+        }
+        return Promise.reject(error);
     }
-
-    return requestConfig;
-  },
-  (error) => {
-    if (environment.features.enableLogging) {
-      console.error('❌ API Request Error:', error);
-    }
-    return Promise.reject(error);
-  }
 );
 
 // Response interceptor with enhanced error handling

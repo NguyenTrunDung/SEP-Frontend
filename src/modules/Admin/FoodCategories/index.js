@@ -9,7 +9,6 @@ import FoodCategoryDetails from './FoodCategoryDetails';
 import { useAntModal } from '../../../hooks/useAntModal';
 import { useFoodCategories } from '../../../hooks/queries/useFoodCategories';
 import { foodCategoryService } from '../../../services/foodCategoryService';
-import { useFoodCategoryContext } from '../../../context/FoodCategoryContext';
 import { environment } from '../../../services/api/config';
 
 const FoodCategoriesPageContent = ({
@@ -58,7 +57,6 @@ const FoodCategories = () => {
   const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
   const { open: editOpen, showModal: showEditModal, handleCancel: handleEditCancel } = useAntModal();
   const { open: detailsOpen, showModal: showDetailsModal, handleCancel: handleDetailsCancel } = useAntModal();
-  const { triggerRefresh } = useFoodCategoryContext();
   const branchId = environment.multiTenant.getCurrentBranchId() || '1';
   const { categories, isLoading, error } = useFoodCategories(branchId);
   const [categoriesData, setCategoriesData] = useState([]);
@@ -103,7 +101,6 @@ const FoodCategories = () => {
           }
 
           setRefreshTrigger((prev) => prev + 1);
-          triggerRefresh();
           if (formData.id) {
             handleEditCancel();
           } else {
@@ -129,7 +126,7 @@ const FoodCategories = () => {
       await foodCategoryService.deleteFoodCategory(record.id, branchId);
       setCategoriesData((prevData) => prevData.filter((item) => item.id !== record.id));
       message.success(`Đã xóa danh mục ${record.name}`);
-      triggerRefresh();
+      setRefreshTrigger((prev) => prev + 1);
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Không thể xóa danh mục.';
       message.error(errorMessage);
@@ -144,7 +141,6 @@ const FoodCategories = () => {
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
     message.success('Đã làm mới danh sách danh mục');
-    triggerRefresh();
   };
 
   return (
