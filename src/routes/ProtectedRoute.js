@@ -24,13 +24,27 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermissions, redirectP
 
     // Check for token expiration and attempt refresh
     useEffect(() => {
-        const tokenExpiry = localStorage.getItem('tokenExpiryTime');
-        if (token && tokenExpiry && new Date(tokenExpiry) <= new Date()) {
-            refreshToken().catch(() => {
-                // Will be handled by the AuthContext logout
-            });
-        }
-    }, [token, refreshToken]);
+        const handleTokenExpiration = async () => {
+            if (token && !loading) {
+                const tokenExpiry = localStorage.getItem('tokenExpiryTime');
+                if (tokenExpiry && new Date(tokenExpiry) <= new Date()) {
+                    console.log('🔄 ProtectedRoute: Token expired, attempting refresh...');
+
+                    // Only attempt refresh if not already in progress
+                    if (!window.isRefreshingToken) {
+                        try {
+                            await refreshToken();
+                        } catch (error) {
+                            console.error('❌ ProtectedRoute: Token refresh failed:', error);
+                            // Let AuthContext handle the logout
+                        }
+                    }
+                }
+            }
+        };
+
+        handleTokenExpiration();
+    }, [token, refreshToken, loading]);
 
     // Show loading state if auth is still being determined
     if (loading) {

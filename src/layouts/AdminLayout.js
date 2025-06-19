@@ -15,6 +15,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
 import UserHeader from "../components/common/UserHeader";
+import BranchSwitcher from "../components/common/BranchSwitcher";
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Title, Text } = Typography;
@@ -251,7 +252,14 @@ const AdminLayout = ({ children }) => {
                         alignItems: "center"
                     }}
                 >
-                    <div />
+                    {/* Branch Switcher - Only for System Admin */}
+                    {hasRequiredRole([ROLES.SYSTEM_ADMIN]) ? (
+                        <BranchSwitcher />
+                    ) : (
+                        <div />
+                    )}
+
+                    {/* User info and dropdown */}
                     <UserHeader onLogout={handleLogout} />
                 </Header>
 

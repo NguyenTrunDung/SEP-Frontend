@@ -1,8 +1,7 @@
 import React from 'react';
 import { Select, Spin, Alert, Button, Space, Typography, Card } from 'antd';
 import { ReloadOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { useBranches } from '../../hooks/queries/useBranches';
-import { useBranchContext } from '../../hooks/useBranchContext';
+import { useBranches, useCurrentBranch, useSwitchBranch } from '../../hooks/queries/userBranchesQueries';
 
 const { Option } = Select;
 const { Text, Title } = Typography;
@@ -26,20 +25,25 @@ const BranchSelector = ({ showCurrentBranch = true, style = {} }) => {
         refetch: refetchBranches
     } = useBranches();
 
-    // Get branch context for current branch management
+    // Get current branch data
     const {
-        currentBranchId,
-        currentBranch,
-        switchBranch,
-        switchingBranch,
-        error: contextError,
-        isBranchSelected,
-        isDefaultBranch
-    } = useBranchContext();
+        data: currentBranch,
+        isLoading: currentBranchLoading,
+        error: currentBranchError
+    } = useCurrentBranch();
+
+    // Get branch switch mutation
+    const switchBranchMutation = useSwitchBranch();
+
+    const currentBranchId = currentBranch?.id;
+    const switchingBranch = switchBranchMutation.isLoading;
+    const contextError = currentBranchError || switchBranchMutation.error;
+    const isBranchSelected = !!currentBranchId;
+    const isDefaultBranch = currentBranch?.isDefault || false;
 
     const handleBranchChange = async (branchId) => {
         try {
-            await switchBranch(branchId);
+            await switchBranchMutation.mutateAsync(branchId);
         } catch (error) {
             console.error('Failed to switch branch in selector:', error);
         }
@@ -175,7 +179,11 @@ export default BranchSelector;
  */
 export const SimpleBranchSelector = ({ onChange, style = {} }) => {
     const { data: branches, isLoading } = useBranches();
-    const { currentBranchId, switchingBranch } = useBranchContext();
+    const { data: currentBranch } = useCurrentBranch();
+    const switchBranchMutation = useSwitchBranch();
+
+    const currentBranchId = currentBranch?.id;
+    const switchingBranch = switchBranchMutation.isLoading;
 
     const handleChange = async (branchId) => {
         if (onChange) {

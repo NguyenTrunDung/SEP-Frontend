@@ -1,4 +1,5 @@
 import api, { environment } from './api/config';
+import { jwtDecode } from 'jwt-decode';
 
 export const authService = {
     /**
@@ -113,8 +114,12 @@ export const authService = {
                 refreshTokenExpiryTime
             };
         } catch (error) {
-            // If refresh fails, clear all auth data
-            this.logout();
+            if (environment.features.enableLogging) {
+                console.error('❌ Token refresh failed:', error.response?.data?.message || error.message);
+            }
+
+            // Don't automatically logout here - let the calling code handle it
+            // This prevents circular dependency issues
             throw error;
         }
     },
@@ -390,18 +395,116 @@ export const authService = {
         localStorage.removeItem('isSystemAdmin');
     },
 
-    // Token expiry check
+    // Token expiry check using JWT decode
     isTokenExpired() {
-        const expiryTime = this.getTokenExpiryTime();
-        if (!expiryTime) return false;
+        const token = environment.auth.getToken();
+        if (!token) {
+            console.log('⚠️ No JWT token found');
+            return true; // If no token, consider it expired
+        }
 
-        return new Date(expiryTime) <= new Date();
+        try {
+            const decoded = jwtDecode(token);
+            const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
+            const tokenExp = decoded.exp; // JWT exp claim is in seconds
+
+            if (!tokenExp) {
+                console.log('⚠️ No exp claim found in JWT token');
+                return false; // If no exp claim, assume token is valid
+            }
+
+            const isExpired = currentTime >= tokenExp;
+            const timeUntilExpiry = tokenExp - currentTime;
+
+            if (environment.features.enableLogging) {
+                console.log('🔄 JWT Token expiry check:', {
+                    currentTime: new Date(currentTime * 1000).toISOString(),
+                    tokenExpiry: new Date(tokenExp * 1000).toISOString(),
+                    isExpired,
+                    timeUntilExpiry: isExpired ? 'Already expired' : `${Math.round(timeUntilExpiry / 60)} minutes`
+                });
+            }
+
+            return isExpired;
+        } catch (error) {
+            console.error('❌ Error decoding JWT token:', error);
+            return true; // If token is malformed, consider it expired
+        }
     },
 
     isRefreshTokenExpired() {
+        // For refresh token, we still use the stored expiry time from backend
+        // since refresh tokens are typically opaque tokens, not JWTs
         const expiryTime = this.getRefreshTokenExpiryTime();
-        if (!expiryTime) return false;
+        if (!expiryTime) {
+            console.log('⚠️ No refresh token expiry time found');
+            return false; // If no expiry time, assume token is valid
+        }
 
-        return new Date(expiryTime) <= new Date();
+        const now = new Date();
+        const expiry = new Date(expiryTime);
+        const isExpired = expiry <= now;
+
+        if (environment.features.enableLogging) {
+            console.log('🔄 Refresh token expiry check:', {
+                now: now.toISOString(),
+                expiry: expiry.toISOString(),
+                isExpired,
+                timeUntilExpiry: isExpired ? 'Already expired' : `${Math.round((expiry - now) / 1000 / 60 / 60)} hours`
+            });
+        }
+
+        return isExpired;
+    },
+
+    // Helper method to get JWT payload without verification (for debugging)
+    getJWTPayload() {
+        const token = environment.auth.getToken();
+        if (!token) return null;
+
+        try {
+            return jwtDecode(token);
+        } catch (error) {
+            console.error('❌ Error decoding JWT token:', error);
+            return null;
+        }
+    },
+
+    // Debug helper to log JWT token details
+    debugJWTToken() {
+        const token = environment.auth.getToken();
+        if (!token) {
+            console.log('🔍 JWT Debug: No token found');
+            return null;
+        }
+
+        try {
+            const decoded = jwtDecode(token);
+            const currentTime = Math.floor(Date.now() / 1000);
+            const timeUntilExpiry = decoded.exp - currentTime;
+
+            const debugInfo = {
+                header: decoded,
+                issuer: decoded.iss,
+                audience: decoded.aud,
+                subject: decoded.sub,
+                userId: decoded.UserId,
+                email: decoded.email,
+                role: decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'],
+                firstName: decoded.FirstName,
+                lastName: decoded.LastName,
+                issuedAt: decoded.iat ? new Date(decoded.iat * 1000).toISOString() : 'N/A',
+                expiresAt: decoded.exp ? new Date(decoded.exp * 1000).toISOString() : 'N/A',
+                currentTime: new Date(currentTime * 1000).toISOString(),
+                timeUntilExpiry: timeUntilExpiry > 0 ? `${Math.round(timeUntilExpiry / 60)} minutes` : 'Already expired',
+                isExpired: currentTime >= decoded.exp
+            };
+
+            console.log('🔍 JWT Token Debug Info:', debugInfo);
+            return debugInfo;
+        } catch (error) {
+            console.error('❌ Error debugging JWT token:', error);
+            return null;
+        }
     }
 }; 

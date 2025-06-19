@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar } from 'antd';
 import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useBranches, useSwitchBranch } from '../hooks/queries/userBranchesQueries';
+import { usePublicBranchesOnly, usePublicSwitchBranchOnly } from '../hooks/queries/useBranchSelector';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../constants/roles';
@@ -19,8 +19,8 @@ const { Header } = Layout;
 const { Text } = Typography;
 
 const Navbar = () => {
-  const { data: branchesData, isLoading: loading, isError, error } = useBranches();
-  const switchBranchMutation = useSwitchBranch();
+  const { data: branchesData, isLoading: loading, isError, error } = usePublicBranchesOnly();
+  const switchBranchMutation = usePublicSwitchBranchOnly();
   const { cartItems, setCartItems } = useCart();
   const { user, logout } = useAuth();
   const navigate = useNavigate();

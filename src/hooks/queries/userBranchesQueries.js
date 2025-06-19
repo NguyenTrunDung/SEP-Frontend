@@ -13,18 +13,35 @@ export const BRANCH_KEYS = {
     adminUsers: (branchCode) => [...BRANCH_KEYS.all, 'adminUsers', branchCode],
 };
 
+// Export for backward compatibility
+export const BRANCH_QUERY_KEYS = BRANCH_KEYS;
+
 /**
  * Hook for fetching all branches
  */
 export const useBranches = (options = {}) => {
-    return useQuery({
+    const query = useQuery({
         queryKey: BRANCH_KEYS.lists(),
-        queryFn: () => branchService.getAllBranches(),
+        queryFn: async () => {
+            console.log('🔄 useBranches queryFn called');
+            const result = await branchService.getAllBranches();
+            console.log('🔄 useBranches queryFn result:', result);
+            return result;
+        },
         staleTime: 5 * 60 * 1000, // 5 minutes
         cacheTime: 10 * 60 * 1000, // 10 minutes
         refetchOnWindowFocus: false,
         ...options,
     });
+
+    console.log('🔄 useBranches hook state:', {
+        data: query.data,
+        isLoading: query.isLoading,
+        error: query.error?.message,
+        status: query.status
+    });
+
+    return query;
 };
 
 /**

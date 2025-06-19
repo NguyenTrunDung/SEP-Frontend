@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { mapBackendRoleToFrontend, hasAdminAccess, shouldUseGuestLayout } from '../constants/roles';
+import environment from '../config/environment';
 
 const AuthContext = createContext();
 
@@ -123,63 +124,281 @@ const authReducer = (state, action) => {
 export const AuthProvider = ({ children }) => {
     const [state, dispatch] = useReducer(authReducer, initialState);
 
-    // Token expiration check
+    // Token expiration check with proper timing
     useEffect(() => {
         const checkTokenExpiration = () => {
-            if (authService.isTokenExpired()) {
-                console.log('🔄 Token expired, attempting refresh...');
-                if (state.refreshToken && !authService.isRefreshTokenExpired()) {
-                    refreshToken();
-                } else {
-                    console.log('🚫 Refresh token expired, logging out...');
-                    logout();
+            // Only check if we have tokens and not currently loading
+            if (state.token && !state.loading) {
+                try {
+                    // Prevent immediate refresh after login/token refresh (5-minute cooldown)
+                    const lastRefreshTime = localStorage.getItem('lastTokenRefresh');
+                    const now = Date.now();
+                    if (lastRefreshTime && (now - parseInt(lastRefreshTime)) < 5 * 60 * 1000) {
+                        if (environment.features.enableLogging) {
+                            console.log('⏱️ Token refresh cooldown active, skipping check');
+                        }
+                        return;
+                    }
+
+                    // Check if token will expire in the next 30 seconds (30 seconds buffer)
+                    // This is very conservative - only refresh when token is actually about to expire
+                    const REFRESH_BUFFER_SECONDS = 30; // 30 seconds instead of 2 minutes
+                    const token = authService.getJWTPayload();
+
+                    if (token && token.exp) {
+                        const currentTime = Math.floor(Date.now() / 1000);
+                        const timeUntilExpiry = token.exp - currentTime;
+
+                        // Add detailed logging to understand refresh behavior
+                        if (environment.features.enableLogging) {
+                            console.log('🔍 Token check details:', {
+                                currentTime: new Date(currentTime * 1000).toISOString(),
+                                tokenExpiry: new Date(token.exp * 1000).toISOString(),
+                                timeUntilExpirySeconds: Math.round(timeUntilExpiry),
+                                bufferSeconds: Math.round(REFRESH_BUFFER_SECONDS),
+                                shouldRefresh: timeUntilExpiry <= REFRESH_BUFFER_SECONDS && timeUntilExpiry > 0,
+                                isExpired: timeUntilExpiry <= 0
+                            });
+                        }
+
+                        // Only refresh if token expires within the buffer period (30 seconds)
+                        if (timeUntilExpiry <= REFRESH_BUFFER_SECONDS && timeUntilExpiry > 0) {
+                            console.log(`🔄 Token expires in ${Math.round(timeUntilExpiry)} seconds (within ${Math.round(REFRESH_BUFFER_SECONDS)}-second buffer), refreshing...`);
+
+                            if (state.refreshToken && !authService.isRefreshTokenExpired()) {
+                                // Use a flag to prevent multiple simultaneous refresh attempts
+                                if (!window.isRefreshingToken) {
+                                    window.isRefreshingToken = true;
+                                    refreshToken().finally(() => {
+                                        window.isRefreshingToken = false;
+                                    });
+                                }
+                            } else {
+                                console.log('❌ Refresh token expired or missing, logging out...');
+                                logout();
+                            }
+                        } else if (timeUntilExpiry <= 0) {
+                            // Token is already expired
+                            console.log('❌ Token already expired, logging out...');
+                            logout();
+                        } else {
+                            // Token is still valid and not within refresh buffer
+                            if (environment.features.enableLogging) {
+                                console.log(`✅ Token is valid for ${Math.round(timeUntilExpiry)} more seconds, no refresh needed`);
+                            }
+                        }
+                    } else {
+                        console.warn('⚠️ Could not decode token for expiry check');
+                    }
+                } catch (error) {
+                    console.error('❌ Error in token expiration check:', error);
                 }
             }
         };
 
-        // Check immediately and then every 30 seconds
-        const tokenCheckInterval = setInterval(checkTokenExpiration, 30000);
-
+        // Check immediately when component mounts/token changes - but disable periodic checking
         if (state.token) {
             checkTokenExpiration();
         }
 
-        return () => clearInterval(tokenCheckInterval);
-    }, [state.token, state.refreshToken]);
+        // Disable periodic checking to prevent unnecessary refresh calls
+        // Token refresh will only happen when:
+        // 1. App loads and token is expired
+        // 2. API calls fail due to expired token (handled by axios interceptor)
+        // 3. Manual refresh triggers (if implemented)
+        console.log('ℹ️ Periodic token checking disabled - only refresh when actually expired');
+
+        // Return empty cleanup function since no interval is set
+        return () => { };
+    }, [state.token, state.refreshToken, state.loading]);
 
     // Load user on app start if token exists
     useEffect(() => {
         const loadUser = async () => {
             if (state.token && !authService.isTokenExpired()) {
-                console.log('🔄 Loading user with existing token...');
+                console.log('🔄 Token exists, restoring user from localStorage...');
+
+                // Debug JWT token details
+                if (environment.features.enableLogging) {
+                    authService.debugJWTToken();
+                }
+
                 dispatch({ type: 'SET_LOADING', payload: true });
 
                 try {
-                    const user = await authService.getCurrentUser();
-                    console.log('✅ User loaded successfully:', user);
+                    // Since /api/auth/me is not implemented yet, use localStorage data
+                    const storedPermissions = authService.getPermissions();
+                    const storedUserBranches = authService.getUserBranches();
+                    const storedDefaultBranch = authService.getDefaultBranch();
+                    const storedIsSystemAdmin = authService.getIsSystemAdmin();
 
-                    // Update user data while preserving other auth state
-                    dispatch({
-                        type: 'UPDATE_USER',
-                        payload: user,
-                    });
-                } catch (error) {
-                    console.error('❌ Error loading user:', error);
+                    // Check if we have sufficient user data in localStorage
+                    if (storedPermissions.length > 0 || storedUserBranches.length > 0) {
+                        console.log('✅ User data restored from localStorage');
 
-                    // Try to refresh token if user fetch fails
-                    if (state.refreshToken && !authService.isRefreshTokenExpired()) {
+                        // Create a basic user object from localStorage if not present
+                        if (!state.user) {
+                            // Try to extract user info from JWT token claims if available
+                            const token = authService.getToken();
+                            if (token) {
+                                try {
+                                    // Decode JWT payload (without verification for display purposes only)
+                                    const base64Url = token.split('.')[1];
+                                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                                    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+                                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                                    }).join(''));
+
+                                    const payload = JSON.parse(jsonPayload);
+                                    console.log('🔍 JWT Payload:', payload);
+
+                                    // Create user object from JWT claims
+                                    const userFromToken = {
+                                        id: payload.UserId || payload.sub,
+                                        email: payload.email || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'],
+                                        firstName: payload.FirstName || 'User',
+                                        lastName: payload.LastName || '',
+                                        fullName: `${payload.FirstName || 'User'} ${payload.LastName || ''}`.trim(),
+                                        roles: payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
+                                            ? [payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']]
+                                            : ['User']
+                                    };
+
+                                    dispatch({
+                                        type: 'UPDATE_USER',
+                                        payload: userFromToken,
+                                    });
+                                } catch (tokenError) {
+                                    console.warn('⚠️ Could not decode JWT token:', tokenError);
+                                }
+                            }
+                        }
+
+                        dispatch({ type: 'SET_LOADING', payload: false });
+                    } else {
+                        // No stored data but token is still valid - extract user from JWT token directly
+                        console.log('⚠️ No stored user data found, extracting from JWT token...');
                         try {
-                            await refreshToken();
-                        } catch (refreshError) {
-                            console.error('❌ Error refreshing token:', refreshError);
+                            // Extract user info from current JWT token (don't refresh unless expired)
+                            const payload = authService.getJWTPayload();
+                            if (payload) {
+                                const userFromToken = {
+                                    id: payload.UserId || payload.sub,
+                                    email: payload.email || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'],
+                                    firstName: payload.FirstName || 'User',
+                                    lastName: payload.LastName || '',
+                                    fullName: `${payload.FirstName || 'User'} ${payload.LastName || ''}`.trim(),
+                                    roles: payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
+                                        ? [payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']]
+                                        : ['User']
+                                };
+
+                                // Map backend roles to frontend role
+                                const storedUserBranches = authService.getUserBranches();
+                                const branchRoleName = storedUserBranches.length > 0 ? storedUserBranches[0].branchRoleName : null;
+
+                                const mappedUser = {
+                                    ...userFromToken,
+                                    role: mapBackendRoleToFrontend(
+                                        userFromToken.roles,
+                                        branchRoleName,
+                                        storedUserBranches
+                                    )
+                                };
+
+                                dispatch({
+                                    type: 'UPDATE_USER',
+                                    payload: mappedUser,
+                                });
+
+                                console.log('✅ User data extracted from valid JWT token');
+                            } else {
+                                console.warn('⚠️ Could not extract user data from JWT token');
+                            }
+                        } catch (extractError) {
+                            console.error('❌ Error extracting user from JWT:', extractError);
+                        }
+
+                        // Clear loading state - don't refresh token unless it's actually expired
+                        dispatch({ type: 'SET_LOADING', payload: false });
+                    }
+                } catch (error) {
+                    console.error('❌ Error loading user data:', error);
+
+                    // Only refresh token if it's actually expired, not just because loading failed
+                    if (authService.isTokenExpired()) {
+                        console.log('🔄 Token is expired after loading error, attempting refresh...');
+                        if (state.refreshToken && !authService.isRefreshTokenExpired()) {
+                            try {
+                                await refreshToken();
+                            } catch (refreshError) {
+                                console.error('❌ Error refreshing expired token:', refreshError);
+                                logout();
+                            }
+                        } else {
+                            console.log('🚫 No valid refresh token, logging out...');
                             logout();
                         }
                     } else {
-                        logout();
+                        console.log('⚠️ Loading failed but token is still valid, skipping refresh');
+                        // Try to extract user from JWT as fallback
+                        try {
+                            const payload = authService.getJWTPayload();
+                            if (payload) {
+                                const userFromToken = {
+                                    id: payload.UserId || payload.sub,
+                                    email: payload.email || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'],
+                                    firstName: payload.FirstName || 'User',
+                                    lastName: payload.LastName || '',
+                                    fullName: `${payload.FirstName || 'User'} ${payload.LastName || ''}`.trim(),
+                                    roles: payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
+                                        ? [payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']]
+                                        : ['User']
+                                };
+
+                                const storedUserBranches = authService.getUserBranches();
+                                const branchRoleName = storedUserBranches.length > 0 ? storedUserBranches[0].branchRoleName : null;
+
+                                const mappedUser = {
+                                    ...userFromToken,
+                                    role: mapBackendRoleToFrontend(
+                                        userFromToken.roles,
+                                        branchRoleName,
+                                        storedUserBranches
+                                    )
+                                };
+
+                                dispatch({
+                                    type: 'UPDATE_USER',
+                                    payload: mappedUser,
+                                });
+
+                                console.log('✅ User data extracted from JWT as fallback');
+                            }
+                        } catch (fallbackError) {
+                            console.warn('⚠️ Could not extract user data as fallback:', fallbackError);
+                        }
                     }
                 } finally {
                     dispatch({ type: 'SET_LOADING', payload: false });
                 }
+            } else if (state.token && authService.isTokenExpired()) {
+                // Token is expired, try to refresh it
+                console.log('🔄 Token is expired, attempting refresh...');
+                if (state.refreshToken && !authService.isRefreshTokenExpired()) {
+                    try {
+                        await refreshToken();
+                        // Loading state is cleared by refreshToken function
+                    } catch (refreshError) {
+                        console.error('❌ Error refreshing expired token:', refreshError);
+                        logout();
+                    }
+                } else {
+                    console.log('🚫 Refresh token expired, logging out...');
+                    logout();
+                }
+                // Ensure loading is cleared if logout is called
+                dispatch({ type: 'SET_LOADING', payload: false });
             } else {
                 console.log('ℹ️ No valid token found, skipping user load');
                 dispatch({ type: 'SET_LOADING', payload: false });
@@ -213,6 +432,9 @@ export const AuthProvider = ({ children }) => {
                 type: 'LOGIN_SUCCESS',
                 payload: authData,
             });
+
+            // Set initial timestamp to prevent immediate refresh after login
+            localStorage.setItem('lastTokenRefresh', Date.now().toString());
         } catch (error) {
             console.error('❌ Login failed:', error);
             const errorMessage = error.response?.data?.message || error.message || 'Login failed';
@@ -226,6 +448,10 @@ export const AuthProvider = ({ children }) => {
     const refreshToken = async () => {
         try {
             console.log('🔄 Attempting to refresh token...');
+
+            // Track refresh time to prevent too frequent refreshes
+            localStorage.setItem('lastTokenRefresh', Date.now().toString());
+
             const tokenData = await authService.refreshToken();
 
             console.log('✅ Token refreshed successfully');
@@ -234,21 +460,59 @@ export const AuthProvider = ({ children }) => {
                 payload: tokenData,
             });
 
-            // Reload user data with new token
-            try {
-                const user = await authService.getCurrentUser();
-                dispatch({
-                    type: 'UPDATE_USER',
-                    payload: user,
-                });
-            } catch (userError) {
-                console.warn('⚠️ Failed to reload user after token refresh:', userError);
+            // After token refresh, restore user data if it's missing
+            if (!state.user) {
+                console.log('🔄 Restoring user data after token refresh...');
+                try {
+                    // Extract user info from new JWT token
+                    const payload = authService.getJWTPayload();
+                    if (payload) {
+                        const userFromToken = {
+                            id: payload.UserId || payload.sub,
+                            email: payload.email || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'],
+                            firstName: payload.FirstName || 'User',
+                            lastName: payload.LastName || '',
+                            fullName: `${payload.FirstName || 'User'} ${payload.LastName || ''}`.trim(),
+                            roles: payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
+                                ? [payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']]
+                                : ['User']
+                        };
+
+                        // Map backend roles to frontend role
+                        const storedUserBranches = authService.getUserBranches();
+                        const branchRoleName = storedUserBranches.length > 0 ? storedUserBranches[0].branchRoleName : null;
+
+                        const mappedUser = {
+                            ...userFromToken,
+                            role: mapBackendRoleToFrontend(
+                                userFromToken.roles,
+                                branchRoleName,
+                                storedUserBranches
+                            )
+                        };
+
+                        dispatch({
+                            type: 'UPDATE_USER',
+                            payload: mappedUser,
+                        });
+
+                        console.log('✅ User data restored from JWT token');
+                    }
+                } catch (userError) {
+                    console.warn('⚠️ Could not restore user data from JWT token:', userError);
+                }
             }
 
+            // Ensure loading state is cleared after successful refresh
+            dispatch({ type: 'SET_LOADING', payload: false });
+
+            console.log('ℹ️ Token refreshed, user data available, loading cleared');
             return true;
         } catch (error) {
             console.error('❌ Token refresh failed:', error);
-            logout();
+            // Don't call logout here to avoid circular dependency
+            // Instead, dispatch logout action directly
+            dispatch({ type: 'LOGOUT' });
             return false;
         }
     };
@@ -260,6 +524,8 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
             console.warn('⚠️ Logout API call failed:', error);
         } finally {
+            // Clear refresh timestamp on logout
+            localStorage.removeItem('lastTokenRefresh');
             dispatch({ type: 'LOGOUT' });
             console.log('✅ Logout completed');
         }
