@@ -14,38 +14,19 @@ import {
     Typography,
     message,
 } from 'antd';
-import { PlusOutlined, MinusCircleOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined, MinusCircleOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import PropTypes from 'prop-types';
 import './CreateFoodsMenu.css';
 
-// Initialize Cloudinary upload widget
-const openCloudinaryWidget = (cb) => {
-    window.cloudinary.openUploadWidget(
-        {
-            cloudName: 'depxkho4m',
-            uploadPreset: 'sep490',
-            sources: ['local', 'url', 'camera'],
-            multiple: false,
-            resourceType: 'image',
-            clientAllowedFormats: ['png', 'jpg', 'jpeg'],
-            maxFileSize: 5000000,
-        },
-        (error, result) => {
-            if (!error && result && result.event === 'success') {
-                console.log('Cloudinary upload successful:', result.info);
-                cb(result.info.secure_url);
-            } else if (error) {
-                console.error('Cloudinary upload error:', error);
-                message.error('Lỗi khi tải lên hình ảnh!');
-            }
-        }
-    );
-};
+// Removed Cloudinary upload widget - keeping it simple
 
 const { Text } = Typography;
+
+// Constants
+const MAX_LARGE_QUANTITY = 999;
 
 const CreateFoodsMenu = ({
     open,
@@ -59,6 +40,7 @@ const CreateFoodsMenu = ({
     const [serviceTime, setServiceTime] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [showFoodList, setShowFoodList] = useState({});
+    const [forceUpdate, setForceUpdate] = useState(0);
 
     // Menu categories
     const menuCategories = [
@@ -125,8 +107,7 @@ const CreateFoodsMenu = ({
             staffPrice: Math.round((dish.price || 0) * 0.8),
             discount: 0,
             autoDiscount: false,
-            maxDiscount: 0,
-            imageUrl: '', // Ensure imageUrl is always included
+            maxDiscount: 0
         };
 
         console.log(`Dish added to ${categoryKey}:`, newItem);
@@ -163,27 +144,7 @@ const CreateFoodsMenu = ({
         }
     };
 
-    // Handle image upload for a specific dish
-    const handleImageUpload = (categoryKey, name, url) => {
-        console.log(`Image uploaded for ${categoryKey} dish index ${name}: ${url}`);
-        const currentValues = form.getFieldsValue();
-        const categoryData = currentValues[categoryKey] || [];
-        const updatedCategoryData = categoryData.map((item, index) =>
-            index === name ? { ...item, imageUrl: url } : item
-        );
-
-        console.log('Before update - Category data:', categoryData);
-        console.log('After update - Category data:', updatedCategoryData);
-
-        form.setFieldsValue({
-            ...currentValues,
-            [categoryKey]: updatedCategoryData,
-        });
-
-        console.log(`Image URL for ${categoryKey}[${name}]:`, form.getFieldValue([categoryKey, name, 'imageUrl']));
-        console.log('Updated form values after image upload:', form.getFieldsValue());
-        message.success('Hình ảnh đã được tải lên thành công!');
-    };
+    // Removed image upload functionality - keeping it simple
 
     // Toggle food list visibility
     const toggleFoodList = (categoryKey) => {
@@ -221,25 +182,54 @@ const CreateFoodsMenu = ({
         }
     };
 
-    // Render compact dish configuration with image
+    // Render compact dish configuration
     const renderCompactDishConfig = (categoryKey, name, restField, selectedDish) => {
-        const imageUrl = form.getFieldValue([categoryKey, name, 'imageUrl']);
-        console.log(`Rendering dish ${selectedDish.name} in ${categoryKey}[${name}] with imageUrl:`, imageUrl);
+        const isLargeQuantity = form.getFieldValue([categoryKey, name, 'largeQuantity']) || false;
+        const currentQuantity = form.getFieldValue([categoryKey, name, 'quantity']) || 1;
+        console.log(`Rendering dish ${selectedDish.name} in ${categoryKey}[${name}] - isLargeQuantity: ${isLargeQuantity}, quantity: ${currentQuantity}`);
+
+        // Handle large quantity change
+        const handleLargeQuantityChange = (e) => {
+            const checked = e.target.checked;
+
+            // Update the largeQuantity field directly
+            form.setFieldValue([categoryKey, name, 'largeQuantity'], checked);
+
+            // Update the quantity field based on the checkbox state
+            const newQuantity = checked ? MAX_LARGE_QUANTITY : 1;
+            form.setFieldValue([categoryKey, name, 'quantity'], newQuantity);
+
+            // Force re-render to update UI
+            setForceUpdate(prev => prev + 1);
+
+            console.log(`Large quantity ${checked ? 'enabled' : 'disabled'} for ${selectedDish.name}, quantity set to: ${newQuantity}`);
+        };
 
         return (
-            <div className="dish-config-compact">
+            <div className="dish-config-compact" key={`${categoryKey}-${name}-${forceUpdate}`}>
                 <Row gutter={[8, 8]} align="middle">
-                    <Col span={3}>
+                    <Col span={4}>
                         <Form.Item
                             {...restField}
                             name={[name, 'quantity']}
                             rules={[{ required: true, message: 'Số lượng!' }]}
                             style={{ marginBottom: 0 }}
                         >
-                            <InputNumber min={1} max={999} placeholder="1" size="small" style={{ width: '100%' }} />
+                            <InputNumber
+                                min={1}
+                                max={MAX_LARGE_QUANTITY}
+                                placeholder="1"
+                                size="small"
+                                style={{
+                                    width: '100%',
+                                    backgroundColor: isLargeQuantity ? '#f5f5f5' : undefined,
+                                    borderColor: isLargeQuantity ? '#d9d9d9' : undefined
+                                }}
+                                disabled={isLargeQuantity}
+                            />
                         </Form.Item>
                         <Text type="secondary" style={{ fontSize: '11px' }}>
-                            Số lượng
+                            {isLargeQuantity ? 'Số lượng (Max)' : 'Số lượng'}
                         </Text>
                     </Col>
 
@@ -309,7 +299,7 @@ const CreateFoodsMenu = ({
                         </Text>
                     </Col>
 
-                    <Col span={3}>
+                    <Col span={4}>
                         <Form.Item
                             {...restField}
                             name={[name, 'discount']}
@@ -330,21 +320,32 @@ const CreateFoodsMenu = ({
                         </Text>
                     </Col>
 
-                    <Col span={3}>
+                    <Col span={4}>
                         <Form.Item
                             {...restField}
                             name={[name, 'largeQuantity']}
                             valuePropName="checked"
                             style={{ marginBottom: 0 }}
                         >
-                            <Checkbox size="small">Số lượng nhiều</Checkbox>
+                            <Checkbox
+                                size="small"
+                                onChange={handleLargeQuantityChange}
+                            >
+                                <span style={{
+                                    color: isLargeQuantity ? '#1890ff' : undefined,
+                                    fontWeight: isLargeQuantity ? '500' : undefined
+                                }}>
+                                    {isLargeQuantity && <ThunderboltOutlined style={{ marginRight: '4px' }} />}
+                                    Số lượng nhiều
+                                </span>
+                            </Checkbox>
                         </Form.Item>
                         <Text type="secondary" style={{ fontSize: '11px' }}>
-                            Test
+                            {isLargeQuantity ? `Max: ${MAX_LARGE_QUANTITY}` : 'Tùy chọn'}
                         </Text>
                     </Col>
 
-                    <Col span={3}>
+                    <Col span={4}>
                         <Button
                             type="text"
                             danger
@@ -357,47 +358,7 @@ const CreateFoodsMenu = ({
                             Xóa
                         </Button>
                     </Col>
-
-                    <Col span={3}>
-                        <Form.Item
-                            {...restField}
-                            name={[name, 'imageUrl']}
-                            style={{ display: 'none' }}
-                        >
-                            <Input />
-                        </Form.Item>
-                        <Button
-                            type="default"
-                            icon={<UploadOutlined />}
-                            size="small"
-                            onClick={() =>
-                                openCloudinaryWidget((url) => handleImageUpload(categoryKey, name, url))
-                            }
-                            style={{ width: '100%' }}
-                        >
-                            Tải hình
-                        </Button>
-                        <Text type="secondary" style={{ fontSize: '11px' }}>
-                            Hình ảnh
-                        </Text>
-                    </Col>
                 </Row>
-                <Form.Item
-                    {...restField}
-                    name={[name, 'imageUrl']}
-                    noStyle
-                >
-                    <Input type="hidden" />
-                </Form.Item>
-                {imageUrl && (
-                    <div style={{ marginTop: 8 }}>
-                        <img
-                            src={imageUrl}
-                            alt="Dish"
-                            style={{ maxWidth: '100px', maxHeight: '100px', objectFit: 'cover', borderRadius: '4px' }}
-                        />
-                    </div>
-                )}
             </div>
         );
     };
@@ -607,7 +568,6 @@ CreateFoodsMenu.propTypes = {
             name: PropTypes.string.isRequired,
             category: PropTypes.string.isRequired,
             price: PropTypes.number,
-            imageUrl: PropTypes.string,
         })
     ),
     loading: PropTypes.bool,
