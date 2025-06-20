@@ -26,7 +26,12 @@ import CustomerPage from '../modules/Admin/Staff/index.js';
 import ContactPage from '../components/Contact.js';
 import Navbar from '../components/Navbar.js';
 import FooterComponent from '../components/Footer.js';
+
+import FoodCategories from '../modules/Admin/FoodCategories/index.js';
+import Food from '../modules/Admin/Food/index.js'
 import Login from '../modules/Auth/Login.js';
+import Register from '../modules/Auth/Register.js';
+import PatientComponent from '../components/Nurse/Patient/PatientComponent.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
@@ -40,6 +45,7 @@ const roleHomeRedirects = {
   [ROLES.CASHIER]: '/orders',
   [ROLES.KITCHEN]: '/orders',
   [ROLES.GUEST]: '/nurse/home'           // Guests also use the same interface as nurses
+
 };
 
 // Route config with layout and role protection
@@ -55,6 +61,10 @@ const routes = [
     path: '/login',
     element: <Login />,
   },
+  {
+    path: '/register',
+    element: <Register />,
+},
 
   // Unauthorized route
   {
@@ -177,9 +187,27 @@ const routes = [
       </ProtectedRoute>
     ),
   },
-
-
-
+  {
+    path: '/food-categories',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <FoodCategories />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/foods', // Added Foods route
+    element: (
+     <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <Food />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  
 
   // Nurse routes
   {
@@ -192,7 +220,46 @@ const routes = [
       </ProtectedRoute>
     ),
   },
-
+  {
+    path: '/nurse/profile',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+        <DefaultLayout>
+          <Profile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/nurse/edit-profile/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+        <DefaultLayout>
+          <EditProfile />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/nurse/change-password/:id',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+        <DefaultLayout>
+          <ChangePassword />
+        </DefaultLayout>
+      </ProtectedRoute>
+    ),
+  },
+{
+    path: '/nurse/patient',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+        <Navbar />
+        <PatientComponent/>
+        <FooterComponent />
+      </ProtectedRoute>
+    ),
+  },
 
   // Kitchen specific routes (if needed later)
   {

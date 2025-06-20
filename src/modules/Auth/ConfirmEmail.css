@@ -1,0 +1,43 @@
+/* src/modules/Auth/ConfirmEmail.css */
+.confirm-email-layout {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    display: flex;
+    align-items: center;
+}
+
+.confirm-email-row {
+    min-height: 100vh;
+}
+
+.confirm-email-card {
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    background: #fff;
+}
+
+.confirm-email-header {
+    text-align: center;
+    padding: 24px 0;
+    background: #fff;
+}
+
+.confirm-email-title {
+    margin: 0;
+    color: #1a3c6c;
+    font-weight: 600;
+}
+
+.confirm-email-subtitle {
+    margin: 8px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.confirm-email-footer {
+    text-align: center;
+    margin-top: 16px;
+    color: #6b7280;
+    font-size: 12px;
+}

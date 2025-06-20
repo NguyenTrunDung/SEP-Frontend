@@ -8,7 +8,9 @@ import {
     ShoppingCartOutlined,
     MenuOutlined,
     WalletOutlined,
-    FireOutlined
+    FireOutlined,
+    AppstoreOutlined,
+    CoffeeOutlined
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
@@ -58,6 +60,8 @@ const AdminLayout = ({ children }) => {
         if (pathname === "/cashier") return ["cashier"];
         if (pathname === "/admin/users") return ["users"];
         if (pathname === "/admin/settings") return ["settings"];
+        if (pathname === "/food-categories") return ["food-categories"];
+        if (pathname === "/foods") return ["foods"];
 
         // Default fallback based on role
         if (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])) return ["dashboard"];
@@ -201,6 +205,36 @@ const AdminLayout = ({ children }) => {
                                 </Link>
                             ),
                         },
+
+                        // Food Management - Admin, Branch Manager, Manager, Staff, Doctor
+                        canAccess(
+                            [ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR],
+                            ['foods:view']
+                        ) && {
+                            key: "food-management",
+                            icon: <MenuOutlined style={{ fontSize: '18px' }} />,
+                            label: "Món ăn",
+                            children: [
+                                {
+                                    key: "food-categories",
+                                    icon: <AppstoreOutlined style={{ fontSize: '18px' }} />,
+                                    label: (
+                                        <Link to="/food-categories" style={{ fontSize: '16px', fontWeight: '500' }}>
+                                            Nhóm món ăn
+                                        </Link>
+                                    ),
+                                },
+                                {
+                                    key: "foods",
+                                    icon: <CoffeeOutlined style={{ fontSize: '18px' }} />,
+                                    label: (
+                                        <Link to="/foods" style={{ fontSize: '16px', fontWeight: '500' }}>
+                                            Món ăn
+                                        </Link>
+                                    ),
+                                },
+                            ],
+                        },
                     ].filter(Boolean)}
                 />
             </Sider>
@@ -218,15 +252,12 @@ const AdminLayout = ({ children }) => {
                     }}
                 >
                     <div />
-
-                    {/* User info and dropdown */}
                     <UserHeader onLogout={handleLogout} />
                 </Header>
 
                 <Content style={{ margin: "24px 16px 0" }}>
                     <div
                         style={{
-                            // padding: 32,
                             background: "#fff",
                             minHeight: 360,
                             borderRadius: 8,

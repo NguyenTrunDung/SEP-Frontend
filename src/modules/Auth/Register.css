@@ -1,0 +1,28 @@
+/* src/modules/Auth/Register.css */
+.register-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+    padding: 24px;
+}
+
+.register-card {
+    width: 100%;
+    max-width: 500px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    padding: 24px;
+}
+
+.register-card .ant-card-body {
+    padding: 0;
+}
+
+@media (max-width: 576px) {
+    .register-card {
+        padding: 16px;
+    }
+}

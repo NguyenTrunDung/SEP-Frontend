@@ -304,6 +304,25 @@ export const AuthProvider = ({ children }) => {
             dispatch({ type: 'SET_LOADING', payload: false });
         }
     };
+    const register = async (credentials) => {
+        dispatch({ type: 'set_loading', payload: true });
+        try {
+            console.log('Registering user with:', credentials.email);
+            await authService.register(credentials);
+            console.log('✅ Registration successful');
+            // Don't log in automatically, let the Register component handle registration navigation
+            dispatch({ type: 'SET_LOADING', payload: false });
+            return true;
+        } catch (error) {
+            console.error('❌ Registration failed:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Registration failed';
+            dispatch({
+                type: 'LOGIN_FAILURE', // Reusing LOGIN_FAILURE for error handling
+                payload: errorMessage,
+            });
+            throw error;
+        }
+    };
 
     // Permission helper functions
     const hasPermission = (permission) => {
@@ -351,6 +370,7 @@ export const AuthProvider = ({ children }) => {
         updateUser,
         changePassword,
         clearError,
+        register,
 
         // Auth state checks
         isAuthenticated: authService.isAuthenticated(),

@@ -31,14 +31,13 @@ const Navbar = () => {
     return savedBranch ? JSON.parse(savedBranch) : null;
   });
 
-  // Ensure branches is always an array
   const branches = Array.isArray(branchesData) ? branchesData : [];
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [isProfilePopupVisible, setIsProfilePopupVisible] = useState(false);
   const [isUserMenuVisible, setIsUserMenuVisible] = useState(false);
   const [isOrderHistoryVisible, setIsOrderHistoryVisible] = useState(false);
-  const [isWalletModalVisible, setIsWalletModalVisible] = useState(false); // New state for wallet modal
+  const [isWalletModalVisible, setIsWalletModalVisible] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState({
     deliveryAddress: '',
     fullName: '',
@@ -64,27 +63,24 @@ const Navbar = () => {
   }, [selectedBranch]);
 
   useEffect(() => {
-    console.log('Navbar - User data:', { user, role: user?.role });
-  }, [user]);
+    console.log('Navbar - User data:', { user, role: user?.role, location: location.pathname });
+  }, [user, location]);
 
   const showModal = () => setIsModalVisible(true);
 
   const handleBranchSelect = async (branch) => {
-    try {
-      // Use the switchBranch mutation for proper API integration
-      await switchBranchMutation.mutateAsync(branch.id);
-
-      // Update local state and storage
-      setSelectedBranch(branch);
-      localStorage.setItem('selectedBranch', JSON.stringify(branch));
-      setIsModalVisible(false);
-
-      message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
-    } catch (error) {
-      console.error('Failed to switch branch:', error);
-      message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
-    }
-  };
+  try {
+    await switchBranchMutation.mutateAsync(branch.id);
+    setSelectedBranch(branch);
+    localStorage.setItem('selectedBranch', JSON.stringify(branch));
+    localStorage.setItem('currentBranchId', branch.id); // Sync with multiTenant
+    setIsModalVisible(false);
+    message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
+  } catch (error) {
+    console.error('Failed to switch branch:', error);
+    message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
+  }
+};
 
   const handleCartClick = () => {
     console.log('Opening cart modal with cartItems:', cartItems);
@@ -96,24 +92,17 @@ const Navbar = () => {
   };
 
   const handleMenuClick = (key) => {
+    console.log('Menu clicked:', { key, userRole: user?.role });
     setActiveKey(key);
-    if (key === 'cart') {
+    const menuItem = menuItems.find((item) => item.key === key);
+    if (menuItem?.route) {
+      console.log(`Navigating to: ${menuItem.route}`);
+      navigate(menuItem.route);
+    } else if (key === 'cart') {
+      console.log('Handling cart click');
       handleCartClick();
-    } else if (key === 'contact') {
-      navigate('/contact');
-    } else if (key === 'staff' && user?.role === ROLES.NURSE) {
-      navigate('/nurse/home');
-    }
-    // Commented out since "employee" menu item is now handled by UserHeader component
-    // else if (key === 'employee' && user?.role === ROLES.NURSE) {
-    //   setIsUserMenuVisible(true);
-    // } 
-    else {
-      const routes = {
-        home: '/',
-        // Commented out since staff menu items are now handled by UserHeader component
-        // staff: user?.role === ROLES.NURSE ? '/nurse/home' : '/staff',
-      };
+    } else {
+      console.log(`Checking for section with ID: ${key}`);
       const section = document.getElementById(key);
       if (section) {
         const headerHeight = 139;
@@ -122,8 +111,9 @@ const Navbar = () => {
           top: sectionPosition - headerHeight,
           behavior: 'smooth',
         });
-      } else if (routes[key]) {
-        navigate(routes[key]);
+      } else {
+        console.warn(`No route or section found for key: ${key}`);
+        message.error('Không tìm thấy trang hoặc mục tương ứng.');
       }
     }
   };
@@ -135,6 +125,7 @@ const Navbar = () => {
       navigate('/login');
       return;
     }
+    console.log('Opening profile popup for user:', user);
     setIsProfilePopupVisible(true);
     setIsUserMenuVisible(false);
   };
@@ -147,11 +138,13 @@ const Navbar = () => {
   };
 
   const handleOrderHistoryClick = () => {
+    console.log('Opening order history');
     setIsOrderHistoryVisible(true);
     setIsUserMenuVisible(false);
   };
 
   const handleWalletClick = () => {
+    console.log('Opening wallet modal');
     setIsWalletModalVisible(true);
     setIsUserMenuVisible(false);
   };
@@ -160,20 +153,18 @@ const Navbar = () => {
     { key: 'home', label: 'TRANG CHỦ', route: '/' },
     { key: 'menu', label: 'THỰC ĐƠN' },
     { key: 'cart', label: 'GIỎ HÀNG' },
-    // Commented out NHÂN VIÊN menu items since UserHeader now handles user/employee functionality
     ...(user?.role === ROLES.NURSE
       ? [
-        { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/home' },
-        // { key: 'employee', label: 'NHÂN VIÊN' }, // Now handled by UserHeader component
-      ]
+          { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
+        ]
       : user?.role === ROLES.GUEST
         ? []
-        : [
-          // { key: 'staff', label: 'NHÂN VIÊN', route: '/staff' } // Now handled by UserHeader component
-        ]
+        : []
     ),
     { key: 'contact', label: 'LIÊN HỆ', route: '/contact' },
   ];
+
+  console.log('Menu items:', menuItems);
 
   return (
     <ConfigProvider locale={locale}>
@@ -189,12 +180,9 @@ const Navbar = () => {
       >
         <div style={{ backgroundColor: '#b4c80f', padding: '8px 20px', height: '40px', lineHeight: '26px' }}>
           <Row align="middle" justify="space-between">
-            {/* Left side - can be used for additional info or left empty */}
             <Col>
               {/* Reserved for future use */}
             </Col>
-
-            {/* Right side - Hotline, Order Tracking, Branch Selection, User Header */}
             <Col>
               <Row align="middle" gutter={16}>
                 <Col>
@@ -241,7 +229,6 @@ const Navbar = () => {
                   <span style={{ color: '#fff', fontSize: '14px' }}>|</span>
                 </Col>
                 <Col>
-                  {/* UserHeader Component */}
                   <UserHeader
                     showGreeting={true}
                     avatarSize="small"

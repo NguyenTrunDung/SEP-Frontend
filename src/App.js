@@ -92,10 +92,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-         <CartProvider>
-        <Suspense fallback={<Loading />}>
-          <RouterProvider router={router} />
-        </Suspense>
+        <CartProvider>
+
+          <Suspense fallback={<Loading />}>
+            <RouterProvider router={router} />
+          </Suspense>
+
         </CartProvider>
       </AuthProvider>
       {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}

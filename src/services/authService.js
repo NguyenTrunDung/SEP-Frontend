@@ -251,6 +251,29 @@ export const authService = {
             throw error;
         }
     },
+    
+    async register(userData) {
+        try {
+            const response = await api.post(environment.api.getVersionedPath('/auth/register'), {
+                email: userData.email,
+                password: userData.password,
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+                address: userData.address
+            });
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Registration successful for user:', userData.email);
+            }
+
+            return response.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Registration failed:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
 
     // Permission management helpers
     getPermissions() {
