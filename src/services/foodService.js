@@ -1,112 +1,161 @@
 import api, { environment } from './api/config';
 
+/**
+ * Food Service
+ * Handles all food-related API operations with multi-tenant support
+ * 
+ * Branch Context Strategy:
+ * - API interceptor automatically adds X-Branch-Id header from current branch context
+ * - HOMMS.BranchId cookie provides persistent branch context
+ * - No manual header management needed - interceptor handles everything
+ */
 export const foodService = {
-  async getFoods(branchId = '1') {
-    try {
-      const effectiveBranchId = branchId || '1';
-      console.log('🔍 foodService.getFoods - branchId:', effectiveBranchId);
-      const config = {
-        params: { branchId: effectiveBranchId },
-        headers: {
-          'X-Branch-Id': effectiveBranchId,
-          Authorization: `Bearer ${localStorage.getItem('jwtToken')}`,
-        },
-      };
+    /**
+     * Get all foods for the current branch
+     * @returns {Promise<Array>} Array of food objects
+     */
+    async getFoods() {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔍 foodService.getFoods - requesting foods for current branch');
+            }
 
-      const response = await api.get('/api/v1/foods', config);
+            // Get current branch ID for query parameter
+            const currentBranchId = environment.multiTenant.getCurrentBranchId();
 
-      if (environment.features.enableLogging) {
-        console.log('✅ Raw API response:', response.data);
-      }
+            const config = {
+                params: {
+                    branchId: currentBranchId || '1' // Fallback to branch 1 if no current branch
+                }
+            };
+            const response = await api.get(environment.api.endpoints.foods, config);
 
-      const foods = response.data?.data || [];
-      if (environment.features.enableLogging) {
-        console.log('✅ Fetched foods:', foods.length, 'items');
-      }
+            if (environment.features.enableLogging) {
+                console.log('✅ Raw API response:', response.data);
+            }
 
-      return foods;
-    } catch (error) {
-      if (environment.features.enableLogging) {
-        console.error('❌ Failed to fetch foods:', error.response?.data?.message || error.message);
-      }
-      throw error;
-    }
-  },
+            // Extract data from ApiResponseBase<T>
+            const foods = response.data?.data || [];
 
-  async getFood(id, branchId = '1') {
-    try {
-      const config = {
-        headers: {
-          'X-Branch-Id': branchId,
-          Authorization: `Bearer ${localStorage.getItem('jwtToken')}`,
-        },
-      };
-      const response = await api.get(`/api/v1/foods/${id}`, config);
-      if (environment.features.enableLogging) {
-        console.log('✅ Fetched food by ID:', response.data);
-      }
-      return response.data?.data || null;
-    } catch (error) {
-      if (environment.features.enableLogging) {
-        console.error('❌ Failed to fetch food:', error.response?.data?.message || error.message);
-      }
-      throw error;
-    }
-  },
+            if (environment.features.enableLogging) {
+                console.log('✅ Fetched foods:', foods.length, 'items');
+            }
 
-  async createFood(foodDto, branchId = '1') {
-    try {
-      const config = {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Branch-Id': branchId,
-          Authorization: `Bearer ${localStorage.getItem('jwtToken')}`,
-        },
-      };
-      const response = await api.post('/api/v1/foods', foodDto, config);
-      return response.data?.data || null;
-    } catch (error) {
-      if (environment.features.enableLogging) {
-        console.error('❌ Failed to create food:', error.response?.data?.message || error.message);
-      }
-      throw error;
-    }
-  },
+            return foods;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to fetch foods:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
 
-  async updateFood(id, foodDto, branchId = '1') {
-    try {
-      const config = {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Branch-Id': branchId,
-          Authorization: `Bearer ${localStorage.getItem('jwtToken')}`,
-        },
-      };
-      const response = await api.put(`/api/v1/foods/${id}`, foodDto, config);
-      return response.data?.data || null;
-    } catch (error) {
-      if (environment.features.enableLogging) {
-        console.error('❌ Failed to update food:', error.response?.data?.message || error.message);
-      }
-      throw error;
-    }
-  },
+    /**
+     * Get a specific food by ID
+     * @param {string|number} id - The food ID
+     * @returns {Promise<Object|null>} Food object or null if not found
+     */
+    async getFood(id) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔍 foodService.getFood - ID:', id);
+            }
 
-  async deleteFood(id, branchId = '1') {
-    try {
-      const config = {
-        headers: {
-          'X-Branch-Id': branchId,
-          Authorization: `Bearer ${localStorage.getItem('jwtToken')}`,
-        },
-      };
-      const response = await api.delete(`/api/v1/foods/${id}`, config);
-      return response.data;
-    } catch (error) {
-      if (environment.features.enableLogging) {
-        console.error('❌ Failed to delete food:', error.response?.data?.message || error.message);
-      }
-      throw error;
-    }
-  },
+            const response = await api.get(`${environment.api.endpoints.foods}/${id}`);
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Fetched food by ID:', response.data);
+            }
+
+            // Extract data from ApiResponseBase<T>
+            return response.data?.data || null;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to fetch food:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Create a new food
+     * @param {Object} foodDto - The food data to create
+     * @returns {Promise<Object|null>} Created food data or null
+     */
+    async createFood(foodDto) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔍 foodService.createFood - data:', foodDto);
+            }
+
+            const response = await api.post(environment.api.endpoints.foods, foodDto);
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Created food:', response.data);
+            }
+
+            // Extract data from ApiResponseBase<T>
+            return response.data?.data || null;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to create food:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Update an existing food
+     * @param {string|number} id - The food ID to update
+     * @param {Object} foodDto - The updated food data
+     * @returns {Promise<Object|null>} Updated food data or null
+     */
+    async updateFood(id, foodDto) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔍 foodService.updateFood - ID:', id, 'data:', foodDto);
+            }
+
+            const response = await api.put(`${environment.api.endpoints.foods}/${id}`, foodDto);
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Updated food:', response.data);
+            }
+
+            // Extract data from ApiResponseBase<T>
+            return response.data?.data || null;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to update food:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Delete a food
+     * @param {string|number} id - The food ID to delete
+     * @returns {Promise<Object>} Deletion result wrapped in ApiResponseBase
+     */
+    async deleteFood(id) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔍 foodService.deleteFood - ID:', id);
+            }
+
+            const response = await api.delete(`${environment.api.endpoints.foods}/${id}`);
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Deleted food:', response.data);
+            }
+
+            // Return full ApiResponseBase<T> for consistent handling
+            return response.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to delete food:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
 };

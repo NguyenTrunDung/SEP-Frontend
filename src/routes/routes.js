@@ -5,7 +5,7 @@ import { ROLES } from '../constants/roles';
 
 import AdminLayout from '../layouts/AdminLayout';
 import DefaultLayout from '../layouts/DefaultLayout';
-import ProtectedRoute from './ProtectedRoute.js';
+import ProtectedRoute, { AuthRedirect } from './ProtectedRoute.js';
 // Pages
 // import Login from '../modules/Auth/Login.js';
 import Dashboard from '../modules/Dashboard/Dashboard.js';
@@ -53,18 +53,30 @@ const routes = [
   // Public home route (accessible to everyone)
   {
     path: '/',
-    element: <Home />,
+    element: (
+      <AuthRedirect roleHomeRedirects={roleHomeRedirects}>
+        <Home />
+      </AuthRedirect>
+    ),
   },
 
   // Login route
   {
     path: '/login',
-    element: <Login />,
+    element: (
+      <AuthRedirect roleHomeRedirects={roleHomeRedirects}>
+        <Login />
+      </AuthRedirect>
+    ),
   },
   {
     path: '/register',
-    element: <Register />,
-},
+    element: (
+      <AuthRedirect roleHomeRedirects={roleHomeRedirects}>
+        <Register />
+      </AuthRedirect>
+    ),
+  },
 
   // Unauthorized route
   {
@@ -89,7 +101,11 @@ const routes = [
     element: (
       <ProtectedRoute>
         {({ user }) => {
-          const redirectPath = user?.role ? roleHomeRedirects[user.role] : '/login';
+          if (!user?.role) {
+            // If no user or role, redirect to login
+            return <Navigate to="/login" replace />;
+          }
+          const redirectPath = roleHomeRedirects[user.role] || '/dashboard';
           return <Navigate to={redirectPath} replace />;
         }}
       </ProtectedRoute>
@@ -99,6 +115,16 @@ const routes = [
   // Admin routes
   {
     path: '/dashboard',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <Dashboard />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR]}>
         <AdminLayout>
@@ -200,14 +226,14 @@ const routes = [
   {
     path: '/foods', // Added Foods route
     element: (
-     <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
         <AdminLayout>
           <Food />
         </AdminLayout>
       </ProtectedRoute>
     ),
   },
-  
+
 
   // Nurse routes
   {
@@ -250,12 +276,12 @@ const routes = [
       </ProtectedRoute>
     ),
   },
-{
+  {
     path: '/nurse/patient',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
         <Navbar />
-        <PatientComponent/>
+        <PatientComponent />
         <FooterComponent />
       </ProtectedRoute>
     ),

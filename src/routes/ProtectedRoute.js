@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { ROLE_HIERARCHY, ROLE_TO_PERMISSION_MAP } from '../constants/roles';
 import { Spin } from 'antd';
+import environment from '../config/environment';
 
 const ProtectedRoute = ({ children, allowedRoles, requiredPermissions, redirectPath }) => {
     const { user, token, loading, refreshToken, permissions, isSystemAdmin } = useAuth();
@@ -156,6 +157,49 @@ ProtectedRoute.propTypes = {
     allowedRoles: PropTypes.array, // Legacy role-based access
     requiredPermissions: PropTypes.array, // New permission-based access
     redirectPath: PropTypes.string,
+};
+
+// Component to redirect authenticated users away from login/register pages
+export const AuthRedirect = ({ children, roleHomeRedirects }) => {
+    const { user, token, loading } = useAuth();
+    const location = useLocation();
+    // if (environment.features.enableLogging) {
+    //     console.log('🔄 AuthRedirect Check:', {
+    //         user: user?.email,
+    //         userRole: user?.role,
+    //         token: token ? 'Token exists' : 'No token',
+    //         loading,
+    //         currentPath: location.pathname
+    //     });
+    // }
+
+    // Show loading state if auth is still being determined
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <Spin size="large" tip="Checking authentication..." />
+            </div>
+        );
+    }
+
+    // If user is authenticated, redirect to their role-specific home
+    if (token && user?.role) {
+        const redirectPath = roleHomeRedirects[user.role] || '/dashboard';
+        // console.log(`✅ User is authenticated, redirecting from ${location.pathname} to ${redirectPath}`);
+
+        // Preserve any state from the previous navigation (like "from" location)
+        const state = location.state?.from ? { from: location.state.from } : undefined;
+        return <Navigate to={redirectPath} replace state={state} />;
+    }
+
+    // If user is not authenticated, show the children (login/register page)
+    // console.log('ℹ️ User not authenticated, showing auth page');
+    return children;
+};
+
+AuthRedirect.propTypes = {
+    children: PropTypes.node.isRequired,
+    roleHomeRedirects: PropTypes.object.isRequired,
 };
 
 export default ProtectedRoute;

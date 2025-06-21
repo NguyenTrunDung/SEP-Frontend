@@ -256,7 +256,7 @@ export const authService = {
             throw error;
         }
     },
-    
+
     async register(userData) {
         try {
             const response = await api.post(environment.api.getVersionedPath('/auth/register'), {
@@ -506,5 +506,10 @@ export const authService = {
             console.error('❌ Error debugging JWT token:', error);
             return null;
         }
+    },
+
+    // Add missing getToken method for backward compatibility with AuthContext
+    getToken() {
+        return environment.auth.getToken();
     }
 }; 

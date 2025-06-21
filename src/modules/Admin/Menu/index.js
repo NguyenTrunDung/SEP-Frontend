@@ -14,7 +14,6 @@ const MenuPageContent = ({
     onEdit,
     onDelete,
     modalProps,
-    availableDishes,
     onCreateMenu
 }) => {
     return (
@@ -28,12 +27,11 @@ const MenuPageContent = ({
                 onDelete={onDelete}
             />
 
-            {/* Create Menu Modal */}
+            {/* Create Menu Modal - Now uses API data internally */}
             <CreateFoodsMenu
                 open={modalProps.open}
                 onCancel={modalProps.handleCancel}
                 onSubmit={onCreateMenu}
-                availableDishes={availableDishes}
                 initialValues={{
                     serviceTime: false,
                 }}
@@ -126,55 +124,7 @@ const Menu = () => {
         },
     ];
 
-    // Mock dishes data for the create modal
-    const mockDishes = [
-        // Breakfast items
-        { id: 1, name: 'Bánh mì thịt nướng', category: 'breakfast', price: 25000 },
-        { id: 2, name: 'Phở bò tái', category: 'breakfast', price: 45000 },
-        { id: 3, name: 'Cháo gà', category: 'breakfast', price: 30000 },
-        { id: 4, name: 'Bánh cuốn', category: 'breakfast', price: 35000 },
-        { id: 5, name: 'Xôi gà', category: 'breakfast', price: 20000 },
-        { id: 6, name: 'Bánh bao', category: 'breakfast', price: 15000 },
-        { id: 7, name: 'Bánh chưng', category: 'breakfast', price: 18000 },
-
-        // Main dishes
-        { id: 10, name: 'Cơm sườn nướng', category: 'mainDish', price: 55000 },
-        { id: 11, name: 'Cơm gà teriyaki', category: 'mainDish', price: 60000 },
-        { id: 12, name: 'Bún bò Huế', category: 'mainDish', price: 50000 },
-        { id: 13, name: 'Mì Quảng', category: 'mainDish', price: 48000 },
-        { id: 14, name: 'Cơm chiên hải sản', category: 'mainDish', price: 65000 },
-        { id: 15, name: 'Cơm tấm', category: 'mainDish', price: 42000 },
-        { id: 16, name: 'Bún chả', category: 'mainDish', price: 38000 },
-
-        // Other dishes
-        { id: 20, name: 'Nem rán', category: 'otherDish', price: 35000 },
-        { id: 21, name: 'Gỏi cuốn', category: 'otherDish', price: 25000 },
-        { id: 22, name: 'Chả cá Lã Vọng', category: 'otherDish', price: 40000 },
-        { id: 23, name: 'Bánh xèo', category: 'otherDish', price: 30000 },
-        { id: 24, name: 'Bánh tráng nướng', category: 'otherDish', price: 22000 },
-
-        // Beverages
-        { id: 30, name: 'Nước cam tươi', category: 'beverages', price: 15000 },
-        { id: 31, name: 'Trà đá', category: 'beverages', price: 10000 },
-        { id: 32, name: 'Cà phê sữa đá', category: 'beverages', price: 20000 },
-        { id: 33, name: 'Nước dừa', category: 'beverages', price: 18000 },
-        { id: 34, name: 'Sinh tố bơ', category: 'beverages', price: 25000 },
-        { id: 35, name: 'Nước chanh', category: 'beverages', price: 12000 },
-
-        // Desserts
-        { id: 40, name: 'Chè ba màu', category: 'dessert', price: 20000 },
-        { id: 41, name: 'Bánh flan', category: 'dessert', price: 25000 },
-        { id: 42, name: 'Kem dừa', category: 'dessert', price: 22000 },
-        { id: 43, name: 'Chè đậu xanh', category: 'dessert', price: 18000 },
-        { id: 44, name: 'Bánh chuối', category: 'dessert', price: 16000 },
-
-        // Vegetarian
-        { id: 50, name: 'Cơm chiên chay', category: 'vegetarian', price: 45000 },
-        { id: 51, name: 'Bún riêu chay', category: 'vegetarian', price: 40000 },
-        { id: 52, name: 'Đậu hũ sốt cà chua', category: 'vegetarian', price: 35000 },
-        { id: 53, name: 'Mì xào chay', category: 'vegetarian', price: 38000 },
-        { id: 54, name: 'Bánh mì chay', category: 'vegetarian', price: 22000 },
-    ];
+    // Note: Mock dishes data removed - CreateFoodsMenu now uses real API data via useFoods hook
 
     // Load menu data
     useEffect(() => {
@@ -304,7 +254,6 @@ const Menu = () => {
             onEdit={handleEdit}
             onDelete={handleDelete}
             modalProps={{ open, handleCancel }}
-            availableDishes={mockDishes}
             onCreateMenu={handleCreateMenu}
         />
     );

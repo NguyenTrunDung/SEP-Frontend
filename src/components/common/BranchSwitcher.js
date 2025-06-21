@@ -2,6 +2,7 @@ import React from 'react';
 import { Select, Spin, Typography, message } from 'antd';
 import { BankOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useAdminBranchesOnly, useAdminCurrentBranchOnly, useAdminSwitchBranchOnly } from '../../hooks/queries/useBranchSelector';
+import environment from '../../config/environment';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -21,24 +22,42 @@ const BranchSwitcher = () => {
 
     const switchBranchMutation = useAdminSwitchBranchOnly();
 
-    // Debug logging
-    console.log('🔍 BranchSwitcher Debug:', {
-        branches,
-        branchesCount: branches?.length,
-        currentBranch,
-        branchesLoading,
-        currentBranchLoading,
-        branchesError: branchesError?.message,
-        currentBranchError: currentBranchError?.message
-    });
+    // Debug logging with environment check
+    if (environment.features.enableLogging) {
+        console.log('🔍 BranchSwitcher Debug:', {
+            branches,
+            branchesCount: branches?.length,
+            currentBranch,
+            currentBranchId: environment.multiTenant.getCurrentBranchId(),
+            branchesLoading,
+            currentBranchLoading,
+            branchesError: branchesError?.message,
+            currentBranchError: currentBranchError?.message
+        });
+    }
 
     const handleBranchChange = async (branchId) => {
         if (branchId && branchId !== currentBranch?.id) {
+            const previousBranchName = currentBranch?.name;
+            const newBranchName = branches.find(b => b.id === branchId)?.name;
+
+            if (environment.features.enableLogging) {
+                console.log('🔄 Switching branch:', {
+                    from: { id: currentBranch?.id, name: previousBranchName },
+                    to: { id: branchId, name: newBranchName }
+                });
+            }
+
             try {
                 await switchBranchMutation.mutateAsync(branchId);
-                message.success('Chi nhánh đã được chuyển đổi thành công');
+
+                message.success(`Chi nhánh đã được chuyển đổi thành công: ${newBranchName}`);
+
+                if (environment.features.enableLogging) {
+                    console.log('✅ Branch switch completed successfully. All related data should now refresh automatically.');
+                }
             } catch (error) {
-                console.error('Failed to switch branch:', error);
+                console.error('❌ Failed to switch branch:', error);
                 message.error('Không thể chuyển đổi chi nhánh. Vui lòng thử lại.');
             }
         }
@@ -97,10 +116,10 @@ const BranchSwitcher = () => {
                 ))}
             </Select>
 
-            {/* Show current branch info */}
-            {currentBranch && !isLoading && (
+            {/* Show current branch info if logging is enabled */}
+            {currentBranch && !isLoading && environment.features.enableLogging && (
                 <Text type="secondary" style={{ fontSize: '12px', marginLeft: '8px' }}>
-                    Hiện tại: {currentBranch.name}
+                    ID: {currentBranch.id}
                 </Text>
             )}
         </div>

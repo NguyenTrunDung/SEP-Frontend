@@ -1,6 +1,7 @@
 // useBranches.js
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { branchService } from '../../services/branchService';
+import environment from '../../config/environment';
 
 // Query keys for branch-related queries
 export const BRANCH_KEYS = {
@@ -136,15 +137,46 @@ export const useSwitchBranch = () => {
             const previousBranchId = localStorage.getItem('currentBranchId');
             return { previousBranchId };
         },
-        onSuccess: (branchData) => {
+        onSuccess: (branchData, newBranchId) => {
             // Update current branch cache with full branch data
             queryClient.setQueryData(BRANCH_KEYS.current(), branchData);
 
-            // Invalidate all branch-dependent queries
-            queryClient.invalidateQueries({ queryKey: ['foods'] });
-            queryClient.invalidateQueries({ queryKey: ['foodCategories'] });
-            queryClient.invalidateQueries({ queryKey: ['menus'] });
-            queryClient.invalidateQueries({ queryKey: ['orders'] });
+            // Invalidate all branch-dependent queries with predicate functions
+            // This ensures we only invalidate queries for the current context
+
+            // Invalidate foods queries for any branch (since branch is in query key now)
+            queryClient.invalidateQueries({
+                queryKey: ['foods'],
+                predicate: (query) => query.queryKey[0] === 'foods'
+            });
+
+            // Invalidate food categories queries
+            queryClient.invalidateQueries({
+                queryKey: ['foodCategories'],
+                predicate: (query) => query.queryKey[0] === 'foodCategories'
+            });
+
+            // Invalidate menu queries (these already include branch context)
+            queryClient.invalidateQueries({
+                queryKey: ['menus'],
+                predicate: (query) => query.queryKey[0] === 'menus'
+            });
+
+            // Invalidate order queries with branch context
+            queryClient.invalidateQueries({
+                queryKey: ['orders'],
+                predicate: (query) => query.queryKey[0] === 'orders'
+            });
+
+            // Also refetch current branch data to ensure UI is updated
+            queryClient.invalidateQueries({ queryKey: BRANCH_KEYS.current() });
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Branch switched successfully. Invalidated all branch-dependent queries.', {
+                    newBranchId,
+                    branchName: branchData?.name
+                });
+            }
         },
         onError: (error, branchId, context) => {
             // Restore previous branch ID on error
@@ -156,6 +188,10 @@ export const useSwitchBranch = () => {
 
             // Remove current branch from cache
             queryClient.removeQueries({ queryKey: BRANCH_KEYS.current() });
+
+            if (environment.features.enableLogging) {
+                console.error('❌ Branch switch failed, restored previous branch:', context?.previousBranchId);
+            }
         },
     });
 };
