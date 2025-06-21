@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { useQueryClient } from '@tanstack/react-query';
 import withPageWrapper from '../../../components/common/PageWrapper';
 import FoodsTable from './FoodsTable';
 import CreateFood from './CreateFood';
 import { useAntModal } from '../../../hooks/useAntModal';
-import { useFoods } from '../../../hooks/queries/useFoods';
-import { foodService } from '../../../services/foodService';
+import {
+  useFoods,
+  useCreateFoodWithImage,
+  useUpdateFoodWithImage,
+  useDeleteFood
+} from '../../../hooks/queries/useFoods';
 
 const FoodsPageContent = ({
   foodsData,
@@ -41,49 +44,56 @@ const FoodsPageContent = ({
 const FoodsPageWithWrapper = withPageWrapper(FoodsPageContent);
 
 const Foods = () => {
-  const queryClient = useQueryClient();
   const { open, showModal, handleCancel } = useAntModal();
-  const { foods, isLoading: foodsLoading } = useFoods('1'); // Default branchId to '1'
+  const { foods, isLoading: foodsLoading, refetch } = useFoods();
   const [selectedFood, setSelectedFood] = useState(null);
+
+  // React Query mutations
+  const createFoodMutation = useCreateFoodWithImage();
+  const updateFoodMutation = useUpdateFoodWithImage();
+  const deleteFoodMutation = useDeleteFood();
 
   // Calculate next sort value
   const nextSort = foods && foods.length > 0
     ? Math.max(...foods.map(item => item.sort || 0)) + 1
     : 1;
 
-  const handleCreateOrUpdate = async (formData) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(async () => {
-        try {
-          const foodDto = {
-            name: formData.name,
-            categoryId: formData.categoryId,
-            description: formData.description || '',
-            priceForGuest: formData.priceForGuest,
-            priceForPatient: formData.priceForPatient,
-            priceForStaff: formData.priceForStaff,
-            sort: formData.sort,
-            imageUrl: formData.imageUrl || '',
-          };
+  const handleCreateOrUpdate = async (formData, imageFile) => {
+    try {
+      const foodData = {
+        name: formData.name,
+        categoryId: formData.categoryId,
+        description: formData.description || '',
+        priceForGuest: formData.priceForGuest,
+        priceForPatient: formData.priceForPatient,
+        priceForStaff: formData.priceForStaff,
+        sort: formData.sort,
+        isAddOn: formData.isAddOn || false,
+        isSetDish: formData.isSetDish || false,
+      };
 
-          if (formData.id) {
-            await foodService.updateFood(formData.id, foodDto, '1');
-            message.success('Cập nhật món ăn thành công!');
-          } else {
-            await foodService.createFood(foodDto, '1');
-            message.success('Tạo món ăn thành công!');
-          }
+      if (formData.id) {
+        // Update existing food
+        await updateFoodMutation.mutateAsync({
+          id: formData.id,
+          foodData,
+          imageFile
+        });
+      } else {
+        // Create new food
+        await createFoodMutation.mutateAsync({
+          foodData,
+          imageFile
+        });
+      }
 
-          queryClient.invalidateQueries(['foods', '1']);
-          handleCancel();
-          setSelectedFood(null);
-          resolve();
-        } catch (error) {
-          message.error(error.message || 'Có lỗi xảy ra khi lưu món ăn!');
-          reject(error);
-        }
-      }, 1500);
-    });
+      // Close modal and reset form
+      handleCancel();
+      setSelectedFood(null);
+    } catch (error) {
+      // Error handling is done in the mutation hooks
+      console.error('Failed to save food:', error);
+    }
   };
 
   const handleEdit = (record) => {
@@ -93,25 +103,29 @@ const Foods = () => {
 
   const handleDelete = async (record) => {
     try {
-      await foodService.deleteFood(record.id, '1');
-      queryClient.invalidateQueries(['foods', '1']);
-      message.success(`Đã xóa món ăn ${record.name}`);
+      await deleteFoodMutation.mutateAsync(record.id);
     } catch (error) {
-      message.error(error.message || 'Không thể xóa món ăn.');
+      // Error handling is done in the mutation hook
+      console.error('Failed to delete food:', error);
     }
   };
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries(['foods', '1']);
+    refetch();
     message.success('Đã làm mới danh sách món ăn');
   };
+
+  const isLoading = foodsLoading ||
+    createFoodMutation.isPending ||
+    updateFoodMutation.isPending ||
+    deleteFoodMutation.isPending;
 
   return (
     <FoodsPageWithWrapper
       pageTitle="Quản Lý Món Ăn"
       pageDescription="Tạo và quản lý món ăn một cách dễ dàng và hiệu quả"
       pageIcon="🍔"
-      loading={foodsLoading}
+      loading={isLoading}
       primaryButton={{
         text: 'Thêm Món Ăn Mới',
         icon: <PlusOutlined />,
@@ -119,6 +133,7 @@ const Foods = () => {
           setSelectedFood(null);
           showModal();
         },
+        disabled: isLoading,
       }}
       onRefresh={handleRefresh}
       refreshText="Làm mới"

@@ -32,6 +32,7 @@ import Food from '../modules/Admin/Food/index.js'
 import Login from '../modules/Auth/Login.js';
 import Register from '../modules/Auth/Register.js';
 import PatientComponent from '../components/Nurse/Patient/PatientComponent.js';
+import ImageTestComponent from '../components/examples/ImageTestComponent.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
@@ -229,6 +230,16 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
         <AdminLayout>
           <Food />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/test/images', // Test route for image loading system
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <ImageTestComponent />
         </AdminLayout>
       </ProtectedRoute>
     ),

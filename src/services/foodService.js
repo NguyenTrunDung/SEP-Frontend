@@ -12,6 +12,7 @@ import api, { environment } from './api/config';
 export const foodService = {
     /**
      * Get all foods for the current branch
+     * Uses the GET /api/v1/foods endpoint with branchId query parameter
      * @returns {Promise<Array>} Array of food objects
      */
     async getFoods() {
@@ -51,7 +52,36 @@ export const foodService = {
     },
 
     /**
+     * Get foods by specific branch ID
+     * Uses the GET /api/v1/foods/branch/{branchId} endpoint
+     * @param {string|number} branchId - The branch ID
+     * @returns {Promise<Array>} Array of food objects
+     */
+    async getFoodsByBranch(branchId) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔍 foodService.getFoodsByBranch - branchId:', branchId);
+            }
+
+            const response = await api.get(`${environment.api.endpoints.foods}/branch/${branchId}`);
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Fetched foods by branch:', response.data);
+            }
+
+            // This endpoint returns raw data without ApiResponseBase wrapper
+            return response.data || [];
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to fetch foods by branch:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
      * Get a specific food by ID
+     * Uses the GET /api/v1/foods/{id} endpoint
      * @param {string|number} id - The food ID
      * @returns {Promise<Object|null>} Food object or null if not found
      */
@@ -78,7 +108,8 @@ export const foodService = {
     },
 
     /**
-     * Create a new food
+     * Create a new food (basic DTO without image)
+     * Uses the POST /api/v1/foods endpoint
      * @param {Object} foodDto - The food data to create
      * @returns {Promise<Object|null>} Created food data or null
      */
@@ -105,7 +136,60 @@ export const foodService = {
     },
 
     /**
-     * Update an existing food
+     * Create a new food with image upload
+     * Uses the POST /api/v1/foods/create endpoint with multipart/form-data
+     * @param {Object} foodData - The food data to create
+     * @param {File} imageFile - The image file to upload (optional)
+     * @returns {Promise<Object|null>} Created food data or null
+     */
+    async createFoodWithImage(foodData, imageFile = null) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔍 foodService.createFoodWithImage - data:', foodData, 'image:', imageFile?.name);
+            }
+
+            // Get current branch ID
+            const currentBranchId = environment.multiTenant.getCurrentBranchId();
+
+            // Create FormData for multipart upload
+            const formData = new FormData();
+            formData.append('Name', foodData.name || '');
+            formData.append('Description', foodData.description || '');
+            formData.append('CategoryId', foodData.categoryId?.toString() || '');
+            formData.append('IsAddOn', foodData.isAddOn || false);
+            formData.append('IsSetDish', foodData.isSetDish || false);
+            formData.append('PriceForGuest', foodData.priceForGuest?.toString() || '0');
+            formData.append('PriceForPatient', foodData.priceForPatient?.toString() || '0');
+            formData.append('PriceForStaff', foodData.priceForStaff?.toString() || '0');
+            formData.append('Sort', foodData.sort?.toString() || '1');
+            formData.append('BranchId', currentBranchId || '1');
+
+            if (imageFile) {
+                formData.append('Image', imageFile);
+            }
+
+            const response = await api.post(`${environment.api.endpoints.foods}/create`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Created food with image:', response.data);
+            }
+
+            return response.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to create food with image:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Update an existing food (basic DTO without image)
+     * Uses the PUT /api/v1/foods/{id} endpoint
      * @param {string|number} id - The food ID to update
      * @param {Object} foodDto - The updated food data
      * @returns {Promise<Object|null>} Updated food data or null
@@ -133,7 +217,61 @@ export const foodService = {
     },
 
     /**
+     * Update an existing food with image upload
+     * Uses the PUT /api/v1/foods/update/{id} endpoint with multipart/form-data
+     * @param {string|number} id - The food ID to update
+     * @param {Object} foodData - The updated food data
+     * @param {File} imageFile - The image file to upload (optional)
+     * @returns {Promise<Object|null>} Updated food data or null
+     */
+    async updateFoodWithImage(id, foodData, imageFile = null) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔍 foodService.updateFoodWithImage - ID:', id, 'data:', foodData, 'image:', imageFile?.name);
+            }
+
+            // Get current branch ID
+            const currentBranchId = environment.multiTenant.getCurrentBranchId();
+
+            // Create FormData for multipart upload
+            const formData = new FormData();
+            formData.append('Name', foodData.name || '');
+            formData.append('Description', foodData.description || '');
+            formData.append('CategoryId', foodData.categoryId?.toString() || '');
+            formData.append('IsAddOn', foodData.isAddOn || false);
+            formData.append('IsSetDish', foodData.isSetDish || false);
+            formData.append('PriceForGuest', foodData.priceForGuest?.toString() || '0');
+            formData.append('PriceForPatient', foodData.priceForPatient?.toString() || '0');
+            formData.append('PriceForStaff', foodData.priceForStaff?.toString() || '0');
+            formData.append('Sort', foodData.sort?.toString() || '1');
+            formData.append('BranchId', currentBranchId || '1');
+
+            if (imageFile) {
+                formData.append('Image', imageFile);
+            }
+
+            const response = await api.put(`${environment.api.endpoints.foods}/update/${id}`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Updated food with image:', response.data);
+            }
+
+            return response.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to update food with image:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
      * Delete a food
+     * Uses the DELETE /api/v1/foods/{id} endpoint
      * @param {string|number} id - The food ID to delete
      * @returns {Promise<Object>} Deletion result wrapped in ApiResponseBase
      */

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, InputNumber, Button, Space, message, Select } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { Form, Input, InputNumber, Button, Space, message, Select, Upload, Radio } from 'antd';
+import { UploadOutlined, InboxOutlined } from '@ant-design/icons';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { useFoodCategories } from '../../../hooks/queries/useFoodCategories';
 import PropTypes from 'prop-types';
+
+const { Dragger } = Upload;
 
 const openCloudinaryWidget = (cb) => {
   window.cloudinary.openUploadWidget(
@@ -37,7 +39,9 @@ const CreateFood = ({
 }) => {
   const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(initialValues);
   const [imageUrl, setImageUrl] = useState('');
-  const { categories } = useFoodCategories(1); // Hardcoded branchId
+  const [localImageFile, setLocalImageFile] = useState(null);
+  const [uploadMethod, setUploadMethod] = useState('cloudinary'); // 'cloudinary' or 'local'
+  const { categories } = useFoodCategories(); // Use branch-aware hook
 
   useEffect(() => {
     if (formData) {
@@ -53,22 +57,37 @@ const CreateFood = ({
         imageUrl: formData.imageUrl || '',
       });
       setImageUrl(formData.imageUrl || '');
+      // If editing and has image URL, default to cloudinary method
+      if (formData.imageUrl) {
+        setUploadMethod('cloudinary');
+      }
     } else {
       form.setFieldsValue(initialValues);
       setImageUrl('');
+      setLocalImageFile(null);
     }
   }, [formData, initialValues, form]);
 
   const handleFormSubmit = async (values) => {
     const result = await handleSubmit(async (formData) => {
-      formData.imageUrl = imageUrl;
+      // Prepare the image data based on upload method
+      let imageFile = null;
+      
+      if (uploadMethod === 'local' && localImageFile) {
+        imageFile = localImageFile;
+      } else if (uploadMethod === 'cloudinary' && imageUrl) {
+        // For Cloudinary, we'll store the URL in the description or a separate field
+        // Since the backend expects a file upload, we might need to modify this approach
+        formData.imageUrl = imageUrl;
+      }
+
       if (onSubmit) {
-        await onSubmit(formData);
+        await onSubmit(formData, imageFile);
       }
     });
 
     if (result.success) {
-      message.success(formData && formData.id ? 'Cập nhật món ăn thành công!' : 'Tạo món ăn thành công!');
+      // Success message is handled in the mutation hooks
       handleCancel();
     }
   };
@@ -76,15 +95,86 @@ const CreateFood = ({
   const handleCancel = () => {
     resetForm();
     setImageUrl('');
+    setLocalImageFile(null);
+    setUploadMethod('cloudinary');
     if (onCancel) {
       onCancel();
     }
   };
 
-  const handleImageUpload = (url) => {
+  const handleCloudinaryUpload = (url) => {
     setImageUrl(url);
+    setLocalImageFile(null); // Clear local file if using Cloudinary
     form.setFieldsValue({ imageUrl: url });
-    message.success('Hình ảnh đã được tải lên thành công!');
+    message.success('Hình ảnh đã được tải lên Cloudinary thành công!');
+  };
+
+  const handleLocalFileChange = (info) => {
+    const { fileList } = info;
+    
+    if (fileList.length > 0) {
+      const file = fileList[0];
+      if (file.status !== 'error') {
+        setLocalImageFile(file.originFileObj || file);
+        setImageUrl(''); // Clear Cloudinary URL if using local file
+        form.setFieldsValue({ imageUrl: '' });
+        message.success('Tệp hình ảnh đã được chọn!');
+      }
+    } else {
+      setLocalImageFile(null);
+    }
+  };
+
+  const uploadProps = {
+    name: 'file',
+    multiple: false,
+    accept: 'image/*',
+    beforeUpload: () => {
+      return false; // Prevent automatic upload
+    },
+    onChange: handleLocalFileChange,
+    onDrop: handleLocalFileChange,
+    maxCount: 1,
+  };
+
+  const getCurrentImagePreview = () => {
+    if (uploadMethod === 'cloudinary' && imageUrl) {
+      return (
+        <img
+          src={imageUrl}
+          alt="Food Preview"
+          style={{ 
+            maxWidth: '150px', 
+            maxHeight: '150px', 
+            objectFit: 'cover', 
+            borderRadius: '4px', 
+            marginTop: 8 
+          }}
+        />
+      );
+    }
+    
+    if (uploadMethod === 'local' && localImageFile) {
+      const previewUrl = localImageFile instanceof File 
+        ? URL.createObjectURL(localImageFile)
+        : localImageFile.url;
+      
+      return (
+        <img
+          src={previewUrl}
+          alt="Food Preview"
+          style={{ 
+            maxWidth: '150px', 
+            maxHeight: '150px', 
+            objectFit: 'cover', 
+            borderRadius: '4px', 
+            marginTop: 8 
+          }}
+        />
+      );
+    }
+    
+    return null;
   };
 
   return (
@@ -93,7 +183,7 @@ const CreateFood = ({
       open={open}
       onCancel={handleCancel}
       footer={null}
-      width={600}
+      width={700}
       destroyOnClose
     >
       <ReusableForm
@@ -103,10 +193,7 @@ const CreateFood = ({
         layout="vertical"
         className={formLoading ? 'form-loading' : ''}
       >
-        <Form.Item
-          name="id"
-          hidden
-        >
+        <Form.Item name="id" hidden>
           <Input />
         </Form.Item>
 
@@ -132,10 +219,7 @@ const CreateFood = ({
           />
         </Form.Item>
 
-        <Form.Item
-          name="description"
-          label="Mô tả"
-        >
+        <Form.Item name="description" label="Mô tả">
           <Input.TextArea placeholder="Nhập mô tả món ăn" rows={4} />
         </Form.Item>
 
@@ -191,33 +275,51 @@ const CreateFood = ({
             style={{ width: '100%' }}
             min={0}
             step={1}
-            readOnly // không cho gõ
+            readOnly
             onKeyDown={(e) => e.preventDefault()} 
             onMouseDown={(e) => e.preventDefault()} 
           />
         </Form.Item>
 
+        <Form.Item label="Phương thức tải ảnh">
+          <Radio.Group 
+            value={uploadMethod} 
+            onChange={(e) => setUploadMethod(e.target.value)}
+          >
+            <Radio value="cloudinary">Cloudinary (Online)</Radio>
+            <Radio value="local">Tải file lên server</Radio>
+          </Radio.Group>
+        </Form.Item>
 
-        <Form.Item
-          name="imageUrl"
-          label="Hình ảnh"
-        >
+        <Form.Item label="Hình ảnh">
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Button
-              icon={<UploadOutlined />}
-              onClick={() => openCloudinaryWidget(handleImageUpload)}
-              style={{ width: '100%' }}
-            >
-              Tải lên hình ảnh
-            </Button>
-            {imageUrl && (
-              <img
-                src={imageUrl}
-                alt="Food"
-                style={{ maxWidth: '100px', maxHeight: '100px', objectFit: 'cover', borderRadius: '4px', marginTop: 8 }}
-              />
+            {uploadMethod === 'cloudinary' ? (
+              <Button
+                icon={<UploadOutlined />}
+                onClick={() => openCloudinaryWidget(handleCloudinaryUpload)}
+                style={{ width: '100%' }}
+              >
+                Tải lên Cloudinary
+              </Button>
+            ) : (
+              <Dragger {...uploadProps}>
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined />
+                </p>
+                <p className="ant-upload-text">
+                  Nhấn hoặc kéo thả tệp vào khu vực này để tải lên
+                </p>
+                <p className="ant-upload-hint">
+                  Hỗ trợ tải lên một tệp hình ảnh (PNG, JPG, JPEG)
+                </p>
+              </Dragger>
             )}
-            <Input value={imageUrl} readOnly style={{ display: 'none' }} />
+            
+            {getCurrentImagePreview()}
+            
+            <Form.Item name="imageUrl" hidden>
+              <Input />
+            </Form.Item>
           </Space>
         </Form.Item>
 
