@@ -57,6 +57,8 @@ const environment = {
                     adminSystemUsers: this.getVersionedPath('/branches/admin-system-users')
                 },
 
+
+
                 // Public menu endpoints
                 publicMenus: {
                     menuByDate: this.getVersionedPath('/public/menus/menu-by-date'),

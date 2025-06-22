@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Button, Space, Input, Tooltip, Popconfirm, message } from 'antd';
 import { EditOutlined, DeleteOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import ReusableTable from '../../../components/common/ReusableTable';
+import { FoodImage } from '../../../components/common/ImageDisplay';
 import PropTypes from 'prop-types';
 
 const FoodCategoriesTable = ({
@@ -68,8 +69,15 @@ const FoodCategoriesTable = ({
       title: 'HÌNH ẢNH',
       dataIndex: 'imageUrl',
       key: 'imageUrl',
-      render: (url) => (
-        url ? <img src={url} alt="category" style={{ width: 50 }} /> : <span>Không có</span>
+      width: 100,
+      align: 'center',
+      render: (url, record) => (
+        <FoodImage
+          src={url}
+          alt={record.name}
+          size="small"
+          preview={true}
+        />
       ),
     },
     {

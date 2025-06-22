@@ -37,7 +37,7 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
       resetForm();
       setImageUrl('');
     }
-  }, [open, resetForm]);
+  }, [open]); // Remove resetForm from dependencies to prevent infinite loop
 
   const handleFormSubmit = async (values) => {
     const result = await handleSubmit(async (formData) => {

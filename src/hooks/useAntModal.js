@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 /**
  * Custom hook for handling Ant Design modals
@@ -8,20 +8,20 @@ export const useAntModal = () => {
     const [open, setOpen] = useState(false);
     const [confirmLoading, setConfirmLoading] = useState(false);
 
-    const showModal = () => {
+    const showModal = useCallback(() => {
         setOpen(true);
-    };
+    }, []);
 
-    const hideModal = () => {
+    const hideModal = useCallback(() => {
         setOpen(false);
         setConfirmLoading(false);
-    };
+    }, []);
 
-    const handleCancel = () => {
+    const handleCancel = useCallback(() => {
         hideModal();
-    };
+    }, [hideModal]);
 
-    const handleOk = async (onOk) => {
+    const handleOk = useCallback(async (onOk) => {
         if (!onOk) {
             hideModal();
             return;
@@ -36,11 +36,11 @@ export const useAntModal = () => {
             setConfirmLoading(false);
             return { success: false, error };
         }
-    };
+    }, [hideModal]);
 
-    const toggleModal = () => {
+    const toggleModal = useCallback(() => {
         setOpen(prev => !prev);
-    };
+    }, []);
 
     return {
         open,

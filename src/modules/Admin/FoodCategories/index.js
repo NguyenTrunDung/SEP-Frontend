@@ -7,8 +7,13 @@ import AddFoodCategory from '../FoodCategories/CreateFoodCategory';
 import EditFoodCategory from '../FoodCategories/EditFoodCategory';
 import FoodCategoryDetails from './FoodCategoryDetails';
 import { useAntModal } from '../../../hooks/useAntModal';
-import { useFoodCategories } from '../../../hooks/queries/useFoodCategories';
-import { foodCategoryService } from '../../../services/foodCategoryService';
+import {
+  useFoodCategories,
+  useCreateFoodCategory,
+  useUpdateFoodCategory,
+  useDeleteFoodCategory
+} from '../../../hooks/queries/useFoodCategories';
+import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
 import { environment } from '../../../services/api/config';
 
 const FoodCategoriesPageContent = ({
@@ -57,63 +62,70 @@ const FoodCategories = () => {
   const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
   const { open: editOpen, showModal: showEditModal, handleCancel: handleEditCancel } = useAntModal();
   const { open: detailsOpen, showModal: showDetailsModal, handleCancel: handleDetailsCancel } = useAntModal();
+  const { handleNonPermissionError } = useGlobalErrorHandler();
   const branchId = environment.multiTenant.getCurrentBranchId() || '1';
-  const { categories, isLoading, error } = useFoodCategories(branchId);
+
+  // React Query hooks for CRUD operations
+  const { categories, isLoading, error, refetch } = useFoodCategories(branchId);
+  const createCategoryMutation = useCreateFoodCategory();
+  const updateCategoryMutation = useUpdateFoodCategory();
+  const deleteCategoryMutation = useDeleteFoodCategory();
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 FoodCategories Debug:', {
+      branchId,
+      categories,
+      isLoading,
+      error: error?.message,
+      errorStatus: error?.response?.status,
+      errorData: error?.response?.data
+    });
+  }, [branchId, categories, isLoading, error]);
+
   const [categoriesData, setCategoriesData] = useState([]);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [editCategory, setEditCategory] = useState(null);
 
   useEffect(() => {
     if (error) {
-      message.error(error.message || 'Không thể tải dữ liệu danh mục.');
+      // Use global error handler for consistent error management
+      handleNonPermissionError(error, 'Không thể tải dữ liệu danh mục.');
       setCategoriesData([]);
     } else {
       setCategoriesData(categories || []);
       if (categories?.length > 0) {
-        message.success(`Tải ${categories.length} danh mục thành công!`);
+        console.log(`✅ Loaded ${categories.length} food categories successfully`);
       }
     }
-  }, [categories, error, refreshTrigger]);
+  }, [categories, error, handleNonPermissionError]);
 
   const handleCreateOrUpdate = async (formData) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(async () => {
-        try {
-          const payload = {
-            name: formData.name,
-            sort: parseInt(formData.sort, 10) || 0,
-            imageUrl: formData.imageUrl || '',
-            branchId: parseInt(branchId, 10),
-          };
+    try {
+      const payload = {
+        name: formData.name,
+        sort: parseInt(formData.sort, 10) || 0,
+        imageUrl: formData.imageUrl || '',
+        branchId: parseInt(branchId, 10),
+      };
 
-          let response;
-          if (formData.id) {
-            response = await foodCategoryService.updateFoodCategory(formData.id, payload, branchId);
-            message.success('Cập nhật danh mục thành công!');
-            setCategoriesData((prevData) =>
-              prevData.map((item) => (item.id === formData.id ? { ...item, ...response.data.data } : item))
-            );
-          } else {
-            response = await foodCategoryService.createFoodCategory(payload, branchId);
-            message.success('Tạo danh mục thành công!');
-            setCategoriesData((prevData) => [response.data.data, ...prevData]);
-          }
-
-          setRefreshTrigger((prev) => prev + 1);
-          if (formData.id) {
-            handleEditCancel();
-          } else {
-            handleAddCancel();
-          }
-          resolve(response.data);
-        } catch (error) {
-          const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi lưu danh mục!';
-          message.error(errorMessage);
-          reject(error);
-        }
-      }, 1500);
-    });
+      if (formData.id) {
+        // Update existing category
+        await updateCategoryMutation.mutateAsync({
+          categoryId: formData.id,
+          categoryData: payload
+        });
+        handleEditCancel();
+      } else {
+        // Create new category
+        await createCategoryMutation.mutateAsync(payload);
+        handleAddCancel();
+      }
+    } catch (error) {
+      // Error handling is done in the mutation hooks
+      console.error('Failed to save category:', error);
+      throw error; // Re-throw for form handling
+    }
   };
 
   const handleEdit = (record) => {
@@ -123,13 +135,10 @@ const FoodCategories = () => {
 
   const handleDelete = async (record) => {
     try {
-      await foodCategoryService.deleteFoodCategory(record.id, branchId);
-      setCategoriesData((prevData) => prevData.filter((item) => item.id !== record.id));
-      message.success(`Đã xóa danh mục ${record.name}`);
-      setRefreshTrigger((prev) => prev + 1);
+      await deleteCategoryMutation.mutateAsync(record.id);
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Không thể xóa danh mục.';
-      message.error(errorMessage);
+      // Error handling is done in the mutation hook
+      console.error('Failed to delete category:', error);
     }
   };
 
@@ -139,7 +148,7 @@ const FoodCategories = () => {
   };
 
   const handleRefresh = () => {
-    setRefreshTrigger((prev) => prev + 1);
+    refetch();
     message.success('Đã làm mới danh sách danh mục');
   };
 

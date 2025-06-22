@@ -7,6 +7,7 @@ import { useMenus, useMenuCategories } from '../../hooks/queries/useMenuQueries'
 import { useLocation, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useCart } from '../../context/CartContext';
+import { getImageUrl, getImageUrlWithFallback } from '../../utils/imageUtils';
 import './Menu.css';
 
 const { Content } = Layout;
@@ -104,12 +105,20 @@ const CategoryCircles = ({ categories, selectedCategory, onCategorySelect, dateL
             >
               {category.Image ? (
                 <img
-                  src={category.Image}
+                  src={getImageUrlWithFallback(category.Image, '/images/placeholder-food.png')}
+                  alt={category.Name}
+                  style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: '50%' }}
+                  onError={(e) => {
+                    // Fallback to placeholder image if server image fails
+                    e.target.src = '/images/placeholder-food.png';
+                  }}
+                />
+              ) : (
+                <img
+                  src="/images/placeholder-food.png"
                   alt={category.Name}
                   style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: '50%' }}
                 />
-              ) : (
-                <div style={{ width: 80, height: 80, backgroundColor: '#ccc', borderRadius: '50%' }} />
               )}
             </div>
             <span style={{ fontSize: 12, marginTop: 8, color: '#000', fontWeight: isSelected ? 'bold' : 'normal' }}>
@@ -158,6 +167,26 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   const categories = menuData?.categories || [];
   const isUsingMockData = menuData?.isUsingMockData || false;
 
+  // Debug logging for image URLs
+  useEffect(() => {
+    if (foods.length > 0) {
+      const sampleFood = foods[0];
+      console.log('🖼️ Sample food image data:', {
+        originalImageUrl: sampleFood.imageUrl,
+        processedImageUrl: getImageUrl(sampleFood.imageUrl),
+        fallbackImageUrl: getImageUrlWithFallback(sampleFood.imageUrl, '/images/placeholder-food.png')
+      });
+    }
+    if (categories.length > 0) {
+      const sampleCategory = categories[0];
+      console.log('🖼️ Sample category image data:', {
+        originalImageUrl: sampleCategory.imageUrl,
+        processedImageUrl: getImageUrl(sampleCategory.imageUrl),
+        fallbackImageUrl: getImageUrlWithFallback(sampleCategory.imageUrl, '/images/placeholder-food.png')
+      });
+    }
+  }, [foods, categories]);
+
   useEffect(() => {
     if (selectedCategory) {
       const targetElement = categoryRefs.current[selectedCategory];
@@ -199,14 +228,18 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
       return categories.map(cat => ({
         ID: cat.id,
         Name: cat.name,
-        Image: cat.imageUrl
+        Image: cat.imageUrl // Will be processed by getImageUrlWithFallback in the component
       }));
     }
 
     // Fallback: extract categories from foods or use mock data
     const foodCategories = [...new Set(foods.map((food) => food.categoryId))];
     if (foodCategories.length === 0 && isUsingMockData) {
-      return mockFoodCategories;
+      // For mock data, ensure images are processed correctly
+      return mockFoodCategories.map(cat => ({
+        ...cat,
+        Image: cat.Image // Keep original for mock data
+      }));
     }
 
     // Create category objects from food data using the same categoryMap logic
@@ -217,7 +250,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
         uniqueCategories.push({
           ID: food.categoryId,
           Name: categoryName,
-          Image: null
+          Image: null // No specific category image from food data
         });
       }
     });
@@ -262,7 +295,8 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
         // Map API properties to cart format
         dishName: menuItem.name,
         price: menuItem.priceForGuest,
-        image: menuItem.imageUrl,
+        image: getImageUrlWithFallback(menuItem.imageUrl, '/images/placeholder-food.png'),
+        imageUrl: getImageUrlWithFallback(menuItem.imageUrl, '/images/placeholder-food.png'), // Keep both for compatibility
         ID: menuItem.id,
         note,
       };
@@ -391,10 +425,15 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                                 <Image
                                   width={200}
                                   height={140}
-                                  src={item.imageUrl || 'https://via.placeholder.com/200x140?text=No+Image'}
+                                  src={getImageUrlWithFallback(item.imageUrl, '/images/placeholder-food.png')}
                                   alt={item.name}
                                   preview={false}
                                   style={{ objectFit: 'cover', borderRadius: 4, marginBottom: 8 }}
+                                  fallback="/images/placeholder-food.png"
+                                  onError={(e) => {
+                                    // Additional fallback handling
+                                    console.warn('Failed to load image:', item.imageUrl);
+                                  }}
                                 />
                                 {isInCart && (
                                   <div style={{
@@ -486,17 +525,21 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
 
                 {/* Image sát header */}
                 <img
-                  src={
-                    selectedMenuItem?.imageUrl ||
-                    selectedMenuItem?.image ||
-                    'https://via.placeholder.com/600x250?text=No+Image'
-                  }
+                  src={getImageUrlWithFallback(
+                    selectedMenuItem?.imageUrl || selectedMenuItem?.image,
+                    '/images/placeholder-food.png'
+                  )}
                   alt={selectedMenuItem?.name || selectedMenuItem?.dishName}
                   style={{
                     width: '100%',
                     maxHeight: '250px',
                     objectFit: 'cover',
                     display: 'block',
+                  }}
+                  onError={(e) => {
+                    // Fallback to placeholder if server image fails
+                    e.target.src = '/images/placeholder-food.png';
+                    console.warn('Failed to load modal image:', selectedMenuItem?.imageUrl);
                   }}
                 />
 

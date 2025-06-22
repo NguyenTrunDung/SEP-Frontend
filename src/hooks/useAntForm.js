@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Form, message } from 'antd';
 
 /**
@@ -10,7 +10,7 @@ export const useAntForm = (initialValues = {}) => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
 
-    const handleSubmit = async (onSubmit) => {
+    const handleSubmit = useCallback(async (onSubmit) => {
         try {
             setLoading(true);
             setErrors({});
@@ -34,23 +34,23 @@ export const useAntForm = (initialValues = {}) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [form]);
 
-    const resetForm = () => {
+    const resetForm = useCallback(() => {
         form.resetFields();
         setErrors({});
         setLoading(false);
-    };
+    }, [form]);
 
-    const setFieldValues = (values) => {
+    const setFieldValues = useCallback((values) => {
         form.setFieldsValue(values);
-    };
+    }, [form]);
 
-    const getFieldValue = (name) => {
+    const getFieldValue = useCallback((name) => {
         return form.getFieldValue(name);
-    };
+    }, [form]);
 
-    const validateField = async (name) => {
+    const validateField = useCallback(async (name) => {
         try {
             await form.validateFields([name]);
             setErrors(prev => {
@@ -64,7 +64,7 @@ export const useAntForm = (initialValues = {}) => {
             setErrors(prev => ({ ...prev, [name]: errorMessage }));
             return false;
         }
-    };
+    }, [form]);
 
     return {
         form,
