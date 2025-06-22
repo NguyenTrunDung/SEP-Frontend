@@ -6,13 +6,23 @@ import environment from '../../config/environment';
 /**
  * Query Keys for Food Categories
  * Branch-specific keys for proper cache isolation
+ * IMPORTANT: Always normalize branchId to string for consistent cache keys
  */
 export const FOOD_CATEGORY_QUERY_KEYS = {
   all: ['foodCategories'],
   lists: () => [...FOOD_CATEGORY_QUERY_KEYS.all, 'list'],
-  list: (branchId) => [...FOOD_CATEGORY_QUERY_KEYS.lists(), { branchId }],
+  list: (branchId) => [...FOOD_CATEGORY_QUERY_KEYS.lists(), { branchId: String(branchId) }],
   details: () => [...FOOD_CATEGORY_QUERY_KEYS.all, 'detail'],
-  detail: (id, branchId) => [...FOOD_CATEGORY_QUERY_KEYS.details(), id, { branchId }],
+  detail: (id, branchId) => [...FOOD_CATEGORY_QUERY_KEYS.details(), id, { branchId: String(branchId) }],
+};
+
+/**
+ * Normalize branch ID to ensure consistent cache keys
+ * @param {string|number} branchId - Branch ID to normalize
+ * @returns {string} Normalized branch ID as string
+ */
+const normalizeBranchId = (branchId) => {
+  return String(branchId || environment.multiTenant.getCurrentBranchId() || '1');
 };
 
 /**
@@ -23,8 +33,8 @@ export const FOOD_CATEGORY_QUERY_KEYS = {
  * @returns {Object} Query result with categories, loading state, and error
  */
 export const useFoodCategories = (branchId, options = {}) => {
-  // Get current branch ID if not provided
-  const currentBranchId = branchId || environment.multiTenant.getCurrentBranchId() || '1';
+  // Normalize branch ID for consistent cache keys
+  const currentBranchId = normalizeBranchId(branchId);
 
   const query = useQuery({
     queryKey: FOOD_CATEGORY_QUERY_KEYS.list(currentBranchId),
@@ -34,10 +44,10 @@ export const useFoodCategories = (branchId, options = {}) => {
       }
       return await foodCategoryService.getFoodCategories(currentBranchId);
     },
-    staleTime: environment.performance.queryStaleTime, // Use environment config
-    cacheTime: environment.performance.queryCacheTime, // Use environment config
+    staleTime: environment.performance.queryStaleTime,
+    cacheTime: environment.performance.queryCacheTime,
     refetchOnWindowFocus: false,
-    enabled: !!currentBranchId, // Only run if branch ID is available
+    enabled: !!currentBranchId,
     retry: (failureCount, error) => {
       // Don't retry on authorization/access errors to prevent infinite loops
       const status = error?.response?.status;
@@ -60,8 +70,6 @@ export const useFoodCategories = (branchId, options = {}) => {
       // Limit retries for other errors
       return failureCount < 2;
     },
-    // Global error handling is now handled in reactQuery.js
-    // Individual hooks no longer need to handle branch permission errors
     ...options
   });
 
@@ -85,7 +93,7 @@ export const useFoodCategories = (branchId, options = {}) => {
  * @returns {Object} Query result with category data
  */
 export const useFoodCategory = (categoryId, branchId, options = {}) => {
-  const currentBranchId = branchId || environment.multiTenant.getCurrentBranchId() || '1';
+  const currentBranchId = normalizeBranchId(branchId);
 
   const query = useQuery({
     queryKey: FOOD_CATEGORY_QUERY_KEYS.detail(categoryId, currentBranchId),
@@ -107,30 +115,47 @@ export const useFoodCategory = (categoryId, branchId, options = {}) => {
 };
 
 /**
- * Hook to create a new food category
+ * Hook to create a new food category with server upload endpoint
+ * Always uses /api/v1/foodcategories/create endpoint with multipart/form-data
  * @param {Object} options - Mutation options
  * @returns {Object} Mutation object
  */
 export const useCreateFoodCategory = (options = {}) => {
   const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId() || '1';
+  const currentBranchId = normalizeBranchId();
 
   return useMutation({
-    mutationFn: (categoryData) => foodCategoryService.createFoodCategory(categoryData),
+    mutationFn: ({ categoryData, imageFile, branchId }) => {
+      const targetBranchId = normalizeBranchId(branchId);
+
+      // Always use the server upload endpoint
+      return foodCategoryService.createFoodCategoryWithImage(categoryData, imageFile, targetBranchId);
+    },
     onSuccess: (response, variables) => {
-      // Show success message
       message.success(response.message || 'Tạo danh mục thành công!');
 
-      // Invalidate and refetch categories list
+      const targetBranchId = normalizeBranchId(variables.branchId);
+
+      if (environment.features.enableLogging) {
+        console.log('🔄 Cache invalidation for create - targetBranchId:', targetBranchId);
+        console.log('🔄 Invalidating query key:', FOOD_CATEGORY_QUERY_KEYS.list(targetBranchId));
+      }
+
+      // Invalidate and refetch categories list for the target branch
       queryClient.invalidateQueries({
-        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(currentBranchId)
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(targetBranchId)
       });
 
-      // Optionally add to cache optimistically
+      // Also invalidate the general lists to ensure all related queries are updated
+      queryClient.invalidateQueries({
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.lists()
+      });
+
+      // Add to cache optimistically
       const newCategory = response.data;
       if (newCategory) {
         queryClient.setQueryData(
-          FOOD_CATEGORY_QUERY_KEYS.detail(newCategory.id, currentBranchId),
+          FOOD_CATEGORY_QUERY_KEYS.detail(newCategory.id, targetBranchId),
           newCategory
         );
       }
@@ -147,33 +172,49 @@ export const useCreateFoodCategory = (options = {}) => {
 };
 
 /**
- * Hook to update an existing food category
+ * Hook to update an existing food category with server upload endpoint
+ * Always uses /api/v1/foodcategories/update/{id} endpoint with multipart/form-data
  * @param {Object} options - Mutation options
  * @returns {Object} Mutation object
  */
 export const useUpdateFoodCategory = (options = {}) => {
   const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId() || '1';
+  const currentBranchId = normalizeBranchId();
 
   return useMutation({
-    mutationFn: ({ categoryId, categoryData }) =>
-      foodCategoryService.updateFoodCategory(categoryId, categoryData),
+    mutationFn: ({ categoryId, categoryData, imageFile, branchId }) => {
+      const targetBranchId = normalizeBranchId(branchId);
+
+      // Always use the server upload endpoint
+      return foodCategoryService.updateFoodCategoryWithImage(categoryId, categoryData, imageFile, targetBranchId);
+    },
     onSuccess: (response, variables) => {
-      // Show success message
       message.success(response.message || 'Cập nhật danh mục thành công!');
 
-      // Update the specific category in cache
+      const targetBranchId = normalizeBranchId(variables.branchId);
+
+      if (environment.features.enableLogging) {
+        console.log('🔄 Cache invalidation for update - targetBranchId:', targetBranchId);
+        console.log('🔄 Invalidating query key:', FOOD_CATEGORY_QUERY_KEYS.list(targetBranchId));
+      }
+
+      // Update the specific category in cache first
       const updatedCategory = response.data;
       if (updatedCategory) {
         queryClient.setQueryData(
-          FOOD_CATEGORY_QUERY_KEYS.detail(variables.categoryId, currentBranchId),
+          FOOD_CATEGORY_QUERY_KEYS.detail(variables.categoryId, targetBranchId),
           updatedCategory
         );
       }
 
-      // Invalidate categories list to reflect changes
+      // Invalidate and refetch categories list for the target branch
       queryClient.invalidateQueries({
-        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(currentBranchId)
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(targetBranchId)
+      });
+
+      // Also invalidate the general lists to ensure all related queries are updated
+      queryClient.invalidateQueries({
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.lists()
       });
 
       console.log('✅ Updated food category successfully:', response);
@@ -194,27 +235,35 @@ export const useUpdateFoodCategory = (options = {}) => {
  */
 export const useDeleteFoodCategory = (options = {}) => {
   const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId() || '1';
+  const currentBranchId = normalizeBranchId();
 
   return useMutation({
     mutationFn: (categoryId) => foodCategoryService.deleteFoodCategory(categoryId),
     onSuccess: (response, categoryId) => {
-      // Show success message
       message.success(response.message || 'Xóa danh mục thành công!');
+
+      if (environment.features.enableLogging) {
+        console.log('🔄 Cache invalidation for delete - currentBranchId:', currentBranchId);
+      }
 
       // Remove from cache
       queryClient.removeQueries({
         queryKey: FOOD_CATEGORY_QUERY_KEYS.detail(categoryId, currentBranchId)
       });
 
-      // Invalidate categories list
+      // Invalidate list to refetch
       queryClient.invalidateQueries({
         queryKey: FOOD_CATEGORY_QUERY_KEYS.list(currentBranchId)
       });
 
+      // Also invalidate the general lists to ensure all related queries are updated
+      queryClient.invalidateQueries({
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.lists()
+      });
+
       console.log('✅ Deleted food category successfully:', response);
     },
-    onError: (error, variables) => {
+    onError: (error) => {
       const errorMessage = error.response?.data?.message || 'Không thể xóa danh mục!';
       message.error(errorMessage);
       console.error('❌ Failed to delete food category:', error);
@@ -224,40 +273,39 @@ export const useDeleteFoodCategory = (options = {}) => {
 };
 
 /**
- * Hook to create food category from form data (convenience hook)
+ * Convenience hook for form-based category creation
  * @param {string|number} branchId - Branch ID
  * @param {Object} options - Mutation options
- * @returns {Object} Mutation object
+ * @returns {Object} Mutation object with form-friendly interface
  */
 export const useCreateFoodCategoryFromForm = (branchId, options = {}) => {
   const createMutation = useCreateFoodCategory(options);
 
   return {
     ...createMutation,
-    mutateAsync: async (formData) => {
-      const categoryData = foodCategoryService.createCategoryFromForm(formData, branchId);
-      return createMutation.mutateAsync(categoryData);
+    submitForm: (formValues, imageFile = null) => {
+      const normalizedBranchId = normalizeBranchId(branchId);
+      const categoryData = foodCategoryService.createCategoryFromForm(formValues, normalizedBranchId);
+      return createMutation.mutateAsync({ categoryData, imageFile, branchId: normalizedBranchId });
     }
   };
 };
 
 /**
- * Hook to update food category from form data (convenience hook)
+ * Convenience hook for form-based category updates
  * @param {string|number} branchId - Branch ID
  * @param {Object} options - Mutation options
- * @returns {Object} Mutation object
+ * @returns {Object} Mutation object with form-friendly interface
  */
 export const useUpdateFoodCategoryFromForm = (branchId, options = {}) => {
   const updateMutation = useUpdateFoodCategory(options);
 
   return {
     ...updateMutation,
-    mutateAsync: async ({ categoryId, formData }) => {
-      const categoryData = foodCategoryService.updateCategoryFromForm(categoryId, formData, branchId);
-      return updateMutation.mutateAsync({
-        categoryId,
-        categoryData
-      });
+    submitForm: (categoryId, formValues, imageFile = null) => {
+      const normalizedBranchId = normalizeBranchId(branchId);
+      const categoryData = foodCategoryService.updateCategoryFromForm(categoryId, formValues, normalizedBranchId);
+      return updateMutation.mutateAsync({ categoryId, categoryData, imageFile, branchId: normalizedBranchId });
     }
   };
 };
@@ -265,256 +313,64 @@ export const useUpdateFoodCategoryFromForm = (branchId, options = {}) => {
 /**
  * Hook for bulk operations on food categories
  * @param {Object} options - Mutation options
- * @returns {Object} Mutation object for bulk operations
+ * @returns {Object} Object with bulk operation methods
  */
 export const useBulkFoodCategoryOperations = (options = {}) => {
   const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId() || '1';
+  const currentBranchId = normalizeBranchId();
 
-  return useMutation({
-    mutationFn: async ({ operation, categoryIds }) => {
-      if (operation === 'delete') {
-        const results = await Promise.allSettled(
-          categoryIds.map(id => foodCategoryService.deleteFoodCategory(id))
-        );
-        return { operation, results, categoryIds };
-      }
-      throw new Error(`Unsupported bulk operation: ${operation}`);
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (categoryIds) => {
+      const deletePromises = categoryIds.map(id => foodCategoryService.deleteFoodCategory(id));
+      return Promise.all(deletePromises);
     },
-    onSuccess: (data, variables) => {
-      const { operation, results, categoryIds } = data;
+    onSuccess: (responses, categoryIds) => {
+      message.success(`Đã xóa ${categoryIds.length} danh mục thành công!`);
 
-      if (operation === 'delete') {
-        const successCount = results.filter(r => r.status === 'fulfilled').length;
-        const failCount = results.filter(r => r.status === 'rejected').length;
+      // Remove all deleted categories from cache
+      categoryIds.forEach(categoryId => {
+        queryClient.removeQueries({
+          queryKey: FOOD_CATEGORY_QUERY_KEYS.detail(categoryId, currentBranchId)
+        });
+      });
 
-        if (successCount > 0) {
-          message.success(`Đã xóa thành công ${successCount} danh mục`);
+      // Invalidate list to refetch
+      queryClient.invalidateQueries({
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(currentBranchId)
+      });
 
-          // Remove from cache and invalidate
-          categoryIds.forEach(id => {
-            queryClient.removeQueries({
-              queryKey: FOOD_CATEGORY_QUERY_KEYS.detail(id, currentBranchId)
-            });
-          });
+      // Also invalidate the general lists to ensure all related queries are updated
+      queryClient.invalidateQueries({
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.lists()
+      });
 
-          queryClient.invalidateQueries({
-            queryKey: FOOD_CATEGORY_QUERY_KEYS.list(currentBranchId)
-          });
-        }
-
-        if (failCount > 0) {
-          message.warning(`${failCount} danh mục không thể xóa`);
-        }
-      }
+      console.log('✅ Bulk deleted food categories successfully:', responses);
     },
-    onError: (error, variables) => {
-      message.error('Có lỗi xảy ra khi thực hiện thao tác hàng loạt');
-      console.error('❌ Bulk operation failed:', error);
+    onError: (error) => {
+      const errorMessage = error.response?.data?.message || 'Không thể xóa các danh mục đã chọn!';
+      message.error(errorMessage);
+      console.error('❌ Failed to bulk delete food categories:', error);
     },
     ...options
   });
+
+  return {
+    bulkDelete: bulkDeleteMutation.mutateAsync,
+    isBulkDeleting: bulkDeleteMutation.isLoading,
+    bulkDeleteError: bulkDeleteMutation.error,
+  };
 };
 
 /**
- * Hook to fetch food categories for current branch (convenience hook)
- * Uses current branch from environment automatically
+ * Hook to get food categories for the current branch (convenience wrapper)
  * @param {Object} options - React Query options
- * @returns {Object} Query result with categories for current branch
+ * @returns {Object} Query result
  */
 export const useCurrentBranchFoodCategories = (options = {}) => {
-  const currentBranchId = environment.multiTenant.getCurrentBranchId();
+  const currentBranchId = normalizeBranchId();
 
   return useFoodCategories(currentBranchId, {
     enabled: !!currentBranchId,
-    ...options
-  });
-};
-
-// ==================== IMAGE UPLOAD MUTATIONS ====================
-
-/**
- * Hook to create food category with image upload
- * @param {Object} options - Mutation options
- * @returns {Object} Mutation object
- */
-export const useCreateFoodCategoryWithImage = (options = {}) => {
-  const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId() || '1';
-
-  return useMutation({
-    mutationFn: ({ categoryData, imageFile, branchId }) =>
-      foodCategoryService.createFoodCategoryWithImage(categoryData, imageFile, branchId),
-
-    onSuccess: (response, variables) => {
-      // Show success message
-      message.success(response.message || 'Tạo danh mục với hình ảnh thành công!');
-
-      // Extract the created category from ApiResponseBase
-      const createdCategory = response?.data;
-      const branchId = variables.branchId || currentBranchId;
-
-      if (createdCategory) {
-        // Add to cache optimistically
-        queryClient.setQueryData(
-          FOOD_CATEGORY_QUERY_KEYS.detail(createdCategory.id, branchId),
-          createdCategory
-        );
-      }
-
-      // Invalidate list queries
-      queryClient.invalidateQueries({
-        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(branchId)
-      });
-
-      console.log('✅ Food category created with image successfully:', createdCategory);
-    },
-
-    onError: (error) => {
-      const errorMessage = error.response?.data?.message || 'Không thể tạo danh mục với hình ảnh!';
-      message.error(errorMessage);
-      console.error('❌ Failed to create food category with image:', error);
-    },
-    ...options
-  });
-};
-
-/**
- * Hook to update food category with image upload
- * @param {Object} options - Mutation options
- * @returns {Object} Mutation object
- */
-export const useUpdateFoodCategoryWithImage = (options = {}) => {
-  const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId() || '1';
-
-  return useMutation({
-    mutationFn: ({ categoryId, categoryData, imageFile, branchId }) =>
-      foodCategoryService.updateFoodCategoryWithImage(categoryId, categoryData, imageFile, branchId),
-
-    onSuccess: (response, variables) => {
-      // Show success message
-      message.success(response.message || 'Cập nhật danh mục với hình ảnh thành công!');
-
-      // Extract the updated category from ApiResponseBase
-      const updatedCategory = response?.data;
-      const { categoryId, branchId } = variables;
-      const targetBranchId = branchId || currentBranchId;
-
-      if (updatedCategory) {
-        // Update specific category in cache
-        queryClient.setQueryData(
-          FOOD_CATEGORY_QUERY_KEYS.detail(categoryId, targetBranchId),
-          updatedCategory
-        );
-      }
-
-      // Invalidate list queries
-      queryClient.invalidateQueries({
-        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(targetBranchId)
-      });
-
-      console.log('✅ Food category updated with image successfully:', updatedCategory);
-    },
-
-    onError: (error) => {
-      const errorMessage = error.response?.data?.message || 'Không thể cập nhật danh mục với hình ảnh!';
-      message.error(errorMessage);
-      console.error('❌ Failed to update food category with image:', error);
-    },
-    ...options
-  });
-};
-
-/**
- * Hook to create food category with Cloudinary URL (no file upload)
- * @param {Object} options - Mutation options
- * @returns {Object} Mutation object
- */
-export const useCreateFoodCategoryWithCloudinary = (options = {}) => {
-  const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId() || '1';
-
-  return useMutation({
-    mutationFn: ({ categoryData, branchId }) =>
-      foodCategoryService.createFoodCategoryWithCloudinary(categoryData, branchId),
-
-    onSuccess: (response, variables) => {
-      // Show success message
-      message.success(response.message || 'Tạo danh mục với Cloudinary thành công!');
-
-      // Extract the created category from ApiResponseBase
-      const createdCategory = response?.data;
-      const branchId = variables.branchId || currentBranchId;
-
-      if (createdCategory) {
-        // Add to cache optimistically
-        queryClient.setQueryData(
-          FOOD_CATEGORY_QUERY_KEYS.detail(createdCategory.id, branchId),
-          createdCategory
-        );
-      }
-
-      // Invalidate list queries
-      queryClient.invalidateQueries({
-        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(branchId)
-      });
-
-      console.log('✅ Food category created with Cloudinary URL successfully:', createdCategory);
-    },
-
-    onError: (error) => {
-      const errorMessage = error.response?.data?.message || 'Không thể tạo danh mục với Cloudinary!';
-      message.error(errorMessage);
-      console.error('❌ Failed to create food category with Cloudinary URL:', error);
-    },
-    ...options
-  });
-};
-
-/**
- * Hook to update food category with Cloudinary URL (no file upload)
- * @param {Object} options - Mutation options
- * @returns {Object} Mutation object
- */
-export const useUpdateFoodCategoryWithCloudinary = (options = {}) => {
-  const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId() || '1';
-
-  return useMutation({
-    mutationFn: ({ categoryId, categoryData, branchId }) =>
-      foodCategoryService.updateFoodCategoryWithCloudinary(categoryId, categoryData, branchId),
-
-    onSuccess: (response, variables) => {
-      // Show success message
-      message.success(response.message || 'Cập nhật danh mục với Cloudinary thành công!');
-
-      // Extract the updated category from ApiResponseBase
-      const updatedCategory = response?.data;
-      const { categoryId, branchId } = variables;
-      const targetBranchId = branchId || currentBranchId;
-
-      if (updatedCategory) {
-        // Update specific category in cache
-        queryClient.setQueryData(
-          FOOD_CATEGORY_QUERY_KEYS.detail(categoryId, targetBranchId),
-          updatedCategory
-        );
-      }
-
-      // Invalidate list queries
-      queryClient.invalidateQueries({
-        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(targetBranchId)
-      });
-
-      console.log('✅ Food category updated with Cloudinary URL successfully:', updatedCategory);
-    },
-
-    onError: (error) => {
-      const errorMessage = error.response?.data?.message || 'Không thể cập nhật danh mục với Cloudinary!';
-      message.error(errorMessage);
-      console.error('❌ Failed to update food category with Cloudinary URL:', error);
-    },
     ...options
   });
 };

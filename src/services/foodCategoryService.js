@@ -333,26 +333,5 @@ export const foodCategoryService = {
       }
       throw error;
     }
-  },
-
-  /**
-   * Create category with Cloudinary URL (no file upload)
-   * @param {Object} categoryData - Category data with imageUrl from Cloudinary
-   * @param {string|number} branchId - Branch ID
-   * @returns {Promise<Object>} Created category
-   */
-  async createFoodCategoryWithCloudinary(categoryData, branchId = null) {
-    return this.createFoodCategoryWithImage(categoryData, null, branchId);
-  },
-
-  /**
-   * Update category with Cloudinary URL (no file upload)
-   * @param {string|number} categoryId - Category ID
-   * @param {Object} categoryData - Category data with imageUrl from Cloudinary
-   * @param {string|number} branchId - Branch ID
-   * @returns {Promise<Object>} Updated category
-   */
-  async updateFoodCategoryWithCloudinary(categoryId, categoryData, branchId = null) {
-    return this.updateFoodCategoryWithImage(categoryId, categoryData, null, branchId);
   }
 };

@@ -1,49 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Space, message, Upload } from 'antd';
-import { UploadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Space, message, Upload, Typography } from 'antd';
+import { UploadOutlined, DeleteOutlined, InboxOutlined } from '@ant-design/icons';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
+import { validateImageFile, createImagePreview, cleanupImagePreview } from '../../../utils/imageUtils';
 import PropTypes from 'prop-types';
 
-// Initialize Cloudinary upload widget
-const openCloudinaryWidget = (cb) => {
-  window.cloudinary.openUploadWidget(
-    {
-      cloudName: 'depxkho4m',
-      uploadPreset: 'sep490',
-      sources: ['local', 'url', 'camera'],
-      multiple: false,
-      resourceType: 'image',
-      clientAllowedFormats: ['png', 'jpg', 'jpeg'],
-      maxFileSize: 5000000,
-    },
-    (error, result) => {
-      if (!error && result && result.event === 'success') {
-        cb(result.info.secure_url);
-      } else if (error) {
-        message.error('Lỗi khi tải lên hình ảnh!');
-      }
-    }
-  );
-};
+const { Text } = Typography;
+const { Dragger } = Upload;
 
 const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
   const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm();
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
 
   useEffect(() => {
     if (!open) {
       resetForm();
-      setImageUrl('');
+      setImageFile(null);
+      if (previewUrl) {
+        cleanupImagePreview(previewUrl);
+        setPreviewUrl('');
+      }
     }
-  }, [open]); // Remove resetForm from dependencies to prevent infinite loop
+
+    // Cleanup function for when component unmounts or dependencies change
+    return () => {
+      if (previewUrl) {
+        cleanupImagePreview(previewUrl);
+      }
+    };
+  }, [open]); // Removed previewUrl from dependencies to prevent cleanup loops
+
+  // Cleanup effect when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clean up any remaining preview URLs when component unmounts
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        console.log('🧹 CreateFoodCategory - Component unmounting - cleaning up preview URL:', previewUrl);
+        cleanupImagePreview(previewUrl);
+      }
+    };
+  }, [previewUrl]); // This effect only cares about previewUrl changes
 
   const handleFormSubmit = async (values) => {
     const result = await handleSubmit(async (formData) => {
-      formData.imageUrl = imageUrl;
       if (onSubmit) {
-        await onSubmit(formData);
+        await onSubmit(formData, imageFile);
       }
     });
 
@@ -55,29 +59,56 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
 
   const handleCancel = () => {
     resetForm();
-    setImageUrl('');
+    setImageFile(null);
+    if (previewUrl) {
+      cleanupImagePreview(previewUrl);
+      setPreviewUrl('');
+    }
     if (onCancel) {
       onCancel();
     }
   };
 
-  const handleImageUpload = (url) => {
-    setImageUrl(url);
-    form.setFieldsValue({ imageUrl: url });
-    message.success('Hình ảnh đã được tải lên thành công!');
+  const handleFileUpload = (file) => {
+    const validation = validateImageFile(file);
+    if (!validation.isValid) {
+      message.error(validation.error);
+      return false;
+    }
+
+    console.log('📁 CreateFoodCategory - New image file selected:', file.name);
+
+    // Clean up existing preview BEFORE creating new one
+    if (previewUrl) {
+      console.log('🧹 CreateFoodCategory - Cleaning up existing preview URL:', previewUrl);
+      cleanupImagePreview(previewUrl);
+    }
+
+    // Set the new file
+    setImageFile(file);
+
+    // Create new preview URL
+    const preview = createImagePreview(file);
+    console.log('🖼️ CreateFoodCategory - Created new preview URL:', preview);
+    setPreviewUrl(preview);
+
+    message.success('Hình ảnh đã được chọn để tải lên server!');
+    return false; // Prevent auto upload
   };
 
   const handleRemoveImage = () => {
-    setImageUrl('');
-    form.setFieldsValue({ imageUrl: '' });
-    message.info('Hình ảnh đã được xóa!');
-  };
+    console.log('🗑️ CreateFoodCategory - Removing image');
 
-  const customUploadRequest = ({ onSuccess }) => {
-    openCloudinaryWidget((url) => {
-      handleImageUpload(url);
-      onSuccess({ url }, null);
-    });
+    // Clean up preview URL if it exists
+    if (previewUrl) {
+      console.log('🧹 CreateFoodCategory - Cleaning up preview URL on removal:', previewUrl);
+      cleanupImagePreview(previewUrl);
+      setPreviewUrl('');
+    }
+
+    // Reset state
+    setImageFile(null);
+    message.info('Hình ảnh đã được xóa!');
   };
 
   return (
@@ -86,7 +117,7 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
       open={open}
       onCancel={handleCancel}
       footer={null}
-      width={600}
+      width={700}
       destroyOnClose
     >
       <ReusableForm
@@ -104,83 +135,99 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
         </Form.Item>
 
         <Form.Item
-          name="imageUrl"
-          label="Hình ảnh"
-          valuePropName="fileList"
-          getValueFromEvent={(e) => {
-            if (e && e.fileList) {
-              return e.fileList.length > 0 ? [{ url: imageUrl }] : [];
-            }
-            return [];
-          }}
+          name="sort"
+          label="Thứ tự sắp xếp"
+          rules={[{ required: true, message: 'Vui lòng nhập thứ tự sắp xếp!' }]}
         >
+          <Input type="number" placeholder="Nhập thứ tự sắp xếp (số)" />
+        </Form.Item>
+
+        <Form.Item label="Hình ảnh danh mục">
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Upload
-              customRequest={customUploadRequest}
-              showUploadList={false}
-              beforeUpload={() => false}
+            {/* Image Upload Area */}
+            <Dragger
+              name="image"
               multiple={false}
-              style={{ width: '100%' }}
+              beforeUpload={handleFileUpload}
+              showUploadList={false}
+              accept=".png,.jpg,.jpeg"
+              style={{
+                background: imageFile ? '#f6ffed' : '#fafafa',
+                border: imageFile ? '2px dashed #52c41a' : '1px dashed #d9d9d9'
+              }}
             >
-              <Button
-                icon={<UploadOutlined />}
-                style={{ width: '100%', borderRadius: '8px', background: '#f0f2f5', borderColor: '#d9d9d9' }}
-              >
-                Kéo và thả hoặc nhấp để tải hình ảnh
-              </Button>
-            </Upload>
-            {imageUrl && (
-              <div
-                style={{
-                  WebkitBoxSizing: 'border-box',
-                  boxSizing: 'border-box',
-                  position: 'relative',
-                  maxWidth: '200px',
-                  marginTop: '8px',
-                  border: '1px solid #d9d9d9',
-                  borderRadius: '8px',
-                  overflow: 'hidden',
-                }}
-              >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined style={{ color: imageFile ? '#52c41a' : '#1890ff' }} />
+              </p>
+              <p className="ant-upload-text">
+                {imageFile ? 'Hình ảnh đã được chọn' : 'Nhấp hoặc kéo file vào khu vực này để tải lên'}
+              </p>
+              <p className="ant-upload-hint">
+                Hỗ trợ định dạng: PNG, JPG, JPEG. Kích thước tối đa: 5MB
+              </p>
+            </Dragger>
+
+            {/* Image Preview */}
+            {previewUrl && (
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
                 <img
-                  src={imageUrl}
-                  alt="Category Preview"
+                  src={previewUrl}
+                  alt="Preview"
                   style={{
-                    width: '100%',
-                    height: 'auto',
-                    transition: 'transform 0.3s',
-                  }}
-                  onMouseEnter={(e) => (e.target.style.transform = 'scale(1.1)')}
-                  onMouseLeave={(e) => (e.target.style.transform = 'scale(1)')}
-                />
-                <Button
-                  icon={<DeleteOutlined />}
-                  onClick={handleRemoveImage}
-                  style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    background: 'rgba(0, 0, 0, 0.7)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '50%',
-                    padding: '2px',
-                    width: '24px',
-                    height: '24px',
+                    maxWidth: '200px',
+                    maxHeight: '200px',
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                    border: '1px solid #d9d9d9'
                   }}
                 />
+                <div style={{ marginTop: 8 }}>
+                  <Space>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      {imageFile?.name} ({(imageFile?.size / 1024 / 1024).toFixed(2)} MB)
+                    </Text>
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      onClick={handleRemoveImage}
+                      danger
+                    >
+                      Xóa
+                    </Button>
+                  </Space>
+                </div>
               </div>
+            )}
+
+            {/* Upload Button (Alternative) */}
+            {!imageFile && (
+              <Upload
+                name="image"
+                beforeUpload={handleFileUpload}
+                showUploadList={false}
+                accept=".png,.jpg,.jpeg"
+              >
+                <Button icon={<UploadOutlined />} block>
+                  Chọn hình ảnh từ máy tính
+                </Button>
+              </Upload>
             )}
           </Space>
         </Form.Item>
 
-        <Form.Item className="form-actions">
-          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-            <Button onClick={handleCancel} size="large">
+        <Form.Item style={{ marginTop: 24, textAlign: 'right' }}>
+          <Space>
+            <Button onClick={handleCancel}>
               Hủy
             </Button>
-            <Button type="primary" htmlType="submit" loading={formLoading} size="large">
-              Lưu Danh Mục
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={formLoading}
+              disabled={formLoading}
+            >
+              Tạo danh mục
             </Button>
           </Space>
         </Form.Item>

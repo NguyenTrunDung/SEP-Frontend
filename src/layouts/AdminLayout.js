@@ -179,33 +179,8 @@ const AdminLayout = ({ children }) => {
                             ),
                         },
 
-                        // Users Management - Admin and Branch Manager only
-                        canAccess(
-                            [ROLES.ADMIN, ROLES.BRANCH_MANAGER],
-                            ['users:view']
-                        ) && {
-                            key: "users",
-                            icon: <UserOutlined style={{ fontSize: '18px' }} />,
-                            label: (
-                                <Link to="/admin/users" style={{ fontSize: '16px', fontWeight: '500' }}>
-                                    Quản lý người dùng
-                                </Link>
-                            ),
-                        },
 
-                        // Settings - Admin only
-                        canAccess(
-                            [ROLES.ADMIN],
-                            ['system:settings']
-                        ) && {
-                            key: "settings",
-                            icon: <SettingOutlined style={{ fontSize: '18px' }} />,
-                            label: (
-                                <Link to="/admin/settings" style={{ fontSize: '16px', fontWeight: '500' }}>
-                                    Cài đặt hệ thống
-                                </Link>
-                            ),
-                        },
+
 
                         // Food Management - Admin, Branch Manager, Manager, Staff, Doctor
                         canAccess(
@@ -236,6 +211,38 @@ const AdminLayout = ({ children }) => {
                                 },
                             ],
                         },
+                        // Settings - Admin only
+                        canAccess(
+                            [ROLES.ADMIN],
+                            ['system:settings']
+                        ) && {
+                            key: "settings",
+                            icon: <SettingOutlined style={{ fontSize: '18px' }} />,
+                            // label: (
+                            //     <Link to="/admin/settings" style={{ fontSize: '16px', fontWeight: '500' }}>
+                            //         Cài đặt hệ thống
+                            //     </Link>
+                            // ),
+                            label: "Cài đặt hệ thống",
+                            children: [
+                                // Users Management - Admin and Branch Manager only
+                                // canAccess(
+                                //     [ROLES.ADMIN, ROLES.BRANCH_MANAGER],
+                                //     ['users:view']
+                                // ) && 
+                                {
+                                    key: "users",
+                                    icon: <UserOutlined style={{ fontSize: '18px' }} />,
+                                    label: (
+                                        <Link to="/admin/users" style={{ fontSize: '16px', fontWeight: '500' }}>
+                                            Quản lý người dùng
+                                        </Link>
+                                    ),
+                                },
+                            ],
+                        },
+
+
                     ].filter(Boolean)}
                 />
             </Sider>

@@ -1,34 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, InputNumber, Button, Space, message, Select, Upload, Radio } from 'antd';
-import { UploadOutlined, InboxOutlined } from '@ant-design/icons';
+import { Form, Input, InputNumber, Button, Space, message, Select, Upload, Typography } from 'antd';
+import { UploadOutlined, DeleteOutlined, InboxOutlined } from '@ant-design/icons';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { useFoodCategories } from '../../../hooks/queries/useFoodCategories';
+import { validateImageFile, createImagePreview, cleanupImagePreview, getImageUrlWithFallback } from '../../../utils/imageUtils';
 import PropTypes from 'prop-types';
 
 const { Dragger } = Upload;
-
-const openCloudinaryWidget = (cb) => {
-  window.cloudinary.openUploadWidget(
-    {
-      cloudName: 'depxkho4m',
-      uploadPreset: 'sep490',
-      sources: ['local', 'url', 'camera'],
-      multiple: false,
-      resourceType: 'image',
-      clientAllowedFormats: ['png', 'jpg', 'jpeg'],
-      maxFileSize: 5000000,
-    },
-    (error, result) => {
-      if (!error && result && result.event === 'success') {
-        cb(result.info.secure_url);
-      } else if (error) {
-        message.error('Lỗi khi tải lên hình ảnh!');
-      }
-    }
-  );
-};
+const { Text } = Typography;
 
 const CreateFood = ({
   open,
@@ -38,13 +19,15 @@ const CreateFood = ({
   formData,
 }) => {
   const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(initialValues);
-  const [imageUrl, setImageUrl] = useState('');
-  const [localImageFile, setLocalImageFile] = useState(null);
-  const [uploadMethod, setUploadMethod] = useState('cloudinary'); // 'cloudinary' or 'local'
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [existingImageUrl, setExistingImageUrl] = useState('');
+  const [imageRemoved, setImageRemoved] = useState(false);
   const { categories } = useFoodCategories(); // Use branch-aware hook
 
   useEffect(() => {
     if (formData) {
+      console.log('🔄 CreateFood - Setting form data:', formData);
       form.setFieldsValue({
         id: formData.id,
         name: formData.name,
@@ -56,29 +39,64 @@ const CreateFood = ({
         sort: formData.sort,
         imageUrl: formData.imageUrl || '',
       });
-      setImageUrl(formData.imageUrl || '');
-      // If editing and has image URL, default to cloudinary method
-      if (formData.imageUrl) {
-        setUploadMethod('cloudinary');
+      setExistingImageUrl(formData.imageUrl || '');
+
+      // Reset file-related state when editing
+      setImageFile(null);
+      setImageRemoved(false);
+
+      // Clean up any existing preview
+      if (previewUrl) {
+        cleanupImagePreview(previewUrl);
+        setPreviewUrl('');
       }
     } else {
       form.setFieldsValue(initialValues);
-      setImageUrl('');
-      setLocalImageFile(null);
+      setExistingImageUrl('');
+      setImageFile(null);
+      setImageRemoved(false);
+
+      // Clean up any existing preview
+      if (previewUrl) {
+        cleanupImagePreview(previewUrl);
+        setPreviewUrl('');
+      }
     }
-  }, [formData, initialValues, form]);
+
+    // Cleanup function for when component unmounts or dependencies change
+    return () => {
+      if (previewUrl) {
+        cleanupImagePreview(previewUrl);
+      }
+    };
+  }, [formData, initialValues, form]); // Removed previewUrl from dependencies to prevent cleanup loops
+
+  // Cleanup effect when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clean up any remaining preview URLs when component unmounts
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        console.log('🧹 Component unmounting - cleaning up preview URL:', previewUrl);
+        cleanupImagePreview(previewUrl);
+      }
+    };
+  }, [previewUrl]); // This effect only cares about previewUrl changes
 
   const handleFormSubmit = async (values) => {
+    console.log('🚀 CreateFood - Form submit with values:', values);
+    console.log('🚀 CreateFood - Image state:', {
+      hasImageFile: !!imageFile,
+      imageFileName: imageFile?.name,
+      existingImageUrl,
+      imageRemoved,
+      previewUrl: !!previewUrl
+    });
+
     const result = await handleSubmit(async (formData) => {
-      // Prepare the image data based on upload method
-      let imageFile = null;
-      
-      if (uploadMethod === 'local' && localImageFile) {
-        imageFile = localImageFile;
-      } else if (uploadMethod === 'cloudinary' && imageUrl) {
-        // For Cloudinary, we'll store the URL in the description or a separate field
-        // Since the backend expects a file upload, we might need to modify this approach
-        formData.imageUrl = imageUrl;
+      // If image was explicitly removed, clear it
+      if (imageRemoved) {
+        console.log('🗑️ Image was removed, clearing image data');
+        formData.imageUrl = '';
       }
 
       if (onSubmit) {
@@ -94,88 +112,84 @@ const CreateFood = ({
 
   const handleCancel = () => {
     resetForm();
-    setImageUrl('');
-    setLocalImageFile(null);
-    setUploadMethod('cloudinary');
+    setExistingImageUrl('');
+    setImageFile(null);
+    setImageRemoved(false);
+    if (previewUrl) {
+      cleanupImagePreview(previewUrl);
+      setPreviewUrl('');
+    }
     if (onCancel) {
       onCancel();
     }
   };
 
-  const handleCloudinaryUpload = (url) => {
-    setImageUrl(url);
-    setLocalImageFile(null); // Clear local file if using Cloudinary
-    form.setFieldsValue({ imageUrl: url });
-    message.success('Hình ảnh đã được tải lên Cloudinary thành công!');
+  const handleFileUpload = (file) => {
+    const validation = validateImageFile(file);
+    if (!validation.isValid) {
+      message.error(validation.error);
+      return false;
+    }
+
+    console.log('📁 New image file selected:', file.name);
+
+    // Clean up existing preview BEFORE creating new one
+    if (previewUrl) {
+      console.log('🧹 Cleaning up existing preview URL:', previewUrl);
+      cleanupImagePreview(previewUrl);
+    }
+
+    // Set the new file and reset removal flag
+    setImageFile(file);
+    setImageRemoved(false);
+
+    // Create new preview URL
+    const preview = createImagePreview(file);
+    console.log('🖼️ Created new preview URL:', preview);
+    setPreviewUrl(preview);
+
+    message.success('Hình ảnh đã được chọn để tải lên server!');
+    return false; // Prevent auto upload
   };
 
-  const handleLocalFileChange = (info) => {
-    const { fileList } = info;
-    
-    if (fileList.length > 0) {
-      const file = fileList[0];
-      if (file.status !== 'error') {
-        setLocalImageFile(file.originFileObj || file);
-        setImageUrl(''); // Clear Cloudinary URL if using local file
-        form.setFieldsValue({ imageUrl: '' });
-        message.success('Tệp hình ảnh đã được chọn!');
-      }
-    } else {
-      setLocalImageFile(null);
+  const handleRemoveImage = () => {
+    console.log('🗑️ Removing image');
+
+    // Clean up preview URL if it exists
+    if (previewUrl) {
+      console.log('🧹 Cleaning up preview URL on removal:', previewUrl);
+      cleanupImagePreview(previewUrl);
+      setPreviewUrl('');
     }
+
+    // Reset state
+    setImageFile(null);
+    setImageRemoved(true);
+
+    message.info('Hình ảnh đã được xóa!');
   };
 
-  const uploadProps = {
-    name: 'file',
-    multiple: false,
-    accept: 'image/*',
-    beforeUpload: () => {
-      return false; // Prevent automatic upload
-    },
-    onChange: handleLocalFileChange,
-    onDrop: handleLocalFileChange,
-    maxCount: 1,
-  };
+  // Determine current image source for display
+  const getCurrentImageSrc = () => {
+    // If image was explicitly removed, show nothing
+    if (imageRemoved) {
+      return null;
+    }
 
-  const getCurrentImagePreview = () => {
-    if (uploadMethod === 'cloudinary' && imageUrl) {
-      return (
-        <img
-          src={imageUrl}
-          alt="Food Preview"
-          style={{ 
-            maxWidth: '150px', 
-            maxHeight: '150px', 
-            objectFit: 'cover', 
-            borderRadius: '4px', 
-            marginTop: 8 
-          }}
-        />
-      );
+    // Priority: New file preview > Existing image
+    if (previewUrl) {
+      return previewUrl;
     }
-    
-    if (uploadMethod === 'local' && localImageFile) {
-      const previewUrl = localImageFile instanceof File 
-        ? URL.createObjectURL(localImageFile)
-        : localImageFile.url;
-      
-      return (
-        <img
-          src={previewUrl}
-          alt="Food Preview"
-          style={{ 
-            maxWidth: '150px', 
-            maxHeight: '150px', 
-            objectFit: 'cover', 
-            borderRadius: '4px', 
-            marginTop: 8 
-          }}
-        />
-      );
+
+    if (existingImageUrl) {
+      return getImageUrlWithFallback(existingImageUrl, '/images/placeholder-food.png');
     }
-    
+
     return null;
   };
+
+  const hasImage = (!!imageFile || (!!existingImageUrl && !imageRemoved));
+  const currentImageSrc = getCurrentImageSrc();
 
   return (
     <ReusableModal
@@ -276,50 +290,93 @@ const CreateFood = ({
             min={0}
             step={1}
             readOnly
-            onKeyDown={(e) => e.preventDefault()} 
-            onMouseDown={(e) => e.preventDefault()} 
+            onKeyDown={(e) => e.preventDefault()}
+            onMouseDown={(e) => e.preventDefault()}
           />
         </Form.Item>
 
-        <Form.Item label="Phương thức tải ảnh">
-          <Radio.Group 
-            value={uploadMethod} 
-            onChange={(e) => setUploadMethod(e.target.value)}
-          >
-            <Radio value="cloudinary">Cloudinary (Online)</Radio>
-            <Radio value="local">Tải file lên server</Radio>
-          </Radio.Group>
-        </Form.Item>
-
-        <Form.Item label="Hình ảnh">
+        <Form.Item label="Hình ảnh món ăn">
           <Space direction="vertical" style={{ width: '100%' }}>
-            {uploadMethod === 'cloudinary' ? (
-              <Button
-                icon={<UploadOutlined />}
-                onClick={() => openCloudinaryWidget(handleCloudinaryUpload)}
-                style={{ width: '100%' }}
-              >
-                Tải lên Cloudinary
-              </Button>
-            ) : (
-              <Dragger {...uploadProps}>
-                <p className="ant-upload-drag-icon">
-                  <InboxOutlined />
-                </p>
-                <p className="ant-upload-text">
-                  Nhấn hoặc kéo thả tệp vào khu vực này để tải lên
-                </p>
-                <p className="ant-upload-hint">
-                  Hỗ trợ tải lên một tệp hình ảnh (PNG, JPG, JPEG)
-                </p>
-              </Dragger>
+            {/* Image Upload Area */}
+            <Dragger
+              name="image"
+              multiple={false}
+              beforeUpload={handleFileUpload}
+              showUploadList={false}
+              accept=".png,.jpg,.jpeg"
+              style={{
+                background: hasImage ? '#f6ffed' : '#fafafa',
+                border: hasImage ? '2px dashed #52c41a' : '1px dashed #d9d9d9'
+              }}
+            >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined style={{ color: hasImage ? '#52c41a' : '#1890ff' }} />
+              </p>
+              <p className="ant-upload-text">
+                {hasImage ? 'Nhấp để thay đổi hình ảnh' : 'Nhấp hoặc kéo file vào khu vực này để tải lên'}
+              </p>
+              <p className="ant-upload-hint">
+                Hỗ trợ định dạng: PNG, JPG, JPEG. Kích thước tối đa: 5MB
+              </p>
+            </Dragger>
+
+            {/* Image Preview */}
+            {currentImageSrc && (
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <img
+                  src={currentImageSrc}
+                  alt="Preview"
+                  style={{
+                    maxWidth: '200px',
+                    maxHeight: '200px',
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                    border: '1px solid #d9d9d9'
+                  }}
+                />
+                <div style={{ marginTop: 8 }}>
+                  <Space>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      {imageFile ? (
+                        `${imageFile.name} (${(imageFile.size / 1024 / 1024).toFixed(2)} MB) - Mới`
+                      ) : (
+                        'Hình ảnh hiện tại'
+                      )}
+                    </Text>
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      onClick={handleRemoveImage}
+                      danger
+                    >
+                      Xóa
+                    </Button>
+                  </Space>
+                </div>
+              </div>
             )}
-            
-            {getCurrentImagePreview()}
-            
-            <Form.Item name="imageUrl" hidden>
-              <Input />
-            </Form.Item>
+
+            {/* Show removed state */}
+            {imageRemoved && !imageFile && (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                <Text type="secondary">Hình ảnh đã được xóa</Text>
+              </div>
+            )}
+
+            {/* Upload Button (Alternative) */}
+            {!hasImage && (
+              <Upload
+                name="image"
+                beforeUpload={handleFileUpload}
+                showUploadList={false}
+                accept=".png,.jpg,.jpeg"
+              >
+                <Button icon={<UploadOutlined />} block>
+                  Chọn hình ảnh từ máy tính
+                </Button>
+              </Upload>
+            )}
           </Space>
         </Form.Item>
 

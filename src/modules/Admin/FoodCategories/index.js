@@ -100,25 +100,30 @@ const FoodCategories = () => {
     }
   }, [categories, error, handleNonPermissionError]);
 
-  const handleCreateOrUpdate = async (formData) => {
+  const handleCreateOrUpdate = async (formData, imageFile = null) => {
     try {
       const payload = {
         name: formData.name,
         sort: parseInt(formData.sort, 10) || 0,
         imageUrl: formData.imageUrl || '',
-        branchId: parseInt(branchId, 10),
       };
 
       if (formData.id) {
         // Update existing category
         await updateCategoryMutation.mutateAsync({
           categoryId: formData.id,
-          categoryData: payload
+          categoryData: payload,
+          imageFile, // Pass image file for server upload if provided
+          branchId: branchId, // Keep as string for consistent cache keys
         });
         handleEditCancel();
       } else {
         // Create new category
-        await createCategoryMutation.mutateAsync(payload);
+        await createCategoryMutation.mutateAsync({
+          categoryData: payload,
+          imageFile, // Pass image file for server upload if provided
+          branchId: branchId, // Keep as string for consistent cache keys
+        });
         handleAddCancel();
       }
     } catch (error) {

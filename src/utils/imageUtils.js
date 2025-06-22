@@ -2,8 +2,6 @@
  * Image utility functions for handling server-uploaded images
  */
 
-import { environment } from '../config/environment';
-
 /**
  * Get the full URL for an uploaded image
  * @param {string} imagePath - The image path/filename from the server
