@@ -59,6 +59,14 @@ const environment = {
 
 
 
+                // Menu management endpoints
+                menuDetails: {
+                    create: this.getVersionedPath('/menudetail'),
+                    getById: (id) => this.getVersionedPath(`/menudetail/${id}`),
+                    update: (id) => this.getVersionedPath(`/menudetail/${id}`),
+                    delete: (id) => this.getVersionedPath(`/menudetail/${id}`)
+                },
+
                 // Public menu endpoints
                 publicMenus: {
                     menuByDate: this.getVersionedPath('/public/menus/menu-by-date'),

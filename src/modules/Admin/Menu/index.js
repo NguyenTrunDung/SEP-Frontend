@@ -5,6 +5,7 @@ import withPageWrapper from '../../../components/common/PageWrapper'
 import MenuTable from './MenuTable'
 import CreateFoodsMenu from './CreateFoodsMenu'
 import { useAntModal } from '../../../hooks/useAntModal'
+import dayjs from 'dayjs'
 
 // Step 1: Extract the main content into a separate component
 const MenuPageContent = ({
@@ -152,7 +153,7 @@ const Menu = () => {
                     // Simulate API call to create menu
                     const newMenu = {
                         id: Date.now(),
-                        date: formData.date.format('DD/MM/YYYY'),
+                        date: formData.date ? (dayjs.isDayjs(formData.date) ? formData.date.format('DD/MM/YYYY') : dayjs(formData.date).format('DD/MM/YYYY')) : null,
                         serviceTime: formData.serviceTime || false,
                         startTime: formData.serviceTime ? '07:00:00' : null,
                         endTime: formData.serviceTime ? '22:00:00' : null,

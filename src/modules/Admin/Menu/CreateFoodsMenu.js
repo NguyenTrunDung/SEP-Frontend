@@ -15,17 +15,21 @@ import {
     message,
     Spin,
     Alert,
+    TimePicker,
 } from 'antd';
-import { PlusOutlined, MinusCircleOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { PlusOutlined, MinusCircleOutlined, SearchOutlined, ThunderboltOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { useFoodCategories } from '../../../hooks/queries/useFoodCategories';
 import { useFoods } from '../../../hooks/queries/useFoods';
+import { useCreateMenu } from '../../../hooks/queries/useMenuQueries';
+import environment from '../../../config/environment';
 import PropTypes from 'prop-types';
+import dayjs from 'dayjs';
 import './CreateFoodsMenu.css';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 // Constants
 const MAX_LARGE_QUANTITY = 999;
@@ -55,6 +59,9 @@ const CreateFoodsMenu = ({
     const [showFoodList, setShowFoodList] = useState({});
     const [forceUpdate, setForceUpdate] = useState(0);
 
+    // API hooks
+    const createMenuMutation = useCreateMenu();
+
     // Fetch real categories data from API
     const {
         categories,
@@ -72,14 +79,14 @@ const CreateFoodsMenu = ({
     // Use API data if available, otherwise fall back to prop data
     const availableDishesData = useMemo(() => {
         if (apiDishes && apiDishes.length > 0) {
-            if (process.env.NODE_ENV === 'development') {
+            if (environment.features.enableLogging) {
                 console.log('🍽️ Using API dishes data:', apiDishes.length, 'items');
                 console.log('📋 Sample dish structure:', apiDishes[0]);
             }
             return apiDishes;
         }
         if (availableDishes && availableDishes.length > 0) {
-            if (process.env.NODE_ENV === 'development') {
+            if (environment.features.enableLogging) {
                 console.log('🍽️ Using prop dishes data:', availableDishes.length, 'items');
                 console.log('📋 Sample dish structure:', availableDishes[0]);
             }
@@ -118,7 +125,7 @@ const CreateFoodsMenu = ({
 
     // Debug log for category-dish mapping (in useEffect to avoid render-time side effects)
     useEffect(() => {
-        if (process.env.NODE_ENV === 'development' && categories && availableDishesData.length > 0) {
+        if (environment.features.enableLogging && categories && availableDishesData.length > 0) {
             console.log('🔗 Category-Dish mapping analysis:');
 
             // Show all categories from API
@@ -160,6 +167,24 @@ const CreateFoodsMenu = ({
         }
     }, [categories, menuCategories, availableDishesData]);
 
+    // Handle service time checkbox change
+    const handleServiceTimeChange = (e) => {
+        const checked = e.target.checked;
+        setServiceTime(checked);
+
+        if (!checked) {
+            // Clear time fields when service time is disabled
+            form.setFieldsValue({
+                timeFrom: null,
+                timeTo: null
+            });
+        }
+
+        if (environment.features.enableLogging) {
+            console.log('🕐 Service time changed:', checked);
+        }
+    };
+
     // Get selected dish IDs for a category
     const getSelectedDishIds = (categoryKey) => {
         const categoryData = form.getFieldValue(categoryKey) || [];
@@ -199,89 +224,139 @@ const CreateFoodsMenu = ({
         });
     }, [searchTerm, menuCategories, availableDishesData]);
 
-    // Handle search input
     const handleSearchChange = (e) => {
-        const value = e.target.value;
-        setSearchTerm(value);
-        if (value.trim()) {
-            setShowFoodList({});
+        setSearchTerm(e.target.value);
+        if (environment.features.enableLogging) {
+            console.log('🔍 Search term changed:', e.target.value);
         }
     };
 
-    // Handle food selection
     const handleFoodSelect = (categoryKey, dish) => {
-        const currentValues = form.getFieldsValue();
-        const categoryData = currentValues[categoryKey] || [];
-
-        const newItem = {
+        const categoryData = form.getFieldValue(categoryKey) || [];
+        const newDish = {
             dishId: dish.id,
+            dishName: dish.name,
             quantity: 1,
-            largeQuantity: false,
-            guestPrice: dish.priceForGuest || dish.price || 0,
-            patientPrice: dish.priceForPatient || Math.round((dish.priceForGuest || dish.price || 0) * 0.8),
-            staffPrice: dish.priceForStaff || Math.round((dish.priceForGuest || dish.price || 0) * 0.8),
+            guestPrice: dish.priceForGuest || 0,
+            patientPrice: dish.priceForPatient || 0,
+            staffPrice: dish.priceForStaff || 0,
             discount: 0,
-            autoDiscount: false,
-            maxDiscount: 0
+            largeQuantity: false,
         };
 
-        console.log(`Dish added to ${categoryKey}:`, newItem);
+        form.setFieldValue(categoryKey, [...categoryData, newDish]);
+        setForceUpdate(prev => prev + 1);
 
-        form.setFieldsValue({
-            ...currentValues,
-            [categoryKey]: [...categoryData, newItem],
-        });
-
-        setShowFoodList((prev) => ({
-            ...prev,
-            [categoryKey]: false,
-        }));
-
-        message.success(`Đã thêm ${dish.name} vào menu`);
-    };
-
-    // Handle food removal
-    const handleFoodRemove = (categoryKey, index) => {
-        const currentValues = form.getFieldsValue();
-        const categoryData = currentValues[categoryKey] || [];
-        const removedItem = categoryData[index];
-
-        form.setFieldsValue({
-            ...currentValues,
-            [categoryKey]: categoryData.filter((_, i) => i !== index),
-        });
-
-        if (removedItem && removedItem.dishId) {
-            const removedDish = availableDishesData.find((dish) => dish.id === removedItem.dishId);
-            if (removedDish) {
-                message.info(`Đã xóa ${removedDish.name} khỏi menu`);
-            }
+        if (environment.features.enableLogging) {
+            console.log(`🍽️ Selected dish "${dish.name}" for category ${categoryKey}`);
         }
     };
 
-    // Toggle food list visibility
+    const handleFoodRemove = (categoryKey, index) => {
+        const categoryData = form.getFieldValue(categoryKey) || [];
+        const removedDish = categoryData[index];
+        const newCategoryData = categoryData.filter((_, i) => i !== index);
+
+        form.setFieldValue(categoryKey, newCategoryData);
+        setForceUpdate(prev => prev + 1);
+
+        if (environment.features.enableLogging) {
+            console.log(`🗑️ Removed dish "${removedDish?.dishName}" from category ${categoryKey}`);
+        }
+    };
+
     const toggleFoodList = (categoryKey) => {
-        setShowFoodList((prev) => ({
+        setShowFoodList(prev => ({
             ...prev,
-            [categoryKey]: !prev[categoryKey],
+            [categoryKey]: !prev[categoryKey]
         }));
+    };
+
+    // Transform form data to backend API format
+    const transformFormDataToAPI = (formData) => {
+        const details = [];
+
+        // Extract details from all categories
+        menuCategories.forEach(category => {
+            const categoryData = formData[category.key] || [];
+            categoryData.forEach(dish => {
+                details.push({
+                    // id field is not needed for new menu details - backend will generate it
+                    foodId: dish.dishId,
+                    foodName: dish.dishName,
+                    qty: dish.quantity,
+                    priceForGuest: dish.guestPrice,
+                    priceForPatient: dish.patientPrice,
+                    priceForStaff: dish.staffPrice,
+                    discountPrice: dish.discount || 0,
+                    status: true, // Active by default
+                    discountFrom: null, // Backend expects string
+                    discountTo: null, // Backend expects string
+                    isQty: true // Quantity is enabled by default
+                });
+            });
+        });
+
+        return {
+            //date: formData.date ? formData.date.toISOString() : null,
+            date: formData.date ? (dayjs.isDayjs(formData.date) ? formData.date.format('YYYY-MM-DD') : dayjs(formData.date).format('YYYY-MM-DD')) : null,
+            timeOfDay: 'Menu cho ngày', // Hardcoded value instead of formData.timeOfDay
+            isTime: serviceTime,
+            timeFrom: serviceTime && formData.timeFrom ? (dayjs.isDayjs(formData.timeFrom) ? formData.timeFrom.format('HH:mm:ss') : dayjs(formData.timeFrom).format('HH:mm:ss')) : null,
+            timeTo: serviceTime && formData.timeTo ? (dayjs.isDayjs(formData.timeTo) ? formData.timeTo.format('HH:mm:ss') : dayjs(formData.timeTo).format('HH:mm:ss')) : null,
+            name: 'Menu tự động', // Hardcoded value instead of formData.name
+            // branchId will be handled automatically by the service using current branch context
+            details
+        };
     };
 
     const handleFormSubmit = async (values) => {
-        console.log('Form data being submitted:', values);
-        const result = await handleSubmit(async (formData) => {
-            console.log('Processed form data:', formData);
-            if (onSubmit) {
-                await onSubmit(formData);
+        try {
+            if (environment.features.enableLogging) {
+                console.log('📝 Form data being submitted:', values);
             }
-        });
 
-        if (result.success) {
+            // Transform form data to API format
+            const apiData = transformFormDataToAPI(values);
+
+            if (environment.features.enableLogging) {
+                console.log('🔄 Transformed API data:', apiData);
+                console.log('📋 Details array:', JSON.stringify(apiData.details, null, 2));
+                console.log('📅 Date value:', apiData.date);
+                console.log('🕐 Time settings:', {
+                    isTime: apiData.isTime,
+                    timeFrom: apiData.timeFrom,
+                    timeTo: apiData.timeTo
+                });
+            }
+
+            // Validate that we have at least one menu item
+            if (!apiData.details || apiData.details.length === 0) {
+                message.error('Vui lòng chọn ít nhất một món ăn cho menu!');
+                return;
+            }
+
+            // Create menu using the API
+            const result = await createMenuMutation.mutateAsync(apiData);
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Menu created successfully:', result);
+            }
+
             message.success('Menu đã được tạo thành công!');
-            console.log('Menu creation successful, form data:', values);
             handleCancel();
-        } else {
-            console.error('Menu creation failed:', result.error);
+
+            // Call parent onSubmit if provided
+            // Note: Commented out since we're using real API, not mock functions
+            // The parent onSubmit expects form data but we have API result data
+            /*
+            if (onSubmit) {
+                await onSubmit(result);
+            }
+            */
+        } catch (error) {
+            console.error('❌ Menu creation failed:', error);
+            message.error(`Tạo menu thất bại: ${error.message}`);
         }
     };
 
@@ -635,30 +710,148 @@ const CreateFoodsMenu = ({
                     onFinish={handleFormSubmit}
                     initialValues={{
                         date: null,
+                        // name: '', // Commented out - using hardcoded value
+                        // timeOfDay: '', // Commented out - using hardcoded value
                         serviceTime: false,
+                        timeFrom: null,
+                        timeTo: null,
                         search: '',
                         ...initialValues,
                     }}
-                    className={formLoading || loading ? 'form-loading' : ''}
+                    className={formLoading || loading || createMenuMutation.isLoading ? 'form-loading' : ''}
                 >
-                    <Form.Item
-                        name="date"
-                        label="Ngày"
-                        rules={[{ required: true, message: 'Vui lòng chọn ngày!' }]}
-                        className="date-picker-field"
-                    >
-                        <DatePicker
-                            style={{ width: '100%' }}
-                            format="DD/MM/YYYY"
-                            placeholder="Chọn ngày cho menu"
-                        />
-                    </Form.Item>
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item
+                                name="date"
+                                label="Ngày"
+                                rules={[{ required: true, message: 'Vui lòng chọn ngày!' }]}
+                                className="date-picker-field"
+                            >
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="YYYY/MM/DD"
+                                    placeholder="Chọn ngày cho menu"
+                                />
+                            </Form.Item>
+                        </Col>
+                        {/* Commented out: Tên Menu field - now using hardcoded value
+                        <Col span={12}>
+                            <Form.Item
+                                name="name"
+                                label="Tên Menu"
+                                rules={[{ required: true, message: 'Vui lòng nhập tên menu!' }]}
+                            >
+                                <Input
+                                    placeholder="Ví dụ: Menu Chính - Trưa"
+                                    style={{ width: '100%' }}
+                                />
+                            </Form.Item>
+                        </Col>
+                        */}
+                        <Col span={12}>
+                            <Form.Item name="serviceTime" valuePropName="checked" className="service-time-checkbox">
+                                <Checkbox
+                                    checked={serviceTime}
+                                    onChange={handleServiceTimeChange}
+                                    style={{ marginTop: '32px' }}
+                                >
+                                    <ClockCircleOutlined style={{ marginRight: '8px' }} />
+                                    Thời gian phục vụ cụ thể
+                                </Checkbox>
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
-                    <Form.Item name="serviceTime" valuePropName="checked" className="service-time-checkbox">
-                        <Checkbox checked={serviceTime} onChange={(e) => setServiceTime(e.target.checked)}>
-                            Thời gian phục vụ
-                        </Checkbox>
-                    </Form.Item>
+                    {/* Commented out: Mô tả thời gian field - now using hardcoded value
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item
+                                name="timeOfDay"
+                                label="Mô tả thời gian"
+                                rules={[{ required: true, message: 'Vui lòng nhập mô tả thời gian!' }]}
+                            >
+                                <Input
+                                    placeholder="Ví dụ: Bữa trưa, Bữa tối, Điểm tâm"
+                                    style={{ width: '100%' }}
+                                />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="serviceTime" valuePropName="checked" className="service-time-checkbox">
+                                <Checkbox
+                                    checked={serviceTime}
+                                    onChange={handleServiceTimeChange}
+                                    style={{ marginTop: '32px' }}
+                                >
+                                    <ClockCircleOutlined style={{ marginRight: '8px' }} />
+                                    Thời gian phục vụ cụ thể
+                                </Checkbox>
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    */}
+
+                    {serviceTime && (
+                        <Row gutter={16} style={{ marginBottom: '16px' }}>
+                            <Col span={12}>
+                                <Form.Item
+                                    name="timeFrom"
+                                    label="Thời gian bắt đầu"
+                                    rules={[
+                                        { required: serviceTime, message: 'Vui lòng chọn giờ bắt đầu!' }
+                                    ]}
+                                >
+                                    <TimePicker
+                                        style={{ width: '100%' }}
+                                        format="HH:mm"
+                                        placeholder="Chọn giờ bắt đầu"
+                                        showSecond={false}
+                                        disabled={!serviceTime}
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item
+                                    name="timeTo"
+                                    label="Thời gian kết thúc"
+                                    rules={[
+                                        { required: serviceTime, message: 'Vui lòng chọn giờ kết thúc!' },
+                                        ({ getFieldValue }) => ({
+                                            validator(_, value) {
+                                                const timeFrom = getFieldValue('timeFrom');
+                                                if (!timeFrom || !value) {
+                                                    return Promise.resolve();
+                                                }
+                                                if (value.isAfter(timeFrom)) {
+                                                    return Promise.resolve();
+                                                }
+                                                return Promise.reject(new Error('Thời gian kết thúc phải sau thời gian bắt đầu!'));
+                                            },
+                                        }),
+                                    ]}
+                                >
+                                    <TimePicker
+                                        style={{ width: '100%' }}
+                                        format="HH:mm"
+                                        placeholder="Chọn giờ kết thúc"
+                                        showSecond={false}
+                                        disabled={!serviceTime}
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    )}
+
+                    {serviceTime && (
+                        <Alert
+                            message="Thời gian phục vụ được bật"
+                            description="Menu này sẽ chỉ có thể đặt trong khoảng thời gian bạn đã chọn."
+                            type="info"
+                            showIcon
+                            style={{ marginBottom: '16px' }}
+                        />
+                    )}
 
                     <Form.Item label="Chọn món ăn" className="dish-search-input">
                         <Input
@@ -716,8 +909,13 @@ const CreateFoodsMenu = ({
                             <Button onClick={handleCancel} size="large">
                                 Hủy
                             </Button>
-                            <Button type="primary" htmlType="submit" loading={formLoading || loading} size="large">
-                                Lưu Menu
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={formLoading || loading || createMenuMutation.isLoading}
+                                size="large"
+                            >
+                                {createMenuMutation.isLoading ? 'Đang tạo menu...' : 'Lưu Menu'}
                             </Button>
                         </Space>
                     </Form.Item>
