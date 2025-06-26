@@ -4,19 +4,19 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { TEST_ACCOUNTS } from '../../constants/roles';
 import PropTypes from 'prop-types';
+import './AuthForm.css'; // Đảm bảo import CSS
 
 const { Title, Text } = Typography;
 
 const AuthForm = ({
-    title = 'Login',
-    submitText = 'Login',
+    submitText = 'Đăng Nhập',
     showTestAccounts = true,
     customFields = [],
     onSuccess,
     redirectPath = '/redirect'
 }) => {
     const [form] = Form.useForm();
-    const { login, loading, error } = useAuth();
+    const { login, loading, error } = useAuth() || {}; // Fallback để tránh lỗi nếu useAuth không tồn tại
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -24,21 +24,27 @@ const AuthForm = ({
 
     const handleSubmit = async (values) => {
         try {
+            if (!login) {
+                console.error('Login function is not available');
+                return;
+            }
             await login(values);
             if (onSuccess) {
                 onSuccess(values);
             }
             navigate(from, { replace: true });
         } catch (err) {
-            // Error is handled by the auth context
+            console.error('Login error:', err);
         }
     };
 
     const handleTestAccountClick = (account) => {
-        form.setFieldsValue({
-            email: account.email,
-            password: account.password
-        });
+        if (form && account) {
+            form.setFieldsValue({
+                email: account.email,
+                password: account.password
+            });
+        }
     };
 
     const defaultFields = [
@@ -46,16 +52,16 @@ const AuthForm = ({
             name: 'email',
             label: 'Email',
             rules: [
-                { required: true, message: 'Please input your email!' },
-                { type: 'email', message: 'Please enter a valid email!' }
+                { required: true, message: 'Vui lòng nhập email!' },
+                { type: 'email', message: 'Vui lòng nhập email hợp lệ!' }
             ],
-            component: <Input size="large" placeholder="Enter your email" />
+            component: <Input size="large" placeholder="Email" />
         },
         {
             name: 'password',
-            label: 'Password',
-            rules: [{ required: true, message: 'Please input your password!' }],
-            component: <Input.Password size="large" placeholder="Enter your password" />
+            label: 'Mật khẩu',
+            rules: [{ required: true, message: 'Vui lòng nhập mật khẩu!' }],
+            component: <Input.Password size="large" placeholder="Mật khẩu" />
         }
     ];
 
@@ -64,8 +70,6 @@ const AuthForm = ({
     return (
         <div className="auth-form-container">
             <Card className="auth-form-card" variant={false}>
-                {title && <Title level={2} style={{ textAlign: 'center', marginBottom: 24 }}>{title}</Title>}
-
                 <Form
                     form={form}
                     name="auth-form"
@@ -75,14 +79,16 @@ const AuthForm = ({
                     size="large"
                 >
                     {error && (
-                        <div style={{
-                            padding: '12px 16px',
-                            marginBottom: '16px',
-                            backgroundColor: '#fff2f0',
-                            border: '1px solid #ffccc7',
-                            borderRadius: '6px',
-                            color: '#ff4d4f'
-                        }}>
+                        <div
+                            style={{
+                                padding: '12px 16px',
+                                marginBottom: '16px',
+                                backgroundColor: '#fff2f0',
+                                border: '1px solid #ffccc7',
+                                borderRadius: '6px',
+                                color: '#ff4d4f'
+                            }}
+                        >
                             {error}
                         </div>
                     )}
@@ -106,14 +112,14 @@ const AuthForm = ({
                             loading={loading}
                             size="large"
                             block
-                            style={{ borderRadius: '6px' }}
+                            style={{ borderRadius: '6px', backgroundColor: '#17a2b8', borderColor: '#17a2b8' }}
                         >
                             {submitText}
                         </Button>
                     </Form.Item>
                 </Form>
 
-                {showTestAccounts && (
+                {showTestAccounts && TEST_ACCOUNTS && (
                     <>
                         <Divider>
                             <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -121,7 +127,7 @@ const AuthForm = ({
                             </Text>
                         </Divider>
 
-                        <div style={{ textAlign: 'center' }}>
+                        <div style={{ textAlign: 'center' }}> {/* Sửa text-align thành camelCase */}
                             <Space direction="vertical" size="small" style={{ width: '100%' }}>
                                 <Text type="secondary" style={{ fontSize: '12px', marginBottom: 8 }}>
                                     Click any account below to auto-fill credentials:
@@ -164,7 +170,6 @@ const AuthForm = ({
 };
 
 AuthForm.propTypes = {
-    title: PropTypes.string,
     submitText: PropTypes.string,
     showTestAccounts: PropTypes.bool,
     customFields: PropTypes.arrayOf(
@@ -179,4 +184,4 @@ AuthForm.propTypes = {
     redirectPath: PropTypes.string
 };
 
-export default AuthForm; 
+export default AuthForm;

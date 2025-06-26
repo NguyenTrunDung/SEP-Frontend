@@ -1,52 +1,78 @@
 import React from 'react';
-import { Row, Col, Card, Typography, Layout, Image } from 'antd';
+import { Row, Col, Card, Typography, Image, Button } from 'antd';
+import { CloseOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import AuthForm from '../../components/common/AuthForm';
 import './Login.css';
 
 const { Title } = Typography;
-const { Content } = Layout;
 
 const Login = () => {
+    const navigate = useNavigate();
+
+    const handleClose = () => {
+        navigate('/'); // hoặc navigate(-1);
+    };
+
     return (
-        <Layout className="login-layout">
-            <Content>
-                <Row className="login-row" justify="center" align="middle">
-                    <Col xs={22} sm={18} md={12} lg={10} xl={8}>
-                        <Card
-                            className="login-card"
-                            bordered={false}
-                            cover={
-                                <div className="login-header">
-                                    {/* Optional: Add a hospital logo here */}
-                                    {/* <Image 
-                                        src="/logo.png" 
-                                        alt="Hospital Logo"
-                                        preview={false}
-                                        width={80}
-                                    /> */}
-                                    <Title level={2} className="login-title">
-                                        Hospital Canteen
-                                    </Title>
-                                    <p className="login-subtitle">
-                                        Sign in to access the management system
-                                    </p>
-                                </div>
-                            }
-                        >
-                            <AuthForm
-                                title=""
-                                submitText="Sign In"
-                                showTestAccounts={true}
+        <div className="login-layout">
+            {/* Nút Close ở góc phải trên cùng */}
+            <Button
+                type="text"
+                icon={<CloseOutlined />}
+                onClick={handleClose}
+                className="close-button"
+            />
+
+            <Card className="login-card" bordered={false}>
+                <Row gutter={0} align="middle">
+                    <Col xs={24} md={17} className="login-left">
+                        <Title level={2} className="login-title">
+                            Hệ thống đặt suất ăn bệnh viện
+                        </Title>
+                        <div className="avatar-wrapper">
+                            <Image
+                                src="images/mo.jpg"
+                                alt="Background"
+                                preview={false}
+                                className="login-bg"
                             />
-                        </Card>
-                        <div className="login-footer">
-                            <p>© {new Date().getFullYear()} Hospital Canteen Management System</p>
+                            <Image
+                                src="https://dussmannfood.superweb.xyz/assets/auth-v2-login-illustration-light-C4sKfRS1.png"
+                                alt="Avatar"
+                                preview={false}
+                                className="login-avatar"
+                            />
                         </div>
                     </Col>
+
+                    <Col xs={24} md={7} className="login-right">
+                        <div className="login-welcome">
+                            <Image
+                                src="images/lg.png"
+                                alt="Dussmann Logo"
+                                preview={false}
+                                className="login-logo"
+                                width={100}
+                            />
+                            <Title level={3}>Welcome to Hệ thống đặt suất ăn bệnh viện!</Title>
+                        </div>
+
+                        <AuthForm
+                            passwordLabel="Mật khẩu"
+                            submitText="Đăng Nhập"
+                            showTestAccounts={false}
+                            errorMessage="This field is required"
+                            fields={[
+                                { name: 'username', placeholder: 'Tên đăng nhập', required: true },
+                                { name: 'password', placeholder: 'Mật khẩu', type: 'password', required: true },
+                            ]}
+                        />
+                    </Col>
                 </Row>
-            </Content>
-        </Layout>
+            </Card>
+        </div>
     );
 };
 
-export default Login; 
+export default Login;
