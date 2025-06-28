@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Spin, Image as AntImage } from 'antd';
 import { getImageUrl, getImageUrlWithFallback, isImageAccessible } from '../../utils/imageUtils';
+import imageConfig from '../../config/imageConfig';
 import './ImageDisplay.css';
 
 /**
@@ -19,6 +20,7 @@ const ImageDisplay = ({
     onLoad,
     style = {},
     placeholder = true,
+    useApiEndpoint = true, // Force API endpoint for CORS compliance
     ...props
 }) => {
     const [imageUrl, setImageUrl] = useState(null);
@@ -36,8 +38,8 @@ const ImageDisplay = ({
                 return;
             }
 
-            // Get the full image URL
-            const fullImageUrl = getImageUrl(src);
+            // Get the full image URL with optional API endpoint usage
+            const fullImageUrl = getImageUrl(src, useApiEndpoint);
 
             if (!fullImageUrl) {
                 setImageUrl(fallback);
@@ -64,7 +66,7 @@ const ImageDisplay = ({
         };
 
         loadImage();
-    }, [src, fallback]);
+    }, [src, fallback, useApiEndpoint]);
 
     const handleImageLoad = (event) => {
         setIsLoading(false);

@@ -198,7 +198,7 @@ export const useMenu = (menuId, options = {}) => {
 
 /**
  * Hook for creating a new menu
- * Success only - no automatic cache invalidation since we're not using table data
+ * Now automatically refetches menu list data on success with optimistic updates
  */
 export const useCreateMenu = () => {
   const queryClient = useQueryClient();
@@ -218,36 +218,74 @@ export const useCreateMenu = () => {
 
       return menuService.createMenu(menuData);
     },
-    onSuccess: (data, variables) => {
-      if (environment.features.enableLogging) {
-        console.log('✅ Menu created successfully:', data);
+    // Optimistic update - show menu immediately while API call is in progress
+    onMutate: async (newMenuData) => {
+      // Cancel any outgoing refetches to avoid overwriting our optimistic update
+      await queryClient.cancelQueries({ queryKey: MENU_KEYS.lists() });
+
+      // Snapshot the previous menu list
+      const previousMenus = queryClient.getQueryData(MENU_KEYS.lists());
+
+      // Optimistically add the new menu to the list
+      if (previousMenus) {
+        const optimisticMenu = {
+          id: Date.now(), // Temporary ID
+          name: newMenuData.name || `Menu ${new Date().toLocaleDateString('vi-VN')}`,
+          date: newMenuData.date,
+          isTime: newMenuData.isTime || false,
+          timeFrom: newMenuData.timeFrom,
+          timeTo: newMenuData.timeTo,
+          timeOfDay: newMenuData.timeOfDay,
+          branchId: newMenuData.branchId || currentBranchId,
+          details: newMenuData.details || [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          // Mark as optimistic for potential rollback
+          _isOptimistic: true
+        };
+
+        queryClient.setQueryData(MENU_KEYS.lists(), [optimisticMenu, ...previousMenus]);
+
+        if (environment.features.enableLogging) {
+          console.log('⚡ Optimistic update: Added menu to list immediately');
+        }
       }
 
-      // No automatic cache invalidation - we're not using table data yet
-      // When table functionality is needed, uncomment the invalidation code below:
+      // Return context object with the snapshot
+      return { previousMenus };
+    },
+    onSuccess: (data, variables, context) => {
+      if (environment.features.enableLogging) {
+        console.log('✅ Menu created successfully:', data);
+        console.log('🔄 Invalidating menu queries for automatic refetch...');
+      }
 
-      /*
-      // Invalidate and refetch related menu queries
-      const menuDate = variables.date;
-      const branchId = variables.branchId || currentBranchId;
-
-      // Invalidate menu lists
+      // Immediately invalidate and refetch menu list data to get real server data
       queryClient.invalidateQueries({
         queryKey: MENU_KEYS.lists()
       });
 
-      // Invalidate date-specific menu queries
+      // Invalidate date-specific menu queries if date is provided
+      const menuDate = variables.date;
+      const branchId = variables.branchId || currentBranchId;
+
       if (menuDate) {
+        // Invalidate public menu queries for the specific date
         queryClient.invalidateQueries({
           queryKey: MENU_KEYS.byDate(menuDate, branchId)
         });
 
+        // Invalidate menu categories for the specific date
         queryClient.invalidateQueries({
           queryKey: MENU_KEYS.categories(menuDate, branchId)
         });
+
+        if (environment.features.enableLogging) {
+          console.log(`🔄 Invalidated date-specific queries for ${menuDate}`);
+        }
       }
 
-      // Invalidate all menu queries for current branch
+      // Invalidate all menu queries for current branch to ensure consistency
       queryClient.invalidateQueries({
         queryKey: [...MENU_KEYS.all, 'byDate'],
         predicate: (query) => {
@@ -255,18 +293,45 @@ export const useCreateMenu = () => {
           return queryBranchId === branchId;
         }
       });
-      */
+
+      // Optional: Prefetch the updated menu list for better UX
+      queryClient.prefetchQuery({
+        queryKey: MENU_KEYS.lists(),
+        queryFn: () => menuService.getMenuList(),
+        staleTime: 30 * 1000, // 30 seconds
+      });
+
+      if (environment.features.enableLogging) {
+        console.log('✅ Menu list queries invalidated and prefetched successfully');
+      }
     },
-    onError: (error) => {
+    // If the mutation fails, rollback the optimistic update
+    onError: (error, variables, context) => {
       if (environment.features.enableLogging) {
         console.error('❌ Failed to create menu:', error);
+        console.log('🔄 Rolling back optimistic update...');
       }
+
+      // Rollback to the previous menu list
+      if (context?.previousMenus) {
+        queryClient.setQueryData(MENU_KEYS.lists(), context.previousMenus);
+
+        if (environment.features.enableLogging) {
+          console.log('✅ Optimistic update rolled back');
+        }
+      }
+    },
+    // Always refetch after error or success to ensure data consistency
+    onSettled: () => {
+      // Ensure we have the latest data regardless of success or failure
+      queryClient.invalidateQueries({ queryKey: MENU_KEYS.lists() });
     }
   });
 };
 
 /**
  * Hook for updating an existing menu
+ * Now fully functional with real API integration
  */
 export const useUpdateMenu = () => {
   const queryClient = useQueryClient();
@@ -284,25 +349,57 @@ export const useUpdateMenu = () => {
         console.log('🔄 Updating menu:', menuId, 'with data:', menuData);
       }
 
-      // For now, we'll need to implement updateMenu in the service
-      // This is a placeholder that could be extended when the update endpoint is available
-      throw new Error('Update menu functionality not yet implemented in backend');
+      // Call the real updateMenu service method
+      return menuService.updateMenu(menuId, menuData);
     },
     onSuccess: (data, { menuId, menuData }) => {
       if (environment.features.enableLogging) {
         console.log('✅ Menu updated successfully:', data);
+        console.log('🔄 Invalidating menu queries for automatic refetch...');
       }
 
-      // Update the specific menu in cache
-      queryClient.setQueryData(MENU_KEYS.details(menuId), data);
+      // Instead of directly updating cache, invalidate to force fresh fetch
+      // This prevents data structure mismatches between update response and getMenu response
+      queryClient.invalidateQueries({
+        queryKey: MENU_KEYS.details(menuId)
+      });
 
-      // Invalidate related queries
+      // Immediately invalidate and refetch menu list data
+      queryClient.invalidateQueries({
+        queryKey: MENU_KEYS.lists()
+      });
+
+      // Invalidate related date-specific queries
       const menuDate = menuData.date;
       const branchId = menuData.branchId || currentBranchId;
 
-      queryClient.invalidateQueries({
-        queryKey: MENU_KEYS.byDate(menuDate, branchId)
+      if (menuDate) {
+        queryClient.invalidateQueries({
+          queryKey: MENU_KEYS.byDate(menuDate, branchId)
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: MENU_KEYS.categories(menuDate, branchId)
+        });
+      }
+
+      // Prefetch updated menu list and specific menu for immediate availability
+      queryClient.prefetchQuery({
+        queryKey: MENU_KEYS.lists(),
+        queryFn: () => menuService.getMenuList(),
+        staleTime: 30 * 1000,
       });
+
+      // Prefetch the updated menu details for smooth ViewModal experience
+      queryClient.prefetchQuery({
+        queryKey: MENU_KEYS.details(menuId),
+        queryFn: () => menuService.getMenu(menuId),
+        staleTime: 30 * 1000,
+      });
+
+      if (environment.features.enableLogging) {
+        console.log('✅ Menu queries invalidated and prefetched after update');
+      }
     },
     onError: (error) => {
       if (environment.features.enableLogging) {
@@ -314,6 +411,7 @@ export const useUpdateMenu = () => {
 
 /**
  * Hook for deleting a menu
+ * Will auto-refetch menu list when delete functionality is implemented
  */
 export const useDeleteMenu = () => {
   const queryClient = useQueryClient();
@@ -331,6 +429,7 @@ export const useDeleteMenu = () => {
     onSuccess: (data, menuId) => {
       if (environment.features.enableLogging) {
         console.log('✅ Menu deleted successfully:', menuId);
+        console.log('🔄 Invalidating menu queries for automatic refetch...');
       }
 
       // Remove the specific menu from cache
@@ -338,21 +437,48 @@ export const useDeleteMenu = () => {
         queryKey: MENU_KEYS.details(menuId)
       });
 
-      // Invalidate menu lists
+      // Immediately invalidate and refetch menu list data
       queryClient.invalidateQueries({
         queryKey: MENU_KEYS.lists()
       });
 
-      // Invalidate all menu queries
+      // Invalidate all menu-related queries to ensure consistency
       queryClient.invalidateQueries({
         queryKey: MENU_KEYS.all
       });
+
+      // Prefetch updated menu list
+      queryClient.prefetchQuery({
+        queryKey: MENU_KEYS.lists(),
+        queryFn: () => menuService.getMenuList(),
+        staleTime: 30 * 1000,
+      });
+
+      if (environment.features.enableLogging) {
+        console.log('✅ Menu list queries invalidated and prefetched after deletion');
+      }
     },
     onError: (error) => {
       if (environment.features.enableLogging) {
         console.error('❌ Failed to delete menu:', error);
       }
     }
+  });
+};
+
+/**
+ * Hook for fetching all menus with details for the current branch
+ * Uses automatic branch context resolution (no manual branchId required)
+ */
+export const useMenuList = (options = {}) => {
+  return useQuery({
+    queryKey: MENU_KEYS.lists(),
+    queryFn: () => menuService.getMenuList(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    retry: 2,
+    ...options,
   });
 };
 

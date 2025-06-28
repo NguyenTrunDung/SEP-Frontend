@@ -5,9 +5,10 @@
 /**
  * Get the full URL for an uploaded image
  * @param {string} imagePath - The image path/filename from the server
+ * @param {boolean} useApiEndpoint - Whether to use API endpoint for CORS compliance (default: false)
  * @returns {string} - The full URL to access the image
  */
-export const getImageUrl = (imagePath) => {
+export const getImageUrl = (imagePath, useApiEndpoint = false) => {
     if (!imagePath) {
         return null;
     }
@@ -24,17 +25,25 @@ export const getImageUrl = (imagePath) => {
 
     // Construct the full URL
     const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5281';
-    return `${baseUrl}/uploads/${cleanPath}`;
+
+    if (useApiEndpoint) {
+        // Use API endpoint for CORS compliance
+        return `${baseUrl}/api/v1/images/${cleanPath}`;
+    } else {
+        // Use direct static file serving (with CORS headers configured)
+        return `${baseUrl}/uploads/${cleanPath}`;
+    }
 };
 
 /**
  * Get image URL with fallback to default image
  * @param {string} imagePath - The image path from server
  * @param {string} fallbackImage - Default image path (optional)
+ * @param {boolean} useApiEndpoint - Whether to use API endpoint for CORS compliance (default: false)
  * @returns {string} - Image URL or fallback
  */
-export const getImageUrlWithFallback = (imagePath, fallbackImage = '/images/com.jpg') => {
-    const imageUrl = getImageUrl(imagePath);
+export const getImageUrlWithFallback = (imagePath, fallbackImage = '/images/com.jpg', useApiEndpoint = false) => {
+    const imageUrl = getImageUrl(imagePath, useApiEndpoint);
     return imageUrl || fallbackImage;
 };
 

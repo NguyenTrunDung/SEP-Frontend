@@ -1,159 +1,93 @@
-import React, { useState } from 'react';
-import { Card, Button, Space, Typography, Divider, Row, Col, message } from 'antd';
-import { FoodImage, AvatarImage } from '../common/ImageDisplay';
-import { getImageUrl, validateImageFile, createImagePreview } from '../../utils/imageUtils';
+import React from 'react';
+import { Card, Typography, Divider } from 'antd';
+import ImageDisplay from '../common/ImageDisplay';
+import { getImageUrl } from '../../utils/imageUtils';
+import imageConfig from '../../config/imageConfig';
 
 const { Title, Text, Paragraph } = Typography;
 
-/**
- * Test component to demonstrate image loading from server uploads
- */
 const ImageTestComponent = () => {
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(null);
-
-    // Test images from the server uploads folder
-    const testImages = [
-        '25e414b9-35b1-4ae5-a314-f6a6468b7324.jpg',
-        '469e2b61-ebba-450c-8586-7aaea397f774.png',
-        '98765544-63ac-474a-bafa-946dcffb6486.jpg',
-        'b85f8ff9-63c0-4e7b-9b8d-2b5ba5797289.jpg'
-    ];
-
-    const handleFileChange = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const validation = validateImageFile(file);
-        if (!validation.isValid) {
-            message.error(validation.error);
-            return;
-        }
-
-        setSelectedFile(file);
-        const preview = createImagePreview(file);
-        setPreviewUrl(preview);
-        message.success(`File selected: ${file.name}`);
-    };
-
-    const testImageUrl = (imagePath) => {
-        const url = getImageUrl(imagePath);
-        console.log('Image path:', imagePath, '→ URL:', url);
-        message.info(`Generated URL: ${url}`);
-    };
+    // Test with a sample image that should exist in uploads
+    const testImagePath = '7c101bc9_009a0c14.jpg'; // Your actual image
 
     return (
-        <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-            <Title level={2}>Image Loading System Test</Title>
+        <Card title="Image CORS Test Component" style={{ margin: '20px' }}>
+            <Title level={4}>Configuration Status</Title>
             <Paragraph>
-                This component demonstrates how to load images from the server's uploads folder.
+                <Text strong>Use API Endpoint: </Text>
+                <Text code>{imageConfig.useApiEndpoint ? 'TRUE (API)' : 'FALSE (Static Files)'}</Text>
+            </Paragraph>
+
+            <Paragraph>
+                <Text strong>Generated URL: </Text>
+                <Text code>{getImageUrl(testImagePath, imageConfig.useApiEndpoint)}</Text>
             </Paragraph>
 
             <Divider />
 
-            <Title level={3}>Server Upload Images</Title>
-            <Row gutter={[16, 16]}>
-                {testImages.map((imageName, index) => (
-                    <Col xs={12} sm={8} md={6} key={index}>
-                        <Card
-                            size="small"
-                            title={`Image ${index + 1}`}
-                            extra={
-                                <Button
-                                    size="small"
-                                    onClick={() => testImageUrl(imageName)}
-                                >
-                                    Test URL
-                                </Button>
-                            }
-                        >
-                            <FoodImage
-                                src={imageName}
-                                alt={`Test food ${index + 1}`}
-                                size="card"
-                            />
-                            <Text code style={{ fontSize: '10px', wordBreak: 'break-all' }}>
-                                {imageName}
-                            </Text>
-                        </Card>
-                    </Col>
-                ))}
-            </Row>
+            <Title level={4}>Image Display Test</Title>
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                <div>
+                    <Text strong>Using Configuration (Should work):</Text>
+                    <div style={{ marginTop: '10px' }}>
+                        <ImageDisplay
+                            src={testImagePath}
+                            alt="Test Image"
+                            width={150}
+                            height={150}
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <Text strong>Force API Endpoint:</Text>
+                    <div style={{ marginTop: '10px' }}>
+                        <ImageDisplay
+                            src={testImagePath}
+                            alt="Test Image API"
+                            width={150}
+                            height={150}
+                            useApiEndpoint={true}
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <Text strong>Force Static Files:</Text>
+                    <div style={{ marginTop: '10px' }}>
+                        <ImageDisplay
+                            src={testImagePath}
+                            alt="Test Image Static"
+                            width={150}
+                            height={150}
+                            useApiEndpoint={true}
+                        />
+                    </div>
+                </div>
+            </div>
 
             <Divider />
 
-            <Title level={3}>Different Image Sizes</Title>
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                <div>
-                    <Text strong>Small Size (60x60):</Text>
-                    <div style={{ marginTop: '8px' }}>
-                        <FoodImage
-                            src="25e414b9-35b1-4ae5-a314-f6a6468b7324.jpg"
-                            size="small"
-                            alt="Small food image"
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <Text strong>Medium Size (120x120):</Text>
-                    <div style={{ marginTop: '8px' }}>
-                        <FoodImage
-                            src="469e2b61-ebba-450c-8586-7aaea397f774.png"
-                            size="medium"
-                            alt="Medium food image"
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <Text strong>Large Size (200x200):</Text>
-                    <div style={{ marginTop: '8px' }}>
-                        <FoodImage
-                            src="98765544-63ac-474a-bafa-946dcffb6486.jpg"
-                            size="large"
-                            alt="Large food image"
-                        />
-                    </div>
-                </div>
-            </Space>
+            <Title level={4}>URL Generation Test</Title>
+            <Paragraph>
+                <Text strong>Static File URL: </Text>
+                <Text code>{getImageUrl(testImagePath, false)}</Text>
+            </Paragraph>
+            <Paragraph>
+                <Text strong>API Endpoint URL: </Text>
+                <Text code>{getImageUrl(testImagePath, true)}</Text>
+            </Paragraph>
 
             <Divider />
 
-            <Title level={3}>File Upload Preview Test</Title>
-            <Space direction="vertical" style={{ width: '100%' }}>
-                <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                />
-                {selectedFile && (
-                    <div>
-                        <Text strong>Selected File:</Text> {selectedFile.name}
-                        <br />
-                        <Text>Size:</Text> {(selectedFile.size / 1024).toFixed(2)} KB
-                    </div>
-                )}
-                {previewUrl && (
-                    <div>
-                        <Text strong>Preview:</Text>
-                        <div style={{ marginTop: '8px' }}>
-                            <img
-                                src={previewUrl}
-                                alt="Preview"
-                                style={{
-                                    width: '150px',
-                                    height: '150px',
-                                    objectFit: 'cover',
-                                    border: '1px solid #d9d9d9',
-                                    borderRadius: '8px'
-                                }}
-                            />
-                        </div>
-                    </div>
-                )}
-            </Space>
-        </div>
+            <Title level={4}>Instructions</Title>
+            <ul>
+                <li>Check browser console for CORS errors</li>
+                <li>Check Network tab to see which URLs are being called</li>
+                <li>If "Force API Endpoint" works but configuration doesn't, restart frontend</li>
+                <li>If "Force Static Files" works, change useApiEndpoint to false in config</li>
+            </ul>
+        </Card>
     );
 };
 

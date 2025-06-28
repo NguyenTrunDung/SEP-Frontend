@@ -224,6 +224,106 @@ export const menuService = {
             isValid: errors.length === 0,
             errors
         };
+    },
+
+    /**
+     * Get all menus with details for the current branch
+     * Uses the GET /api/v1/MenuDetail endpoint (automatic branch context resolution)
+     * @returns {Promise<Array>} List of menus with details
+     */
+    async getMenuList() {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔍 menuService.getMenuList - calling backend...');
+            }
+
+            const response = await api.get(`${environment.api.getVersionedPath('/MenuDetail')}`);
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Fetched menu list:', response.data);
+            }
+
+            // Extract data from API response structure
+            return response.data?.data || response.data || [];
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to fetch menu list:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Update an existing menu with details
+     * Uses the PUT /api/v1/MenuDetails/{id} endpoint
+     * @param {string|number} menuId - The menu ID to update
+     * @param {Object} menuData - The menu data to update
+     * @returns {Promise<Object>} Updated menu response
+     */
+    async updateMenu(menuId, menuData) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔄 menuService.updateMenu - ID:', menuId, 'data:', {
+                    ...menuData,
+                    details: `${menuData.details?.length || 0} items`
+                });
+            }
+
+            // Get current branch ID if not provided
+            const currentBranchId = menuData.branchId || environment.multiTenant.getCurrentBranchId();
+
+            if (!currentBranchId) {
+                throw new Error('Branch ID is required for menu update');
+            }
+
+            // Prepare the request body according to backend API structure
+            const requestBody = {
+                id: parseInt(menuId, 10),
+                date: menuData.date,
+                timeOfDay: menuData.timeOfDay || null,
+                isTime: menuData.isTime || false,
+                timeFrom: menuData.isTime ? (menuData.timeFrom || null) : null,
+                timeTo: menuData.isTime ? (menuData.timeTo || null) : null,
+                name: menuData.name,
+                branchId: parseInt(currentBranchId, 10),
+                details: (menuData.details || []).map(detail => ({
+                    id: detail.id || 0, // Include existing ID or 0 for new items
+                    foodId: detail.foodId,
+                    foodName: detail.foodName || 'string', // Backend expects string
+                    qty: detail.qty || detail.quantity || 1,
+                    priceForGuest: detail.priceForGuest || detail.guestPrice || 0,
+                    priceForPatient: detail.priceForPatient || detail.patientPrice || 0,
+                    priceForStaff: detail.priceForStaff || detail.staffPrice || 0,
+                    discountPrice: detail.discountPrice || detail.discount || 0,
+                    status: detail.status !== undefined ? detail.status : true,
+                    discountFrom: detail.discountFrom ? (detail.discountFrom || null) : null,
+                    discountTo: detail.discountTo ? (detail.discountTo || null) : null,
+                    isQty: detail.isQty !== undefined ? detail.isQty : true
+                }))
+            };
+
+            if (environment.features.enableLogging) {
+                console.log('📤 menuService.updateMenu - request body:', requestBody);
+            }
+
+            const response = await api.put(`${environment.api.getVersionedPath('/MenuDetail')}/${menuId}`, requestBody);
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Updated menu:', response.data);
+            }
+
+            // Backend returns updated menu data
+            return response.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to update menu:', {
+                    message: error.response?.data?.message || error.message,
+                    status: error.response?.status,
+                    data: error.response?.data
+                });
+            }
+            throw error;
+        }
     }
 };
 

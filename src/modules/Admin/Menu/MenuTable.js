@@ -8,7 +8,7 @@ import locale from 'antd/locale/vi_VN';
 
 /**
  * MenuTable component for displaying menu list with Vietnamese interface
- * Now uses the unified ReusableTable styling system for consistency
+ * Now uses real API data from GetMenuList endpoint with automatic branch context
  */
 const MenuTable = ({
     dataSource = [],
@@ -40,32 +40,51 @@ const MenuTable = ({
 
     const dateFormat = getDateFormat();
 
+    // Transform API data to display format
+    const transformedData = useMemo(() => {
+        return dataSource.map(menu => ({
+            id: menu.id,
+            menuId: menu.id,
+            // Transform API date format to display format
+            date: menu.date ? dayjs(menu.date).format(dateFormat) : '-',
+            // Map API fields to display fields
+            serviceTime: menu.isTime || false,
+            startTime: menu.timeFrom || null,
+            endTime: menu.timeTo || null,
+            // Keep original API data for actions
+            originalData: menu,
+            // Additional display fields
+            name: menu.name || '-',
+            timeOfDay: menu.timeOfDay || '-',
+            totalDishes: menu.details?.length || 0,
+            branchId: menu.branchId,
+            createdAt: menu.createdAt,
+            updatedAt: menu.updatedAt
+        }));
+    }, [dataSource, dateFormat]);
+
     // Filter data based on selected date
     const filteredData = useMemo(() => {
-        if (!selectedDate) return dataSource;
+        if (!selectedDate) return transformedData;
 
         const selectedDateStr = selectedDate.format(dateFormat);
-        return dataSource.filter(item => {
-            // Ensure item.date exists and is a string
-            if (!item.date || typeof item.date !== 'string') {
-                return false;
-            }
+        return transformedData.filter(item => {
             return item.date === selectedDateStr;
         });
-    }, [dataSource, selectedDate, dateFormat]);
+    }, [transformedData, selectedDate, dateFormat]);
 
     // Handle actions
     const handleView = (record) => {
         if (onView) {
-            onView(record);
+            onView(record.originalData || record);
         } else {
-            message.info(`Xem chi tiết menu ngày ${record.date}`);
+            message.info(`Xem chi tiết menu ngày ${record.date} - ${record.totalDishes} món ăn`);
         }
     };
 
     const handleEdit = (record) => {
         if (onEdit) {
-            onEdit(record);
+            onEdit(record.originalData || record);
         } else {
             message.info(`Chỉnh sửa menu ngày ${record.date}`);
         }
@@ -73,7 +92,7 @@ const MenuTable = ({
 
     const handleDelete = (record) => {
         if (onDelete) {
-            onDelete(record);
+            onDelete(record.originalData || record);
         } else {
             message.success(`Đã xóa menu ngày ${record.date}`);
         }
@@ -125,6 +144,31 @@ const MenuTable = ({
                 <span className="vietnamese-text date-column">
                     {date || '-'}
                 </span>
+            ),
+        },
+        {
+            title: 'TÊN MENU',
+            dataIndex: 'name',
+            key: 'name',
+            width: 200,
+            ellipsis: true,
+            render: (name) => (
+                <span className="vietnamese-text menu-name-column">
+                    {name || '-'}
+                </span>
+            ),
+        },
+        {
+            title: 'SỐ MÓN ĂN',
+            dataIndex: 'totalDishes',
+            key: 'totalDishes',
+            width: 100,
+            align: 'center',
+            sorter: (a, b) => a.totalDishes - b.totalDishes,
+            render: (totalDishes) => (
+                <Tag color="blue" className="vietnamese-text">
+                    {totalDishes} món
+                </Tag>
             ),
         },
         {
@@ -201,7 +245,7 @@ const MenuTable = ({
                     <Tooltip title="Xóa">
                         <Popconfirm
                             title="Xóa menu"
-                            description={`Bạn có chắc chắn muốn xóa menu ngày ${record.date}?`}
+                            description={`Bạn có chắc chắn muốn xóa menu "${record.name}" ngày ${record.date}?`}
                             onConfirm={() => handleDelete(record)}
                             okText="Xóa"
                             cancelText="Hủy"
@@ -274,10 +318,15 @@ MenuTable.propTypes = {
     dataSource: PropTypes.arrayOf(
         PropTypes.shape({
             id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-            date: PropTypes.string.isRequired,
-            serviceTime: PropTypes.bool.isRequired,
-            startTime: PropTypes.string,
-            endTime: PropTypes.string,
+            date: PropTypes.string,
+            name: PropTypes.string,
+            isTime: PropTypes.bool,
+            timeFrom: PropTypes.string,
+            timeTo: PropTypes.string,
+            details: PropTypes.array,
+            branchId: PropTypes.number,
+            createdAt: PropTypes.string,
+            updatedAt: PropTypes.string,
         })
     ),
     loading: PropTypes.bool,
