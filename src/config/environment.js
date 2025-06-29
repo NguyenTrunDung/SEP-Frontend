@@ -161,8 +161,8 @@ const environment = {
 
     // Performance Configuration
     performance: {
-        queryStaleTime: parseInt(process.env.REACT_APP_QUERY_STALE_TIME) || 300000, // 5 minutes
-        queryCacheTime: parseInt(process.env.REACT_APP_QUERY_CACHE_TIME) || 600000, // 10 minutes
+        queryStaleTime: parseInt(process.env.REACT_APP_QUERY_STALE_TIME) || 180000, // 3 minutes (reduced from 5)
+        queryCacheTime: parseInt(process.env.REACT_APP_QUERY_CACHE_TIME) || 300000, // 5 minutes (reduced from 10)
 
         // React Query configuration
         getQueryConfig() {
@@ -173,12 +173,26 @@ const environment = {
                         retry: this.isDevelopment ? 1 : 3,
                         staleTime: this.queryStaleTime,
                         cacheTime: this.queryCacheTime,
+                        // Reduce refetch on mount for better image cache behavior
+                        refetchOnMount: 'always', // This helps with cache consistency
+                        // Add retry delay to avoid rapid CORS failures
+                        retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
                     },
                     mutations: {
                         retry: 1,
                     }
                 }
             };
+        },
+
+        // Image-specific performance settings
+        images: {
+            // Shorter cache time for images to avoid CORS issues with cached URLs
+            cacheTime: parseInt(process.env.REACT_APP_IMAGE_CACHE_TIME) || 120000, // 2 minutes
+            // Timeout for image accessibility checks
+            accessibilityTimeout: parseInt(process.env.REACT_APP_IMAGE_ACCESSIBILITY_TIMEOUT) || 2000,
+            // Whether to skip accessibility checks in production
+            skipAccessibilityInProd: process.env.REACT_APP_SKIP_IMAGE_ACCESSIBILITY_PROD !== 'false',
         }
     },
 

@@ -288,33 +288,33 @@ const Menu = () => {
             refreshText="Làm mới"
 
             // Statistics cards (now using real API data)
-            showStatistics={true}
-            statistics={[
-                {
-                    title: 'Tổng số menu',
-                    value: totalMenus,
-                    icon: <MenuOutlined />,
-                    color: '#1890ff'
-                },
-                {
-                    title: 'Có thời gian phục vụ',
-                    value: menusWithService,
-                    icon: <CalendarOutlined />,
-                    color: '#52c41a'
-                },
-                {
-                    title: 'Không có thời gian phục vụ',
-                    value: menusWithoutService,
-                    icon: <CalendarOutlined />,
-                    color: '#fa8c16'
-                },
-                {
-                    title: 'Tổng số món ăn',
-                    value: totalDishes,
-                    icon: <MenuOutlined />,
-                    color: '#722ed1'
-                }
-            ]}
+            // showStatistics={true}
+            // statistics={[
+            //     {
+            //         title: 'Tổng số menu',
+            //         value: totalMenus,
+            //         icon: <MenuOutlined />,
+            //         color: '#1890ff'
+            //     },
+            //     {
+            //         title: 'Có thời gian phục vụ',
+            //         value: menusWithService,
+            //         icon: <CalendarOutlined />,
+            //         color: '#52c41a'
+            //     },
+            //     {
+            //         title: 'Không có thời gian phục vụ',
+            //         value: menusWithoutService,
+            //         icon: <CalendarOutlined />,
+            //         color: '#fa8c16'
+            //     },
+            //     {
+            //         title: 'Tổng số món ăn',
+            //         value: totalDishes,
+            //         icon: <MenuOutlined />,
+            //         color: '#722ed1'
+            //     }
+            // ]}
 
             // Props passed to the wrapped component
             menuData={menuList}

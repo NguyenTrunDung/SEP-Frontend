@@ -901,13 +901,33 @@ const CreateFoodsMenu = ({
                         <Form.Item
                             name="date"
                             label="Ngày"
-                            rules={[{ required: true, message: 'Vui lòng chọn ngày!' }]}
+                            rules={[
+                                { required: true, message: 'Vui lòng chọn ngày!' },
+                                {
+                                    validator: (_, value) => {
+                                        if (!value) return Promise.resolve();
+
+                                        const selectedDate = dayjs(value);
+                                        const today = dayjs().startOf('day');
+
+                                        if (selectedDate.isBefore(today)) {
+                                            return Promise.reject(new Error('Không thể tạo menu cho ngày đã qua!'));
+                                        }
+
+                                        return Promise.resolve();
+                                    }
+                                }
+                            ]}
                             className="date-picker-field"
                         >
                             <DatePicker
                                 style={{ width: '100%' }}
                                 format="YYYY/MM/DD"
-                                placeholder="Chọn ngày cho menu"
+                                placeholder="Chọn ngày cho menu (từ hôm nay)"
+                                disabledDate={(current) => {
+                                    // Disable all dates before today
+                                    return current && current.isBefore(dayjs().startOf('day'));
+                                }}
                             />
                         </Form.Item>
                     </Col>

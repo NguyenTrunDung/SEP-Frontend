@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Spin, Image as AntImage } from 'antd';
-import { getImageUrl, getImageUrlWithFallback, isImageAccessible } from '../../utils/imageUtils';
+import { getImageUrl, getImageUrlWithFallback, isImageAccessible, isFromCachedData } from '../../utils/imageUtils';
 import imageConfig from '../../config/imageConfig';
 import './ImageDisplay.css';
 
@@ -21,6 +21,7 @@ const ImageDisplay = ({
     style = {},
     placeholder = true,
     useApiEndpoint = true, // Force API endpoint for CORS compliance
+    skipAccessibilityCheck = false, // Skip check for cached data
     ...props
 }) => {
     const [imageUrl, setImageUrl] = useState(null);
@@ -47,9 +48,28 @@ const ImageDisplay = ({
                 return;
             }
 
-            // Check if image is accessible
+            // Check if this is cached data to apply different validation strategy
+            const isCachedData = isFromCachedData(fullImageUrl);
+
+            // In production, skip accessibility check for API domain to avoid CORS issues
+            const isProd = process.env.NODE_ENV === 'production';
+            const isApiDomain = fullImageUrl.includes('apihomms.cuahangkinhdoanh.com');
+
+            if (skipAccessibilityCheck || (isProd && isApiDomain) || isCachedData) {
+                // For cached data or production API domain, trust the URL and let the browser handle it
+                // This prevents CORS issues during page refreshes when data comes from React Query cache
+                setImageUrl(fullImageUrl);
+                setIsLoading(false);
+                return;
+            }
+
+            // For development or non-API domains, check accessibility with timeout
             try {
-                const isAccessible = await isImageAccessible(fullImageUrl);
+                const isAccessible = await isImageAccessible(fullImageUrl, {
+                    skipCorsCheck: isCachedData,
+                    timeout: 2000 // Shorter timeout for better UX
+                });
+
                 if (isAccessible) {
                     setImageUrl(fullImageUrl);
                 } else {
@@ -58,24 +78,26 @@ const ImageDisplay = ({
                 }
             } catch (error) {
                 console.warn('Error checking image accessibility:', error);
-                setImageUrl(fallback);
-                setHasError(true);
+                // In case of error, still try to load the image (trust cached URLs)
+                setImageUrl(fullImageUrl);
             }
 
             setIsLoading(false);
         };
 
         loadImage();
-    }, [src, fallback, useApiEndpoint]);
+    }, [src, fallback, useApiEndpoint, skipAccessibilityCheck]);
 
     const handleImageLoad = (event) => {
         setIsLoading(false);
+        setHasError(false); // Clear any previous errors if image loads successfully
         if (onLoad) onLoad(event);
     };
 
     const handleImageError = (event) => {
         setHasError(true);
         setImageUrl(fallback);
+        setIsLoading(false);
         if (onError) onError(event);
     };
 
@@ -147,6 +169,7 @@ export const FoodImage = ({
             alt={alt}
             className={`food-image food-image-${typeof size === 'string' ? size : 'custom'}`}
             fallback="/images/placeholder-food.png"
+            skipAccessibilityCheck={true} // Skip check for food images to avoid CORS issues
             {...dimensions}
             {...props}
         />

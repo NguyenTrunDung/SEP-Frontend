@@ -35,7 +35,7 @@ const getVietnameseDays = () => {
   return days;
 };
 
-const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => {
+const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Remove default - let parent explicitly control loading state
   const [searchText, setSearchText] = useState('');
   const [foodModalVisible, setFoodModalVisible] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -64,7 +64,7 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
   const filteredData = useMemo(() => {
     if (!searchText.trim()) return dataSource;
     const searchLower = searchText.trim().toLowerCase();
-    return dataSource.filter(item => 
+    return dataSource.filter(item =>
       (item.FullName || '').toLowerCase().includes(searchLower) ||
       (item.MedicalRecordNumber || '').toLowerCase().includes(searchLower)
     );
@@ -338,11 +338,11 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
               patientOrders[record.Id]?.length ? (
                 createElement('div', { style: { padding: '16px', background: '#fafafa', borderRadius: '8px' } }, [
                   createElement(Title, { level: 5, style: { marginBottom: '16px', color: '#333' } }, 'Danh sách món ăn đã thêm'),
-                  createElement('div', { 
-                    style: { 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
-                      gap: '16px' 
+                  createElement('div', {
+                    style: {
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                      gap: '16px'
                     }
                   },
                     patientOrders[record.Id].map(item => (
@@ -372,31 +372,31 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
                             fontWeight: '500',
                           }
                         }, `x${item.quantity || 1}`),
-                        createElement(Title, { 
-                          level: 5, 
-                          style: { 
-                            marginBottom: '8px', 
-                            fontSize: '16px', 
+                        createElement(Title, {
+                          level: 5,
+                          style: {
+                            marginBottom: '8px',
+                            fontSize: '16px',
                             color: '#222',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
-                          } 
+                          }
                         }, item.Name),
                         createElement('div', { style: { marginBottom: '8px' } }, [
-                          createElement(Text, { 
-                            strong: true, 
-                            style: { fontSize: '14px', color: '#b41400' } 
+                          createElement(Text, {
+                            strong: true,
+                            style: { fontSize: '14px', color: '#b41400' }
                           }, `${item.PriceForPatient.toLocaleString('vi-VN')}đ`),
                         ]),
-                        item.note && createElement(Text, { 
-                          style: { 
-                            fontSize: '12px', 
-                            color: '#666', 
+                        item.note && createElement(Text, {
+                          style: {
+                            fontSize: '12px',
+                            color: '#666',
                             display: 'block',
                             whiteSpace: 'pre-wrap',
                             marginBottom: '8px'
-                          } 
+                          }
                         }, `Ghi chú: ${item.note}`),
                         createElement(Button, {
                           type: 'text',
@@ -459,7 +459,7 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
             }),
           ]),
           Object.keys(groupedFoods).length > 0 ? (
-            createElement('div', {}, 
+            createElement('div', {},
               Object.keys(groupedFoods).map(category => (
                 createElement('div', {
                   key: category,
@@ -476,11 +476,11 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
                       borderRadius: '6px'
                     }
                   }, category),
-                  createElement('div', { 
-                    style: { 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
-                      gap: '16px' 
+                  createElement('div', {
+                    style: {
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                      gap: '16px'
                     }
                   },
                     groupedFoods[category].map(food => {
@@ -518,21 +518,21 @@ const PatientTable = ({ dataSource = [], loading = false, onView, nurseId }) => 
                             fontWeight: '500',
                           }
                         }, `x${patientOrders[selectedPatient?.Id]?.find(item => item.Id === food.Id)?.quantity || 1}`),
-                        createElement(Title, { 
-                          level: 5, 
-                          style: { 
-                            marginBottom: '8px', 
-                            fontSize: '16px', 
+                        createElement(Title, {
+                          level: 5,
+                          style: {
+                            marginBottom: '8px',
+                            fontSize: '16px',
                             color: '#222',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
-                          } 
+                          }
                         }, food.Name),
                         createElement('div', { style: { marginBottom: '8px' } }, [
-                          createElement(Text, { 
-                            strong: true, 
-                            style: { fontSize: '14px', color: '#b41400' } 
+                          createElement(Text, {
+                            strong: true,
+                            style: { fontSize: '14px', color: '#b41400' }
                           }, `${food.PriceForPatient.toLocaleString('vi-VN')}đ`),
                         ]),
                         createElement(Button, {

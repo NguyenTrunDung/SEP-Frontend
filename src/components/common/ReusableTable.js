@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Spin } from 'antd';
+import { Table } from 'antd';
 import PropTypes from 'prop-types';
 import './ReusableTable.css';
 
@@ -7,37 +7,41 @@ import './ReusableTable.css';
  * Reusable Table component that extends Ant Design Table
  * Provides full customization while maintaining consistency
  */
-const ReusableTable = ({
-    columns,
-    dataSource,
-    loading = false,
-    pagination = { pageSize: 10, showSizeChanger: true, showQuickJumper: true },
-    size = 'middle',
-    scroll,
-    rowKey = 'id',
-    rowSelection,
-    expandable,
-    showHeader = true,
-    bordered = false,
-    className,
-    style,
-    rowClassName,
-    onRow,
-    locale,
-    sortDirections = ['ascend', 'descend'],
-    showSorterTooltip = true,
-    sticky = false,
-    summary,
-    tableLayout = 'auto',
-    title,
-    footer,
-    onChange,
-    onHeaderRow,
-    onRowClick,
-    emptyText = 'Không có dữ liệu',
-    loadingTip = 'Đang tải...',
-    ...rest
-}) => {
+const ReusableTable = (props) => {
+    const {
+        columns,
+        dataSource,
+        loading, // Remove default - let parent explicitly control loading state
+        pagination = { pageSize: 10, showSizeChanger: true, showQuickJumper: true },
+        size = 'middle',
+        scroll,
+        rowKey = 'id',
+        rowSelection,
+        expandable,
+        showHeader = true,
+        bordered = false,
+        className,
+        style,
+        rowClassName,
+        onRow,
+        locale,
+        sortDirections = ['ascend', 'descend'],
+        showSorterTooltip = true,
+        sticky = false,
+        summary,
+        tableLayout = 'auto',
+        title,
+        footer,
+        onChange,
+        onHeaderRow,
+        onRowClick,
+        emptyText = 'Không có dữ liệu',
+        loadingTip = 'Đang tải...',
+        ...rest
+    } = props;
+
+    // Simple loading handling: undefined = false, no warnings
+    const isLoading = loading === true;
 
     const defaultLocale = {
         emptyText: emptyText,
@@ -86,19 +90,17 @@ const ReusableTable = ({
         };
     };
 
-    if (loading) {
-        return (
-            <div className="reusable-table-loading">
-                <Spin size="large" tip={loadingTip} />
-            </div>
-        );
-    }
-
     return (
         <div className={`reusable-table-container ${className || ''}`} style={style}>
             <Table
                 columns={columns}
                 dataSource={dataSource}
+                loading={isLoading ? {
+                    spinning: true,
+                    tip: loadingTip,
+                    size: 'large',
+                    delay: 100 // Small delay to prevent flickering for very fast requests
+                } : false}
                 pagination={pagination === false ? false : defaultPagination}
                 size={size}
                 scroll={scroll}
@@ -129,7 +131,7 @@ const ReusableTable = ({
 ReusableTable.propTypes = {
     columns: PropTypes.array.isRequired,
     dataSource: PropTypes.array.isRequired,
-    loading: PropTypes.bool,
+    loading: PropTypes.bool, // Optional - defaults to false if undefined
     pagination: PropTypes.oneOfType([PropTypes.object, PropTypes.bool]),
     size: PropTypes.oneOf(['small', 'middle', 'large']),
     scroll: PropTypes.object,

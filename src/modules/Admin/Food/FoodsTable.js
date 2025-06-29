@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Button, Input, Tooltip, Popconfirm, Modal, Descriptions, Spin, message } from 'antd';
-import { EditOutlined, DeleteOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Button, Input, Tooltip, Popconfirm, Modal, Descriptions, Spin, message, Select } from 'antd';
+import { EditOutlined, DeleteOutlined, SearchOutlined, EyeOutlined, FilterOutlined } from '@ant-design/icons';
 import ReusableTable from '../../../components/common/ReusableTable';
 import { FoodImage } from '../../../components/common/ImageDisplay';
 import PropTypes from 'prop-types';
@@ -8,28 +8,98 @@ import { foodService } from '../../../services/foodService';
 
 const FoodsTable = ({
   dataSource = [],
-  loading = false,
+  loading, // Remove default - let parent explicitly control loading state
   onEdit,
   onDelete,
   className,
   ...rest
 }) => {
   const [searchText, setSearchText] = useState('');
+  const [debouncedSearchText, setDebouncedSearchText] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedFood, setSelectedFood] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const searchTimeoutRef = useRef(null);
 
   // Debug log để kiểm tra dữ liệu món ăn
   useMemo(() => {
     console.log('🔍 Foods dataSource:', dataSource);
   }, [dataSource]);
 
+  // Debounce search text to avoid excessive message notifications
+  useEffect(() => {
+    // Clear the previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set a new timeout
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchText(searchText);
+    }, 1000); // 1000ms delay
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchText]);
+
+  // Extract unique categories for filter dropdown
+  const categoryOptions = useMemo(() => {
+    const uniqueCategories = dataSource
+      .map(item => item.category)
+      .filter(category => category && category.id) // Filter out null/undefined categories
+      .reduce((acc, category) => {
+        if (!acc.find(c => c.id === category.id)) {
+          acc.push(category);
+        }
+        return acc;
+      }, [])
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return [
+      { value: null, label: 'Tất cả danh mục' },
+      ...uniqueCategories.map(category => ({
+        value: category.id,
+        label: category.name
+      }))
+    ];
+  }, [dataSource]);
+
   const filteredData = useMemo(() => {
-    if (!searchText) return dataSource;
-    return dataSource.filter(item =>
-      item.name?.toLowerCase().includes(searchText.toLowerCase())
-    );
-  }, [dataSource, searchText]);
+    let filtered = dataSource;
+
+    // Filter by search text
+    if (searchText) {
+      filtered = filtered.filter(item =>
+        item.name?.toLowerCase().includes(searchText.toLowerCase())
+      );
+    }
+
+    // Filter by category
+    if (selectedCategory !== null) {
+      filtered = filtered.filter(item => item.category?.id === selectedCategory);
+    }
+
+    return filtered;
+  }, [dataSource, searchText, selectedCategory]);
+
+  // Handle debounced search notifications
+  useEffect(() => {
+    if (debouncedSearchText && debouncedSearchText.trim()) {
+      const searchResults = dataSource.filter(item => {
+        let matches = item.name?.toLowerCase().includes(debouncedSearchText.toLowerCase());
+        if (selectedCategory !== null) {
+          matches = matches && item.category?.id === selectedCategory;
+        }
+        return matches;
+      });
+      // message.info(`Tìm kiếm: "${debouncedSearchText}" - ${searchResults.length} kết quả`);
+    }
+  }, [debouncedSearchText, dataSource, selectedCategory]);
 
   const handleEdit = (record) => {
     console.log('✏️ Editing food:', record);
@@ -70,11 +140,28 @@ const FoodsTable = ({
   const handleSearch = (e) => {
     const value = e.target.value;
     setSearchText(value);
-    if (value) {
-      message.info(`Lọc món ăn theo: ${value}`);
-    } else {
-      message.info('Đã xóa bộ lọc tìm kiếm');
+
+    // Show immediate feedback for clearing search
+    if (!value && searchText) {
+      message.success('Đã xóa bộ lọc tìm kiếm');
     }
+  };
+
+  const handleCategoryFilter = (value) => {
+    setSelectedCategory(value);
+    if (value !== null) {
+      const categoryName = categoryOptions.find(option => option.value === value)?.label;
+      message.info(`Lọc món ăn theo danh mục: ${categoryName}`);
+    } else {
+      message.info('Đã xóa bộ lọc danh mục');
+    }
+  };
+
+  const clearAllFilters = () => {
+    setSearchText('');
+    setDebouncedSearchText('');
+    setSelectedCategory(null);
+    message.success('Đã xóa tất cả bộ lọc');
   };
 
   const columns = [
@@ -170,23 +257,59 @@ const FoodsTable = ({
   return (
     <div className={`reusable-table-container ${className || ''}`}>
       <div className="reusable-table-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <SearchOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
-          <Input
-            placeholder="Tìm kiếm món ăn"
-            value={searchText}
-            onChange={handleSearch}
-            style={{ width: 300 }}
-            allowClear
-          />
-          {searchText && (
-            <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>
-              {filteredData.length} kết quả
-            </span>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
+          marginBottom: '8px'
+        }}>
+          {/* Search Input */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <SearchOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
+            <Input
+              placeholder="Tìm kiếm món ăn theo tên..."
+              value={searchText}
+              onChange={handleSearch}
+              style={{ width: 280 }}
+              allowClear
+              suffix={
+                searchText && searchText !== debouncedSearchText ? (
+                  <Spin size="small" />
+                ) : null
+              }
+            />
+          </div>
+
+          {/* Category Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FilterOutlined style={{ fontSize: '16px', color: '#52c41a' }} />
+            <Select
+              placeholder="Lọc theo danh mục"
+              value={selectedCategory}
+              onChange={handleCategoryFilter}
+              style={{ width: 200 }}
+              allowClear
+              options={categoryOptions}
+            />
+          </div>
+
+          {/* Clear All Filters Button */}
+          {(searchText || selectedCategory !== null) && (
+            <Button
+              size="small"
+              onClick={clearAllFilters}
+              style={{ marginLeft: 'auto' }}
+            >
+              Xóa tất cả bộ lọc
+            </Button>
           )}
         </div>
+
+
       </div>
       <ReusableTable
+        {...rest}
         columns={columns}
         dataSource={filteredData}
         loading={loading}
@@ -199,7 +322,6 @@ const FoodsTable = ({
             `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} món ăn`,
         }}
         className="reusable-table"
-        {...rest}
       />
       <Modal
         title="Chi tiết món ăn"
@@ -292,7 +414,7 @@ FoodsTable.propTypes = {
       sort: PropTypes.number,
     })
   ),
-  loading: PropTypes.bool,
+  loading: PropTypes.bool, // Optional - defaults to false if undefined
   onEdit: PropTypes.func,
   onDelete: PropTypes.func,
   className: PropTypes.string,

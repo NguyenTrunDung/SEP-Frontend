@@ -16,60 +16,33 @@ const CreateFood = ({
   onCancel,
   onSubmit,
   initialValues = {},
-  formData,
 }) => {
   const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(initialValues);
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [existingImageUrl, setExistingImageUrl] = useState('');
-  const [imageRemoved, setImageRemoved] = useState(false);
   const { categories } = useFoodCategories(); // Use branch-aware hook
 
   useEffect(() => {
-    if (formData) {
-      console.log('🔄 CreateFood - Setting form data:', formData);
-      form.setFieldsValue({
-        id: formData.id,
-        name: formData.name,
-        categoryId: formData.categoryId,
-        description: formData.description,
-        priceForGuest: formData.priceForGuest,
-        priceForPatient: formData.priceForPatient,
-        priceForStaff: formData.priceForStaff,
-        sort: formData.sort,
-        imageUrl: formData.imageUrl || '',
-      });
-      setExistingImageUrl(formData.imageUrl || '');
-
-      // Reset file-related state when editing
+    if (open) {
+      // Reset form to initial values when modal opens
+      form.setFieldsValue(initialValues);
       setImageFile(null);
-      setImageRemoved(false);
 
       // Clean up any existing preview
       if (previewUrl) {
         cleanupImagePreview(previewUrl);
         setPreviewUrl('');
       }
-    } else {
-      form.setFieldsValue(initialValues);
-      setExistingImageUrl('');
+    } else if (!open) {
+      // Clean up when modal closes
+      resetForm();
       setImageFile(null);
-      setImageRemoved(false);
-
-      // Clean up any existing preview
       if (previewUrl) {
         cleanupImagePreview(previewUrl);
         setPreviewUrl('');
       }
     }
-
-    // Cleanup function for when component unmounts or dependencies change
-    return () => {
-      if (previewUrl) {
-        cleanupImagePreview(previewUrl);
-      }
-    };
-  }, [formData, initialValues, form]); // Removed previewUrl from dependencies to prevent cleanup loops
+  }, [open, initialValues, form, resetForm]); // Only depend on modal open state and initial values
 
   // Cleanup effect when component unmounts
   useEffect(() => {
@@ -87,18 +60,10 @@ const CreateFood = ({
     console.log('🚀 CreateFood - Image state:', {
       hasImageFile: !!imageFile,
       imageFileName: imageFile?.name,
-      existingImageUrl,
-      imageRemoved,
       previewUrl: !!previewUrl
     });
 
     const result = await handleSubmit(async (formData) => {
-      // If image was explicitly removed, clear it
-      if (imageRemoved) {
-        console.log('🗑️ Image was removed, clearing image data');
-        formData.imageUrl = '';
-      }
-
       if (onSubmit) {
         await onSubmit(formData, imageFile);
       }
@@ -112,9 +77,7 @@ const CreateFood = ({
 
   const handleCancel = () => {
     resetForm();
-    setExistingImageUrl('');
     setImageFile(null);
-    setImageRemoved(false);
     if (previewUrl) {
       cleanupImagePreview(previewUrl);
       setPreviewUrl('');
@@ -139,9 +102,8 @@ const CreateFood = ({
       cleanupImagePreview(previewUrl);
     }
 
-    // Set the new file and reset removal flag
+    // Set the new file
     setImageFile(file);
-    setImageRemoved(false);
 
     // Create new preview URL
     const preview = createImagePreview(file);
@@ -164,36 +126,16 @@ const CreateFood = ({
 
     // Reset state
     setImageFile(null);
-    setImageRemoved(true);
 
     message.info('Hình ảnh đã được xóa!');
   };
 
-  // Determine current image source for display
-  const getCurrentImageSrc = () => {
-    // If image was explicitly removed, show nothing
-    if (imageRemoved) {
-      return null;
-    }
-
-    // Priority: New file preview > Existing image
-    if (previewUrl) {
-      return previewUrl;
-    }
-
-    if (existingImageUrl) {
-      return getImageUrlWithFallback(existingImageUrl, '/images/placeholder-food.png');
-    }
-
-    return null;
-  };
-
-  const hasImage = (!!imageFile || (!!existingImageUrl && !imageRemoved));
-  const currentImageSrc = getCurrentImageSrc();
+  const hasImage = !!imageFile;
+  const currentImageSrc = previewUrl;
 
   return (
     <ReusableModal
-      title={formData && formData.id ? 'Sửa Món Ăn' : 'Thêm Món Ăn Mới'}
+      title="Thêm Món Ăn Mới"
       open={open}
       onCancel={handleCancel}
       footer={null}
@@ -279,21 +221,7 @@ const CreateFood = ({
           />
         </Form.Item>
 
-        <Form.Item
-          name="sort"
-          label="Thứ tự sắp xếp"
-          rules={[{ required: true, message: 'Vui lòng nhập thứ tự sắp xếp!' }]}
-        >
-          <InputNumber
-            placeholder="0"
-            style={{ width: '100%' }}
-            min={0}
-            step={1}
-            readOnly
-            onKeyDown={(e) => e.preventDefault()}
-            onMouseDown={(e) => e.preventDefault()}
-          />
-        </Form.Item>
+        {/* Sort field removed - backend auto-assigns sort value for new foods */}
 
         <Form.Item label="Hình ảnh món ăn">
           <Space direction="vertical" style={{ width: '100%' }}>
@@ -357,12 +285,7 @@ const CreateFood = ({
               </div>
             )}
 
-            {/* Show removed state */}
-            {imageRemoved && !imageFile && (
-              <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-                <Text type="secondary">Hình ảnh đã được xóa</Text>
-              </div>
-            )}
+            {/* No removed state needed for create form */}
 
             {/* Upload Button (Alternative) */}
             {!hasImage && (
@@ -386,7 +309,7 @@ const CreateFood = ({
               Hủy
             </Button>
             <Button type="primary" htmlType="submit" loading={formLoading} size="large">
-              {formData && formData.id ? 'Cập Nhật' : 'Lưu Món Ăn'}
+              Lưu Món Ăn
             </Button>
           </Space>
         </Form.Item>
@@ -400,17 +323,6 @@ CreateFood.propTypes = {
   onCancel: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,
   initialValues: PropTypes.object,
-  formData: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    name: PropTypes.string,
-    categoryId: PropTypes.number,
-    description: PropTypes.string,
-    priceForGuest: PropTypes.number,
-    priceForPatient: PropTypes.number,
-    priceForStaff: PropTypes.number,
-    sort: PropTypes.number,
-    imageUrl: PropTypes.string,
-  }),
 };
 
 export default CreateFood;

@@ -44,10 +44,12 @@ export const useFoodCategories = (branchId, options = {}) => {
       }
       return await foodCategoryService.getFoodCategories(currentBranchId);
     },
-    staleTime: environment.performance.queryStaleTime,
-    cacheTime: environment.performance.queryCacheTime,
+    // Use shorter cache times for data containing images to avoid CORS issues
+    staleTime: environment.performance.images?.cacheTime || 120000, // 2 minutes for image data
+    cacheTime: environment.performance.images?.cacheTime || 120000, // 2 minutes for image data
     refetchOnWindowFocus: false,
     enabled: !!currentBranchId,
+    // Improved retry logic with better error handling
     retry: (failureCount, error) => {
       // Don't retry on authorization/access errors to prevent infinite loops
       const status = error?.response?.status;
@@ -70,8 +72,12 @@ export const useFoodCategories = (branchId, options = {}) => {
       // Limit retries for other errors
       return failureCount < 2;
     },
+    // Add retry delay to avoid rapid failures
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options
   });
+
+
 
   return {
     categories: query.data || [],
@@ -81,6 +87,7 @@ export const useFoodCategories = (branchId, options = {}) => {
     isRefetching: query.isRefetching,
     isError: query.isError,
     isSuccess: query.isSuccess,
+    isFetching: query.isFetching,
   };
 };
 
@@ -132,7 +139,7 @@ export const useCreateFoodCategory = (options = {}) => {
       return foodCategoryService.createFoodCategoryWithImage(categoryData, imageFile, targetBranchId);
     },
     onSuccess: (response, variables) => {
-      message.success(response.message || 'Tạo danh mục thành công!');
+      message.success('Tạo danh mục thành công!');
 
       const targetBranchId = normalizeBranchId(variables.branchId);
 
@@ -189,7 +196,7 @@ export const useUpdateFoodCategory = (options = {}) => {
       return foodCategoryService.updateFoodCategoryWithImage(categoryId, categoryData, imageFile, targetBranchId);
     },
     onSuccess: (response, variables) => {
-      message.success(response.message || 'Cập nhật danh mục thành công!');
+      message.success('Cập nhật danh mục thành công!');
 
       const targetBranchId = normalizeBranchId(variables.branchId);
 
@@ -240,7 +247,7 @@ export const useDeleteFoodCategory = (options = {}) => {
   return useMutation({
     mutationFn: (categoryId) => foodCategoryService.deleteFoodCategory(categoryId),
     onSuccess: (response, categoryId) => {
-      message.success(response.message || 'Xóa danh mục thành công!');
+      message.success('Xóa danh mục thành công!');
 
       if (environment.features.enableLogging) {
         console.log('🔄 Cache invalidation for delete - currentBranchId:', currentBranchId);
@@ -272,43 +279,7 @@ export const useDeleteFoodCategory = (options = {}) => {
   });
 };
 
-/**
- * Convenience hook for form-based category creation
- * @param {string|number} branchId - Branch ID
- * @param {Object} options - Mutation options
- * @returns {Object} Mutation object with form-friendly interface
- */
-export const useCreateFoodCategoryFromForm = (branchId, options = {}) => {
-  const createMutation = useCreateFoodCategory(options);
-
-  return {
-    ...createMutation,
-    submitForm: (formValues, imageFile = null) => {
-      const normalizedBranchId = normalizeBranchId(branchId);
-      const categoryData = foodCategoryService.createCategoryFromForm(formValues, normalizedBranchId);
-      return createMutation.mutateAsync({ categoryData, imageFile, branchId: normalizedBranchId });
-    }
-  };
-};
-
-/**
- * Convenience hook for form-based category updates
- * @param {string|number} branchId - Branch ID
- * @param {Object} options - Mutation options
- * @returns {Object} Mutation object with form-friendly interface
- */
-export const useUpdateFoodCategoryFromForm = (branchId, options = {}) => {
-  const updateMutation = useUpdateFoodCategory(options);
-
-  return {
-    ...updateMutation,
-    submitForm: (categoryId, formValues, imageFile = null) => {
-      const normalizedBranchId = normalizeBranchId(branchId);
-      const categoryData = foodCategoryService.updateCategoryFromForm(categoryId, formValues, normalizedBranchId);
-      return updateMutation.mutateAsync({ categoryId, categoryData, imageFile, branchId: normalizedBranchId });
-    }
-  };
-};
+// Removed unused form helper hooks - components use main hooks directly
 
 /**
  * Hook for bulk operations on food categories
@@ -371,6 +342,91 @@ export const useCurrentBranchFoodCategories = (options = {}) => {
 
   return useFoodCategories(currentBranchId, {
     enabled: !!currentBranchId,
+    ...options
+  });
+};
+
+/**
+ * Hook to reorder food categories with drag-and-drop support
+ * Uses bulk reorder API endpoint for efficient updates
+ * @param {Object} options - Mutation options
+ * @returns {Object} Mutation object
+ */
+export const useReorderFoodCategories = (options = {}) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ categoryOrders, branchId }) => {
+      const targetBranchId = normalizeBranchId(branchId);
+      // Convert categoryOrders to reorderItems format for service compatibility
+      const reorderItems = categoryOrders.map(order => ({
+        categoryId: order.categoryId,
+        sort: order.sort
+      }));
+      return foodCategoryService.reorderFoodCategories(reorderItems, targetBranchId);
+    },
+    onSuccess: (response, variables) => {
+      message.success('Đã cập nhật thứ tự danh mục thành công!');
+
+      const targetBranchId = normalizeBranchId(variables.branchId);
+
+      if (environment.features.enableLogging) {
+        console.log('🔄 Cache invalidation for reorder - targetBranchId:', targetBranchId);
+      }
+
+      // Invalidate and refetch categories list for the target branch
+      queryClient.invalidateQueries({
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(targetBranchId)
+      });
+
+      // Also invalidate the general lists to ensure all related queries are updated
+      queryClient.invalidateQueries({
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.lists()
+      });
+
+      console.log('✅ Reordered food categories successfully:', response);
+    },
+    onError: (error, variables) => {
+      const errorMessage = error.response?.data?.message || 'Không thể cập nhật thứ tự danh mục!';
+      message.error(errorMessage);
+      console.error('❌ Failed to reorder food categories:', error);
+    },
+    ...options
+  });
+};
+
+/**
+ * Hook to move a single food category to a specific position
+ * @param {Object} options - Mutation options
+ * @returns {Object} Mutation object
+ */
+export const useMoveFoodCategory = (options = {}) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ categoryId, newPosition, branchId }) => {
+      const targetBranchId = normalizeBranchId(branchId);
+      return foodCategoryService.moveFoodCategory(categoryId, newPosition, targetBranchId);
+    },
+    onSuccess: (response, variables) => {
+      message.success('Đã di chuyển danh mục thành công!');
+
+      const targetBranchId = normalizeBranchId(variables.branchId);
+
+      // Invalidate queries
+      queryClient.invalidateQueries({
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.list(targetBranchId)
+      });
+
+      // Also invalidate the general lists to ensure all related queries are updated
+      queryClient.invalidateQueries({
+        queryKey: FOOD_CATEGORY_QUERY_KEYS.lists()
+      });
+    },
+    onError: (error) => {
+      const errorMessage = error.response?.data?.message || 'Không thể di chuyển danh mục!';
+      message.error(errorMessage);
+    },
     ...options
   });
 };

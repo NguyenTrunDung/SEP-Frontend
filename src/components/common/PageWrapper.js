@@ -186,7 +186,11 @@ const withPageWrapper = (WrappedComponent) => {
                     {renderStatistics()}
 
                     {/* Wrapped Component Content */}
-                    <WrappedComponent {...props}>
+                    {/* 
+                        Important: Explicitly pass loading prop to WrappedComponent
+                        since it was extracted from props above for PageWrapper's own use
+                    */}
+                    <WrappedComponent loading={loading} {...props}>
                         {children}
                     </WrappedComponent>
                 </Space>

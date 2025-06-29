@@ -23,8 +23,8 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
       form.setFieldsValue({
         id: formData.id,
         name: formData.name,
-        sort: formData.sort || 0,
         imageUrl: formData.imageUrl || '',
+        sort: formData.sort, // Include sort field for edit operations
       });
       setExistingImageUrl(formData.imageUrl || '');
       // Reset file-related state when editing
@@ -81,7 +81,6 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
     });
 
     if (result.success) {
-      message.success('Cập nhật danh mục thành công!');
       handleCancel();
     }
   };
@@ -187,6 +186,10 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
           <Input />
         </Form.Item>
 
+        <Form.Item name="sort" hidden>
+          <Input />
+        </Form.Item>
+
         <Form.Item
           name="name"
           label="Tên danh mục"
@@ -195,13 +198,7 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
           <Input placeholder="Nhập tên danh mục" />
         </Form.Item>
 
-        <Form.Item
-          name="sort"
-          label="Thứ tự sắp xếp"
-          rules={[{ required: true, message: 'Vui lòng nhập thứ tự sắp xếp!' }]}
-        >
-          <Input type="number" placeholder="Nhập thứ tự sắp xếp (số)" />
-        </Form.Item>
+
 
         <Form.Item label="Hình ảnh danh mục">
           <Space direction="vertical" style={{ width: '100%' }}>

@@ -26,7 +26,10 @@ const FoodCategoriesPageContent = ({
   editModalProps,
   detailsModalProps,
   onCreateOrUpdate,
+  branchId, // Add branchId prop
 }) => {
+
+
   return (
     <>
       <FoodCategoriesTable
@@ -35,7 +38,9 @@ const FoodCategoriesPageContent = ({
         onEdit={onEdit}
         onDelete={onDelete}
         onViewDetails={onViewDetails}
+        branchId={branchId} // Pass branchId to enable drag-and-drop
       />
+
       <AddFoodCategory
         open={addModalProps.open}
         onCancel={addModalProps.handleCancel}
@@ -71,17 +76,7 @@ const FoodCategories = () => {
   const updateCategoryMutation = useUpdateFoodCategory();
   const deleteCategoryMutation = useDeleteFoodCategory();
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('🔍 FoodCategories Debug:', {
-      branchId,
-      categories,
-      isLoading,
-      error: error?.message,
-      errorStatus: error?.response?.status,
-      errorData: error?.response?.data
-    });
-  }, [branchId, categories, isLoading, error]);
+
 
   const [categoriesData, setCategoriesData] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -104,12 +99,13 @@ const FoodCategories = () => {
     try {
       const payload = {
         name: formData.name,
-        sort: parseInt(formData.sort, 10) || 0,
         imageUrl: formData.imageUrl || '',
       };
 
       if (formData.id) {
-        // Update existing category
+        // Update existing category - include sort field to preserve existing order
+        payload.sort = formData.sort;
+
         await updateCategoryMutation.mutateAsync({
           categoryId: formData.id,
           categoryData: payload,
@@ -118,7 +114,7 @@ const FoodCategories = () => {
         });
         handleEditCancel();
       } else {
-        // Create new category
+        // Create new category - do NOT include sort field (backend auto-assigns)
         await createCategoryMutation.mutateAsync({
           categoryData: payload,
           imageFile, // Pass image file for server upload if provided
@@ -171,6 +167,7 @@ const FoodCategories = () => {
       onRefresh={handleRefresh}
       refreshText="Làm mới"
       categoriesData={categoriesData}
+      branchId={branchId} // Pass branchId for drag-and-drop functionality
       onEdit={handleEdit}
       onDelete={handleDelete}
       onViewDetails={handleViewDetails}

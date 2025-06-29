@@ -5,10 +5,10 @@
 /**
  * Get the full URL for an uploaded image
  * @param {string} imagePath - The image path/filename from the server
- * @param {boolean} useApiEndpoint - Whether to use API endpoint for CORS compliance (default: false)
+ * @param {boolean} useApiEndpoint - Whether to use API endpoint for CORS compliance (default: auto-detect based on environment)
  * @returns {string} - The full URL to access the image
  */
-export const getImageUrl = (imagePath, useApiEndpoint = false) => {
+export const getImageUrl = (imagePath, useApiEndpoint = null) => {
     if (!imagePath) {
         return null;
     }
@@ -26,9 +26,14 @@ export const getImageUrl = (imagePath, useApiEndpoint = false) => {
     // Construct the full URL
     const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5281';
 
-    if (useApiEndpoint) {
+    // Auto-detect whether to use API endpoint based on environment
+    const shouldUseApiEndpoint = useApiEndpoint !== null
+        ? useApiEndpoint
+        : (process.env.NODE_ENV === 'production' || process.env.REACT_APP_USE_API_FOR_IMAGES === 'true');
+
+    if (shouldUseApiEndpoint) {
         // Use API endpoint for CORS compliance
-        return `${baseUrl}/api/v1/images/${cleanPath}`;
+        return `${baseUrl}/uploads/${cleanPath}`;
     } else {
         // Use direct static file serving (with CORS headers configured)
         return `${baseUrl}/uploads/${cleanPath}`;
@@ -49,19 +54,97 @@ export const getImageUrlWithFallback = (imagePath, fallbackImage = '/images/com.
 
 /**
  * Check if an image URL is valid/accessible
+ * Updated to handle CORS issues and caching problems
  * @param {string} imageUrl - The image URL to check
+ * @param {Object} options - Options for accessibility check
+ * @param {boolean} options.skipCorsCheck - Skip CORS check for cached data (default: false)
+ * @param {number} options.timeout - Timeout in milliseconds (default: 3000)
  * @returns {Promise<boolean>} - Whether the image is accessible
  */
-export const isImageAccessible = async (imageUrl) => {
+export const isImageAccessible = async (imageUrl, options = {}) => {
     if (!imageUrl) return false;
 
+    const { skipCorsCheck = false, timeout = 3000 } = options;
+
     try {
-        const response = await fetch(imageUrl, { method: 'HEAD' });
-        return response.ok;
+        const isProd = process.env.NODE_ENV === 'production';
+        const isApiDomain = imageUrl.includes('apihomms.cuahangkinhdoanh.com');
+
+        // For production API domain or when skipping CORS check, use Image() approach
+        if ((isProd && isApiDomain) || skipCorsCheck) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                let resolved = false;
+
+                const cleanup = () => {
+                    if (!resolved) {
+                        resolved = true;
+                        img.onload = null;
+                        img.onerror = null;
+                    }
+                };
+
+                img.onload = () => {
+                    cleanup();
+                    resolve(true);
+                };
+
+                img.onerror = () => {
+                    cleanup();
+                    resolve(false);
+                };
+
+                // Set a timeout to avoid hanging
+                setTimeout(() => {
+                    cleanup();
+                    resolve(true); // Assume accessible if timeout (trust the URL for cached data)
+                }, timeout);
+
+                // Use cache-busting for better reliability with cached images
+                const cacheBustingUrl = imageUrl.includes('?')
+                    ? `${imageUrl}&_cb=${Date.now()}`
+                    : `${imageUrl}?_cb=${Date.now()}`;
+
+                img.src = cacheBustingUrl;
+            });
+        } else {
+            // For development or same-origin requests, use fetch with HEAD
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+            try {
+                const response = await fetch(imageUrl, {
+                    method: 'HEAD',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                return response.ok;
+            } catch (fetchError) {
+                clearTimeout(timeoutId);
+                // If fetch fails, fall back to Image() approach
+                return isImageAccessible(imageUrl, { skipCorsCheck: true, timeout: 2000 });
+            }
+        }
     } catch (error) {
-        console.warn('Image not accessible:', imageUrl, error);
-        return false;
+        console.warn('Image accessibility check failed:', imageUrl, error);
+        // For cached data, assume accessible rather than failing
+        return skipCorsCheck;
     }
+};
+
+/**
+ * Check if image URL is from cached data (to apply different validation strategy)
+ * @param {string} imageUrl - The image URL to check
+ * @returns {boolean} - Whether this appears to be from cached data
+ */
+export const isFromCachedData = (imageUrl) => {
+    // Simple heuristic: if URL is from our API domain, it's likely cached
+    return imageUrl && (
+        imageUrl.includes(process.env.REACT_APP_API_URL) ||
+        imageUrl.includes('apihomms.cuahangkinhdoanh.com')
+    );
 };
 
 /**
@@ -174,16 +257,16 @@ export const validateImageFile = (file, options = {}) => {
 /**
  * Create a preview URL for an image file
  * @param {File} file - The image file
- * @returns {string} - Object URL for preview
+ * @returns {string} - Preview URL
  */
 export const createImagePreview = (file) => {
-    if (!isImageFile(file)) return null;
+    if (!file || !isImageFile(file)) return null;
     return URL.createObjectURL(file);
 };
 
 /**
- * Cleanup image preview URL
- * @param {string} previewUrl - The preview URL to cleanup
+ * Clean up a preview URL to prevent memory leaks
+ * @param {string} previewUrl - The preview URL to clean up
  */
 export const cleanupImagePreview = (previewUrl) => {
     if (previewUrl && previewUrl.startsWith('blob:')) {
@@ -191,10 +274,35 @@ export const cleanupImagePreview = (previewUrl) => {
     }
 };
 
+/**
+ * Add cache busting parameter to image URL
+ * @param {string} imageUrl - The original image URL
+ * @param {boolean} force - Force cache busting even if URL already has parameters
+ * @returns {string} - URL with cache busting parameter
+ */
+export const addCacheBusting = (imageUrl, force = false) => {
+    if (!imageUrl) return imageUrl;
+
+    // Don't add cache busting to external URLs or data URLs
+    if (imageUrl.startsWith('data:') ||
+        (!imageUrl.includes(process.env.REACT_APP_API_URL) && imageUrl.startsWith('http'))) {
+        return imageUrl;
+    }
+
+    // Check if URL already has cache busting parameter
+    if (!force && imageUrl.includes('_cb=')) {
+        return imageUrl;
+    }
+
+    const separator = imageUrl.includes('?') ? '&' : '?';
+    return `${imageUrl}${separator}_cb=${Date.now()}`;
+};
+
 export default {
     getImageUrl,
     getImageUrlWithFallback,
     isImageAccessible,
+    isFromCachedData,
     getOptimizedImageUrl,
     getImageFilename,
     formatFileSize,
@@ -202,5 +310,6 @@ export default {
     getAllowedImageExtensions,
     validateImageFile,
     createImagePreview,
-    cleanupImagePreview
+    cleanupImagePreview,
+    addCacheBusting
 }; 

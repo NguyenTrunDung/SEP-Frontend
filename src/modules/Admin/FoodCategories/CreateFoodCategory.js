@@ -52,7 +52,6 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
     });
 
     if (result.success) {
-      message.success('Tạo danh mục thành công!');
       handleCancel();
     }
   };
@@ -132,14 +131,6 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
           rules={[{ required: true, message: 'Vui lòng nhập tên danh mục!' }]}
         >
           <Input placeholder="Nhập tên danh mục" />
-        </Form.Item>
-
-        <Form.Item
-          name="sort"
-          label="Thứ tự sắp xếp"
-          rules={[{ required: true, message: 'Vui lòng nhập thứ tự sắp xếp!' }]}
-        >
-          <Input type="number" placeholder="Nhập thứ tự sắp xếp (số)" />
         </Form.Item>
 
         <Form.Item label="Hình ảnh danh mục">

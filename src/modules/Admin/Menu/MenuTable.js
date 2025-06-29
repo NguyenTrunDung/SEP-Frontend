@@ -12,7 +12,7 @@ import locale from 'antd/locale/vi_VN';
  */
 const MenuTable = ({
     dataSource = [],
-    loading = false,
+    loading, // Remove default - let parent explicitly control loading state
     onView,
     onEdit,
     onDelete,
@@ -296,6 +296,7 @@ const MenuTable = ({
 
             {/* Table using the unified ReusableTable component */}
             <ReusableTable
+                {...rest}
                 columns={columns}
                 dataSource={filteredData}
                 loading={loading}
@@ -308,7 +309,6 @@ const MenuTable = ({
                         `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} thực đơn`,
                 }}
                 className="reusable-table"
-                {...rest}
             />
         </div>
     );
@@ -329,7 +329,7 @@ MenuTable.propTypes = {
             updatedAt: PropTypes.string,
         })
     ),
-    loading: PropTypes.bool,
+    loading: PropTypes.bool, // Optional - defaults to false if undefined
     onView: PropTypes.func,
     onEdit: PropTypes.func,
     onDelete: PropTypes.func,
