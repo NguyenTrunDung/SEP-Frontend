@@ -89,11 +89,23 @@ const CartModal = ({
     }
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const shippingFee = paymentDetails.receiveMethod === 'Giao tận nơi' ? 5000 : 0;
+
+    // Validate cart items have required properties for API
+    const validatedCartItems = cartItems.map(item => ({
+      ...item,
+      FoodId: item.FoodId || item.ID,
+      dishName: item.dishName || item.name,
+      price: Number(item.price) || 0,
+      quantity: Number(item.quantity) || 1,
+      note: item.note || null,
+      cartId: item.cartId
+    }));
+
     setPaymentDetails({
       ...paymentDetails,
       total,
       shippingFee,
-      orderDetails: cartItems.map((item) => `${item.dishName} x${item.quantity}`).join('\n'),
+      orderDetails: validatedCartItems.map((item) => `${item.dishName} x${item.quantity}`).join('\n'),
     });
     setIsCartModalVisible(false);
     setIsPaymentModalVisible(true);
@@ -126,51 +138,51 @@ const CartModal = ({
           cartItems.length === 0
             ? null
             : [
-                <div
-                  key="footer"
+              <div
+                key="footer"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: '16px',
+                  padding: '10px 0',
+                }}
+              >
+                <Button
+                  key="menu"
+                  onClick={() => {
+                    setIsCartModalVisible(false);
+                    navigate('/menu');
+                  }}
                   style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '16px',
-                    padding: '10px 0',
+                    backgroundColor: '#b4c80f',
+                    color: '#000',
+                    border: 'none',
+                    padding: '15px 100px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '400',
                   }}
                 >
-                  <Button
-                    key="menu"
-                    onClick={() => {
-                      setIsCartModalVisible(false);
-                      navigate('/menu');
-                    }}
-                    style={{
-                      backgroundColor: '#b4c80f',
-                      color: '#000',
-                      border: 'none',
-                      padding: '15px 100px',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: '400',
-                    }}
-                  >
-                    Thêm Món
-                  </Button>,
-                  <Button
-                    key="checkout"
-                    type="primary"
-                    onClick={handleGoToCart}
-                    style={{
-                      backgroundColor: '#b4c80f',
-                      color: '#000',
-                      border: 'none',
-                      padding: '15px 80px',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: '400',
-                    }}
-                  >
-                    Tiến Hành Đặt Món
-                  </Button>
-                </div>,
-              ]
+                  Thêm Món
+                </Button>,
+                <Button
+                  key="checkout"
+                  type="primary"
+                  onClick={handleGoToCart}
+                  style={{
+                    backgroundColor: '#b4c80f',
+                    color: '#000',
+                    border: 'none',
+                    padding: '15px 80px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '400',
+                  }}
+                >
+                  Tiến Hành Đặt Món
+                </Button>
+              </div>,
+            ]
         }
         width="min(100vw, 600px)"
         centered

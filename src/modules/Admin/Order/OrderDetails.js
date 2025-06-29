@@ -3,7 +3,7 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Descriptions, List, Tag, Button, Spin, Select, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
-import { useOrder, useUpdateOrderStatus } from '../../../hooks/queries/userOrderQueries';
+import { useOrderById, useUpdateOrderStatus } from '../../../hooks/queries/userOrderQueries';
 import { ORDER_STATUS } from '../../../mocks/orderData';
 
 const { Option } = Select;
@@ -22,7 +22,7 @@ const OrderDetail = () => {
     const navigate = useNavigate();
 
     // Fetch order details
-    const { data: order, isLoading, isError } = useOrder(id);
+    const { data: order, isLoading, isError } = useOrderById(id);
 
     // Update order status mutation
     const updateOrderStatus = useUpdateOrderStatus();

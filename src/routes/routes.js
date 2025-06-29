@@ -33,6 +33,8 @@ import Login from '../modules/Auth/Login.js';
 import Register from '../modules/Auth/Register.js';
 import PatientComponent from '../components/Nurse/Patient/PatientComponent.js';
 import ImageTestComponent from '../components/examples/ImageTestComponent.js';
+import VnPayTest from '../components/examples/VnPayTest.js';
+import VnPayReturn from '../components/Payment/VnPayReturn.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
@@ -243,6 +245,20 @@ const routes = [
         </AdminLayout>
       </ProtectedRoute>
     ),
+  },
+  {
+    path: '/test/vnpay', // Test route for VNPay integration
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <VnPayTest />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/vnpay-return', // VNPay return URL (public access)
+    element: <VnPayReturn />,
   },
 
 

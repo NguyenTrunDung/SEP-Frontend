@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, Input, Button, Typography, Select, Checkbox, message } from 'antd';
+import { useCreateOrder, useCreateVnPayOrder } from '../../hooks/queries/userOrderQueries';
+import { useCreateVnPayPayment } from '../../hooks/queries/paymentQueries';
+import { useAuth } from '../../context/AuthContext';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -15,12 +18,18 @@ const PaymentModal = ({
   selectedBranch,
   handleCartUpdate,
 }) => {
+  const { user } = useAuth();
+  const createOrderMutation = useCreateOrder();
+  const createVnPayOrderMutation = useCreateVnPayOrder();
+  const createVnPayPaymentMutation = useCreateVnPayPayment();
+  const [isProcessingVnPay, setIsProcessingVnPay] = useState(false);
+
   const validatePhoneNumber = (phone) => {
     const phoneRegex = /^[0-9]{10,11}$/;
     return phoneRegex.test(phone);
   };
 
-  const handlePaymentSubmit = () => {
+  const handlePaymentSubmit = async () => {
     // Required field validation
     if (!paymentDetails.fullName) {
       message.error('Vui lòng điền họ và tên.');
@@ -50,12 +59,132 @@ const PaymentModal = ({
       message.error('Vui lòng chọn thời gian giao hàng.');
       return;
     }
+    if (!selectedBranch?.id) {
+      message.error('Vui lòng chọn chi nhánh trước khi đặt món.');
+      return;
+    }
+    if (!cartItems || cartItems.length === 0) {
+      message.error('Giỏ hàng trống. Vui lòng thêm món ăn trước khi đặt hàng.');
+      return;
+    }
 
-    message.success('Đặt món thành công!');
-    setIsPaymentModalVisible(false);
+    try {
+      // Calculate totals
+      const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const shippingFee = paymentDetails.receiveMethod === 'Giao tận nơi' ? 5000 : 0;
+      const foodToolFee = paymentDetails.includeUtensils ? 5000 : 0;
+      const totalAmount = subtotal + shippingFee + foodToolFee;
+
+      // Prepare order data
+      const orderData = {
+        userId: user?.id || null,
+        customerName: paymentDetails.fullName,
+        customerPhone: paymentDetails.phoneNumber,
+        customerAddress: `${paymentDetails.area} - ${paymentDetails.room}`,
+        receiveMethod: paymentDetails.receiveMethod,
+        receiveTime: paymentDetails.deliveryTime,
+        paymentMethod: paymentDetails.paymentMethod,
+        note: paymentDetails.note,
+        includeUtensils: paymentDetails.includeUtensils,
+        total: totalAmount,
+        shippingFee: shippingFee,
+        cartItems: cartItems.map(item => ({
+          ...item,
+          FoodId: item.FoodId || item.ID, // Ensure we have the correct food ID
+          dishName: item.dishName || item.name,
+          price: item.price,
+          quantity: item.quantity,
+          note: item.note || null
+        }))
+      };
+
+      console.log('Submitting order:', { orderData, branchId: selectedBranch.id });
+
+      // Check if payment method is VNPay
+      if (paymentDetails.paymentMethod === 'VNPay') {
+        await handleVnPayPayment(orderData, totalAmount);
+      } else {
+        // Handle other payment methods (existing flow)
+        await createOrderMutation.mutateAsync({
+          orderData,
+          branchId: selectedBranch.id
+        });
+
+        // Success - clear cart and close modal
+        clearCartAndResetForm();
+        handleCartUpdate();
+      }
+
+    } catch (error) {
+      console.error('Order creation failed:', error);
+      // Error message is handled by the mutation's onError callback
+    }
+  };
+
+  const handleVnPayPayment = async (orderData, totalAmount) => {
+    try {
+      setIsProcessingVnPay(true);
+
+      // Step 1: Create VNPay order with pending payment status
+      const orderResponse = await createVnPayOrderMutation.mutateAsync({
+        orderData,
+        branchId: selectedBranch.id
+      });
+
+      console.log('VNPay order created:', orderResponse);
+
+      // Extract order ID from response
+      const orderId = orderResponse.data?.id || orderResponse.id;
+      if (!orderId) {
+        throw new Error('Không thể lấy ID đơn hàng');
+      }
+
+      // Store order ID for return URL processing
+      localStorage.setItem('pendingVnPayOrderId', orderId);
+      localStorage.setItem('pendingVnPayBranchId', selectedBranch.id);
+
+      // Step 2: Create VNPay payment URL
+      const paymentResponse = await createVnPayPaymentMutation.mutateAsync({
+        orderId: orderId,
+        amount: totalAmount
+      });
+
+      console.log('VNPay payment URL created:', paymentResponse);
+
+      // Extract payment URL from response
+      const paymentUrl = paymentResponse.data || paymentResponse;
+      if (!paymentUrl) {
+        throw new Error('Không thể tạo liên kết thanh toán VNPay');
+      }
+
+      // Clear cart before redirecting (user will return after payment)
+      clearCartAndResetForm();
+
+      // Step 3: Redirect to VNPay
+      message.success('Đang chuyển hướng đến VNPay...');
+      window.location.href = paymentUrl;
+
+    } catch (error) {
+      console.error('VNPay payment failed:', error);
+      setIsProcessingVnPay(false);
+
+      // Clean up stored order ID on failure
+      localStorage.removeItem('pendingVnPayOrderId');
+      localStorage.removeItem('pendingVnPayBranchId');
+
+      message.error(error.message || 'Không thể khởi tạo thanh toán VNPay. Vui lòng thử lại.');
+    }
+  };
+
+  const clearCartAndResetForm = () => {
+    // Clear cart and close modal
     setCartItems([]);
+    localStorage.removeItem('cartItems');
+    setIsPaymentModalVisible(false);
+
+    // Reset payment details
     setPaymentDetails({
-      ...paymentDetails,
+      deliveryAddress: '',
       fullName: '',
       phoneNumber: '',
       paymentMethod: '',
@@ -70,7 +199,6 @@ const PaymentModal = ({
       shippingFee: 5000,
       orderDetails: '',
     });
-    handleCartUpdate();
   };
 
   return (
@@ -117,16 +245,16 @@ const PaymentModal = ({
               Chi nhánh
             </Text>
             <Select
-              value={selectedBranch?.Name}
+              value={selectedBranch?.name}
               disabled
               style={{ width: '100%', borderRadius: '4px' }}
             >
-              <Option value={selectedBranch?.Name}>{selectedBranch?.Name}</Option>
+              <Option value={selectedBranch?.name}>{selectedBranch?.name}</Option>
             </Select>
           </div>
           <div>
             <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
-              Họ và tên
+              Họ và tên <span style={{ color: 'red' }}>*</span>
             </Text>
             <Input
               value={paymentDetails.fullName}
@@ -137,7 +265,7 @@ const PaymentModal = ({
           </div>
           <div>
             <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
-              Số điện thoại
+              Số điện thoại <span style={{ color: 'red' }}>*</span>
             </Text>
             <Input
               value={paymentDetails.phoneNumber}
@@ -160,7 +288,9 @@ const PaymentModal = ({
             </Select>
           </div>
           <div>
-            <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Khu</Text>
+            <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+              Khu <span style={{ color: 'red' }}>*</span>
+            </Text>
             <Select
               value={paymentDetails.area}
               onChange={(value) => setPaymentDetails({ ...paymentDetails, area: value })}
@@ -172,7 +302,9 @@ const PaymentModal = ({
             </Select>
           </div>
           <div>
-            <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Phòng</Text>
+            <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+              Phòng <span style={{ color: 'red' }}>*</span>
+            </Text>
             <Select
               value={paymentDetails.room}
               onChange={(value) => setPaymentDetails({ ...paymentDetails, room: value })}
@@ -185,7 +317,7 @@ const PaymentModal = ({
           </div>
           <div>
             <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
-              Hẹn thời gian giao hàng
+              Hẹn thời gian giao hàng <span style={{ color: 'red' }}>*</span>
             </Text>
             <Select
               value={paymentDetails.deliveryTime}
@@ -212,11 +344,11 @@ const PaymentModal = ({
             checked={paymentDetails.includeUtensils}
             onChange={(e) => setPaymentDetails({ ...paymentDetails, includeUtensils: e.target.checked })}
           >
-            Lấy dụng cụ ăn
+            Lấy dụng cụ ăn (+5.000đ)
           </Checkbox>
           <div style={{ marginTop: '8px' }}>
             <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
-              Phương thức thanh toán
+              Phương thức thanh toán <span style={{ color: 'red' }}>*</span>
             </Text>
             <Select
               value={paymentDetails.paymentMethod}
@@ -227,6 +359,7 @@ const PaymentModal = ({
               <Option value="Tiền mặt">Tiền mặt</Option>
               <Option value="Thẻ ngân hàng">Thẻ ngân hàng</Option>
               <Option value="Chuyển khoản">Chuyển khoản</Option>
+              <Option value="VNPay">VNPay (Thanh toán trực tuyến)</Option>
             </Select>
           </div>
           <div style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}>
@@ -262,6 +395,11 @@ const PaymentModal = ({
                       x{item.quantity}
                     </div>
                   </div>
+                  {item.note && (
+                    <div style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', marginTop: '2px' }}>
+                      Ghi chú: {item.note}
+                    </div>
+                  )}
                 </div>
                 <div style={{ fontWeight: '500', color: '#ff0000' }}>
                   {(item.price * item.quantity).toLocaleString('vi-VN')}đ
@@ -274,13 +412,13 @@ const PaymentModal = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text strong style={{ fontSize: '16px' }}>Tạm tính</Text>
             <Text style={{ fontSize: '16px', color: '#000' }}>
-              {paymentDetails.total.toLocaleString('vi-VN')}đ
+              {cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toLocaleString('vi-VN')}đ
             </Text>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text strong style={{ fontSize: '16px' }}>Phí vận chuyển</Text>
             <Text style={{ fontSize: '16px', color: '#000' }}>
-              {paymentDetails.shippingFee.toLocaleString('vi-VN')}đ
+              {(paymentDetails.receiveMethod === 'Giao tận nơi' ? 5000 : 0).toLocaleString('vi-VN')}đ
             </Text>
           </div>
           {paymentDetails.includeUtensils && (
@@ -289,10 +427,14 @@ const PaymentModal = ({
               <Text style={{ fontSize: '16px', color: '#000' }}>5.000đ</Text>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text strong style={{ fontSize: '16px', marginBottom: '16px' }}>Tổng cộng</Text>
-            <Text style={{ fontSize: '16px', color: '#ff0000' }}>
-              {(paymentDetails.total + paymentDetails.shippingFee + (paymentDetails.includeUtensils ? 5000 : 0)).toLocaleString('vi-VN')}đ
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+            <Text strong style={{ fontSize: '18px' }}>Tổng cộng</Text>
+            <Text style={{ fontSize: '18px', color: '#ff0000', fontWeight: 'bold' }}>
+              {(
+                cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) +
+                (paymentDetails.receiveMethod === 'Giao tận nơi' ? 5000 : 0) +
+                (paymentDetails.includeUtensils ? 5000 : 0)
+              ).toLocaleString('vi-VN')}đ
             </Text>
           </div>
           <Button
@@ -304,10 +446,16 @@ const PaymentModal = ({
               fontSize: '16px',
               width: '100%',
               borderRadius: '6px',
+              marginTop: '16px',
             }}
             onClick={handlePaymentSubmit}
+            loading={createOrderMutation.isPending || createVnPayOrderMutation.isPending || createVnPayPaymentMutation.isPending || isProcessingVnPay}
+            disabled={createOrderMutation.isPending || createVnPayOrderMutation.isPending || createVnPayPaymentMutation.isPending || isProcessingVnPay}
           >
-            Đặt Món
+            {(createOrderMutation.isPending || createVnPayOrderMutation.isPending || createVnPayPaymentMutation.isPending || isProcessingVnPay)
+              ? (paymentDetails.paymentMethod === 'VNPay' ? 'Đang xử lý VNPay...' : 'Đang xử lý...')
+              : (paymentDetails.paymentMethod === 'VNPay' ? 'Thanh Toán VNPay' : 'Đặt Món')
+            }
           </Button>
         </div>
       </div>
