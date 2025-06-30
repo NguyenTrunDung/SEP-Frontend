@@ -1,126 +1,154 @@
 .login-layout {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-}
-
-.login-row {
-  min-height: 100vh;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .login-card {
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+    border-radius: 0; /* Remove border radius to make it flush with edges */
+    box-shadow: none; /* Remove shadow for a cleaner edge-to-edge look */
+    overflow: hidden;
+    width: 100%;
+    max-width: 100%; /* Ensure full width */
+    margin: 0;
+    padding: 0;
 }
 
-.login-header {
-  padding: 24px;
-  background-color: #fff;
-  text-align: center;
-  border-bottom: 1px solid #f0f0f0;
+.login-left {
+    text-align: left;
+    padding: 40px;
+    background: #FAF9FC;
 }
 
-.login-title {
-  margin-bottom: 0 !important;
-  color: #1890ff;
+.login-right {
+    padding: 40px;
+    text-align: center;
+    background: #fff;
+}
+.avatar-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 24px;
 }
 
-.login-subtitle {
-  margin-top: 8px;
-  color: rgba(0, 0, 0, 0.45);
+.login-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: 570px;
+    opacity: 1; /* tuỳ chỉnh độ mờ nếu muốn */
+    z-index: 0;
 }
 
-.login-footer {
-  margin-top: 24px;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.85);
+.login-avatar {
+    position: relative;
+    max-width: 570px;
+    width: 100%;
+    height: auto;
+    z-index: 1;
 }
 
-/* Override some AuthForm styles */
+/* Ensure the row inside the card stretches fully */
+.login-card .ant-row {
+    width: 100%;
+    margin: 0;
+}
+
+/* Remove padding from columns to make them touch the edges */
+.login-card .ant-col {
+    padding: 0;
+}
+
+.login-welcome {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.login-logo {
+    margin-bottom: 16px;
+    width: 80px;
+    height: auto;
+}
+
 .auth-form-container {
-  padding: 0;
+    padding: 0;
 }
 
 .auth-form-card {
-  box-shadow: none !important;
-  border: none !important;
-}
-
-.login-help {
-  background-color: rgba(24, 144, 255, 0.05);
-  border-radius: 4px;
-  padding: 16px;
-  margin-top: 24px;
-}
-
-.login-help p {
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.85);
-  margin-bottom: 8px;
-}
-
-.login-help ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.login-help li {
-  margin-bottom: 6px;
-  color: rgba(0, 0, 0, 0.65);
-  font-size: 13px;
-}
-
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background-color: #f5f5f5;
-  padding: 1rem;
-}
-
-.login-card h1 {
-  color: #007bff;
-  margin-bottom: 0.5rem;
-  text-align: center;
-}
-
-.login-card h2 {
-  color: #333;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.form-group {
-  margin-bottom: 1rem;
+    box-shadow: none !important;
+    border: none !important;
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #333;
+    color: #ff4d4f;
+    margin-bottom: 4px;
+    display: block;
+    text-align: left;
 }
 
 .form-group input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-size: 14px;
+    margin-bottom: 10px;
 }
 
 .form-group input:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    outline: none;
+    border-color: #1890ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.25);
 }
 
 .error-message {
-  background-color: #fff3f3;
-  color: #dc3545;
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  border: 1px solid #ffcdd2;
-} 
+    background-color: #fff3f3;
+    color: #dc3545;
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    border: 1px solid #ffcdd2;
+    text-align: left;
+    display: none;
+}
+
+.auth-form .ant-btn {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+    color: #fff;
+    width: 100%;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.auth-form .ant-btn:hover {
+    background-color: #7763D9;
+    border-color: #7763D9;
+}
+
+.close-button {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    font-size: 18px;
+}
+
+
+@media (max-width: 991.98px) {
+    .login-left {
+        display: none !important;
+    }
+
+    .login-right {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+}
