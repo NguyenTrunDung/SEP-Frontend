@@ -36,6 +36,8 @@ import ImageTestComponent from '../components/examples/ImageTestComponent.js';
 import VnPayTest from '../components/examples/VnPayTest.js';
 import VnPayReturn from '../components/Payment/VnPayReturn.js';
 
+import AreasPage from '../modules/Admin/Area/AreasPage.js';
+
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
   [ROLES.ADMIN]: '/dashboard',
@@ -232,6 +234,16 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
         <AdminLayout>
           <Food />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/areas', // Thêm route cho Areas
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <AreasPage />
         </AdminLayout>
       </ProtectedRoute>
     ),
