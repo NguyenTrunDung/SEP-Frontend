@@ -204,29 +204,6 @@ const MenuWithWrapperExample = () => {
             onRefresh={handleRefresh}
             refreshText="Làm mới"
 
-            // Statistics cards (optional - can be enabled)
-            // showStatistics={true}
-            // statistics={[
-            //     {
-            //         title: 'Tổng số menu',
-            //         value: totalMenus,
-            //         icon: <MenuOutlined />,
-            //         color: '#1890ff'
-            //     },
-            //     {
-            //         title: 'Có thời gian phục vụ',
-            //         value: menusWithService,
-            //         icon: <CalendarOutlined />,
-            //         color: '#52c41a'
-            //     },
-            //     {
-            //         title: 'Không có thời gian phục vụ',
-            //         value: menusWithoutService,
-            //         icon: <CalendarOutlined />,
-            //         color: '#fa8c16'
-            //     }
-            // ]}
-
             // Props passed to the wrapped component
             menuData={menuData}
             onView={handleView}

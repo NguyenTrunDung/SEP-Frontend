@@ -56,11 +56,30 @@ const Navbar = () => {
   });
   const [activeKey, setActiveKey] = useState('home');
 
-  useEffect(() => {
-    if (!selectedBranch) {
+
+
+ useEffect(() => {
+  const navType = performance.getEntriesByType("navigation")[0]?.type;
+  const savedBranch = localStorage.getItem('selectedBranch');
+  const excludeRoutes = ['/login', '/register', '/contact'];
+
+  if (navType === 'reload') {
+    localStorage.removeItem('selectedBranch');
+    localStorage.removeItem('currentBranchId');
+    setSelectedBranch(null);
+    if (!excludeRoutes.includes(location.pathname)) {
       setIsModalVisible(true);
     }
-  }, [selectedBranch]);
+  } else {
+    if (!savedBranch) {
+      setIsModalVisible(true);
+    } else {
+      setSelectedBranch(JSON.parse(savedBranch));
+      setIsModalVisible(false); 
+    }
+  }
+}, []); 
+
 
   useEffect(() => {
     console.log('Navbar - User data:', { user, role: user?.role, location: location.pathname });
@@ -69,18 +88,18 @@ const Navbar = () => {
   const showModal = () => setIsModalVisible(true);
 
   const handleBranchSelect = async (branch) => {
-  try {
-    await switchBranchMutation.mutateAsync(branch.id);
-    setSelectedBranch(branch);
-    localStorage.setItem('selectedBranch', JSON.stringify(branch));
-    localStorage.setItem('currentBranchId', branch.id); // Sync with multiTenant
-    setIsModalVisible(false);
-    message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
-  } catch (error) {
-    console.error('Failed to switch branch:', error);
-    message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
-  }
-};
+    try {
+      await switchBranchMutation.mutateAsync(branch.id);
+      setSelectedBranch(branch);
+      localStorage.setItem('selectedBranch', JSON.stringify(branch));
+      localStorage.setItem('currentBranchId', branch.id); // Sync with multiTenant
+      setIsModalVisible(false);
+      message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
+    } catch (error) {
+      console.error('Failed to switch branch:', error);
+      message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
+    }
+  };
 
   const handleCartClick = () => {
     console.log('Opening cart modal with cartItems:', cartItems);
@@ -155,8 +174,8 @@ const Navbar = () => {
     { key: 'cart', label: 'GIỎ HÀNG' },
     ...(user?.role === ROLES.NURSE
       ? [
-          { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
-        ]
+        { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
+      ]
       : user?.role === ROLES.GUEST
         ? []
         : []
