@@ -389,3 +389,165 @@
   color: #3c3c3c;
 }
 
+/* Enhanced Create Foods Menu Styling */
+
+.create-foods-menu .ant-modal-content {
+  background: #fafafa;
+}
+
+.create-foods-menu .form-loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.create-foods-menu .custom-floating {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.create-foods-menu .custom-floating .floating-label {
+  position: absolute;
+  left: 12px;
+  top: -8px;
+  background: white;
+  padding: 0 4px;
+  font-size: 12px;
+  color: #666;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.create-foods-menu .menu-categories-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.create-foods-menu .form-actions {
+  margin-top: 24px;
+  margin-bottom: 0;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  background: white;
+}
+
+.create-foods-menu .dish-config-compact {
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.create-foods-menu .dish-config-compact:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.1);
+}
+
+.create-foods-menu .empty-food-list {
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  font-style: italic;
+}
+
+.create-foods-menu .food-list-container {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  background: white;
+  margin-top: 8px;
+}
+
+/* Template Date Picker Section Styling */
+.create-foods-menu .template-section {
+  background: linear-gradient(135deg, #f6ffed 0%, #f0f9ff 100%);
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  position: relative;
+  max-width: 300px;
+}
+
+.create-foods-menu .template-section::before {
+  content: '✨';
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 18px;
+  opacity: 0.6;
+}
+
+.create-foods-menu .template-section .ant-picker {
+  border: 2px solid #52c41a;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.create-foods-menu .template-section .ant-picker:hover {
+  border-color: #73d13d;
+  box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.1);
+}
+
+.create-foods-menu .template-section .ant-picker:focus-within {
+  border-color: #389e0d;
+  box-shadow: 0 0 0 3px rgba(82, 196, 26, 0.15);
+}
+
+/* Template Date Picker Calendar Styling */
+.ant-picker-dropdown .ant-picker-panel {
+  border: 2px solid #52c41a;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.ant-picker-dropdown .ant-picker-date-panel .ant-picker-cell.ant-picker-cell-in-view .ant-picker-cell-inner {
+  position: relative;
+}
+
+.ant-picker-dropdown .ant-badge-count {
+  background: #52c41a !important;
+  color: white !important;
+  border-color: #52c41a !important;
+  font-size: 10px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  line-height: 14px !important;
+  padding: 0 4px !important;
+  border-radius: 8px !important;
+}
+
+/* Available date highlight */
+.ant-picker-dropdown .ant-picker-cell:has(.ant-badge-count) .ant-picker-cell-inner {
+  background: rgba(82, 196, 26, 0.1) !important;
+  border: 1px solid #52c41a !important;
+  color: #389e0d !important;
+  font-weight: 500 !important;
+}
+
+.ant-picker-dropdown .ant-picker-cell:has(.ant-badge-count):hover .ant-picker-cell-inner {
+  background: rgba(82, 196, 26, 0.2) !important;
+  border-color: #389e0d !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .create-foods-menu .template-section {
+    padding: 12px;
+   
+  }
+  
+  .create-foods-menu .template-section .ant-picker {
+    width: 100%;
+  }
+  
+  .create-foods-menu .menu-categories-scroll {
+    max-height: 300px;
+    padding: 12px;
+  }
+}
+

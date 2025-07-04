@@ -6,7 +6,7 @@ import MenuTable from './MenuTable';
 import CreateFoodsMenu from './CreateFoodsMenu';
 import ViewMenuModal from './ViewMenuModal';
 import { useAntModal } from '../../../hooks/useAntModal';
-import { useMenuList, useCreateMenu } from '../../../hooks/queries/useMenuQueries';
+import { useMenuList, useCreateMenu, useUpdateMenu, useDeleteMenu } from '../../../hooks/queries/useMenuQueries';
 import dayjs from 'dayjs';
 
 // CSS styles for the table
@@ -100,8 +100,10 @@ const Menu = () => {
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
-  // Use mutation hook for creating menus
+  // Use mutation hooks for menu operations
   const createMenuMutation = useCreateMenu();
+  const updateMenuMutation = useUpdateMenu();
+  const deleteMenuMutation = useDeleteMenu();
 
   // Handle create menu with real API call
   const handleCreateMenu = async (formData) => {
@@ -246,13 +248,10 @@ const Menu = () => {
         return;
       }
 
-      // TODO: Implement delete API call when available
-      // await deleteMenuMutation.mutateAsync(menuId);
+      // Call the real delete API
+      await deleteMenuMutation.mutateAsync(menuId);
 
-      message.success(`Đã xóa menu "${menuName}" ngày ${menuDate}`);
-
-      // For now, show a placeholder message
-      message.info('Chức năng xóa menu sẽ được triển khai khi API backend sẵn sàng.');
+      message.success(`Đã xóa menu "${menuName}" ngày ${menuDate} thành công!`);
     } catch (error) {
       console.error('❌ Failed to delete menu:', error);
       const errorMessage =

@@ -102,21 +102,28 @@ export const menuService = {
      */
     async getMenu(id) {
         try {
-            if (environment.features.enableLogging) {
-                console.log('🔍 menuService.getMenu - ID:', id);
-            }
+            console.log('🔍 menuService.getMenu - ID:', id);
+            console.log('🔍 API URL will be:', `${environment.api.getVersionedPath('/MenuDetail')}/${id}`);
 
             const response = await api.get(`${environment.api.getVersionedPath('/MenuDetail')}/${id}`);
 
-            if (environment.features.enableLogging) {
-                console.log('✅ Fetched menu by ID:', response.data);
-            }
+            console.log('📥 Raw API response:', response);
+            console.log('📥 Response data:', response.data);
+            console.log('📥 Response status:', response.status);
 
-            return response.data?.data || response.data || null;
+            const menuData = response.data?.data || response.data || null;
+            console.log('✅ Extracted menu data:', menuData);
+
+            return menuData;
         } catch (error) {
-            if (environment.features.enableLogging) {
-                console.error('❌ Failed to fetch menu:', error.response?.data?.message || error.message);
-            }
+            console.error('❌ Failed to fetch menu:', error);
+            console.error('❌ Error details:', {
+                message: error.message,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                url: error.config?.url
+            });
             throw error;
         }
     },
@@ -234,7 +241,7 @@ export const menuService = {
     async getMenuList() {
         try {
             if (environment.features.enableLogging) {
-                console.log('🔍 menuService.getMenuList - calling backend...');
+                console.log('🔍 menuService.getMenuList - fetching all menus');
             }
 
             const response = await api.get(`${environment.api.getVersionedPath('/MenuDetail')}`);
@@ -243,7 +250,7 @@ export const menuService = {
                 console.log('✅ Fetched menu list:', response.data);
             }
 
-            // Extract data from API response structure
+            // Extract array from API response
             return response.data?.data || response.data || [];
         } catch (error) {
             if (environment.features.enableLogging) {
@@ -287,17 +294,17 @@ export const menuService = {
                 name: menuData.name,
                 branchId: parseInt(currentBranchId, 10),
                 details: (menuData.details || []).map(detail => ({
-                    id: detail.id || 0, // Include existing ID or 0 for new items
+                    id: detail.id || null,
                     foodId: detail.foodId,
-                    foodName: detail.foodName || 'string', // Backend expects string
+                    foodName: detail.foodName || 'string',
                     qty: detail.qty || detail.quantity || 1,
                     priceForGuest: detail.priceForGuest || detail.guestPrice || 0,
                     priceForPatient: detail.priceForPatient || detail.patientPrice || 0,
                     priceForStaff: detail.priceForStaff || detail.staffPrice || 0,
                     discountPrice: detail.discountPrice || detail.discount || 0,
                     status: detail.status !== undefined ? detail.status : true,
-                    discountFrom: detail.discountFrom ? (detail.discountFrom || null) : null,
-                    discountTo: detail.discountTo ? (detail.discountTo || null) : null,
+                    discountFrom: detail.discountFrom || null,
+                    discountTo: detail.discountTo || null,
                     isQty: detail.isQty !== undefined ? detail.isQty : true
                 }))
             };
@@ -312,7 +319,6 @@ export const menuService = {
                 console.log('✅ Updated menu:', response.data);
             }
 
-            // Backend returns updated menu data
             return response.data;
         } catch (error) {
             if (environment.features.enableLogging) {
@@ -323,6 +329,116 @@ export const menuService = {
                 });
             }
             throw error;
+        }
+    },
+
+    /**
+     * Delete an existing menu
+     * Uses the DELETE /api/v1/MenuDetail/{id} endpoint
+     * @param {string|number} menuId - The menu ID to delete
+     * @returns {Promise<Object>} Delete response
+     */
+    async deleteMenu(menuId) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🗑️ menuService.deleteMenu - ID:', menuId);
+            }
+
+            const response = await api.delete(`${environment.api.getVersionedPath('/MenuDetail')}/${menuId}`);
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Deleted menu:', response.data);
+            }
+
+            return response.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to delete menu:', {
+                    message: error.response?.data?.message || error.message,
+                    status: error.response?.status,
+                    data: error.response?.data
+                });
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Get all menu dates for the current branch
+     * Uses the GET /api/v1/menudetail/dates endpoint
+     * @returns {Promise<Array>} List of menu dates
+     */
+    async getMenuDates() {
+        const response = await api.get('/api/v1/menudetail/dates');
+        return response.data?.data || [];
+    },
+
+    /**
+     * Get available menu dates for template selection (past 2 weeks)
+     * Uses the optimized GET /api/v1/MenuDetail/recent-for-template endpoint
+     * @param {number} days - Number of days to look back (default: 14, max: 30)
+     * @returns {Promise<Array>} List of menu objects with basic info from past N days
+     */
+    async getAvailableMenuDatesForTemplate(days = 14) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log(`🔍 menuService.getAvailableMenuDatesForTemplate - fetching past ${days} days menus`);
+            }
+
+            const response = await api.get(`${environment.api.getVersionedPath('/MenuDetail')}/recent-for-template`, {
+                params: { days }
+            });
+
+            const availableMenus = response.data?.data || response.data || [];
+
+            if (environment.features.enableLogging) {
+                console.log(`✅ Found ${availableMenus.length} menus from past ${days} days:`, availableMenus);
+            }
+
+            return availableMenus;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.warn('⚠️ Optimized endpoint failed, falling back to manual filtering:', error.message);
+            }
+
+            // Fallback to the old method if the new endpoint is not available
+            try {
+                const today = new Date();
+                const cutoffDate = new Date(today);
+                cutoffDate.setDate(today.getDate() - days);
+
+                const response = await api.get(`${environment.api.getVersionedPath('/MenuDetail')}`);
+                const allMenus = response.data?.data || response.data || [];
+
+                const availableMenus = allMenus
+                    .filter(menu => {
+                        const menuDate = new Date(menu.date);
+                        return menuDate >= cutoffDate && menuDate < today;
+                    })
+                    .map(menu => ({
+                        id: menu.id,
+                        date: menu.date,
+                        name: menu.name,
+                        timeOfDay: menu.timeOfDay,
+                        totalDishes: menu.details?.length || 0,
+                        isTime: menu.isTime,
+                        timeFrom: menu.timeFrom,
+                        timeTo: menu.timeTo,
+                        branchId: menu.branchId
+                    }))
+                    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                if (environment.features.enableLogging) {
+                    console.log(`✅ Fallback: Found ${availableMenus.length} menus from past ${days} days:`, availableMenus);
+                }
+
+                return availableMenus;
+            } catch (fallbackError) {
+                if (environment.features.enableLogging) {
+                    console.error('❌ Both optimized and fallback methods failed:', fallbackError.response?.data?.message || fallbackError.message);
+                }
+                throw fallbackError;
+            }
         }
     }
 };

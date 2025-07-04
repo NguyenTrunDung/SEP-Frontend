@@ -2,6 +2,8 @@ import React from 'react';
 import { Modal, Descriptions, Tag, Table, Spin, Alert, Empty } from 'antd';
 import { CalendarOutlined, ClockCircleOutlined, ShopOutlined } from '@ant-design/icons';
 import { useMenu } from '../../../hooks/queries/useMenuQueries';
+import { useBranches } from '../../../hooks/queries/userBranchesQueries';
+import { useAuth } from '../../../context/AuthContext';
 import { FoodImage } from '../../../components/common/ImageDisplay';
 import dayjs from 'dayjs';
 import PropTypes from 'prop-types';
@@ -19,6 +21,12 @@ const ViewMenuModal = ({ open, onCancel, menuId }) => {
     } = useMenu(menuId, {
         enabled: open && !!menuId, // Only fetch when modal is open and menuId exists
     });
+
+    // Fetch branches for branch name mapping
+    const { data: branches } = useBranches();
+
+    // Get current user for user information mapping
+    const { user: currentUser } = useAuth();
 
     // Debug logging for troubleshooting edit->view issues
     React.useEffect(() => {
@@ -49,6 +57,27 @@ const ViewMenuModal = ({ open, onCancel, menuId }) => {
             style: 'currency',
             currency: 'VND'
         }).format(amount);
+    };
+
+    // Get branch name by ID
+    const getBranchName = (branchId) => {
+        if (!branches || !branchId) return 'N/A';
+        const branch = branches.find(b => b.id === branchId);
+        return branch ? branch.name : `ID: ${branchId}`;
+    };
+
+    // Get user information by ID
+    const getUserInfo = (userId) => {
+        if (!userId) return 'N/A';
+
+        // If it's the current user, return their info
+        if (currentUser && currentUser.id === userId) {
+            return currentUser.fullName || `${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.email || 'N/A';
+        }
+
+        // For now, return the user ID since we don't have a user lookup service
+        // In a real application, you might want to create a user service to fetch user details by ID
+        return `User ID: ${userId}`;
     };
 
     // Table columns for menu details
@@ -280,7 +309,7 @@ const ViewMenuModal = ({ open, onCancel, menuId }) => {
                             }
                         >
                             <Tag color="cyan">
-                                ID: {menuData.branchId}
+                                {getBranchName(menuData.branchId)}
                             </Tag>
                         </Descriptions.Item>
 
@@ -353,8 +382,8 @@ const ViewMenuModal = ({ open, onCancel, menuId }) => {
                                 color: '#666',
                                 marginTop: '4px'
                             }}>
-                                <span>Tạo bởi: {menuData.createdBy || 'N/A'}</span>
-                                <span>Cập nhật bởi: {menuData.updatedBy || 'N/A'}</span>
+                                <span>Tạo bởi: {getUserInfo(menuData.createdBy)}</span>
+                                <span>Cập nhật bởi: {getUserInfo(menuData.updatedBy)}</span>
                             </div>
                         )}
                     </div>
