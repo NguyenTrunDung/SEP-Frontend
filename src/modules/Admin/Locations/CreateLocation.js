@@ -74,7 +74,7 @@ const CreateLocation = ({ open, onCancel, onSubmit, branchId }) => {
           const payload = {
             name: name.trim(),
             description: '',
-            roomNumber: `AUTO-${Date.now()}`, // ✅ Tránh trùng RoomNumber
+            roomNumber: `AUTO-${Date.now()}`,
             capacity: 0,
             sort: 0,
             isActive: true,
@@ -140,7 +140,7 @@ const CreateLocation = ({ open, onCancel, onSubmit, branchId }) => {
       <ReusableForm form={form} onFinish={handleFormSubmit} layout="vertical">
         <Form.Item
           name="areaId"
-          label="Khu vực"
+          label=""
           rules={[{ required: true, message: 'Vui lòng chọn khu vực!' }]}
         >
           <Select
@@ -159,7 +159,7 @@ const CreateLocation = ({ open, onCancel, onSubmit, branchId }) => {
 
         <Form.Item
           name="name"
-          label="Tên vị trí"
+          label=""
           rules={[
             { required: true, message: 'Vui lòng nhập tên vị trí!' },
             { whitespace: true, message: 'Tên vị trí không được chỉ chứa khoảng trắng!' },
@@ -169,7 +169,6 @@ const CreateLocation = ({ open, onCancel, onSubmit, branchId }) => {
           <Input placeholder="Tên vị trí" style={{ width: '100%' }} />
         </Form.Item>
 
-        {/* Trường số phòng bị ẩn khỏi UI */}
         <Form.Item name="roomNumber" hidden>
           <Input />
         </Form.Item>

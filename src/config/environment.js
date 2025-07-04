@@ -142,7 +142,7 @@ const environment = {
     features: {
         enableMockData: process.env.REACT_APP_ENABLE_MOCK_DATA === 'true',
         enableDevtools: process.env.REACT_APP_ENABLE_DEVTOOLS === 'true',
-        enableLogging: process.env.REACT_APP_ENABLE_LOGGING === 'true',
+        enableLogging: process.env.REACT_APP_ENABLE_LOGGING === 'true' || true, // Force enable for debugging
         debugMode: process.env.REACT_APP_DEBUG_MODE === 'true',
         showApiLogs: process.env.REACT_APP_SHOW_API_LOGS === 'true'
     },

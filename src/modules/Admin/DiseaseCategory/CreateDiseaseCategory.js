@@ -3,7 +3,7 @@ import { Form, Input, Button, Space } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
-import { diseaseCategoryService } from '../../../services/diseaseCategoryService';
+// import { diseaseCategoryService } from '../../../services/diseaseCategoryService'; // Nếu có validate
 
 const CreateDiseaseCategory = ({ open, onCancel, onSubmit, branchId }) => {
   const { form, handleSubmit, resetForm } = useAntForm();
@@ -15,44 +15,30 @@ const CreateDiseaseCategory = ({ open, onCancel, onSubmit, branchId }) => {
   }, [open, resetForm]);
 
   const handleFormSubmit = async (values) => {
-    try {
-      const normalizedName = values.name.trim().toLowerCase();
-      if (!normalizedName) {
-        form.setFields([
-          {
-            name: 'name',
-            errors: ['Tên bệnh không được để trống!'],
-          },
-        ]);
-        return;
-      }
+    const normalizedName = values.name?.trim().toLowerCase();
 
-      console.log('🔍 Validating disease category name for create:', { name: normalizedName, branchId });
-      const isUnique = await diseaseCategoryService.validateDiseaseCategoryName(branchId, normalizedName);
-      if (!isUnique) {
-        form.setFields([
-          {
-            name: 'name',
-            errors: ['Tên bệnh đã tồn tại trong chi nhánh này!'],
-          },
-        ]);
-        return;
-      }
-
-      await handleSubmit(async () => {
-        if (onSubmit) {
-          await onSubmit({ name: values.name, branchId });
-        }
-      });
-    } catch (error) {
-      console.error('❌ Failed to validate disease category name:', error.response?.data?.message || error.message);
+    if (!normalizedName) {
       form.setFields([
         {
           name: 'name',
-          errors: [error.response?.data?.message || 'Lỗi khi kiểm tra tên bệnh!'],
+          errors: ['Tên danh mục bệnh không được để trống!'],
         },
       ]);
+      return;
     }
+
+    // Nếu có API validate thì gọi tại đây
+    // const isUnique = await diseaseCategoryService.validateName(branchId, normalizedName);
+    // if (!isUnique) {
+    //   form.setFields([{ name: 'name', errors: ['Tên danh mục bệnh đã tồn tại!'] }]);
+    //   return;
+    // }
+
+    await handleSubmit(async () => {
+      if (onSubmit) {
+        await onSubmit({ name: values.name, branchId });
+      }
+    });
   };
 
   return (
@@ -74,7 +60,7 @@ const CreateDiseaseCategory = ({ open, onCancel, onSubmit, branchId }) => {
               border: 'none',
               minWidth: 64,
               height: 32,
-              fontSize: 14
+              fontSize: 14,
             }}
           >
             Lưu
@@ -87,7 +73,7 @@ const CreateDiseaseCategory = ({ open, onCancel, onSubmit, branchId }) => {
               border: 'none',
               minWidth: 64,
               height: 32,
-              fontSize: 14
+              fontSize: 14,
             }}
           >
             X
@@ -99,8 +85,8 @@ const CreateDiseaseCategory = ({ open, onCancel, onSubmit, branchId }) => {
         <Form.Item
           name="name"
           rules={[
-            { required: true, message: 'Vui lòng nhập tên bệnh!' },
-            { whitespace: true, message: 'Tên bệnh không được chỉ chứa khoảng trắng!' }
+            { required: true, message: 'Vui lòng nhập tên danh mục bệnh!' },
+            { whitespace: true, message: 'Tên không được chỉ chứa khoảng trắng!' },
           ]}
           className="floating-form-item"
         >

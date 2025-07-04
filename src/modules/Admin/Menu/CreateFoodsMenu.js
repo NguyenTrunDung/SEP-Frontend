@@ -1,3 +1,13 @@
+/**
+ * Enhanced Menu Creation Component with Advanced Date Validation
+ * 
+ * Key Improvements:
+ * 1. Comprehensive date validation (past dates, duplicates)
+ * 2. Enhanced template selector with date conflict detection
+ * 3. Frontend validation before backend (reduces 409 errors)
+ * 4. Smart validation for create/edit/template modes
+ * 5. Visual indicators for date conflicts and validation
+ */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
     Form,
@@ -17,14 +27,17 @@ import {
     Alert,
     TimePicker,
 } from 'antd';
-import { PlusOutlined, MinusCircleOutlined, SearchOutlined, ThunderboltOutlined, ClockCircleOutlined, EditOutlined } from '@ant-design/icons';
+import { PlusOutlined, MinusCircleOutlined, SearchOutlined, ThunderboltOutlined, ClockCircleOutlined, EditOutlined, CopyOutlined } from '@ant-design/icons';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
+import TemplateMenuDatePicker from '../../../components/common/TemplateMenuDatePicker';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { useFoodCategories } from '../../../hooks/queries/useFoodCategories';
 import { useFoods } from '../../../hooks/queries/useFoods';
-import { useCreateMenu, useMenu, useUpdateMenu } from '../../../hooks/queries/useMenuQueries';
+import { useCreateMenu, useMenu, useUpdateMenu, useMenuDates } from '../../../hooks/queries/useMenuQueries';
+import { menuService } from '../../../services/menuService';
 import environment from '../../../config/environment';
+import { handleMenuApiError } from '../../../utils/errorHandler';
 import PropTypes from 'prop-types';
 import dayjs from 'dayjs';
 import './CreateFoodsMenu.css';
@@ -65,6 +78,10 @@ const CreateFoodsMenu = ({
     const [expandedCategories, setExpandedCategories] = useState({});
     const [checkedDishes, setCheckedDishes] = useState({}); // Track checked dishes
 
+    // Template state
+    const [isUsingTemplate, setIsUsingTemplate] = useState(false);
+    const [templateSelectedDate, setTemplateSelectedDate] = useState(null);
+
     // API hooks
     const createMenuMutation = useCreateMenu();
     const updateMenuMutation = useUpdateMenu();
@@ -91,6 +108,89 @@ const CreateFoodsMenu = ({
         isLoading: dishesLoading,
         error: dishesError
     } = useFoods();
+
+    // Fetch menu dates for the current branch
+    const { data: menuDates = [], isLoading: menuDatesLoading } = useMenuDates({
+        enabled: open, // Always fetch when modal is open for validation
+    });
+
+    // Enhanced date validation function
+    const validateMenuDate = (value) => {
+        if (!value) return Promise.resolve();
+
+        const selectedDate = dayjs(value);
+        const today = dayjs().startOf('day');
+
+        // Skip validation if in edit mode (allow existing date to remain)
+        if (editMode) {
+            // Only validate if the date is being changed from the original
+            const originalDate = existingMenuData?.date ? dayjs(existingMenuData.date) : null;
+            if (originalDate && selectedDate.isSame(originalDate, 'day')) {
+                return Promise.resolve();
+            }
+        }
+
+        // Skip validation if using template (allow date selection for template copy)
+        if (isUsingTemplate) {
+            return Promise.resolve();
+        }
+
+        // Check for past dates
+        if (selectedDate.isBefore(today)) {
+            return Promise.reject(new Error('Không thể tạo menu cho ngày đã qua!'));
+        }
+
+        // Check for duplicate dates (excluding current menu in edit mode)
+        const existingMenuIds = editMode && existingMenuData ? [existingMenuData.id] : [];
+        const duplicateDate = menuDates.find(dateInfo => {
+            const menuDate = dayjs(dateInfo.date || dateInfo);
+            const isSameDate = menuDate.isSame(selectedDate, 'day');
+            const isDifferentMenu = !existingMenuIds.includes(dateInfo.id);
+            return isSameDate && isDifferentMenu;
+        });
+
+        if (duplicateDate) {
+            return Promise.reject(new Error('Đã có menu cho ngày này! Vui lòng chọn ngày khác.'));
+        }
+
+        return Promise.resolve();
+    };
+
+    // Enhanced disabled date function for DatePicker
+    const getDisabledDate = (current) => {
+        if (!current) return false;
+
+        // Skip validation if in edit mode
+        if (editMode) {
+            const originalDate = existingMenuData?.date ? dayjs(existingMenuData.date) : null;
+            if (originalDate && current.isSame(originalDate, 'day')) {
+                return false; // Allow original date
+            }
+        }
+
+        // Skip validation if using template
+        if (isUsingTemplate) {
+            return false; // Allow any date for template copying
+        }
+
+        const today = dayjs().startOf('day');
+
+        // Disable past dates
+        if (current.isBefore(today)) {
+            return true;
+        }
+
+        // Disable dates that already have menus (excluding current menu in edit mode)
+        const existingMenuIds = editMode && existingMenuData ? [existingMenuData.id] : [];
+        const hasExistingMenu = menuDates.some(dateInfo => {
+            const menuDate = dayjs(dateInfo.date || dateInfo);
+            const isSameDate = menuDate.isSame(current, 'day');
+            const isDifferentMenu = !existingMenuIds.includes(dateInfo.id);
+            return isSameDate && isDifferentMenu;
+        });
+
+        return hasExistingMenu;
+    };
 
     const toggleCategory = (categoryKey) => {
         setExpandedCategories((prev) => ({
@@ -224,6 +324,16 @@ const CreateFoodsMenu = ({
 
             form.setFieldsValue(allFormValues);
             setIsDataLoaded(true);
+
+            // Auto-expand categories that have items in edit mode
+            const newExpandedCategories = {};
+            const newShowFoodList = {};
+            Object.keys(categorizedData).forEach(categoryKey => {
+                newExpandedCategories[categoryKey] = true;
+                newShowFoodList[categoryKey] = true;
+            });
+            setExpandedCategories(newExpandedCategories);
+            setShowFoodList(newShowFoodList);
 
             if (environment.features.enableLogging) {
                 console.log('✅ Form populated with existing menu data:', {
@@ -440,7 +550,7 @@ const CreateFoodsMenu = ({
                                 <div
                                     key={key}
                                     style={{
-                                      
+
                                         flexDirection: 'column',
                                         marginBottom: 12,
                                         paddingBottom: 12,
@@ -627,8 +737,9 @@ const CreateFoodsMenu = ({
     };
 
     const handleFormSubmit = async (values) => {
+        const apiData = transformFormDataToAPI(values);
+
         try {
-            const apiData = transformFormDataToAPI(values);
             if (!apiData.details || apiData.details.length === 0) {
                 message.error('Vui lòng chọn ít nhất một món ăn cho menu!');
                 return;
@@ -649,7 +760,114 @@ const CreateFoodsMenu = ({
             }
         } catch (error) {
             const actionText = editMode ? 'cập nhật' : 'tạo';
-            message.error(`${actionText.charAt(0).toUpperCase() + actionText.slice(1)} menu thất bại: ${error.message}`);
+            const errorMessage = handleMenuApiError(error, {
+                action: actionText,
+                date: apiData.date,
+                entityType: 'menu'
+            });
+
+            message.error(errorMessage);
+        }
+    };
+
+    // Template handling function - simplified for DatePicker approach
+    const handleTemplateSelected = async (templateData, selectedDate = null) => {
+        if (!templateData || !availableDishesData) {
+            message.error('Dữ liệu template không hợp lệ!');
+            return;
+        }
+
+        try {
+            console.log('📋 Loading template data:', templateData);
+            console.log('📅 Selected date:', selectedDate);
+
+            // Fetch full menu details using the template ID
+            const fullMenuData = await menuService.getMenu(templateData.id);
+
+            if (!fullMenuData) {
+                throw new Error('Không thể tải chi tiết menu template - API trả về null');
+            }
+
+            // Set basic form values from template
+            const basicValues = {
+                // Use today's date as default for new menu
+                date: dayjs(),
+                name: fullMenuData.name || '',
+                timeOfDay: fullMenuData.timeOfDay || '',
+            };
+
+            // Mark that we're using a template
+            setIsUsingTemplate(true);
+            setTemplateSelectedDate(selectedDate);
+
+            const hasServiceTime = fullMenuData.isTime;
+            setServiceTime(hasServiceTime);
+
+            if (hasServiceTime) {
+                const timeFromStr = fullMenuData.timeFrom ?
+                    (typeof fullMenuData.timeFrom === 'string' ? fullMenuData.timeFrom : fullMenuData.timeFrom.toString()) : null;
+                const timeToStr = fullMenuData.timeTo ?
+                    (typeof fullMenuData.timeTo === 'string' ? fullMenuData.timeTo : fullMenuData.timeTo.toString()) : null;
+
+                basicValues.timeFrom = timeFromStr ? dayjs(timeFromStr, 'HH:mm:ss') : null;
+                basicValues.timeTo = timeToStr ? dayjs(timeToStr, 'HH:mm:ss') : null;
+                basicValues.serviceTime = true;
+            }
+
+            // Process menu details from template
+            const templateDetails = fullMenuData.details || [];
+            const categorizedData = {};
+            const newCheckedDishes = {};
+
+            templateDetails.forEach((detail, index) => {
+                const foodItem = availableDishesData.find(food => food.id === detail.foodId);
+                if (foodItem) {
+                    const categoryKey = `category_${foodItem.categoryId}`;
+                    if (!categorizedData[categoryKey]) {
+                        categorizedData[categoryKey] = [];
+                    }
+
+                    const formDetail = {
+                        dishId: detail.foodId,
+                        dishName: detail.foodName || foodItem.name,
+                        quantity: detail.qty || 1,
+                        guestPrice: detail.priceForGuest || 0,
+                        patientPrice: detail.priceForPatient || 0,
+                        staffPrice: detail.priceForStaff || 0,
+                        discount: detail.discountPrice || 0,
+                        largeQuantity: (detail.qty || 1) >= MAX_LARGE_QUANTITY,
+                    };
+
+                    categorizedData[categoryKey].push(formDetail);
+                    newCheckedDishes[`${categoryKey}_${detail.foodId}`] = true;
+                }
+            });
+
+            // Update form and state
+            const allFormValues = {
+                ...basicValues,
+                ...categorizedData
+            };
+
+            form.setFieldsValue(allFormValues);
+            setCheckedDishes(newCheckedDishes);
+
+            // Auto-expand categories that have items
+            const newExpandedCategories = {};
+            const newShowFoodList = {};
+            Object.keys(categorizedData).forEach(categoryKey => {
+                newExpandedCategories[categoryKey] = true;
+                newShowFoodList[categoryKey] = true;
+            });
+            setExpandedCategories(newExpandedCategories);
+            setShowFoodList(newShowFoodList);
+
+            message.success(`Đã tải template menu với ${templateDetails.length} món ăn từ ${dayjs(selectedDate).format('DD/MM/YYYY')}!`);
+
+        } catch (error) {
+            console.error('Failed to load template:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+            message.error(`Không thể tải template menu! Chi tiết: ${errorMessage}`);
         }
     };
 
@@ -660,6 +878,8 @@ const CreateFoodsMenu = ({
         setShowFoodList({});
         setIsDataLoaded(false);
         setCheckedDishes({});
+        setIsUsingTemplate(false);
+        setTemplateSelectedDate(null);
         if (onCancel) {
             onCancel();
         }
@@ -741,27 +961,28 @@ const CreateFoodsMenu = ({
                         <div className="custom-floating">
                             <Form.Item
                                 name="date"
-                                rules={[
-                                    { required: true, message: 'Vui lòng chọn ngày!' },
-                                    {
-                                        validator: (_, value) => {
-                                            if (!value) return Promise.resolve();
-                                            const selectedDate = dayjs(value);
-                                            const today = dayjs().startOf('day');
-                                            if (selectedDate.isBefore(today)) {
-                                                return Promise.reject(new Error('Không thể tạo menu cho ngày đã qua!'));
-                                            }
-                                            return Promise.resolve();
-                                        },
-                                    },
-                                ]}
+                                rules={[{
+                                    required: true,
+                                    message: 'Vui lòng chọn ngày!'
+                                }, {
+                                    validator: validateMenuDate,
+                                }]}
                                 style={{ marginBottom: 0 }}
                             >
                                 <DatePicker
                                     format="MM/DD/YYYY"
                                     placeholder=""
                                     style={{ width: 300, height: 35 }}
-                                    disabledDate={(current) => current && current.isBefore(dayjs().startOf('day'))}
+                                    disabledDate={getDisabledDate}
+                                    disabled={menuDatesLoading}
+                                    onChange={(date) => {
+                                        // Reset template state when date is manually changed
+                                        if (!isUsingTemplate && date) {
+                                            setTemplateSelectedDate(null);
+                                        }
+                                        // Trigger form validation
+                                        form.validateFields(['date']);
+                                    }}
                                 />
                             </Form.Item>
                             <label className="floating-label">Ngày</label>
@@ -838,6 +1059,28 @@ const CreateFoodsMenu = ({
 
 
                 </Row>
+
+                {/* Template date picker */}
+                {!editMode && (
+                    <div className="template-section">
+                        <div style={{ marginBottom: 12 }}>
+                            <Text strong style={{ color: '#389e0d', fontSize: '16px' }}>
+                                <CopyOutlined style={{ marginRight: 8 }} />
+                                Sao chép từ menu có sẵn
+                            </Text>
+                            <div style={{ marginTop: 4 }}>
+                                <Text type="secondary" style={{ fontSize: '13px' }}>
+                                    Chọn ngày có menu để tự động tải tất cả món ăn và cấu hình
+                                </Text>
+                            </div>
+                        </div>
+                        <TemplateMenuDatePicker
+                            onTemplateSelected={handleTemplateSelected}
+                            disabled={menuDatesLoading}
+                            placeholder="Chọn ngày đã có menu"
+                        />
+                    </div>
+                )}
 
                 <Form.Item
                     label={<span style={{ fontWeight: 500, color: '#3c3c3c' }}>Chọn món ăn</span>}
@@ -964,6 +1207,8 @@ const CreateFoodsMenu = ({
                     </Space>
                 </Form.Item>
             </ReusableForm>
+
+
         </ReusableModal>
     );
 };

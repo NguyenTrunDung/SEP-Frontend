@@ -38,7 +38,7 @@ import VnPayReturn from '../components/Payment/VnPayReturn.js';
 
 import AreasPage from '../modules/Admin/Area/AreasPage.js';
 import LocationsPage from '../modules/Admin/Locations/LocationPage.js';
-import DiseaseCategoriesTable from '../modules/Admin/DiseaseCategory/DiseaseCategory.js';
+import DiseaseCategoriesTable from '../modules/Admin/DiseaseCategory/DiseaseCategoryPage.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',

@@ -46,8 +46,8 @@ const AreasTable = () => {
     return !searchText
       ? areasData
       : areasData.filter((item) =>
-          item.name.toLowerCase().includes(searchText.toLowerCase())
-        );
+        item.name.toLowerCase().includes(searchText.toLowerCase())
+      );
   }, [areasData, searchText]);
 
   // Handle create or update area
@@ -146,17 +146,20 @@ const AreasTable = () => {
         ))}
       </div>
 
-      <div className="pagination-footer">
-        <select className="page-size">
-          <option value="10">10</option>
-        </select>
-        <span>Hiển thị từ 1 đến {filteredData.length} trong tổng số {filteredData.length}</span>
-        <div className="pagination">
-          <Button type="text">{'<<'}</Button>
-          <Button type="text">{'<'}</Button>
-          <Button type="primary">1</Button>
-          <Button type="text">{'>'}</Button>
+      <div className="pagination-footer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+        <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
+          <select className="page-size">
+            <option value="10">10</option>
+          </select>
+          <div className="pagination">
+            <Button type="text">{'<<'}</Button>
+            <Button type="text">{'<'}</Button>
+            <Button type="primary">1</Button>
+            <Button type="text">{'>'}</Button>
+            <Button type="text">{'>>'}</Button>
+          </div>
         </div>
+        <span>Hiển thị từ 1 đến {filteredData.length} trong tổng số {filteredData.length}</span>
       </div>
 
       <CreateArea

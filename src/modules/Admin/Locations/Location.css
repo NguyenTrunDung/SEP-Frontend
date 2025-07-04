@@ -1,8 +1,5 @@
 .location-wrapper {
-  padding: 24px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #f0f0f0;
+  padding: 16px;
 }
 
 .location-header {
@@ -14,116 +11,65 @@
 
 .location-title {
   font-size: 24px;
-  font-weight: 600;
+
   margin: 0;
 }
 
-.search-input {
-  margin-bottom: 16px;
-  max-width: 300px;
+.refresh-btn,
+.add-btn {
+  margin: 0 8px;
+}
+
+.search-input,
+.area-select {
+  flex: 1;
 }
 
 .list-header {
-  font-weight: 600;
-  color: #666;
-  padding: 8px 16px;
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  color: #000;
+  margin-bottom: 8px;
+  padding: 8px;
+  /* background: #f5f5f5; */
+  border-radius: 4px;
 }
 
-.location-list {
-  max-height: 400px;
-  overflow-y: auto;
+.area-id {
+  width: 120px; /* Độ rộng cho areaId */
+  text-align: right;
+  margin-right: 16px;
+  color: black; /* Màu giống hình */
+  font-weight: 500;
 }
 
-.location-item {
+.location-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 8px 0;
   border-bottom: 1px solid #f0f0f0;
 }
 
 .location-name {
-  font-size: 16px;
+  flex-grow: 1;
+  color: #666;
+  padding-left: 136px; 
 }
 
 .actions {
   display: flex;
   gap: 8px;
 }
-
 .pagination-footer {
+  margin-top: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  border-top: 1px solid #f0f0f0;
 }
 
 .page-size {
-  padding: 4px;
+  padding: 4px 8px;
   border-radius: 4px;
-  border: 1px solid #d9d9d9;
-}
-
-.pagination {
-  display: flex;
-  gap: 8px;
-}
-
-.list-header {
-  font-weight: bold;
-  font-size: 14px;
-  text-transform: uppercase;
-  margin: 12px 0;
-  color: #888;
-}
-
-.location-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 8px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.location-name {
-  font-size: 14px;
-  color: #333;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-}
-/* Đảm bảo không có đường viền thừa và bố cục gọn gàng */
-.ant-collapse {
-  background: #fff;
-  border: none;
-}
-
-.ant-collapse-item {
-  border: none;
-}
-
-.ant-collapse-header {
-  font-size: 15px;
-  font-weight: 500;
-  padding-left: 12px !important;
-  background: transparent;
-}
-
-.location-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 14px;
-}
-
-.location-name {
-  font-weight: 400;
-  color: #333;
 }

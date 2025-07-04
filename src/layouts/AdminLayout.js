@@ -207,7 +207,7 @@ const AdminLayout = ({ children }) => {
                     {
                       key: "disease-categories",
                       icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
-                      label: <Link to="/disease-categories">Danh mục bệnh</Link>,
+                      label: <Link to="/disease-categories">Nhóm bệnh</Link>,
                     },
                   ],
                 },

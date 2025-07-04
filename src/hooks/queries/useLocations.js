@@ -19,19 +19,38 @@ export const useLocations = (areaId, branchId, options = {}) => {
   const currentBranchId = normalizeBranchId(branchId);
 
   const query = useQuery({
-    queryKey: LOCATION_QUERY_KEYS.list(areaId, currentBranchId),
+    queryKey: areaId
+      ? LOCATION_QUERY_KEYS.list(areaId, currentBranchId)
+      : LOCATION_QUERY_KEYS.lists(), // Sử dụng key chung nếu không có areaId
     queryFn: async () => {
-      if (!areaId) {
-        console.warn('⚠️ areaId is missing, skipping fetch');
+      if (!currentBranchId) {
+        console.warn('⚠️ branchId is missing, skipping fetch');
         return [];
       }
 
       if (environment.features.enableLogging) {
-        console.log(`🔍 Fetching locations for area: ${areaId}, branch: ${currentBranchId}`);
+        console.log(`🔍 Fetching locations for ${areaId ? `area: ${areaId}, ` : ''}branch: ${currentBranchId}`);
       }
 
       try {
-        const data = await locationService.getLocationsByArea(areaId);
+        let data;
+        if (areaId) {
+          // Lấy locations cho areaId cụ thể
+          data = await locationService.getLocationsByArea(areaId);
+        } else {
+          // Lấy tất cả areas và locations tương ứng
+          const areas = await locationService.getAreas(currentBranchId);
+          const locationPromises = areas.data.map((area) =>
+            locationService.getLocationsByArea(area.id).catch((error) => {
+              console.warn(`⚠️ Failed to fetch locations for area ${area.id}:`, error.message);
+              return []; // Trả về mảng rỗng nếu lỗi
+            })
+          );
+          const locationsByArea = await Promise.all(locationPromises);
+          // Gộp tất cả locations từ các khu vực
+          data = locationsByArea.flat();
+        }
+
         if (environment.features.enableLogging) {
           console.log('✅ Final fetched locations:', data);
         }
@@ -44,7 +63,7 @@ export const useLocations = (areaId, branchId, options = {}) => {
     staleTime: environment.performance.images?.cacheTime || 120000,
     cacheTime: environment.performance.images?.cacheTime || 120000,
     refetchOnWindowFocus: false,
-    enabled: !!(areaId && currentBranchId),
+    enabled: !!currentBranchId,
     retry: (failureCount, error) => {
       const status = error?.response?.status;
       if ([404, 403, 401, 302].includes(status)) {

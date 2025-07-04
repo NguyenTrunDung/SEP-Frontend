@@ -1,41 +1,77 @@
-import React, { useEffect } from 'react';
-import { Form, Input, Button, Space } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Form, Input, Button, Space, Select, message } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { locationService } from '../../../services/locationService';
 import { areaService } from '../../../services/areaService';
 
-const EditLocation = ({ open, onCancel, onSubmit, formData, branchId, areaId }) => {
+const { Option } = Select;
+
+const EditLocation = ({ open, onCancel, onSubmit, formData, branchId }) => {
   const { form, handleSubmit, resetForm } = useAntForm();
+  const [areas, setAreas] = useState([]);
+  const [loadingAreas, setLoadingAreas] = useState(false);
 
   useEffect(() => {
-    console.log('✅ EditLocation - formData:', formData, 'branchId:', branchId, 'areaId:', areaId); // Log để kiểm tra
+    const fetchAreas = async () => {
+      if (open && branchId) {
+        setLoadingAreas(true);
+        try {
+          const response = await areaService.getAreas(branchId);
+          setAreas(response.data || []);
+          if ((response.data || []).length === 0) {
+            message.warning('Không tìm thấy khu vực nào cho chi nhánh này!');
+          }
+        } catch (error) {
+          message.error('Không thể tải danh sách khu vực!');
+          console.error('❌ Failed to fetch areas:', error.response?.data || error);
+        } finally {
+          setLoadingAreas(false);
+        }
+      } else if (!branchId) {
+        message.error('Thiếu branchId để tải danh sách khu vực!');
+      }
+    };
+
+    fetchAreas();
+  }, [open, branchId]);
+
+  useEffect(() => {
+    console.log('✅ EditLocation - formData:', formData, 'branchId:', branchId);
     if (formData && open) {
       form.setFieldsValue({
         name: formData.name,
-        roomNumber: formData.roomNumber || '',
+        areaId: formData.areaId ? String(formData.areaId) : undefined,
       });
     } else if (!open) {
       resetForm();
+      setAreas([]);
     }
   }, [formData, open, form, resetForm]);
 
   const handleFormSubmit = async (values) => {
     try {
-      const areaResponse = await areaService.getAreaById(areaId);
-      if (!areaResponse.data || areaResponse.data.branchId !== parseInt(branchId, 10)) {
-        form.setFields([
-          { name: 'name', errors: ['Khu vực không hợp lệ hoặc không thuộc chi nhánh này!'] },
-        ]);
+      const { name, areaId } = values;
+
+      if (!name || name.trim() === '') {
+        form.setFields([{ name: 'name', errors: ['Tên vị trí không được để trống!'] }]);
+        return;
+      }
+      if (!areaId) {
+        form.setFields([{ name: 'areaId', errors: ['Vui lòng chọn khu vực!'] }]);
         return;
       }
 
-      const isNameUnique = await locationService.validateLocationName(areaId, values.name.trim(), formData.id);
+      const selectedArea = areas.find((area) => area.id === parseInt(areaId, 10));
+      if (!selectedArea || selectedArea.branchId !== parseInt(branchId, 10)) {
+        form.setFields([{ name: 'areaId', errors: ['Khu vực không hợp lệ hoặc không thuộc chi nhánh này!'] }]);
+        return;
+      }
+
+      const isNameUnique = await locationService.validateLocationName(areaId, name.trim(), formData.id);
       if (!isNameUnique) {
-        form.setFields([
-          { name: 'name', errors: ['Tên vị trí đã tồn tại trong khu vực này!'] },
-        ]);
+        form.setFields([{ name: 'name', errors: ['Tên vị trí đã tồn tại trong khu vực này!'] }]);
         return;
       }
 
@@ -43,9 +79,9 @@ const EditLocation = ({ open, onCancel, onSubmit, formData, branchId, areaId }) 
         if (onSubmit) {
           const payload = {
             id: formData.id,
-            name: values.name.trim(),
+            name: name.trim(),
             description: formData.description || '',
-            roomNumber: values.roomNumber?.trim() || '',
+            roomNumber: formData.roomNumber || '',
             capacity: formData.capacity || 0,
             sort: formData.sort || 0,
             isActive: formData.isActive !== undefined ? formData.isActive : true,
@@ -58,10 +94,10 @@ const EditLocation = ({ open, onCancel, onSubmit, formData, branchId, areaId }) 
       });
     } catch (error) {
       console.error('❌ Failed to validate location:', error.response?.data || error);
-      const errorMessage = error.response?.data?.message || error.message || 'Lỗi khi kiểm tra tên vị trí!';
+      const errorMessage = error.response?.data?.message || 'Lỗi khi kiểm tra tên vị trí!';
       form.setFields([
         {
-          name: 'name',
+          name: 'areaId',
           errors: [errorMessage.includes('area does not belong') ? 'Khu vực không thuộc chi nhánh này!' : errorMessage],
         },
       ]);
@@ -110,6 +146,24 @@ const EditLocation = ({ open, onCancel, onSubmit, formData, branchId, areaId }) 
 
       <ReusableForm form={form} onFinish={handleFormSubmit} layout="vertical">
         <Form.Item
+          name="areaId"
+          label="Khu vực"
+          rules={[{ required: true, message: 'Vui lòng chọn khu vực!' }]}
+        >
+          <Select
+            placeholder="Chọn khu vực"
+            loading={loadingAreas}
+            style={{ width: '100%' }}
+            disabled={loadingAreas || areas.length === 0}
+          >
+            {areas.map((area) => (
+              <Option key={area.id} value={String(area.id)}>
+                {area.name}
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+        <Form.Item
           name="name"
           label="Tên vị trí"
           rules={[
@@ -119,15 +173,6 @@ const EditLocation = ({ open, onCancel, onSubmit, formData, branchId, areaId }) 
           ]}
         >
           <Input placeholder="Tên vị trí" style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item
-          name="roomNumber"
-          label="Số phòng"
-          rules={[
-            { max: 50, message: 'Số phòng không được dài quá 50 ký tự!' },
-          ]}
-        >
-          <Input placeholder="Số phòng (tùy chọn)" style={{ width: '100%' }} />
         </Form.Item>
       </ReusableForm>
     </ReusableModal>

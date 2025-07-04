@@ -1,20 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import {
-  Input,
-  Button,
-  Tooltip,
-  Popconfirm,
-  message,
-  Collapse,
-  Select,
-} from 'antd';
-import {
-  SearchOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
+import { Input, Button, Tooltip, Popconfirm, message, Collapse, Select } from 'antd';
+import { SearchOutlined, EditOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, CaretRightOutlined } from '@ant-design/icons';
 import CreateLocation from './CreateLocation';
 import EditLocation from './EditLocation';
 import { useAntModal } from '../../../hooks/useAntModal';
@@ -29,25 +15,23 @@ const LocationsTable = ({
   onEdit,
   onDelete,
   branchId,
-  areaId,
   onRefresh,
   onCreateOrUpdate,
   areas,
 }) => {
   const [searchText, setSearchText] = useState('');
   const [selectedArea, setSelectedArea] = useState(null);
-  const {
-    open: addOpen,
-    showModal: showAddModal,
-    handleCancel: handleAddCancel,
-  } = useAntModal();
-  const {
-    open: editOpen,
-    showModal: showEditModal,
-    handleCancel: handleEditCancel,
-  } = useAntModal();
+  const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
+  const { open: editOpen, showModal: showEditModal, handleCancel: handleEditCancel } = useAntModal();
   const [editingLocation, setEditingLocation] = useState(null);
 
+  // Get list of areaIds with locations
+  const areasWithLocations = useMemo(() => {
+    const areaIds = [...new Set(dataSource.map((item) => String(item.areaId)))];
+    return areas.filter((area) => areaIds.includes(String(area.id)));
+  }, [dataSource, areas]);
+
+  // Filter data based on search text and selected area
   const filteredData = useMemo(() => {
     if (!Array.isArray(dataSource)) return [];
     const keyword = searchText.toLowerCase();
@@ -64,6 +48,7 @@ const LocationsTable = ({
     try {
       await onCreateOrUpdate(formData);
       onRefresh();
+      message.success('Lưu vị trí thành công!');
     } catch (error) {
       console.error('❌ Failed to save location:', error);
       message.error('Lỗi khi lưu vị trí!');
@@ -91,86 +76,103 @@ const LocationsTable = ({
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <Input
-          className="search-input"
-          placeholder="Tìm kiếm vị trí hoặc số phòng"
+          placeholder="Tìm kiếm"
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
+          style={{ width: 300 }}
         />
         <Select
-          className="area-select"
-          placeholder="Chọn khu vực"
+          placeholder="Khu vực"
           value={selectedArea}
           onChange={setSelectedArea}
           allowClear
-          style={{ width: 200 }}
+          style={{ width: 300 }}
         >
-          {areas.map((area) => (
-            <Option key={area.id} value={area.id}>
-              {area.name}
-            </Option>
+          {areasWithLocations.map(({ id, name }) => (
+            <Option key={id} value={id}>{name}</Option>
           ))}
         </Select>
-      </div><div className="list-header">TÊN CHI NHÁNH</div>
+      </div>
+
+      <div className="list-header">
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div className="area-id"></div> {/* Placeholder for areaId */}
+          <span>TÊN CHI NHÁNH</span>
+        </div>
+      </div>
 
       <Collapse
-        accordion
         bordered={false}
         expandIconPosition="left"
+        expandIcon={({ isActive }) => (
+          <CaretRightOutlined
+            rotate={isActive ? 90 : 0}
+            style={{ color: '#00A99D' }}
+          />
+        )}
         style={{ background: '#fff' }}
       >
-        {areas
-          .filter((area) =>
-            filteredData.some((loc) => String(loc.areaId) === String(area.id))
-          )
-          .map((area) => {
-            const locations = filteredData.filter(
-              (loc) => String(loc.areaId) === String(area.id)
-            );
-            return (
-              <Panel
-                key={area.id}
-                header={
-                  <span style={{ fontWeight: 500 }}>
-                    {area.name} ({locations.length})
-                  </span>
-                }
-              >
-                {locations.map((item) => (
-                  <div key={item.id} className="location-row">
-                    <span className="location-name">{item.name}</span>
-                    <div className="actions">
-                      <Tooltip title="Chỉnh sửa">
-                        <Button
-                          type="text"
-                          icon={<EditOutlined />}
-                          onClick={() => {
-                            setEditingLocation(item);
-                            showEditModal();
-                          }}
-                        />
-                      </Tooltip>
-                      <Popconfirm
-                        title={`Xóa ${item.name}?`}
-                        onConfirm={() => onDelete(item)}
-                      >
-                        <Button type="text" icon={<DeleteOutlined />} danger />
-                      </Popconfirm>
-                    </div>
+        {areasWithLocations.map((area) => {
+          const locations = filteredData.filter((loc) => String(loc.areaId) === String(area.id));
+          if (locations.length === 0) return null; // Skip areas with no locations
+          return (
+            <Panel
+              key={area.id}
+              header={
+                <span style={{ fontWeight: 500, color: '#000' }}>
+                  {area.name} ({locations.length})
+                </span>
+              }
+            >
+              {locations.map((item) => (
+                <div key={item.id} className="location-row">
+                  <span className="location-name">{item.name}</span>
+                  <div className="actions">
+                    <Tooltip title="Chỉnh sửa">
+                      <Button
+                        type="text"
+                        icon={<EditOutlined />}
+                        onClick={() => {
+                          setEditingLocation(item);
+                          showEditModal();
+                        }}
+                      />
+                    </Tooltip>
+                    <Popconfirm
+                      title={`Xóa ${item.name}?`}
+                      onConfirm={() => onDelete(item)}
+                    >
+                      <Button type="text" icon={<DeleteOutlined />} danger />
+                    </Popconfirm>
                   </div>
-                ))}
-              </Panel>
-            );
-          })}
+                </div>
+              ))}
+            </Panel>
+          );
+        })}
       </Collapse>
-
+      <div className="pagination-footer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+        <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
+          <select className="page-size">
+            <option value="10">10</option>
+          </select>
+          <div className="pagination">
+            <Button type="text">{'<<'}</Button>
+            <Button type="text">{'<'}</Button>
+            <Button type="primary">1</Button>
+            <Button type="text">{'>'}</Button>
+            <Button type="text">{'>>'}</Button>
+          </div>
+        </div>
+        <span>Hiển thị từ 1 đến {filteredData.length} trong tổng số {filteredData.length}</span>
+      </div>
 
       <CreateLocation
         open={addOpen}
         onCancel={handleAddCancel}
         onSubmit={handleCreateOrUpdate}
         branchId={branchId}
-        areaId={areaId}
       />
       <EditLocation
         open={editOpen}
@@ -178,7 +180,6 @@ const LocationsTable = ({
         onSubmit={handleCreateOrUpdate}
         formData={editingLocation}
         branchId={branchId}
-        areaId={areaId}
       />
     </div>
   );

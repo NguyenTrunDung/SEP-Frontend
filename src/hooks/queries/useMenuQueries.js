@@ -411,7 +411,7 @@ export const useUpdateMenu = () => {
 
 /**
  * Hook for deleting a menu
- * Will auto-refetch menu list when delete functionality is implemented
+ * Now fully functional with real API integration
  */
 export const useDeleteMenu = () => {
   const queryClient = useQueryClient();
@@ -422,9 +422,8 @@ export const useDeleteMenu = () => {
         console.log('🗑️ Deleting menu:', menuId);
       }
 
-      // For now, we'll need to implement deleteMenu in the service
-      // This is a placeholder that could be extended when the delete endpoint is available
-      throw new Error('Delete menu functionality not yet implemented in backend');
+      // Call the real deleteMenu service method
+      return menuService.deleteMenu(menuId);
     },
     onSuccess: (data, menuId) => {
       if (environment.features.enableLogging) {
@@ -474,13 +473,40 @@ export const useMenuList = (options = {}) => {
   return useQuery({
     queryKey: MENU_KEYS.lists(),
     queryFn: () => menuService.getMenuList(),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    retry: 2,
+    ...options,
+  });
+};
+
+
+
+/**
+ * Hook for fetching menu dates from the past 2 weeks for template selection
+ * @param {Object} options - React Query options
+ * @returns {Object} Query result with available menu dates
+ */
+export function useAvailableMenuDatesForTemplate(options = {}) {
+  return useQuery({
+    queryKey: [...MENU_KEYS.all, 'availableDatesForTemplate'],
+    queryFn: () => menuService.getAvailableMenuDatesForTemplate(),
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
     retry: 2,
     ...options,
   });
-};
+}
+
+export function useMenuDates(options = {}) {
+  return useQuery({
+    queryKey: ['menuDates'],
+    queryFn: () => menuService.getMenuDates(),
+    ...options,
+  });
+}
 
 // Export the service function for direct use if needed
 export { fetchMenuByDate, menuService };

@@ -26,7 +26,6 @@ const LocationsPageContent = ({
   onCreateOrUpdate,
   onRefresh,
   branchId,
-  areaId,
   areas,
 }) => (
   <>
@@ -36,7 +35,6 @@ const LocationsPageContent = ({
       onEdit={onEdit}
       onDelete={onDelete}
       branchId={branchId}
-      areaId={areaId}
       onRefresh={onRefresh}
       onCreateOrUpdate={onCreateOrUpdate}
       areas={areas}
@@ -53,22 +51,20 @@ const LocationsPageContent = ({
       onSubmit={onCreateOrUpdate}
       formData={editModalProps.formData}
       branchId={branchId}
-      areaId={areaId}
     />
   </>
 );
 
-const LocationsPage = ({ areaId }) => {
+const LocationsPage = () => {
   const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
   const { open: editOpen, showModal: showEditModal, handleCancel: handleEditCancel } = useAntModal();
   const { handleNonPermissionError } = useGlobalErrorHandler();
   const branchId = environment.multiTenant.getCurrentBranchId() || '1';
-  const [normalizedAreaId, setNormalizedAreaId] = useState(areaId ? String(areaId) : null);
-  const [isLoadingAreas, setIsLoadingAreas] = useState(false);
   const [locationsData, setLocationsData] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [isLoadingAreas, setIsLoadingAreas] = useState(false);
 
-  const { locations, isLoading, error, refetch } = useLocations(normalizedAreaId, branchId);
+  const { locations, isLoading, error, refetch } = useLocations(null, branchId); // Không truyền areaId để lấy tất cả
   const createLocationMutation = useCreateLocation();
   const updateLocationMutation = useUpdateLocation();
   const deleteLocationMutation = useDeleteLocation();
@@ -79,38 +75,22 @@ const LocationsPage = ({ areaId }) => {
     } else {
       setLocationsData([]);
     }
-  }, [locations, branchId, normalizedAreaId]);
-
-  useEffect(() => {
-    const fetchDefaultArea = async () => {
-      if (!areaId && !normalizedAreaId) {
-        setIsLoadingAreas(true);
-        try {
-          const response = await areaService.getAreas(branchId);
-          const areasList = response.data || [];
-          setAreas(areasList);
-          if (areasList.length > 0) {
-            setNormalizedAreaId(String(areasList[0].id));
-          } else {
-            message.warning('Không tìm thấy khu vực nào cho chi nhánh này!');
-          }
-        } catch (error) {
-          message.error('Không thể tải danh sách khu vực!');
-        } finally {
-          setIsLoadingAreas(false);
-        }
-      }
-    };
-    fetchDefaultArea();
-  }, [areaId, branchId, normalizedAreaId]);
+  }, [locations, branchId]);
 
   useEffect(() => {
     const fetchAllAreas = async () => {
+      setIsLoadingAreas(true);
       try {
         const response = await areaService.getAreas(branchId);
         setAreas(response.data || []);
+        if ((response.data || []).length === 0) {
+          message.warning('Không tìm thấy khu vực nào cho chi nhánh này!');
+        }
       } catch (error) {
         console.error('❌ Lỗi khi lấy danh sách area:', error);
+        message.error('Không thể tải danh sách khu vực!');
+      } finally {
+        setIsLoadingAreas(false);
       }
     };
     fetchAllAreas();
@@ -170,10 +150,6 @@ const LocationsPage = ({ areaId }) => {
   };
 
   const handleRefresh = () => {
-    if (!normalizedAreaId) {
-      message.error('Vui lòng cung cấp khu vực hợp lệ để làm mới danh sách!');
-      return;
-    }
     refetch();
     message.success('Đã làm mới danh sách vị trí');
   };
@@ -181,9 +157,8 @@ const LocationsPage = ({ areaId }) => {
   return (
     <LocationsPageContent
       locationsData={locationsData}
-      loading={isLoading}
+      loading={isLoading || isLoadingAreas}
       branchId={branchId}
-      areaId={normalizedAreaId}
       areas={areas}
       onEdit={handleEdit}
       onDelete={handleDelete}
