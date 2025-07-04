@@ -22,7 +22,11 @@ export const AREA_QUERY_KEYS = {
  * @returns {string} Normalized branch ID as string
  */
 const normalizeBranchId = (branchId) => {
-  return String(branchId || environment.multiTenant.getCurrentBranchId() || '1');
+  const id = String(branchId || environment.multiTenant.getCurrentBranchId() || '1');
+  if (environment.features.enableLogging) {
+    console.log(`🔄 Normalized branchId: ${id}`);
+  }
+  return id;
 };
 
 /**
@@ -41,6 +45,9 @@ export const useAreas = (branchId, options = {}) => {
         console.log(`🔍 Fetching areas for branch: ${currentBranchId}`);
       }
       const response = await areaService.getAreas(currentBranchId);
+      if (environment.features.enableLogging) {
+        console.log(`✅ Received areas for branch ${currentBranchId}:`, response.data);
+      }
       return response.data || [];
     },
     staleTime: environment.performance.images?.cacheTime || 120000,
@@ -84,7 +91,13 @@ export const useArea = (areaId, branchId, options = {}) => {
   const query = useQuery({
     queryKey: AREA_QUERY_KEYS.detail(areaId, currentBranchId),
     queryFn: async () => {
-      const response = await areaService.getAreaById(areaId);
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Fetching area ${areaId} for branch: ${currentBranchId}`);
+      }
+      const response = await areaService.getAreaById(areaId, currentBranchId);
+      if (environment.features.enableLogging) {
+        console.log(`✅ Received area ${areaId} for branch ${currentBranchId}:`, response.data);
+      }
       return response.data || null;
     },
     enabled: !!(areaId && currentBranchId),
@@ -115,6 +128,9 @@ export const useCreateArea = (options = {}) => {
   return useMutation({
     mutationFn: ({ areaData, branchId }) => {
       const targetBranchId = normalizeBranchId(branchId);
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Creating area for branch: ${targetBranchId}`, areaData);
+      }
       return areaService.createArea({ ...areaData, branchId: targetBranchId });
     },
     onSuccess: (response, variables) => {
@@ -127,8 +143,8 @@ export const useCreateArea = (options = {}) => {
           return oldData ? [...oldData, newArea] : [newArea];
         });
       }
-      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.list(targetBranchId) });
-      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.lists() });
+      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.list(targetBranchId), exact: true });
+      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.lists(), exact: true });
     },
     onError: (error) => {
       const errorMessage = error.response?.data?.message || 'Không thể tạo khu vực!';
@@ -151,7 +167,9 @@ export const useUpdateArea = (options = {}) => {
   return useMutation({
     mutationFn: ({ areaId, areaData, branchId }) => {
       const targetBranchId = normalizeBranchId(branchId);
-      // Exclude id from the payload to prevent modifying the primary key
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Updating area ${areaId} for branch: ${targetBranchId}`, areaData);
+      }
       const { id, ...updateData } = areaData;
       return areaService.updateArea(areaId, { ...updateData, branchId: targetBranchId });
     },
@@ -167,8 +185,8 @@ export const useUpdateArea = (options = {}) => {
             : [updatedArea];
         });
       }
-      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.list(targetBranchId) });
-      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.lists() });
+      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.list(targetBranchId), exact: true });
+      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.lists(), exact: true });
     },
     onError: (error) => {
       const errorMessage = error.response?.data?.message || 'Không thể cập nhật khu vực!';
@@ -180,7 +198,7 @@ export const useUpdateArea = (options = {}) => {
 };
 
 /**
- * Hook to delete an area
+ * Hook to delete an existing area
  * @param {Object} options - Mutation options
  * @returns {Object} Mutation object
  */
@@ -189,15 +207,22 @@ export const useDeleteArea = (options = {}) => {
   const currentBranchId = normalizeBranchId();
 
   return useMutation({
-    mutationFn: (areaId) => areaService.deleteArea(areaId),
-    onSuccess: (response, areaId) => {
+    mutationFn: ({ areaId, branchId }) => {
+      const targetBranchId = normalizeBranchId(branchId);
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Deleting area ${areaId} for branch: ${targetBranchId}`);
+      }
+      return areaService.deleteArea(areaId, targetBranchId);
+    },
+    onSuccess: (response, variables) => {
       message.success(response.message || 'Xóa khu vực thành công!');
-      queryClient.removeQueries({ queryKey: AREA_QUERY_KEYS.detail(areaId, currentBranchId) });
-      queryClient.setQueryData(AREA_QUERY_KEYS.list(currentBranchId), (oldData) => {
-        return oldData ? oldData.filter((area) => area.id !== areaId) : [];
+      const targetBranchId = normalizeBranchId(variables.branchId);
+      queryClient.removeQueries({ queryKey: AREA_QUERY_KEYS.detail(variables.areaId, targetBranchId), exact: true });
+      queryClient.setQueryData(AREA_QUERY_KEYS.list(targetBranchId), (oldData) => {
+        return oldData ? oldData.filter((area) => area.id !== variables.areaId) : [];
       });
-      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.list(currentBranchId) });
-      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.lists() });
+      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.list(targetBranchId), exact: true });
+      queryClient.invalidateQueries({ queryKey: AREA_QUERY_KEYS.lists(), exact: true });
     },
     onError: (error) => {
       const errorMessage = error.response?.data?.message || 'Không thể xóa khu vực!';

@@ -172,23 +172,63 @@ export const areaService = {
    * @param {string|number} excludeId - Area ID to exclude from validation (optional)
    * @returns {Promise<boolean>} True if name is unique, false otherwise
    */
+  /**
+  * Validate if area name is unique within a branch
+  * @param {string|number} branchId - Branch ID
+  * @param {string} name - Area name to validate
+  * @param {string|number} excludeId - Area ID to exclude from validation (optional)
+  * @returns {Promise<boolean>} True if name is unique within the branch, false otherwise
+  */
   async validateAreaName(branchId, name, excludeId = null) {
     try {
+      const currentBranchId = String(branchId || environment.multiTenant.getCurrentBranchId() || '1');
+      const normalizedName = name.trim().toLowerCase();
+      if (!normalizedName) {
+        throw new Error('Tên khu vực không hợp lệ');
+      }
+
       if (environment.features.enableLogging) {
-        console.log('🔍 areaService.validateAreaName - branchId:', branchId, 'name:', name, 'excludeId:', excludeId);
+        console.log('🔍 areaService.validateAreaName - Sending request:', {
+          branchId: currentBranchId,
+          name: normalizedName,
+          excludeId,
+          url: `/api/v1/areas/validate-name?branchId=${currentBranchId}&name=${encodeURIComponent(normalizedName)}${excludeId ? `&excludeId=${excludeId}` : ''}`
+        });
       }
 
       const config = {
-        params: { branchId, name, excludeId }
+        params: { branchId: currentBranchId, name: normalizedName, excludeId },
+        headers: { 'X-Branch-Id': currentBranchId }
       };
 
       const response = await api.get('/api/v1/areas/validate-name', config);
 
       if (environment.features.enableLogging) {
-        console.log('✅ Validate area name response:', response.data);
+        console.log('✅ Validate area name response for branch', currentBranchId, ':', response.data);
       }
 
-      return response.data?.data || false;
+      const isUnique = response.data?.data === true;
+      if (!isUnique) {
+        console.warn(`⚠️ Area name "${normalizedName}" reported as duplicate in branch ${currentBranchId}. Response:`, response.data);
+
+        // ✅ CHỈ kiểm tra trùng trong branch hiện tại
+        const areasResponse = await this.getAreas(currentBranchId);
+        const areas = areasResponse.data || [];
+        const duplicateArea = areas.find(area =>
+          area.name.toLowerCase() === normalizedName &&
+          String(area.branchId) === currentBranchId &&
+          (!excludeId || area.id !== excludeId)
+        );
+
+        if (!duplicateArea) {
+          console.error(`❌ Backend incorrectly reported "${normalizedName}" as duplicate in branch ${currentBranchId}. No matching area found. Forcing isUnique=true as workaround.`);
+          return true; // Force accept nếu không có duplicate thực sự
+        }
+
+        console.warn(`⚠️ Confirmed duplicate area in branch ${currentBranchId}:`, duplicateArea);
+      }
+
+      return isUnique;
     } catch (error) {
       if (environment.features.enableLogging) {
         console.error('❌ Failed to validate area name:', error.response?.data?.message || error.message);
@@ -196,4 +236,5 @@ export const areaService = {
       throw error;
     }
   }
+
 };

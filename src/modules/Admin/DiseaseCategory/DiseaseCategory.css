@@ -1,0 +1,70 @@
+.disease-category-wrapper {
+  padding: 16px;
+}
+
+.disease-category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.disease-category-title {
+  font-size: 24px;
+  margin: 0;
+}
+
+.search-input {
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.list-header {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.disease-category-list {
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 8px;
+  min-height: 200px;
+}
+
+.disease-category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.disease-category-item:last-child {
+  border-bottom: none;
+}
+
+.disease-category-name {
+  flex-grow: 1;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pagination-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.pagination {
+  display: flex;
+  gap: 4px;
+}
+
+.add-btn, .refresh-btn {
+  margin-left: 8px;
+}

@@ -10,15 +10,37 @@ const EditArea = ({ open, onCancel, onSubmit, formData, branchId }) => {
 
     useEffect(() => {
         if (formData && open) {
+            if (String(formData.branchId) !== String(branchId)) {
+                console.warn(`⚠️ Attempted to edit area ${formData.id} from branch ${formData.branchId} in branch ${branchId}`);
+                form.setFields([
+                    {
+                        name: 'name',
+                        errors: ['Khu vực thuộc chi nhánh khác, không thể chỉnh sửa!'],
+                    },
+                ]);
+                return;
+            }
             form.setFieldsValue({ name: formData.name });
         } else if (!open) {
             resetForm();
         }
-    }, [formData, open, form, resetForm]);
+    }, [formData, open, form, resetForm, branchId]);
 
     const handleFormSubmit = async (values) => {
         try {
-            const isUnique = await areaService.validateAreaName(branchId, values.name, formData.id);
+            const normalizedName = values.name.trim().toLowerCase();
+            if (!normalizedName) {
+                form.setFields([
+                    {
+                        name: 'name',
+                        errors: ['Tên khu vực không được để trống!'],
+                    },
+                ]);
+                return;
+            }
+
+            console.log('🔍 Validating area name for edit:', { name: normalizedName, branchId, areaId: formData?.id });
+            const isUnique = await areaService.validateAreaName(branchId, normalizedName, formData?.id);
             if (!isUnique) {
                 form.setFields([
                     {
@@ -28,13 +50,14 @@ const EditArea = ({ open, onCancel, onSubmit, formData, branchId }) => {
                 ]);
                 return;
             }
+
             await handleSubmit(async () => {
                 if (onSubmit) {
-                    await onSubmit({ id: formData.id, name: values.name, branchId });
+                    await onSubmit({ id: formData?.id, name: values.name, branchId });
                 }
             });
         } catch (error) {
-            console.error('Failed to validate area name:', error);
+            console.error('❌ Failed to validate area name:', error.response?.data?.message || error.message);
             form.setFields([
                 {
                     name: 'name',
@@ -53,7 +76,6 @@ const EditArea = ({ open, onCancel, onSubmit, formData, branchId }) => {
             destroyOnClose
             closable={false}
         >
-            {/* Nút Lưu & X góc phải trên */}
             <div style={{ position: 'absolute', top: 16, right: 24, zIndex: 1 }}>
                 <Space>
                     <Button
@@ -88,13 +110,14 @@ const EditArea = ({ open, onCancel, onSubmit, formData, branchId }) => {
             <ReusableForm form={form} onFinish={handleFormSubmit} layout="vertical">
                 <Form.Item
                     name="name"
-                    rules={[{ required: true, message: 'Vui lòng nhập tên khu vực!' }]}
+                    rules={[
+                        { required: true, message: 'Vui lòng nhập tên khu vực!' },
+                        { whitespace: true, message: 'Tên khu vực không được chỉ chứa khoảng trắng!' }
+                    ]}
                     className="floating-form-item"
                 >
                     <Input className="floating-input" placeholder="Tên khu vực" />
                 </Form.Item>
-
-
             </ReusableForm>
         </ReusableModal>
     );
