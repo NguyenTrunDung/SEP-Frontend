@@ -63,10 +63,10 @@
   gap: 8px;
 }
 .pagination-footer {
-  margin-top: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 16px;
 }
 
 .page-size {
