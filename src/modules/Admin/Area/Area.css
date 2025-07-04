@@ -1,0 +1,67 @@
+.area-wrapper {
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.area-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.area-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.add-btn {
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  height: 32px;
+  border-radius: 6px;
+}
+
+.search-input {
+  width: 300px;
+  margin-bottom: 16px;
+}
+
+.list-header {
+  font-weight: bold;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.area-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.area-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pagination-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-size {
+  padding: 4px 8px;
+  border-radius: 4px;
+}
