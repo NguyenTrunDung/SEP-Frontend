@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { message } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
 import AreasTable from './AreasTable';
 import CreateArea from './CreateArea';
 import EditArea from './EditArea';
@@ -15,10 +14,8 @@ const AreasPageContent = ({
     loading,
     onEdit,
     onDelete,
-    onViewDetails,
     addModalProps,
     editModalProps,
-    detailsModalProps,
     onCreateOrUpdate,
     onRefresh,
     branchId,
@@ -29,7 +26,6 @@ const AreasPageContent = ({
             loading={loading}
             onEdit={onEdit}
             onDelete={onDelete}
-            onViewDetails={onViewDetails}
             branchId={branchId}
         />
         <CreateArea
@@ -45,7 +41,6 @@ const AreasPageContent = ({
             formData={editModalProps.formData}
             branchId={branchId}
         />
-        
     </>
 );
 
@@ -68,9 +63,14 @@ const AreasPage = () => {
             handleNonPermissionError(error, 'Không thể tải dữ liệu khu vực.');
             setAreasData([]);
         } else {
-            setAreasData(areas || []);
+            // Filter areas to ensure only those matching the current branchId are displayed
+            const filteredAreas = (areas || []).filter(area => String(area.branchId) === String(branchId));
+            if (environment.features.enableLogging) {
+                console.log(`🔍 AreasPage: Filtered areas for branch ${branchId}:`, filteredAreas);
+            }
+            setAreasData(filteredAreas);
         }
-    }, [areas, error, handleNonPermissionError]);
+    }, [areas, error, handleNonPermissionError, branchId]);
 
     const handleCreateOrUpdate = async (formData) => {
         try {
@@ -82,6 +82,7 @@ const AreasPage = () => {
                 await createAreaMutation.mutateAsync({ areaData: payload, branchId });
                 handleAddCancel();
             }
+            refetch();
         } catch (error) {
             console.error('Failed to save area:', error);
             message.error(error.response?.data?.message || 'Lỗi khi lưu khu vực!');
@@ -89,20 +90,26 @@ const AreasPage = () => {
     };
 
     const handleEdit = (record) => {
+        if (String(record.branchId) !== String(branchId)) {
+            message.error('Không thể chỉnh sửa khu vực từ chi nhánh khác!');
+            return;
+        }
         setSelectedArea(record);
         showEditModal();
     };
 
     const handleDelete = async (record) => {
+        if (String(record.branchId) !== String(branchId)) {
+            message.error('Không thể xóa khu vực từ chi nhánh khác!');
+            return;
+        }
         try {
-            await deleteAreaMutation.mutateAsync(record.id);
+            await deleteAreaMutation.mutateAsync({ areaId: record.id, branchId });
         } catch (error) {
             console.error('Failed to delete area:', error);
             message.error(error.response?.data?.message || 'Lỗi khi xóa khu vực!');
         }
     };
-
-
 
     const handleRefresh = () => {
         refetch();
@@ -116,10 +123,8 @@ const AreasPage = () => {
             branchId={branchId}
             onEdit={handleEdit}
             onDelete={handleDelete}
-
             addModalProps={{ open: addOpen, handleCancel: handleAddCancel }}
             editModalProps={{ open: editOpen, handleCancel: handleEditCancel, formData: selectedArea }}
-           
             onCreateOrUpdate={handleCreateOrUpdate}
             onRefresh={handleRefresh}
         />

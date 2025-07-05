@@ -37,6 +37,8 @@ import VnPayTest from '../components/examples/VnPayTest.js';
 import VnPayReturn from '../components/Payment/VnPayReturn.js';
 
 import AreasPage from '../modules/Admin/Area/AreasPage.js';
+import LocationsPage from '../modules/Admin/Locations/LocationPage.js';
+import DiseaseCategoriesTable from '../modules/Admin/DiseaseCategory/DiseaseCategoryPage.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
@@ -244,6 +246,26 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
         <AdminLayout>
           <AreasPage />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+   {
+    path: '/locations', // Thêm route cho Areas
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <LocationsPage />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/disease-categories',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <DiseaseCategoriesTable />
         </AdminLayout>
       </ProtectedRoute>
     ),

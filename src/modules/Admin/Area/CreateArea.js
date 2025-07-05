@@ -9,12 +9,26 @@ const CreateArea = ({ open, onCancel, onSubmit, branchId }) => {
     const { form, handleSubmit, resetForm } = useAntForm();
 
     useEffect(() => {
-        if (!open) resetForm();
+        if (!open) {
+            resetForm();
+        }
     }, [open, resetForm]);
 
     const handleFormSubmit = async (values) => {
         try {
-            const isUnique = await areaService.validateAreaName(branchId, values.name);
+            const normalizedName = values.name.trim().toLowerCase();
+            if (!normalizedName) {
+                form.setFields([
+                    {
+                        name: 'name',
+                        errors: ['Tên khu vực không được để trống!'],
+                    },
+                ]);
+                return;
+            }
+
+            console.log('🔍 Validating area name for create:', { name: normalizedName, branchId });
+            const isUnique = await areaService.validateAreaName(branchId, normalizedName);
             if (!isUnique) {
                 form.setFields([
                     {
@@ -24,13 +38,14 @@ const CreateArea = ({ open, onCancel, onSubmit, branchId }) => {
                 ]);
                 return;
             }
+
             await handleSubmit(async () => {
                 if (onSubmit) {
                     await onSubmit({ name: values.name, branchId });
                 }
             });
         } catch (error) {
-            console.error('Failed to validate area name:', error);
+            console.error('❌ Failed to validate area name:', error.response?.data?.message || error.message);
             form.setFields([
                 {
                     name: 'name',
@@ -49,7 +64,6 @@ const CreateArea = ({ open, onCancel, onSubmit, branchId }) => {
             destroyOnClose
             closable={false}
         >
-            {/* Nút X và Lưu ở góc phải trên cùng */}
             <div style={{ position: 'absolute', top: 16, right: 24, zIndex: 1 }}>
                 <Space>
                     <Button
@@ -81,13 +95,16 @@ const CreateArea = ({ open, onCancel, onSubmit, branchId }) => {
                 </Space>
             </div>
 
-
             <ReusableForm form={form} onFinish={handleFormSubmit} layout="vertical">
                 <Form.Item
                     name="name"
-                    rules={[{ required: true, message: 'Tên khu vực' }]}
+                    rules={[
+                        { required: true, message: 'Vui lòng nhập tên khu vực!' },
+                        { whitespace: true, message: 'Tên khu vực không được chỉ chứa khoảng trắng!' }
+                    ]}
+                    className="floating-form-item"
                 >
-                    <Input placeholder="Tên khu vực" style={{ width: '100%' }} />
+                    <Input className="floating-input" placeholder="Tên khu vực" />
                 </Form.Item>
             </ReusableForm>
         </ReusableModal>

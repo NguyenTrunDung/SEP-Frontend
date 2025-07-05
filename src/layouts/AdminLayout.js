@@ -1,3 +1,4 @@
+// src/layouts/AdminLayout.js
 import React, { useMemo } from "react";
 import { Layout, Menu, Typography } from "antd";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -5,13 +6,15 @@ import {
   DashboardOutlined,
   UserOutlined,
   SettingOutlined,
-  ShoppingCartOutlined,
+  ShoppingOutlined,
   MenuOutlined,
   WalletOutlined,
-  FireOutlined,
+  FireFilled,
   AppstoreOutlined,
   CoffeeOutlined,
   EnvironmentOutlined,
+  AimOutlined,
+  ShopOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
@@ -65,6 +68,8 @@ const AdminLayout = ({ children }) => {
       "/food-categories": ["food-categories"],
       "/foods": ["foods"],
       "/areas": ["areas"],
+      "/locations": ["locations"],
+      "/disease-categories": ["disease-categories"],
     };
 
     return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER]) 
@@ -127,7 +132,7 @@ const AdminLayout = ({ children }) => {
             // Orders - Accessible by Admin, Branch Manager, Manager, Staff, and Nurse
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.NURSE], ["orders:view"]) && {
               key: "orders",
-              icon: <ShoppingCartOutlined style={{ fontSize: "18px" }} />,
+              icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/orders">Quản lý đơn hàng</Link>,
             },
 
@@ -141,7 +146,7 @@ const AdminLayout = ({ children }) => {
             // Kitchen - Accessible by Kitchen Staff, Admin, and Branch Manager
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.KITCHEN], ["kitchen:view"]) && {
               key: "kitchen",
-              icon: <FireOutlined style={{ fontSize: "18px" }} />,
+              icon: <FireFilled style={{ fontSize: "18px" }} />,
               label: <Link to="/kitchen">Bếp</Link>,
             },
 
@@ -155,7 +160,7 @@ const AdminLayout = ({ children }) => {
             // Food Management - Admin, Branch Manager, Manager, Staff, Doctor
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR], ["foods:view"]) && {
               key: "food-management",
-              icon: <MenuOutlined style={{ fontSize: "18px" }} />,
+              icon: <CoffeeOutlined style={{ fontSize: "18px" }} />,
               label: "Món ăn",
               children: [
                 {
@@ -165,7 +170,7 @@ const AdminLayout = ({ children }) => {
                 },
                 {
                   key: "foods",
-                  icon: <CoffeeOutlined style={{ fontSize: "18px" }} />,
+                  icon: <ShopOutlined style={{ fontSize: "18px" }} />,
                   label: <Link to="/foods">Món ăn</Link>,
                 },
               ],
@@ -193,6 +198,16 @@ const AdminLayout = ({ children }) => {
                       key: "areas",
                       icon: <EnvironmentOutlined style={{ fontSize: "18px" }} />,
                       label: <Link to="/areas">Khu vực</Link>,
+                    },
+                    {
+                      key: "locations",
+                      icon: <AimOutlined style={{ fontSize: "18px" }} />,
+                      label: <Link to="/locations">Vị trí</Link>,
+                    },
+                    {
+                      key: "disease-categories",
+                      icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
+                      label: <Link to="/disease-categories">Nhóm bệnh</Link>,
                     },
                   ],
                 },

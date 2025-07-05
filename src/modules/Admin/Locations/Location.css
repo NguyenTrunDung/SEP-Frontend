@@ -1,0 +1,75 @@
+.location-wrapper {
+  padding: 16px;
+}
+
+.location-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.location-title {
+  font-size: 24px;
+
+  margin: 0;
+}
+
+.refresh-btn,
+.add-btn {
+  margin: 0 8px;
+}
+
+.search-input,
+.area-select {
+  flex: 1;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  color: #000;
+  margin-bottom: 8px;
+  padding: 8px;
+  /* background: #f5f5f5; */
+  border-radius: 4px;
+}
+
+.area-id {
+  width: 120px; /* Độ rộng cho areaId */
+  text-align: right;
+  margin-right: 16px;
+  color: black; /* Màu giống hình */
+  font-weight: 500;
+}
+
+.location-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.location-name {
+  flex-grow: 1;
+  color: #666;
+  padding-left: 136px; 
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.pagination-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.page-size {
+  padding: 4px 8px;
+  border-radius: 4px;
+}

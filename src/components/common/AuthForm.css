@@ -16,3 +16,12 @@
 .auth-form-card .ant-card-body {
     padding: 32px;
 }
+.ant-checkbox-wrapper {
+    margin-bottom: 16px;
+    font-size: 14px;
+    text-align: left !important;
+}
+
+.ant-form-item {
+    text-align: left;
+}

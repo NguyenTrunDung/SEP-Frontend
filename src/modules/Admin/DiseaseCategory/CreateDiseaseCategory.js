@@ -1,0 +1,100 @@
+import React, { useEffect } from 'react';
+import { Form, Input, Button, Space } from 'antd';
+import ReusableModal from '../../../components/common/ReusableModal';
+import ReusableForm from '../../../components/common/ReusableForm';
+import { useAntForm } from '../../../hooks/useAntForm';
+// import { diseaseCategoryService } from '../../../services/diseaseCategoryService'; // Nếu có validate
+
+const CreateDiseaseCategory = ({ open, onCancel, onSubmit, branchId }) => {
+  const { form, handleSubmit, resetForm } = useAntForm();
+
+  useEffect(() => {
+    if (!open) {
+      resetForm();
+    }
+  }, [open, resetForm]);
+
+  const handleFormSubmit = async (values) => {
+    const normalizedName = values.name?.trim().toLowerCase();
+
+    if (!normalizedName) {
+      form.setFields([
+        {
+          name: 'name',
+          errors: ['Tên danh mục bệnh không được để trống!'],
+        },
+      ]);
+      return;
+    }
+
+    // Nếu có API validate thì gọi tại đây
+    // const isUnique = await diseaseCategoryService.validateName(branchId, normalizedName);
+    // if (!isUnique) {
+    //   form.setFields([{ name: 'name', errors: ['Tên danh mục bệnh đã tồn tại!'] }]);
+    //   return;
+    // }
+
+    await handleSubmit(async () => {
+      if (onSubmit) {
+        await onSubmit({ name: values.name, branchId });
+      }
+    });
+  };
+
+  return (
+    <ReusableModal
+      title={<span style={{ fontSize: '30px' }}>Thêm</span>}
+      open={open}
+      onCancel={onCancel}
+      footer={null}
+      destroyOnClose
+      closable={false}
+    >
+      <div style={{ position: 'absolute', top: 16, right: 24, zIndex: 1 }}>
+        <Space>
+          <Button
+            type="primary"
+            onClick={() => form.submit()}
+            style={{
+              backgroundColor: '#52c41a',
+              border: 'none',
+              minWidth: 64,
+              height: 32,
+              fontSize: 14,
+            }}
+          >
+            Lưu
+          </Button>
+          <Button
+            onClick={onCancel}
+            style={{
+              backgroundColor: '#ff4d4f',
+              color: '#fff',
+              border: 'none',
+              minWidth: 64,
+              height: 32,
+              fontSize: 14,
+            }}
+          >
+            X
+          </Button>
+        </Space>
+      </div>
+
+      <ReusableForm form={form} onFinish={handleFormSubmit} layout="vertical">
+        <Form.Item
+          name="name"
+          rules={[
+            { required: true, message: 'Vui lòng nhập tên danh mục bệnh!' },
+            { whitespace: true, message: 'Tên không được chỉ chứa khoảng trắng!' },
+          ]}
+          className="floating-form-item"
+        >
+          <Input className="floating-input" placeholder="Tên bệnh" />
+        </Form.Item>
+      </ReusableForm>
+    </ReusableModal>
+  );
+};
+
+export default CreateDiseaseCategory;
