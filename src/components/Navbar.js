@@ -1,4 +1,3 @@
-// src/components/Navbar.js
 import React, { useState, useEffect } from 'react';
 import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar } from 'antd';
 import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined } from '@ant-design/icons';
@@ -56,30 +55,27 @@ const Navbar = () => {
   });
   const [activeKey, setActiveKey] = useState('home');
 
+  useEffect(() => {
+    const navType = performance.getEntriesByType("navigation")[0]?.type;
+    const savedBranch = localStorage.getItem('selectedBranch');
+    const excludeRoutes = ['/login', '/register', '/contact'];
 
-
- useEffect(() => {
-  const navType = performance.getEntriesByType("navigation")[0]?.type;
-  const savedBranch = localStorage.getItem('selectedBranch');
-  const excludeRoutes = ['/login', '/register', '/contact'];
-
-  if (navType === 'reload') {
-    localStorage.removeItem('selectedBranch');
-    localStorage.removeItem('currentBranchId');
-    setSelectedBranch(null);
-    if (!excludeRoutes.includes(location.pathname)) {
-      setIsModalVisible(true);
-    }
-  } else {
-    if (!savedBranch) {
-      setIsModalVisible(true);
+    if (navType === 'reload') {
+      localStorage.removeItem('selectedBranch');
+      localStorage.removeItem('currentBranchId');
+      setSelectedBranch(null);
+      if (!excludeRoutes.includes(location.pathname)) {
+        setIsModalVisible(true);
+      }
     } else {
-      setSelectedBranch(JSON.parse(savedBranch));
-      setIsModalVisible(false); 
+      if (!savedBranch) {
+        setIsModalVisible(true);
+      } else {
+        setSelectedBranch(JSON.parse(savedBranch));
+        setIsModalVisible(false);
+      }
     }
-  }
-}, []); 
-
+  }, []);
 
   useEffect(() => {
     console.log('Navbar - User data:', { user, role: user?.role, location: location.pathname });
@@ -168,6 +164,16 @@ const Navbar = () => {
     setIsUserMenuVisible(false);
   };
 
+  const handleLoginClick = () => {
+    console.log('Navigating to login');
+    navigate('/login');
+  };
+
+  const handleRegisterClick = () => {
+    console.log('Navigating to register');
+    navigate('/register');
+  };
+
   const menuItems = [
     { key: 'home', label: 'TRANG CHỦ', route: '/' },
     { key: 'menu', label: 'THỰC ĐƠN' },
@@ -248,20 +254,67 @@ const Navbar = () => {
                   <span style={{ color: '#fff', fontSize: '14px' }}>|</span>
                 </Col>
                 <Col>
-                  <UserHeader
-                    showGreeting={true}
-                    avatarSize="small"
-                    guestButtonStyle="link"
-                    useCustomModal={true}
-                    onAvatarClick={() => setIsUserMenuVisible(true)}
-                    style={{
-                      gap: '8px',
-                    }}
-                    greetingStyle={{ color: '#fff', fontSize: '14px' }}
-                    onLogout={() => {
-                      handleLogout();
-                    }}
-                  />
+                  {user ? (
+                    <UserHeader
+                      showGreeting={true}
+                      avatarSize="small"
+                      guestButtonStyle="link"
+                      useCustomModal={true}
+                      onAvatarClick={() => setIsUserMenuVisible(true)}
+                      style={{
+                        gap: '8px',
+                      }}
+                      greetingStyle={{ color: '#fff', fontSize: '14px' }}
+                      onLogout={() => {
+                        handleLogout();
+                      }}
+                    />
+                  ) : (
+                    <Row gutter={8} align="middle">
+                      <Col>
+                        <Button
+                          type="default"
+                          onClick={handleLoginClick}
+                          style={{
+                            color: '#fff',
+                            borderColor: '#fff',
+                            backgroundColor: 'transparent',
+                            fontSize: 13,
+                            height: 28,
+                            padding: '0 10px',
+                            borderRadius: 16,
+                            fontWeight: 500,
+                            lineHeight: '26px',
+                          }}
+                          ghost
+                        >
+                          Đăng nhập
+                        </Button>
+                      </Col>
+
+                      <Col>
+                        <Button
+                          type="default"
+                          onClick={handleRegisterClick}
+                          style={{
+                            color: '#fff',
+                            borderColor: '#fff',
+                            backgroundColor: 'transparent',
+                            fontSize: 13,
+                            height: 28,
+                            padding: '0 10px',
+                            borderRadius: 16,
+                            fontWeight: 500,
+                            lineHeight: '26px',
+                          }}
+                          ghost
+                        >
+                          Đăng ký
+                        </Button>
+                      </Col>
+                    </Row>
+
+                  )}
                 </Col>
               </Row>
             </Col>
