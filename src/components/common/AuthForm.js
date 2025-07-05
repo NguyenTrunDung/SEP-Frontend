@@ -1,10 +1,10 @@
 import React from 'react';
-import { Form, Input, Button, Card, Typography, Divider, Space, Tag } from 'antd';
+import { Form, Input, Button, Card, Typography, Divider, Space, Tag, Checkbox } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { TEST_ACCOUNTS } from '../../constants/roles';
 import PropTypes from 'prop-types';
-import './AuthForm.css'; // Đảm bảo import CSS
+import './AuthForm.css';
 
 const { Title, Text } = Typography;
 
@@ -16,7 +16,7 @@ const AuthForm = ({
     redirectPath = '/redirect'
 }) => {
     const [form] = Form.useForm();
-    const { login, loading, error } = useAuth() || {}; // Fallback để tránh lỗi nếu useAuth không tồn tại
+    const { login, loading, error } = useAuth() || {};
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -27,6 +27,16 @@ const AuthForm = ({
             if (!login) {
                 console.error('Login function is not available');
                 return;
+            }
+            // Lưu trạng thái "Remember Me" nếu được chọn
+            if (values.remember) {
+                localStorage.setItem('rememberMe', 'true');
+                localStorage.setItem('rememberedEmail', values.email);
+                localStorage.setItem('rememberedPassword', values.password);
+            } else {
+                localStorage.removeItem('rememberMe');
+                localStorage.removeItem('rememberedEmail');
+                localStorage.removeItem('rememberedPassword');
             }
             await login(values);
             if (onSuccess) {
@@ -42,10 +52,24 @@ const AuthForm = ({
         if (form && account) {
             form.setFieldsValue({
                 email: account.email,
-                password: account.password
+                password: account.password,
+                remember: false
             });
         }
     };
+
+    // Khởi tạo giá trị ban đầu cho form từ localStorage
+    React.useEffect(() => {
+        const rememberedEmail = localStorage.getItem('rememberedEmail');
+        const rememberedPassword = localStorage.getItem('rememberedPassword');
+        if (rememberedEmail && rememberedPassword) {
+            form.setFieldsValue({
+                email: rememberedEmail,
+                password: rememberedPassword,
+                remember: true
+            });
+        }
+    }, [form]);
 
     const defaultFields = [
         {
@@ -62,6 +86,11 @@ const AuthForm = ({
             label: 'Mật khẩu',
             rules: [{ required: true, message: 'Vui lòng nhập mật khẩu!' }],
             component: <Input.Password size="large" placeholder="Mật khẩu" />
+        },
+        {
+            name: 'remember',
+            valuePropName: 'checked',
+            component: <Checkbox>Ghi nhớ</Checkbox>
         }
     ];
 
@@ -99,6 +128,7 @@ const AuthForm = ({
                             name={field.name}
                             label={field.label}
                             rules={field.rules}
+                            valuePropName={field.valuePropName}
                             style={{ marginBottom: 16 }}
                         >
                             {field.component}
@@ -127,7 +157,7 @@ const AuthForm = ({
                             </Text>
                         </Divider>
 
-                        <div style={{ textAlign: 'center' }}> {/* Sửa text-align thành camelCase */}
+                        <div style={{ textAlign: 'center' }}>
                             <Space direction="vertical" size="small" style={{ width: '100%' }}>
                                 <Text type="secondary" style={{ fontSize: '12px', marginBottom: 8 }}>
                                     Click any account below to auto-fill credentials:
@@ -175,9 +205,10 @@ AuthForm.propTypes = {
     customFields: PropTypes.arrayOf(
         PropTypes.shape({
             name: PropTypes.string.isRequired,
-            label: PropTypes.string.isRequired,
+            label: PropTypes.string,
             rules: PropTypes.array,
-            component: PropTypes.node.isRequired
+            component: PropTypes.node.isRequired,
+            valuePropName: PropTypes.string
         })
     ),
     onSuccess: PropTypes.func,

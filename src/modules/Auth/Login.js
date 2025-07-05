@@ -1,22 +1,21 @@
 import React from 'react';
 import { Row, Col, Card, Typography, Image, Button } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom'; // Added Link import
 import AuthForm from '../../components/common/AuthForm';
 import './Login.css';
 
-const { Title } = Typography;
+const { Title, Text } = Typography; // Added Text import
 
 const Login = () => {
     const navigate = useNavigate();
 
     const handleClose = () => {
-        navigate('/'); // hoặc navigate(-1);
+        navigate('/');
     };
 
     return (
         <div className="login-layout">
-            {/* Nút Close ở góc phải trên cùng */}
             <Button
                 type="text"
                 icon={<CloseOutlined />}
@@ -32,7 +31,7 @@ const Login = () => {
                         </Title>
                         <div className="avatar-wrapper">
                             <Image
-                                src="images/mo.jpg"
+                                src="/images/mo.jpg" // Added leading slash for consistent path
                                 alt="Background"
                                 preview={false}
                                 className="login-bg"
@@ -49,7 +48,7 @@ const Login = () => {
                     <Col xs={24} md={7} className="login-right">
                         <div className="login-welcome">
                             <Image
-                                src="images/lg.png"
+                                src="/images/lg.png" // Added leading slash for consistent path
                                 alt="Dussmann Logo"
                                 preview={false}
                                 className="login-logo"
@@ -59,15 +58,13 @@ const Login = () => {
                         </div>
 
                         <AuthForm
-                            passwordLabel="Mật khẩu"
                             submitText="Đăng Nhập"
                             showTestAccounts={false}
-                            errorMessage="This field is required"
-                            fields={[
-                                { name: 'username', placeholder: 'Tên đăng nhập', required: true },
-                                { name: 'password', placeholder: 'Mật khẩu', type: 'password', required: true },
-                            ]}
+                            customFields={[]}
                         />
+                        <Text style={{ display: 'block', textAlign: 'center', marginTop: 16 }}>
+                            Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
+                        </Text>
                     </Col>
                 </Row>
             </Card>
