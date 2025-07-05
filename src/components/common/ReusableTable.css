@@ -3,9 +3,9 @@
 /* Container Styles */
 .reusable-table-container {
   background: #fff;
-  padding: 32px;
+  /* padding: 32px;
   border-radius: 8px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid #f0f0f0; */
   margin-bottom: 24px;
 }
 
@@ -152,7 +152,7 @@
 }
 
 .reusable-table .ant-pagination .ant-pagination-item-active {
-  background: #1890ff;
+  /* background: #1890ff; */
   border-color: #1890ff;
 }
 

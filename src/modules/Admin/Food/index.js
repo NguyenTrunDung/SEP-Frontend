@@ -12,6 +12,7 @@ import {
   useUpdateFoodWithImage,
   useDeleteFood
 } from '../../../hooks/queries/useFoods';
+import PageWrapperV2Example from '../../../components/examples/PageWrapperV2Example';
 
 const FoodsPageContent = ({
   foodsData,
@@ -128,30 +129,35 @@ const Foods = () => {
     deleteFoodMutation.isPending;
 
   return (
-    <FoodsPageWithWrapper
-      pageTitle="Quản Lý Món Ăn"
-      pageDescription="Tạo và quản lý món ăn một cách dễ dàng và hiệu quả"
-      pageIcon="🍔"
-      loading={isLoading}
-      primaryButton={{
-        text: 'Thêm Món Ăn Mới',
-        icon: <PlusOutlined />,
-        onClick: () => {
-          setSelectedFood(null);
-          showCreateModal();
-        },
-        disabled: isLoading,
-      }}
-      onRefresh={handleRefresh}
-      refreshText="Làm mới"
-      foodsData={foods}
-      onEdit={handleEdit}
-      onDelete={handleDelete}
-      createModalProps={{ open: createOpen, handleCancel: handleCreateCancel }}
-      editModalProps={{ open: editOpen, handleCancel: handleEditCancel }}
-      onCreateOrUpdate={handleCreateOrUpdate}
-      selectedFood={selectedFood}
-    />
+    <>
+      <FoodsPageWithWrapper
+        pageTitle="Quản Lý Món Ăn"
+        pageDescription="Tạo và quản lý món ăn một cách dễ dàng và hiệu quả"
+        pageIcon="🍔"
+        loading={isLoading}
+        primaryButton={{
+          text: 'Thêm Món Ăn Mới',
+          icon: <PlusOutlined />,
+          onClick: () => {
+            setSelectedFood(null);
+            showCreateModal();
+          },
+          disabled: isLoading,
+        }}
+        onRefresh={handleRefresh}
+        refreshText="Làm mới"
+        foodsData={foods}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        createModalProps={{ open: createOpen, handleCancel: handleCreateCancel }}
+        editModalProps={{ open: editOpen, handleCancel: handleEditCancel }}
+        onCreateOrUpdate={handleCreateOrUpdate}
+        selectedFood={selectedFood} />
+
+      <PageWrapperV2Example />
+
+    </>
+
   );
 };
 
