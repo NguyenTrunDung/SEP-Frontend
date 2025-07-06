@@ -10,6 +10,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import {
   arrayMove,
   SortableContext,
@@ -20,14 +21,14 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import ReusableTable from '../../../components/common/ReusableTable';
 import { FoodImage } from '../../../components/common/ImageDisplay';
 import { useReorderFoodCategories } from '../../../hooks/queries/useFoodCategories';
 import environment from '../../../config/environment';
 import PropTypes from 'prop-types';
+import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 
-// Sortable Row Component for drag-and-drop
-const SortableRow = ({ children, ...props }) => {
+// Sortable Row Component for drag-and-drop (following Ant Design pattern)
+const SortableRow = (props) => {
   const {
     attributes,
     listeners,
@@ -41,39 +42,20 @@ const SortableRow = ({ children, ...props }) => {
 
   const style = {
     ...props.style,
-    transform: CSS.Transform.toString(transform && { ...transform, scaleY: 1 }),
+    transform: CSS.Translate.toString(transform),
     transition,
+    cursor: 'move',
     ...(isDragging ? { position: 'relative', zIndex: 9999 } : {}),
   };
 
   return (
-    <tr {...props} ref={setNodeRef} style={style} {...attributes}>
-      {React.Children.map(children, (child, index) => {
-        if (index === 0) {
-          // Add drag handle to the first column
-          return React.cloneElement(child, {
-            children: (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div
-                  {...listeners}
-                  style={{
-                    cursor: 'grab',
-                    padding: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    color: '#999',
-                  }}
-                >
-                  <DragOutlined />
-                </div>
-                {child.props.children}
-              </div>
-            ),
-          });
-        }
-        return child;
-      })}
-    </tr>
+    <tr
+      {...props}
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+    />
   );
 };
 
@@ -90,14 +72,10 @@ const FoodCategoriesTable = ({
   const [searchText, setSearchText] = useState('');
   const [dragDropEnabled, setDragDropEnabled] = useState(false);
 
-
-
-
-
   // Reorder mutation
   const reorderMutation = useReorderFoodCategories();
 
-  // Drag and drop sensors
+  // Drag and drop sensors (following Ant Design pattern)
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -118,8 +96,6 @@ const FoodCategoriesTable = ({
 
   // Use original data for drag-drop (no search filtering during drag)
   const displayData = dragDropEnabled ? dataSource : filteredData;
-
-
 
   const handleEdit = (record) => {
     if (onEdit) {
@@ -149,7 +125,7 @@ const FoodCategoriesTable = ({
     }
   };
 
-  // Handle drag end event
+  // Handle drag end event (following Ant Design pattern)
   const handleDragEnd = async (event) => {
     const { active, over } = event;
 
@@ -207,8 +183,25 @@ const FoodCategoriesTable = ({
       title: 'TÊN DANH MỤC',
       dataIndex: 'name',
       key: 'name',
-      sorter: (a, b) => a.name.localeCompare(b.name),
-      render: (name) => <span className="vietnamese-text">{name || '-'}</span>,
+      sorter: !dragDropEnabled ? (a, b) => a.name.localeCompare(b.name) : false,
+      render: (name, record) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {dragDropEnabled && (
+            <div
+              style={{
+                cursor: 'grab',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                color: '#999',
+              }}
+            >
+              <DragOutlined />
+            </div>
+          )}
+          <span className="vietnamese-text">{name || '-'}</span>
+        </div>
+      ),
     },
     {
       title: 'HÌNH ẢNH',
@@ -231,7 +224,7 @@ const FoodCategoriesTable = ({
       key: 'sort',
       width: 120,
       align: 'center',
-      sorter: (a, b) => a.sort - b.sort,
+      sorter: !dragDropEnabled ? (a, b) => a.sort - b.sort : false,
       render: (sort) => <span className="vietnamese-text">{sort || 0}</span>,
     },
     {
@@ -240,14 +233,14 @@ const FoodCategoriesTable = ({
       width: 180,
       align: 'center',
       render: (_, record) => (
-        <div className="action-buttons">
+        <div className="">
           <Tooltip title="Xem chi tiết">
             <Button
               type="text"
               icon={<EyeOutlined />}
               onClick={() => handleViewDetails(record)}
-              className="action-btn view-btn"
-              size="small"
+              className=""
+            // size="small"
             />
           </Tooltip>
           <Tooltip title="Chỉnh sửa">
@@ -255,8 +248,8 @@ const FoodCategoriesTable = ({
               type="text"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
-              className="action-btn edit-btn"
-              size="small"
+              className=""
+            // size="small"
             />
           </Tooltip>
           <Tooltip title="Xóa">
@@ -271,8 +264,8 @@ const FoodCategoriesTable = ({
               <Button
                 type="text"
                 icon={<DeleteOutlined />}
-                className="action-btn delete-btn"
-                size="small"
+                className=""
+                // size="small"
                 danger
               />
             </Popconfirm>
@@ -290,17 +283,14 @@ const FoodCategoriesTable = ({
       loading: loading || reorderMutation.isLoading,
       rowKey: "id",
       pagination: {
-        pageSize: 10,
+        show: true,
+        pageSizeOptions: [5, 10, 20, 50],
+        showTotal: true,
         showSizeChanger: true,
-        showQuickJumper: true,
-        showTotal: (total, range) =>
-          `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} danh mục`,
       },
-      className: "reusable-table",
+      className: "reusable-table-v2",
       ...rest,
     };
-
-
 
     if (dragDropEnabled) {
       // Add sortable row component for drag-and-drop
@@ -311,7 +301,7 @@ const FoodCategoriesTable = ({
       };
     }
 
-    return <ReusableTable  {...tableProps} />;
+    return <ReusableTableV2 {...tableProps} />;
   };
 
   return (
@@ -352,6 +342,7 @@ const FoodCategoriesTable = ({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis]}
           onDragEnd={handleDragEnd}
         >
           <SortableContext

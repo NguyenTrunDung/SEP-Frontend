@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Result, Button, Spin, message } from 'antd';
+import { Result, Button, Spin, Card, Alert, Typography, Space } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, HomeOutlined, HistoryOutlined } from '@ant-design/icons';
 import { useProcessVnPayReturn } from '../../hooks/queries/paymentQueries';
 import { useUpdateOrderPaymentStatus } from '../../hooks/queries/userOrderQueries';
+
+const { Title, Text } = Typography;
 
 const VnPayReturn = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [processing, setProcessing] = useState(true);
     const [paymentResult, setPaymentResult] = useState(null);
+    const [error, setError] = useState(null);
 
     const processVnPayReturnMutation = useProcessVnPayReturn();
     const updateOrderPaymentMutation = useUpdateOrderPaymentStatus();
@@ -16,6 +20,9 @@ const VnPayReturn = () => {
     useEffect(() => {
         const processPaymentReturn = async () => {
             try {
+                setProcessing(true);
+                setError(null);
+
                 // Get query parameters from URL
                 const queryParams = new URLSearchParams(location.search);
                 const queryObject = {};
@@ -25,65 +32,101 @@ const VnPayReturn = () => {
 
                 console.log('VNPay return query params:', queryObject);
 
-                // Get stored order information
-                const pendingOrderId = localStorage.getItem('pendingVnPayOrderId');
-                const pendingBranchId = localStorage.getItem('pendingVnPayBranchId');
+                // Check if this is a direct redirect from backend (contains status, orderId, etc.)
+                const isDirectRedirect = queryObject.status || queryObject.vnp_TransactionStatus;
 
-                if (!pendingOrderId) {
-                    throw new Error('Không tìm thấy thông tin đơn hàng');
+                if (isDirectRedirect) {
+                    // Handle direct redirect from backend
+                    await handleDirectRedirect(queryObject);
+                } else {
+                    // Handle traditional flow with API call
+                    await handleApiFlow(queryObject);
                 }
-
-                // Process VNPay return with backend
-                const vnpayResult = await processVnPayReturnMutation.mutateAsync(queryObject);
-
-                console.log('VNPay processing result:', vnpayResult);
-
-                // Determine if payment was successful
-                const isPaymentSuccessful = vnpayResult.status === 'success';
-
-                // Update order payment status in database
-                await updateOrderPaymentMutation.mutateAsync({
-                    orderId: pendingOrderId,
-                    isPaid: isPaymentSuccessful,
-                    branchId: pendingBranchId
-                });
-
-                // Set result for UI display
-                setPaymentResult({
-                    success: isPaymentSuccessful,
-                    orderId: pendingOrderId,
-                    message: vnpayResult.message || (isPaymentSuccessful ? 'Thanh toán thành công!' : 'Thanh toán thất bại')
-                });
-
-                // Clean up stored data
-                localStorage.removeItem('pendingVnPayOrderId');
-                localStorage.removeItem('pendingVnPayBranchId');
 
             } catch (error) {
                 console.error('Error processing VNPay return:', error);
+                setError(error.message || 'Có lỗi xảy ra khi xử lý thanh toán');
 
                 // Clean up stored data on error
                 localStorage.removeItem('pendingVnPayOrderId');
                 localStorage.removeItem('pendingVnPayBranchId');
-
-                setPaymentResult({
-                    success: false,
-                    message: error.message || 'Có lỗi xảy ra khi xử lý thanh toán'
-                });
             } finally {
                 setProcessing(false);
             }
         };
 
+        const handleDirectRedirect = async (queryObject) => {
+            const isSuccess = queryObject.status === 'success' || queryObject.vnp_TransactionStatus === '00';
+            const orderId = queryObject.orderId || localStorage.getItem('pendingVnPayOrderId');
+            const message = queryObject.message || (isSuccess ? 'Thanh toán thành công!' : 'Thanh toán thất bại');
+
+            setPaymentResult({
+                success: isSuccess,
+                orderId: orderId,
+                message: message,
+                transactionId: queryObject.vnp_TxnRef || queryObject.transactionId,
+                amount: queryObject.vnp_Amount || queryObject.amount
+            });
+
+            // Clean up stored data
+            localStorage.removeItem('pendingVnPayOrderId');
+            localStorage.removeItem('pendingVnPayBranchId');
+        };
+
+        const handleApiFlow = async (queryObject) => {
+            // Get stored order information
+            const pendingOrderId = localStorage.getItem('pendingVnPayOrderId');
+            const pendingBranchId = localStorage.getItem('pendingVnPayBranchId');
+
+            if (!pendingOrderId) {
+                throw new Error('Không tìm thấy thông tin đơn hàng');
+            }
+
+            // Process VNPay return with backend
+            const vnpayResult = await processVnPayReturnMutation.mutateAsync(queryObject);
+
+            console.log('VNPay processing result:', vnpayResult);
+
+            // Determine if payment was successful
+            const isPaymentSuccessful = vnpayResult.status === 'success';
+
+            // Update order payment status in database
+            if (pendingOrderId && pendingBranchId) {
+                await updateOrderPaymentMutation.mutateAsync({
+                    orderId: pendingOrderId,
+                    isPaid: isPaymentSuccessful,
+                    branchId: pendingBranchId
+                });
+            }
+
+            // Set result for UI display
+            setPaymentResult({
+                success: isPaymentSuccessful,
+                orderId: pendingOrderId,
+                message: vnpayResult.message || (isPaymentSuccessful ? 'Thanh toán thành công!' : 'Thanh toán thất bại'),
+                transactionId: vnpayResult.transactionId,
+                amount: vnpayResult.amount
+            });
+
+            // Clean up stored data
+            localStorage.removeItem('pendingVnPayOrderId');
+            localStorage.removeItem('pendingVnPayBranchId');
+        };
+
         processPaymentReturn();
-    }, [location.search, processVnPayReturnMutation, updateOrderPaymentMutation]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
 
     const handleBackToHome = () => {
-        navigate('/'); // Navigate to home page
+        navigate('/');
     };
 
     const handleViewOrders = () => {
-        navigate('/order-history'); // Navigate to order history page
+        navigate('/order-history');
+    };
+
+    const handleRetryPayment = () => {
+        navigate('/payment');
     };
 
     if (processing) {
@@ -92,97 +135,196 @@ const VnPayReturn = () => {
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                minHeight: '50vh',
+                minHeight: '60vh',
                 flexDirection: 'column',
-                gap: '16px'
+                gap: '20px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white'
             }}>
-                <Spin size="large" />
-                <div style={{ fontSize: '16px', color: '#666' }}>
+                <Spin size="large" style={{ color: 'white' }} />
+                <Title level={3} style={{ color: 'white', margin: 0 }}>
                     Đang xử lý kết quả thanh toán...
-                </div>
+                </Title>
+                <Text style={{ color: 'rgba(255,255,255,0.8)' }}>
+                    Vui lòng đợi trong giây lát
+                </Text>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div style={{ padding: '24px', maxWidth: '600px', margin: '0 auto' }}>
+                <Result
+                    status="error"
+                    title="Lỗi xử lý thanh toán"
+                    subTitle={error}
+                    extra={[
+                        <Button type="primary" key="home" onClick={handleBackToHome}>
+                            Về trang chủ
+                        </Button>,
+                        <Button key="retry" onClick={handleRetryPayment}>
+                            Thử lại
+                        </Button>
+                    ]}
+                />
             </div>
         );
     }
 
     if (!paymentResult) {
         return (
-            <Result
-                status="error"
-                title="Lỗi xử lý thanh toán"
-                subTitle="Không thể xử lý kết quả thanh toán. Vui lòng liên hệ hỗ trợ."
-                extra={[
-                    <Button type="primary" key="home" onClick={handleBackToHome}>
-                        Về trang chủ
-                    </Button>
-                ]}
-            />
+            <div style={{ padding: '24px', maxWidth: '600px', margin: '0 auto' }}>
+                <Result
+                    status="warning"
+                    title="Không có thông tin thanh toán"
+                    subTitle="Không thể tìm thấy thông tin giao dịch. Vui lòng kiểm tra lại."
+                    extra={[
+                        <Button type="primary" key="home" onClick={handleBackToHome}>
+                            Về trang chủ
+                        </Button>
+                    ]}
+                />
+            </div>
         );
     }
 
     return (
-        <div style={{ padding: '24px', maxWidth: '600px', margin: '0 auto' }}>
-            <Result
-                status={paymentResult.success ? 'success' : 'error'}
-                title={paymentResult.success ? 'Thanh toán thành công!' : 'Thanh toán thất bại'}
-                subTitle={
-                    paymentResult.success
-                        ? `Đơn hàng ${paymentResult.orderId} đã được thanh toán thành công qua VNPay.`
-                        : `${paymentResult.message}. Đơn hàng đã bị hủy.`
-                }
-                extra={[
-                    <Button type="primary" key="home" onClick={handleBackToHome}>
-                        Về trang chủ
-                    </Button>,
-                    paymentResult.success && (
-                        <Button key="orders" onClick={handleViewOrders}>
-                            Xem đơn hàng
-                        </Button>
-                    )
-                ].filter(Boolean)}
-            />
+        <div style={{
+            padding: '24px',
+            maxWidth: '700px',
+            margin: '0 auto',
+            background: '#f5f5f5',
+            minHeight: '100vh'
+        }}>
+            <Card
+                style={{
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                    border: 'none'
+                }}
+            >
+                <Result
+                    icon={
+                        paymentResult.success ?
+                            <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '72px' }} /> :
+                            <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '72px' }} />
+                    }
+                    title={
+                        <Title level={2} style={{
+                            color: paymentResult.success ? '#52c41a' : '#ff4d4f',
+                            marginBottom: '8px'
+                        }}>
+                            {paymentResult.success ? 'Thanh toán thành công!' : 'Thanh toán thất bại'}
+                        </Title>
+                    }
+                    subTitle={
+                        <div style={{ fontSize: '16px', color: '#666', lineHeight: '1.6' }}>
+                            {paymentResult.success ? (
+                                <>
+                                    Đơn hàng <strong>#{paymentResult.orderId}</strong> đã được thanh toán thành công qua VNPay.
+                                    <br />
+                                    Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!
+                                </>
+                            ) : (
+                                <>
+                                    {paymentResult.message}
+                                    <br />
+                                    Đơn hàng đã bị hủy. Vui lòng thử lại.
+                                </>
+                            )}
+                        </div>
+                    }
+                    extra={
+                        <Space size="middle">
+                            <Button
+                                type="primary"
+                                icon={<HomeOutlined />}
+                                size="large"
+                                onClick={handleBackToHome}
+                            >
+                                Về trang chủ
+                            </Button>
+                            {paymentResult.success && (
+                                <Button
+                                    icon={<HistoryOutlined />}
+                                    size="large"
+                                    onClick={handleViewOrders}
+                                >
+                                    Xem đơn hàng
+                                </Button>
+                            )}
+                            {!paymentResult.success && (
+                                <Button
+                                    type="default"
+                                    size="large"
+                                    onClick={handleRetryPayment}
+                                >
+                                    Thử lại
+                                </Button>
+                            )}
+                        </Space>
+                    }
+                />
 
-            {paymentResult.success && (
-                <div style={{
-                    background: '#f6ffed',
-                    border: '1px solid #b7eb8f',
-                    borderRadius: '6px',
-                    padding: '16px',
-                    marginTop: '24px'
-                }}>
-                    <h4 style={{ color: '#389e0d', marginBottom: '8px' }}>
-                        Thông tin thanh toán
-                    </h4>
-                    <p style={{ margin: 0, color: '#52c41a' }}>
-                        ✓ Đơn hàng của bạn đã được xác nhận và sẽ được chuẩn bị trong thời gian sớm nhất.
-                    </p>
-                    <p style={{ margin: '4px 0 0 0', color: '#52c41a' }}>
-                        ✓ Bạn có thể theo dõi trạng thái đơn hàng trong phần "Lịch sử đơn hàng".
-                    </p>
-                </div>
-            )}
+                {/* Transaction Details */}
+                {paymentResult.transactionId && (
+                    <Alert
+                        type="info"
+                        style={{ marginTop: '24px' }}
+                        message="Thông tin giao dịch"
+                        description={
+                            <div>
+                                <Text strong>Mã giao dịch: </Text>
+                                <Text code>{paymentResult.transactionId}</Text>
+                                <br />
+                                {paymentResult.amount && (
+                                    <>
+                                        <Text strong>Số tiền: </Text>
+                                        <Text>{new Intl.NumberFormat('vi-VN', {
+                                            style: 'currency',
+                                            currency: 'VND'
+                                        }).format(paymentResult.amount / 100)}</Text>
+                                    </>
+                                )}
+                            </div>
+                        }
+                    />
+                )}
 
-            {!paymentResult.success && (
-                <div style={{
-                    background: '#fff2f0',
-                    border: '1px solid #ffccc7',
-                    borderRadius: '6px',
-                    padding: '16px',
-                    marginTop: '24px'
-                }}>
-                    <h4 style={{ color: '#cf1322', marginBottom: '8px' }}>
-                        Hướng dẫn
-                    </h4>
-                    <p style={{ margin: 0, color: '#a8071a' }}>
-                        • Kiểm tra lại thông tin thẻ và số dư tài khoản
-                    </p>
-                    <p style={{ margin: '4px 0 0 0', color: '#a8071a' }}>
-                        • Thử lại với phương thức thanh toán khác
-                    </p>
-                    <p style={{ margin: '4px 0 0 0', color: '#a8071a' }}>
-                        • Liên hệ hỗ trợ nếu vấn đề vẫn tiếp tục
-                    </p>
-                </div>
-            )}
+                {/* Success Information */}
+                {paymentResult.success && (
+                    <Alert
+                        type="success"
+                        style={{ marginTop: '16px' }}
+                        message="Thông báo"
+                        description={
+                            <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                                <li>Đơn hàng của bạn đã được xác nhận và sẽ được chuẩn bị</li>
+                                <li>Bạn có thể theo dõi trạng thái trong "Lịch sử đơn hàng"</li>
+                                <li>Hóa đơn điện tử sẽ được gửi qua email (nếu có)</li>
+                            </ul>
+                        }
+                    />
+                )}
+
+                {/* Failure Instructions */}
+                {!paymentResult.success && (
+                    <Alert
+                        type="warning"
+                        style={{ marginTop: '16px' }}
+                        message="Hướng dẫn xử lý"
+                        description={
+                            <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                                <li>Kiểm tra lại thông tin thẻ và số dư tài khoản</li>
+                                <li>Đảm bảo kết nối internet ổn định</li>
+                                <li>Thử lại với phương thức thanh toán khác</li>
+                                <li>Liên hệ hỗ trợ: 1900-xxxx nếu vấn đề vẫn tiếp tục</li>
+                            </ul>
+                        }
+                    />
+                )}
+            </Card>
         </div>
     );
 };

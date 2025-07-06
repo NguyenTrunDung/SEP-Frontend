@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { message } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import withPageWrapper from '../../../components/common/PageWrapper';
+
+import { withPageWrapperV2 } from '../../../components/common/PageWrapperV2';
 import FoodsTable from './FoodsTable';
 import CreateFood from './CreateFood';
 import EditFood from './EditFood';
@@ -12,7 +12,7 @@ import {
   useUpdateFoodWithImage,
   useDeleteFood
 } from '../../../hooks/queries/useFoods';
-import PageWrapperV2Example from '../../../components/examples/PageWrapperV2Example';
+
 
 const FoodsPageContent = ({
   foodsData,
@@ -48,7 +48,7 @@ const FoodsPageContent = ({
   );
 };
 
-const FoodsPageWithWrapper = withPageWrapper(FoodsPageContent);
+const FoodsPageWithWrapper = withPageWrapperV2(FoodsPageContent);
 
 const Foods = () => {
   const { open: createOpen, showModal: showCreateModal, handleCancel: handleCreateCancel } = useAntModal();
@@ -123,6 +123,11 @@ const Foods = () => {
     message.success('Đã làm mới danh sách món ăn');
   };
 
+  const handleAdd = () => {
+    setSelectedFood(null);
+    showCreateModal();
+  };
+
   const isLoading = foodsLoading ||
     createFoodMutation.isPending ||
     updateFoodMutation.isPending ||
@@ -131,31 +136,24 @@ const Foods = () => {
   return (
     <>
       <FoodsPageWithWrapper
-        pageTitle="Quản Lý Món Ăn"
-        pageDescription="Tạo và quản lý món ăn một cách dễ dàng và hiệu quả"
-        pageIcon="🍔"
-        loading={isLoading}
-        primaryButton={{
-          text: 'Thêm Món Ăn Mới',
-          icon: <PlusOutlined />,
-          onClick: () => {
-            setSelectedFood(null);
-            showCreateModal();
-          },
-          disabled: isLoading,
-        }}
+        title="Quản Lý Món Ăn"
+        onAdd={handleAdd}
         onRefresh={handleRefresh}
-        refreshText="Làm mới"
+        loading={isLoading}
+        addButtonText="Thêm Món Ăn Mới"
+        refreshButtonText="Làm mới"
+        showAddButton={true}
+        showRefreshButton={true}
+        showSearch={false} // FoodsTable has its own search
+        // Pass data and handlers to the wrapped component
         foodsData={foods}
         onEdit={handleEdit}
         onDelete={handleDelete}
         createModalProps={{ open: createOpen, handleCancel: handleCreateCancel }}
         editModalProps={{ open: editOpen, handleCancel: handleEditCancel }}
         onCreateOrUpdate={handleCreateOrUpdate}
-        selectedFood={selectedFood} />
-
-      <PageWrapperV2Example />
-
+        selectedFood={selectedFood}
+      />
     </>
 
   );

@@ -1,63 +1,27 @@
 import React, { useState, useMemo } from 'react';
-import { message, Tag, Space, Button, Tooltip } from 'antd';
+import { message, Tag, Space, Button, Tooltip, Switch } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined, CopyOutlined } from '@ant-design/icons';
-import PageWrapperV2 from '../common/PageWrapperV2';
+import { withPageWrapperV2 } from '../common/PageWrapperV2';
 import ReusableTableV2 from '../common/ReusableTableV2';
 import { useAntModal } from '../../hooks/useAntModal';
 
 /**
- * Example component demonstrating PageWrapperV2 and ReusableTableV2 usage
- * This follows the same pattern as AreasTable but uses the new reusable components
- * with enhanced Ant Design Table features
+ * Example component demonstrating withPageWrapperV2 and ReusableTableV2 usage
+ * This showcases the new modern, clean table styling with custom pagination
+ * Using HOC pattern for consistency with existing codebase
  */
-const PageWrapperV2Example = () => {
-    const [searchText, setSearchText] = useState('');
-    const [data, setData] = useState([
-        {
-            id: 1,
-            name: 'Khu vực A',
-            description: 'Mô tả khu vực A',
-            status: 'active',
-            createdAt: '2024-01-15',
-            area: 'North',
-            population: 1500
-        },
-        {
-            id: 2,
-            name: 'Khu vực B',
-            description: 'Mô tả khu vực B',
-            status: 'inactive',
-            createdAt: '2024-01-20',
-            area: 'South',
-            population: 2300
-        },
-        {
-            id: 3,
-            name: 'Khu vực C',
-            description: 'Mô tả khu vực C',
-            status: 'active',
-            createdAt: '2024-01-25',
-            area: 'East',
-            population: 1800
-        },
-        {
-            id: 4,
-            name: 'Khu vực D',
-            description: 'Mô tả khu vực D',
-            status: 'pending',
-            createdAt: '2024-02-01',
-            area: 'West',
-            population: 2100
-        },
-    ]);
-
-    const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
-    const { open: editOpen, showModal: showEditModal, handleCancel: handleEditCancel } = useAntModal();
-
-    const [selectedItem, setSelectedItem] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-
+const PageWrapperV2Content = ({
+    data,
+    loading,
+    onEdit,
+    onDelete,
+    onView,
+    searchText,
+    onSearchChange,
+    selectedRowKeys,
+    onSelectionChange,
+    ...props
+}) => {
     // Filter data based on search
     const filteredData = useMemo(() => {
         return searchText
@@ -71,7 +35,7 @@ const PageWrapperV2Example = () => {
     // Enhanced columns with Ant Design Table features
     const columns = [
         {
-            title: 'Tên khu vực',
+            title: 'TÊN KHU VỰC',
             dataIndex: 'name',
             key: 'name',
             sorter: (a, b) => a.name.localeCompare(b.name),
@@ -90,7 +54,7 @@ const PageWrapperV2Example = () => {
             ),
         },
         {
-            title: 'Khu vực',
+            title: 'KHU VỰC',
             dataIndex: 'area',
             key: 'area',
             sorter: (a, b) => a.area.localeCompare(b.area),
@@ -99,6 +63,7 @@ const PageWrapperV2Example = () => {
                 { text: 'South', value: 'South' },
                 { text: 'East', value: 'East' },
                 { text: 'West', value: 'West' },
+                { text: 'Central', value: 'Central' },
             ],
             onFilter: (value, record) => record.area === value,
             render: (text) => (
@@ -108,7 +73,7 @@ const PageWrapperV2Example = () => {
             ),
         },
         {
-            title: 'Dân số',
+            title: 'DÂN SỐ',
             dataIndex: 'population',
             key: 'population',
             sorter: (a, b) => a.population - b.population,
@@ -119,7 +84,7 @@ const PageWrapperV2Example = () => {
             ),
         },
         {
-            title: 'Trạng thái',
+            title: 'TRẠNG THÁI',
             dataIndex: 'status',
             key: 'status',
             filters: [
@@ -143,7 +108,21 @@ const PageWrapperV2Example = () => {
             },
         },
         {
-            title: 'Ngày tạo',
+            title: 'KÍCH HOẠT',
+            dataIndex: 'isEnabled',
+            key: 'isEnabled',
+            render: (enabled, record) => (
+                <Switch
+                    checked={enabled}
+                    onChange={(checked) => {
+                        // This would typically update the data through a callback
+                        message.success(`${record.name} ${checked ? 'đã được kích hoạt' : 'đã bị vô hiệu hóa'}`);
+                    }}
+                />
+            ),
+        },
+        {
+            title: 'NGÀY TẠO',
             dataIndex: 'createdAt',
             key: 'createdAt',
             sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
@@ -153,7 +132,216 @@ const PageWrapperV2Example = () => {
                 </span>
             ),
         },
+        {
+            title: 'THAO TÁC',
+            key: 'action',
+            width: 120,
+            render: (_, record) => (
+                <Space size="small">
+                    <Tooltip title="Xem chi tiết">
+                        <Button
+                            type="text"
+                            icon={<EyeOutlined />}
+                            onClick={() => onView(record)}
+                        />
+                    </Tooltip>
+                    <Tooltip title="Chỉnh sửa">
+                        <Button
+                            type="text"
+                            icon={<EditOutlined />}
+                            onClick={() => onEdit(record)}
+                        />
+                    </Tooltip>
+                    <Tooltip title="Xóa">
+                        <Button
+                            type="text"
+                            icon={<DeleteOutlined />}
+                            danger
+                            onClick={() => onDelete(record)}
+                        />
+                    </Tooltip>
+                </Space>
+            ),
+        },
     ];
+
+    return (
+        <ReusableTableV2
+            dataSource={filteredData}
+            columns={columns}
+            loading={loading}
+            rowKey="id"
+            pagination={{
+                show: true,
+                pageSizeOptions: [5, 10, 20, 50],
+                showTotal: true,
+                showSizeChanger: true,
+            }}
+            rowSelection={{
+                selectedRowKeys,
+                onChange: onSelectionChange,
+                selections: [
+                    {
+                        key: 'all-data',
+                        text: 'Chọn tất cả',
+                        onSelect: () => {
+                            onSelectionChange(filteredData.map(item => item.id), filteredData);
+                        },
+                    },
+                    {
+                        key: 'clear',
+                        text: 'Bỏ chọn tất cả',
+                        onSelect: () => {
+                            onSelectionChange([], []);
+                        },
+                    },
+                ],
+            }}
+            scroll={{ x: 1200 }}
+            size="middle"
+            bordered={false}
+            showSorterTooltip={true}
+        />
+    );
+};
+
+// Wrap the content component with the HOC
+const PageWrapperV2WithHOC = withPageWrapperV2(PageWrapperV2Content);
+
+/**
+ * Main example component using the HOC pattern
+ */
+const PageWrapperV2Example = () => {
+    const [searchText, setSearchText] = useState('');
+    const [data, setData] = useState([
+        {
+            id: 1,
+            name: 'Khu vực A',
+            description: 'Mô tả khu vực A',
+            status: 'active',
+            createdAt: '2024-01-15',
+            area: 'North',
+            population: 1500,
+            isEnabled: true
+        },
+        {
+            id: 2,
+            name: 'Khu vực B',
+            description: 'Mô tả khu vực B',
+            status: 'inactive',
+            createdAt: '2024-01-20',
+            area: 'South',
+            population: 2300,
+            isEnabled: false
+        },
+        {
+            id: 3,
+            name: 'Khu vực C',
+            description: 'Mô tả khu vực C',
+            status: 'active',
+            createdAt: '2024-01-25',
+            area: 'East',
+            population: 1800,
+            isEnabled: true
+        },
+        {
+            id: 4,
+            name: 'Khu vực D',
+            description: 'Mô tả khu vực D',
+            status: 'pending',
+            createdAt: '2024-02-01',
+            area: 'West',
+            population: 2100,
+            isEnabled: true
+        },
+        {
+            id: 5,
+            name: 'Khu vực E',
+            description: 'Mô tả khu vực E',
+            status: 'active',
+            createdAt: '2024-02-05',
+            area: 'Central',
+            population: 3200,
+            isEnabled: true
+        },
+        {
+            id: 6,
+            name: 'Khu vực F',
+            description: 'Mô tả khu vực F',
+            status: 'inactive',
+            createdAt: '2024-02-10',
+            area: 'North',
+            population: 1400,
+            isEnabled: false
+        },
+        {
+            id: 7,
+            name: 'Khu vực G',
+            description: 'Mô tả khu vực G',
+            status: 'active',
+            createdAt: '2024-02-15',
+            area: 'South',
+            population: 2800,
+            isEnabled: true
+        },
+        {
+            id: 8,
+            name: 'Khu vực H',
+            description: 'Mô tả khu vực H',
+            status: 'pending',
+            createdAt: '2024-02-20',
+            area: 'East',
+            population: 1900,
+            isEnabled: true
+        },
+        {
+            id: 9,
+            name: 'Khu vực I',
+            description: 'Mô tả khu vực I',
+            status: 'active',
+            createdAt: '2024-02-25',
+            area: 'West',
+            population: 2500,
+            isEnabled: true
+        },
+        {
+            id: 10,
+            name: 'Khu vực J',
+            description: 'Mô tả khu vực J',
+            status: 'active',
+            createdAt: '2024-03-01',
+            area: 'Central',
+            population: 3600,
+            isEnabled: true
+        },
+        {
+            id: 11,
+            name: 'Khu vực K',
+            description: 'Mô tả khu vực K',
+            status: 'inactive',
+            createdAt: '2024-03-05',
+            area: 'North',
+            population: 1200,
+            isEnabled: false
+        },
+        {
+            id: 12,
+            name: 'Khu vực L',
+            description: 'Mô tả khu vực L',
+            status: 'active',
+            createdAt: '2024-03-10',
+            area: 'South',
+            population: 2900,
+            isEnabled: true
+        }
+    ]);
+
+    const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
+    const { open: editOpen, showModal: showEditModal, handleCancel: handleEditCancel } = useAntModal();
+
+    const [selectedItem, setSelectedItem] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
     const handleAdd = () => {
         showAddModal();
@@ -183,114 +371,38 @@ const PageWrapperV2Example = () => {
         message.info(`Xem chi tiết: ${record.name}`);
     };
 
-    const handleDuplicate = (record) => {
-        const newRecord = {
-            ...record,
-            id: Date.now(),
-            name: `${record.name} (Bản sao)`,
-        };
-        setData(prev => [...prev, newRecord]);
-        message.success(`Đã nhân bản: ${record.name}`);
-    };
-
-    const handleRowClick = (record, index) => {
-        console.log('Clicked row:', record, 'at index:', index);
-        message.info(`Đã chọn: ${record.name}`);
-    };
-
     const handleSelectionChange = (selectedKeys, selectedRows) => {
         setSelectedRowKeys(selectedKeys);
         console.log('Selected rows:', selectedRows);
     };
 
-    // Custom actions for each row
-    const customActions = (record) => (
-        <Space size="small">
-            <Tooltip title="Xem chi tiết">
-                <Button
-                    type="text"
-                    icon={<EyeOutlined />}
-                    className="view-btn"
-                    onClick={() => handleView(record)}
-                />
-            </Tooltip>
-            <Tooltip title="Nhân bản">
-                <Button
-                    type="text"
-                    icon={<CopyOutlined />}
-                    className="edit-btn"
-                    onClick={() => handleDuplicate(record)}
-                />
-            </Tooltip>
-        </Space>
-    );
-
     return (
-        <PageWrapperV2
-            title="Danh mục khu vực"
-            onAdd={handleAdd}
-            onRefresh={handleRefresh}
-            loading={loading}
-            searchProps={{
-                value: searchText,
-                onChange: (e) => setSearchText(e.target.value),
-                placeholder: 'Tìm kiếm khu vực...'
-            }}
-        >
-            <ReusableTableV2
-                dataSource={filteredData}
-                columns={columns}
+        <>
+            <PageWrapperV2WithHOC
+                title="Danh mục khu vực"
+                onAdd={handleAdd}
+                onRefresh={handleRefresh}
                 loading={loading}
+                searchProps={{
+                    value: searchText,
+                    onChange: (e) => setSearchText(e.target.value),
+                    placeholder: 'Tìm kiếm khu vực...'
+                }}
+                showSearch={true}
+                showAddButton={true}
+                showRefreshButton={true}
+                addButtonText="Thêm khu vực"
+                refreshButtonText="Làm mới"
+                searchPlaceholder="Tìm kiếm khu vực..."
+                // Pass data and handlers to the wrapped component
+                data={data}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                onRowClick={handleRowClick}
-                actions={customActions}
-                emptyMessage="Không tìm thấy khu vực nào."
-                // Enhanced Ant Design Table features
-                rowSelection={{
-                    selectedRowKeys,
-                    onChange: handleSelectionChange,
-                    selections: [
-                        {
-                            key: 'all-data',
-                            text: 'Chọn tất cả',
-                            onSelect: () => {
-                                setSelectedRowKeys(filteredData.map(item => item.id));
-                            },
-                        },
-                        {
-                            key: 'clear',
-                            text: 'Bỏ chọn tất cả',
-                            onSelect: () => {
-                                setSelectedRowKeys([]);
-                            },
-                        },
-                    ],
-                }}
-                expandable={{
-                    expandedRowRender: (record) => (
-                        <div style={{ padding: '16px', background: '#fafafa', borderRadius: '6px' }}>
-                            <h4>Chi tiết khu vực: {record.name}</h4>
-                            <p><strong>Mô tả:</strong> {record.description}</p>
-                            <p><strong>Dân số:</strong> {record.population.toLocaleString()} người</p>
-                            <p><strong>Ngày tạo:</strong> {new Date(record.createdAt).toLocaleDateString('vi-VN')}</p>
-                        </div>
-                    ),
-                    rowExpandable: (record) => record.description.length > 10,
-                }}
-                scroll={{ x: 1200 }}
-                sticky
-                size="middle"
-                bordered={false}
-                showSorterTooltip={true}
-                // Custom action column configuration
-                actionColumn={{
-                    title: 'Thao tác',
-                    key: 'action',
-                    width: 200,
-                    fixed: 'right',
-                    render: null, // Will be auto-generated
-                }}
+                onView={handleView}
+                searchText={searchText}
+                onSearchChange={setSearchText}
+                selectedRowKeys={selectedRowKeys}
+                onSelectionChange={handleSelectionChange}
             />
 
             {/* Example modals would go here */}
@@ -327,7 +439,7 @@ const PageWrapperV2Example = () => {
                     </Button>
                 </div>
             )}
-        </PageWrapperV2>
+        </>
     );
 };
 

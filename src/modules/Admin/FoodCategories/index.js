@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import withPageWrapper from '../../../components/common/PageWrapper';
+import { withPageWrapperV2 } from '../../../components/common/PageWrapperV2';
 import FoodCategoriesTable from './FoodCategoriesTable';
 import AddFoodCategory from '../FoodCategories/CreateFoodCategory';
 import EditFoodCategory from '../FoodCategories/EditFoodCategory';
@@ -61,7 +61,7 @@ const FoodCategoriesPageContent = ({
   );
 };
 
-const FoodCategoriesPageWithWrapper = withPageWrapper(FoodCategoriesPageContent);
+const FoodCategoriesPageWithWrapper = withPageWrapperV2(FoodCategoriesPageContent);
 
 const FoodCategories = () => {
   const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
@@ -153,19 +153,27 @@ const FoodCategories = () => {
     message.success('Đã làm mới danh sách danh mục');
   };
 
+  const handleAdd = () => {
+    showAddModal();
+  };
+
+  const isLoadingState = isLoading ||
+    createCategoryMutation.isPending ||
+    updateCategoryMutation.isPending ||
+    deleteCategoryMutation.isPending;
+
   return (
     <FoodCategoriesPageWithWrapper
-      pageTitle="Quản Lý Danh Mục Món Ăn"
-      pageDescription="Tạo và quản lý danh mục món ăn một cách dễ dàng và hiệu quả"
-      pageIcon="🍽️"
-      loading={isLoading}
-      primaryButton={{
-        text: 'Thêm Danh Mục Mới',
-        icon: <PlusOutlined />,
-        onClick: showAddModal,
-      }}
+      title="Quản Lý Danh Mục Món Ăn"
+      onAdd={handleAdd}
       onRefresh={handleRefresh}
-      refreshText="Làm mới"
+      loading={isLoadingState}
+      addButtonText="Thêm Danh Mục Mới"
+      refreshButtonText="Làm mới"
+      showAddButton={true}
+      showRefreshButton={true}
+      showSearch={false} // FoodCategoriesTable has its own search
+      // Pass data and handlers to the wrapped component
       categoriesData={categoriesData}
       branchId={branchId} // Pass branchId for drag-and-drop functionality
       onEdit={handleEdit}

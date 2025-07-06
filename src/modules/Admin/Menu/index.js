@@ -1,23 +1,13 @@
 import React, { useState } from 'react';
 import { message } from 'antd';
 import { PlusOutlined, MenuOutlined, CalendarOutlined } from '@ant-design/icons';
-import withPageWrapper from '../../../components/common/PageWrapper';
+import { withPageWrapperV2 } from '../../../components/common/PageWrapperV2';
 import MenuTable from './MenuTable';
 import CreateFoodsMenu from './CreateFoodsMenu';
 import ViewMenuModal from './ViewMenuModal';
 import { useAntModal } from '../../../hooks/useAntModal';
 import { useMenuList, useCreateMenu, useUpdateMenu, useDeleteMenu } from '../../../hooks/queries/useMenuQueries';
 import dayjs from 'dayjs';
-
-// CSS styles for the table
-const tableStyles = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  margin: '0 auto',
-  backgroundColor: '#fff',
-  borderRadius: '8px',
-  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-};
 
 // Step 1: Extract the main content into a separate component
 const MenuPageContent = ({
@@ -74,10 +64,10 @@ const MenuPageContent = ({
   );
 };
 
-// Step 2: Wrap the content component with PageWrapper HOC
-const MenuPageWithWrapper = withPageWrapper(MenuPageContent);
+// Step 2: Wrap the content component with PageWrapperV2 HOC
+const MenuPageWithWrapper = withPageWrapperV2(MenuPageContent);
 
-// Step 3: Main Menu component using the PageWrapper with Real API Data
+// Step 3: Main Menu component using the PageWrapperV2 with Real API Data
 const Menu = () => {
   const { open, showModal, handleCancel } = useAntModal();
 
@@ -265,6 +255,10 @@ const Menu = () => {
     message.success('Đã làm mới danh sách menu');
   };
 
+  const handleAdd = () => {
+    showModal();
+  };
+
   // Handle API errors
   if (error && !loading) {
     console.error('🚨 Menu API Error:', error);
@@ -285,57 +279,48 @@ const Menu = () => {
   const menusWithoutService = totalMenus - menusWithService;
   const totalDishes = menuList.reduce((total, menu) => total + (menu.details?.length || 0), 0);
 
+  const isLoadingState = loading ||
+    createMenuMutation.isLoading ||
+    updateMenuMutation.isLoading ||
+    deleteMenuMutation.isLoading;
+
   return (
-    <table style={tableStyles}>
-      <tbody>
-        <tr>
-          <td style={{ padding: '16px' }}>
-            <MenuPageWithWrapper
-              // Page header configuration
-              pageTitle="Quản Lý Thực Đơn"
-              pageDescription="Tạo và quản lý thực đơn hằng ngày một cách dễ dàng và hiệu quả"
-              pageIcon="🍽️"
-              loading={loading}
-              // Primary action button
-              primaryButton={{
-                text: 'Thêm Menu Mới',
-                icon: <PlusOutlined />,
-                onClick: showModal,
-                loading: createMenuMutation.isLoading,
-              }}
-              // Refresh functionality
-              onRefresh={handleRefresh}
-              refreshText="Làm mới"
-              // Props passed to the wrapped component
-              menuData={menuList}
-              onView={handleView}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              modalProps={{
-                open,
-                handleCancel: () => {
-                  handleCancel();
-                  // Reset mutation state when closing modal
-                  createMenuMutation.reset();
-                },
-              }}
-              onCreateMenu={handleCreateMenu}
-              viewModalProps={{
-                open: viewModalOpen,
-                handleCancel: handleViewModalCancel,
-                menuId: viewMenuId,
-              }}
-              editModalProps={{
-                open: editModalOpen,
-                handleCancel: handleEditModalCancel,
-                menuId: editMenuId,
-                onSuccess: handleEditSuccess,
-              }}
-            />
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <MenuPageWithWrapper
+      title="Quản Lý Thực Đơn"
+      onAdd={handleAdd}
+      onRefresh={handleRefresh}
+      loading={isLoadingState}
+      addButtonText="Thêm Menu Mới"
+      refreshButtonText="Làm mới"
+      showAddButton={true}
+      showRefreshButton={true}
+      showSearch={false} // MenuTable has its own search functionality
+      // Props passed to the wrapped component
+      menuData={menuList}
+      onView={handleView}
+      onEdit={handleEdit}
+      onDelete={handleDelete}
+      modalProps={{
+        open,
+        handleCancel: () => {
+          handleCancel();
+          // Reset mutation state when closing modal
+          createMenuMutation.reset();
+        },
+      }}
+      onCreateMenu={handleCreateMenu}
+      viewModalProps={{
+        open: viewModalOpen,
+        handleCancel: handleViewModalCancel,
+        menuId: viewMenuId,
+      }}
+      editModalProps={{
+        open: editModalOpen,
+        handleCancel: handleEditModalCancel,
+        menuId: editMenuId,
+        onSuccess: handleEditSuccess,
+      }}
+    />
   );
 };
 

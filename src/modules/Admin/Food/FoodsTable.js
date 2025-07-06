@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Button, Input, Tooltip, Popconfirm, Modal, Descriptions, Spin, message, Select } from 'antd';
 import { EditOutlined, DeleteOutlined, SearchOutlined, EyeOutlined, FilterOutlined } from '@ant-design/icons';
-import ReusableTable from '../../../components/common/ReusableTable';
+
+import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import { FoodImage } from '../../../components/common/ImageDisplay';
 import PropTypes from 'prop-types';
 import { foodService } from '../../../services/foodService';
@@ -212,14 +213,14 @@ const FoodsTable = ({
       width: 180,
       align: 'center',
       render: (_, record) => (
-        <div className="action-buttons">
+        <div className="">
           <Tooltip title="Xem chi tiết">
             <Button
               type="text"
               icon={<EyeOutlined />}
               onClick={() => handleViewDetails(record)}
-              className="action-btn view-btn"
-              size="small"
+            //className="action-btn view-btn"
+            //size="small"
             />
           </Tooltip>
           <Tooltip title="Chỉnh sửa">
@@ -227,8 +228,8 @@ const FoodsTable = ({
               type="text"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
-              className="action-btn edit-btn"
-              size="small"
+            // className="action-btn edit-btn"
+            // size="small"
             />
           </Tooltip>
           <Tooltip title="Xóa">
@@ -243,8 +244,8 @@ const FoodsTable = ({
               <Button
                 type="text"
                 icon={<DeleteOutlined />}
-                className="action-btn delete-btn"
-                size="small"
+                // className="action-btn delete-btn"
+                // size="small"
                 danger
               />
             </Popconfirm>
@@ -255,7 +256,7 @@ const FoodsTable = ({
   ];
 
   return (
-    <div className={`reusable-table-container ${className || ''}`}>
+    <div className={`reusable-table-v2 ${className || ''}`}>
       <div className="reusable-table-header">
         <div style={{
           display: 'flex',
@@ -308,20 +309,19 @@ const FoodsTable = ({
 
 
       </div>
-      <ReusableTable
+      <ReusableTableV2
         {...rest}
         columns={columns}
         dataSource={filteredData}
         loading={loading}
         rowKey="id"
         pagination={{
-          pageSize: 10,
+          show: true,
+          pageSizeOptions: [5, 10, 20, 50],
+          showTotal: true,
           showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) =>
-            `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} món ăn`,
         }}
-        className="reusable-table"
+        className="reusable-table-v2"
       />
       <Modal
         title="Chi tiết món ăn"

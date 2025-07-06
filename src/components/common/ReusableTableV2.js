@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { Table, Button, Tooltip, Popconfirm } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import CustomPagination from './CustomPagination';
 import './ReusableTableV2.css';
 
 /**
@@ -12,7 +13,7 @@ const ReusableTableV2 = ({
     columns,
     dataSource,
     loading,
-    pagination,
+    pagination = {},
     rowKey = 'id',
     rowSelection,
     expandable,
@@ -38,6 +39,34 @@ const ReusableTableV2 = ({
     loadingTip = 'Đang tải...',
     ...rest
 }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(pagination.pageSize || 10);
+
+    // Calculate paginated data
+    const paginatedData = useMemo(() => {
+        if (!pagination.show) return dataSource;
+
+        const start = (currentPage - 1) * pageSize;
+        return dataSource.slice(start, start + pageSize);
+    }, [dataSource, currentPage, pageSize, pagination.show]);
+
+    // Handle page change
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+        if (pagination.onChange) {
+            pagination.onChange(page, pageSize);
+        }
+    };
+
+    // Handle page size change
+    const handlePageSizeChange = (newPageSize) => {
+        setPageSize(newPageSize);
+        setCurrentPage(1); // Reset to first page when changing page size
+        if (pagination.onShowSizeChange) {
+            pagination.onShowSizeChange(currentPage, newPageSize);
+        }
+    };
+
     // Add action column if needed
     const enhancedColumns = useMemo(() => {
         let cols = [...columns];
@@ -104,14 +133,14 @@ const ReusableTableV2 = ({
             <Table
                 className="reusable-table-v2"
                 columns={enhancedColumns}
-                dataSource={dataSource}
+                dataSource={pagination.show ? paginatedData : dataSource}
                 loading={loading ? {
                     spinning: true,
                     tip: loadingTip,
                     size: 'large',
                     delay: 100
                 } : false}
-                pagination={defaultPagination}
+                pagination={false}
                 rowKey={rowKey}
                 rowSelection={rowSelection}
                 expandable={expandable}
@@ -130,6 +159,20 @@ const ReusableTableV2 = ({
                 onRow={onRow}
                 {...rest}
             />
+
+            {/* Custom Pagination */}
+            {pagination.show && (
+                <CustomPagination
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    total={dataSource.length}
+                    pageSizeOptions={pagination.pageSizeOptions || [10, 20, 50]}
+                    onPageChange={handlePageChange}
+                    onPageSizeChange={handlePageSizeChange}
+                    showTotal={pagination.showTotal !== false}
+                    showPageSizeSelector={pagination.showSizeChanger !== false}
+                />
+            )}
         </div>
     );
 };
