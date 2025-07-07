@@ -4,6 +4,7 @@ import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { areaService } from '../../../services/areaService';
+import './Area.css'
 
 const EditArea = ({ open, onCancel, onSubmit, formData, branchId }) => {
     const { form, handleSubmit, resetForm } = useAntForm();
@@ -108,16 +109,20 @@ const EditArea = ({ open, onCancel, onSubmit, formData, branchId }) => {
             </div>
 
             <ReusableForm form={form} onFinish={handleFormSubmit} layout="vertical">
-                <Form.Item
-                    name="name"
-                    rules={[
-                        { required: true, message: 'Vui lòng nhập tên khu vực!' },
-                        { whitespace: true, message: 'Tên khu vực không được chỉ chứa khoảng trắng!' }
-                    ]}
-                    className="floating-form-item"
-                >
-                    <Input className="floating-input" placeholder="Tên khu vực" />
-                </Form.Item>
+                <div className="custom-floating">
+                    <label className="floating-label">Tên khu vực</label>
+                    <Form.Item
+                        name="name"
+                        rules={[
+                            { required: true, message: 'Vui lòng nhập tên khu vực!' },
+                            { whitespace: true, message: 'Tên khu vực không được chỉ chứa khoảng trắng!' }
+                        ]}
+                        style={{ marginBottom: 0 }}
+                    >
+                        <Input className="input-label" placeholder="Tên khu vực" />
+                    </Form.Item>
+                </div>
+
             </ReusableForm>
         </ReusableModal>
     );
