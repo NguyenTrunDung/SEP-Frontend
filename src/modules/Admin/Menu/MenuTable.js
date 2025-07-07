@@ -17,6 +17,7 @@ import ReusableTable from '../../../components/common/ReusableTable';
 import PropTypes from 'prop-types';
 import dayjs from 'dayjs';
 import locale from 'antd/locale/vi_VN';
+import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 
 const MenuTable = ({
     dataSource = [],
@@ -207,20 +208,19 @@ const MenuTable = ({
             </div>
 
             {/* Table */}
-            <ReusableTable
+            <ReusableTableV2
                 {...rest}
                 columns={columns}
                 dataSource={filteredData}
                 loading={loading}
                 rowKey="id"
                 pagination={{
-                    pageSize: 10,
+                    show: true,
+                    pageSizeOptions: [5, 10, 20, 50],
+                    showTotal: true,
                     showSizeChanger: true,
-                    showQuickJumper: true,
-                    showTotal: (total, range) =>
-                        `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} thực đơn`
                 }}
-                className="reusable-table"
+                className="reusable-table-v2"
             />
         </div>
     );

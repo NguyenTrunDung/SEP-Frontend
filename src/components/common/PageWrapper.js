@@ -40,7 +40,7 @@ const withPageWrapper = (WrappedComponent) => {
 
         // Default container style matching menu page
         const defaultContainerStyle = {
-            maxWidth: '1600px',
+            //maxWidth: '1600px',
             margin: '0 auto',
             background: '#f5f5f5',
             minHeight: '100vh',
