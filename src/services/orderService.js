@@ -319,20 +319,19 @@ async updateOrder(orderId, orderData) {
     }
   },
 
-  /**
-   * Map frontend payment method to backend enum
-   * @private
-   */
-  _mapPaymentMethod(paymentMethod) {
-    const paymentMap = {
-      'Tiền mặt': 0, // Cash
-      'VNPay': 2, // VNPay
-      'Thẻ ngân hàng': 1, // BankCard
-      'Chuyển khoản': 2, // BankTransfer
-      'Ví điện tử': 3 // EWallet
-    };
-    return paymentMap[paymentMethod] || 0; // Default to Cash
-  },
+    /**
+     * Map frontend payment method to backend enum
+     * @private
+     */
+    _mapPaymentMethod(paymentMethod) {
+        const paymentMap = {
+            'Tiền mặt': 1,    // Cash
+            'Wallet': 2,      // Wallet
+            'Miễn phí': 3,    // Free
+            'VNPay': 4        // Vnpay
+        };
+        return paymentMap[paymentMethod] || 1; // Default to Cash
+    },
 
   /**
    * Generate unique order code
