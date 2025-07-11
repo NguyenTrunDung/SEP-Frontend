@@ -61,7 +61,7 @@ const AdminLayout = ({ children }) => {
       "/dashboard": ["dashboard"],
       "/orders": ["orders"],
       "/menus": ["menus"],
-      "/kitchen": ["kitchen"],
+      "/kitchens": ["kitchen"],
       "/cashier": ["cashier"],
       "/admin/users": ["users"],
       "/admin/settings": ["settings"],
@@ -147,7 +147,7 @@ const AdminLayout = ({ children }) => {
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.KITCHEN], ["kitchen:view"]) && {
               key: "kitchen",
               icon: <FireFilled style={{ fontSize: "18px" }} />,
-              label: <Link to="/kitchen">Bếp</Link>,
+              label: <Link to="/kitchens">Bếp</Link>,
             },
 
             // Menus - Accessible by Admin, Branch Manager, Manager, and Staff

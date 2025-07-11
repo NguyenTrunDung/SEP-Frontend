@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { Button, Input, DatePicker, Select } from 'antd';
 import { SearchOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import './PageWrapperV2.css';
+import moment from 'moment';
 
 const { Option } = Select;
 
@@ -43,31 +44,42 @@ const withPageWrapperV2 = (WrappedComponent) => {
               })
             }
             style={{ width: 180 }}
+            defaultValue={moment()}
           />
         );
       }
       if (field.type === 'select') {
         return (
-          <Select
-            key={field.name}
-            placeholder={field.label}
-            allowClear
-            onChange={(value) =>
-              filterProps.onChange({
-                ...filterProps.filters,
-                [field.name]: value,
-              })
-            }
-            style={{ width: 180 }}
-          >
-            {field.options.map((option) => (
-              <Option key={option.value} value={option.value}>
-                {option.label}
-              </Option>
-            ))}
-          </Select>
+          <div key={field.name} className="custom-floating" style={{ width: 180 }}>
+            <Select
+              allowClear
+              placeholder=""
+              onChange={(value) =>
+                filterProps.onChange({
+                  ...filterProps.filters,
+                  [field.name]: value,
+                })
+              }
+              className="input-label"
+              style={{
+                width: '100%',
+                height: 36,
+                // lineHeight: '36px',
+                fontSize: 14,
+              }}
+              value={filterProps.filters?.[field.name] || undefined}
+            >
+              {field.options.map((option) => (
+                <Option key={option.value} value={option.value}>
+                  {option.label}
+                </Option>
+              ))}
+            </Select>
+            <label className="floating-label">{field.label}</label>
+          </div>
         );
       }
+
       return (
         <Input
           key={field.name}
@@ -120,7 +132,7 @@ const withPageWrapperV2 = (WrappedComponent) => {
               className="search-input-v2"
               placeholder={searchPlaceholder}
               prefix={<SearchOutlined />}
-              style={{ width: 180 }}
+              style={{ width: 220 }}
               {...searchProps}
             />
           )}
@@ -199,30 +211,40 @@ const PageWrapperV2 = ({
               [field.name]: dateString,
             })
           }
-          style={{ width: 180 }}
+          style={{ width: 160 }}
+          defaultValue={moment()}
         />
       );
     }
     if (field.type === 'select') {
       return (
-        <Select
-          key={field.name}
-          placeholder={field.label}
-          allowClear
-          onChange={(value) =>
-            filterProps.onChange({
-              ...filterProps.filters,
-              [field.name]: value,
-            })
-          }
-          style={{ width: 180 }}
-        >
-          {field.options.map((option) => (
-            <Option key={option.value} value={option.value}>
-              {option.label}
-            </Option>
-          ))}
-        </Select>
+        <div key={field.name} className="custom-floating" style={{ width: 160 }}>
+          <Select
+            allowClear
+            placeholder=""
+            onChange={(value) =>
+              filterProps.onChange({
+                ...filterProps.filters,
+                [field.name]: value,
+              })
+            }
+            className="input-label"
+            style={{
+              width: '100%',
+              height: 36,
+              // lineHeight: '36px',
+              fontSize: 14,
+            }}
+            value={filterProps.filters?.[field.name] || undefined}
+          >
+            {field.options.map((option) => (
+              <Option key={option.value} value={option.value}>
+                {option.label}
+              </Option>
+            ))}
+          </Select>
+          <label className="floating-label">{field.label}</label>
+        </div>
       );
     }
     return (
@@ -235,7 +257,7 @@ const PageWrapperV2 = ({
             [field.name]: e.target.value,
           })
         }
-        style={{ width: 180 }}
+        style={{ width: 160 }}
       />
     );
   };
@@ -277,7 +299,7 @@ const PageWrapperV2 = ({
             className="search-input-v2"
             placeholder={searchPlaceholder}
             prefix={<SearchOutlined />}
-            style={{ width: 180 }}
+            style={{ width: 300 }}
             {...searchProps}
           />
         )}
@@ -316,5 +338,6 @@ PageWrapperV2.propTypes = {
   searchPlaceholder: PropTypes.string,
 };
 
-export { withPageWrapperV2 };
 export default PageWrapperV2;
+
+export { withPageWrapperV2};
