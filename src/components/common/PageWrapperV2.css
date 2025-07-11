@@ -60,3 +60,65 @@
     justify-content: flex-end;
   }
 } 
+/* PageWrapperV2.css */
+.page-wrapper-v2 {
+  padding: 16px;
+  background: #f5f5f5;
+}
+
+.page-header-v2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.page-title-v2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.header-actions-v2 {
+  display: flex;
+  gap: 8px;
+}
+
+.search-input-v2 {
+  margin-bottom: 16px;
+  max-width: 300px;
+  border-radius: 4px;
+}
+
+/* Styling for filter section */
+.filter-section {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-section .ant-input,
+.filter-section .ant-picker,
+.filter-section .ant-select {
+  width: 200px;
+  border-radius: 4px;
+}
+
+.filter-section .ant-select-selector,
+.filter-section .ant-picker-input {
+  border-radius: 4px;
+}
+
+.page-content-v2 {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.loading-state-v2 {
+  text-align: center;
+  padding: 24px;
+  color: #888;
+}

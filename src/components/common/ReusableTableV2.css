@@ -1,26 +1,26 @@
 .reusable-table-v2 {
+  max-width: 100%; /* Đảm bảo không vượt màn hình */
+  overflow-x: auto; /* Thêm cuộn ngang */
   background: #fff;
-  /* padding: 24px;
-  border-radius: 8px;
-  border: 1px solid #f0f0f0; */
-  margin-bottom: 24px;
+  margin-bottom: 16px; /* Giảm từ 24px */
 }
 
 .reusable-table-v2 .ant-table {
-  border-radius: 8px;
+  border-radius: 6px; /* Giảm từ 8px */
   border: none;
+  font-size: 13px; /* Giảm kích thước chữ mặc định */
 }
 
 .reusable-table-v2 .ant-table-thead > tr > th {
   background: #fafafa;
   color: #262626;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 13px; /* Giảm từ 15px */
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid #e8e8e8;
-  padding: 18px 16px;
-  height: 56px;
+  letter-spacing: 0.3px; /* Giảm từ 0.5px */
+  border-bottom: 1px solid #e8e8e8; /* Giảm từ 2px */
+  padding: 10px 12px; /* Giảm từ 18px 16px */
+  height: 48px; /* Giảm từ 56px */
   transition: background-color 0.3s ease;
 }
 
@@ -29,10 +29,10 @@
 }
 
 .reusable-table-v2 .ant-table-tbody > tr > td {
-  padding: 16px 16px;
+  padding: 10px 12px; /* Giảm từ 16px */
   border-bottom: 1px solid #f0f0f0;
-  font-size: 15px;
-  height: 56px;
+  font-size: 13px; /* Giảm từ 15px */
+  height: 48px; /* Giảm từ 56px */
   vertical-align: middle;
   transition: background 0.2s;
 }
@@ -49,6 +49,7 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
+  max-width: 200px; /* Thêm giới hạn chiều rộng ô */
 }
 
 .reusable-table-v2 .ant-table-cell[title] {
@@ -57,7 +58,7 @@
 
 .reusable-table-v2 .action-buttons {
   display: flex;
-  gap: 12px;
+  gap: 8px; /* Giảm từ 12px */
   align-items: center;
   justify-content: flex-end;
 }
@@ -67,8 +68,8 @@
   box-shadow: none;
   background: transparent;
   color: #595959;
-  font-size: 18px;
-  padding: 0 6px;
+  font-size: 14px; /* Giảm từ 18px */
+  padding: 0 4px; /* Giảm từ 6px */
   transition: color 0.2s;
 }
 
@@ -97,40 +98,39 @@
 }
 
 .reusable-table-v2 .ant-pagination {
-  margin-top: 24px;
+  margin-top: 16px; /* Giảm từ 24px */
   margin-bottom: 0;
   text-align: left;
-  padding: 12px 0 0 0;
+  padding: 8px 0 0 0; /* Giảm từ 12px */
   border-top: 1px solid #f0f0f0;
 }
 
 .reusable-table-v2 .ant-pagination-total-text {
   color: #595959;
-  font-size: 15px;
+  font-size: 13px; /* Giảm từ 15px */
   font-weight: 500;
 }
 
 .reusable-table-v2 .ant-pagination .ant-pagination-item {
-  border-radius: 6px;
-  min-width: 36px;
-  height: 36px;
-  line-height: 34px;
-  font-size: 14px;
+  border-radius: 4px; /* Giảm từ 6px */
+  min-width: 32px; /* Giảm từ 36px */
+  height: 32px; /* Giảm từ 36px */
+  line-height: 30px; /* Giảm từ 34px */
+  font-size: 13px; /* Giảm từ 14px */
   font-weight: 500;
 }
 
 .reusable-table-v2 .ant-pagination .ant-pagination-item-active {
-  /* background: #1890ff; */
   border-color: #1890ff;
   color: #fff;
 }
 
 .reusable-table-v2 .ant-pagination-options {
-  margin-left: 16px;
+  margin-left: 12px; /* Giảm từ 16px */
 }
 
 .reusable-table-v2 .ant-pagination-options-size-changer {
-  margin-right: 8px;
+  margin-right: 6px; /* Giảm từ 8px */
 }
 
 .reusable-table-v2 .ant-table-tbody > tr.ant-table-row-selected > td {
@@ -154,30 +154,37 @@
 /* Responsive design */
 @media (max-width: 1200px) {
   .reusable-table-v2 {
-    padding: 16px;
+    padding: 12px; /* Giảm từ 16px */
   }
   .reusable-table-v2 .ant-table-thead > tr > th,
   .reusable-table-v2 .ant-table-tbody > tr > td {
-    padding: 10px 8px;
-    font-size: 13px;
+    padding: 8px 10px; /* Giảm từ 10px 8px */
+    font-size: 12px; /* Giảm từ 13px */
   }
 }
 
 @media (max-width: 768px) {
   .reusable-table-v2 {
-    margin: 0 -8px;
+    margin: 0 -4px; /* Giảm từ -8px */
     border-radius: 0;
-    padding: 8px;
+    padding: 6px; /* Giảm từ 8px */
   }
   .reusable-table-v2 .ant-table-thead > tr > th,
   .reusable-table-v2 .ant-table-tbody > tr > td {
-    padding: 8px 4px;
-    font-size: 12px;
+    padding: 6px 4px; /* Giảm từ 8px 4px */
+    font-size: 11px; /* Giảm từ 12px */
   }
-  .reusable-table-v2 .ant-table-scroll {
-    overflow-x: auto;
+  .reusable-table-v2 .ant-table-cell {
+    max-width: 150px; /* Giảm chiều rộng ô cho màn hình nhỏ */
+  }
+  .reusable-table-v2 .action-buttons {
+    gap: 6px; /* Giảm từ 8px */
+  }
+  .reusable-table-v2 .ant-btn {
+    font-size: 12px; /* Giảm từ 14px */
+    padding: 0 3px; /* Giảm từ 4px */
   }
   .reusable-table-v2 .ant-pagination {
-    padding: 0 8px;
+    padding: 0 4px; /* Giảm từ 8px */
   }
-} 
+}

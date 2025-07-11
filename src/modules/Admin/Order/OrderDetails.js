@@ -1,128 +1,89 @@
-// src/pages/Orders/OrderDetail.js
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Descriptions, List, Tag, Button, Spin, Select, message } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
-import { useOrderById, useUpdateOrderStatus } from '../../../hooks/queries/userOrderQueries';
-import { ORDER_STATUS } from '../../../mocks/orderData';
+import React, { useState, useEffect } from 'react';
+import { Modal, Descriptions, Table, Spin, Button } from 'antd';
+import { orderService } from '../../../services/orderService';
+import { environment } from '../../../services/api/config';
 
-const { Option } = Select;
+const ViewOrderDetail = ({ open, onCancel, orderData, branchId }) => {
+  const [orderDetails, setOrderDetails] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-// Tag colors for different statuses
-const statusColors = {
-    [ORDER_STATUS.PENDING]: 'blue',
-    [ORDER_STATUS.PREPARING]: 'orange',
-    [ORDER_STATUS.READY]: 'green',
-    [ORDER_STATUS.DELIVERED]: 'purple',
-    [ORDER_STATUS.CANCELLED]: 'red',
+  useEffect(() => {
+    if (orderData?.id) {
+      setLoading(true);
+      orderService.getOrderDetails(orderData.id)
+        .then(response => {
+          setOrderDetails(response.data || []);
+          if (environment.features.enableLogging) {
+            console.log(`✅ Fetched order details for order ${orderData.id}:`, response.data);
+          }
+        })
+        .catch(error => {
+          console.error('❌ Failed to fetch order details:', error);
+          setOrderDetails([]);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [orderData]);
+
+  const columns = [
+    { title: 'Mã món', dataIndex: 'foodId', key: 'foodId', render: (text) => text || 'N/A' },
+    { title: 'Số lượng', dataIndex: 'qty', key: 'qty', render: (text) => text || 'N/A' },
+    { title: 'Giá', dataIndex: 'price', key: 'price', render: (price) => (price != null ? price.toLocaleString() + ' VNĐ' : 'N/A') },
+    { title: 'Tổng', dataIndex: 'total', key: 'total', render: (total) => (total != null ? total.toLocaleString() + ' VNĐ' : 'N/A') },
+    { title: 'Ghi chú', dataIndex: 'note', key: 'note', render: (text) => text || 'N/A' },
+  ];
+
+  return (
+    <Modal
+      title={`Chi tiết đơn hàng #${orderData?.id || 'N/A'}`}
+      open={open}
+      onCancel={onCancel}
+      footer={[
+        <Button key="close" onClick={onCancel}>
+          Đóng
+        </Button>,
+      ]}
+      width={800}
+    >
+      {orderData ? (
+        <Spin spinning={loading}>
+          <Descriptions bordered column={1}>
+            <Descriptions.Item label="Mã đơn">{orderData.id || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Tên khách hàng">{orderData.customerName || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Số điện thoại">{orderData.customerPhone || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Ngày đặt">
+              {orderData.orderDate ? new Date(orderData.orderDate).toLocaleDateString('vi-VN') : 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              {{
+                pending: 'Đang chờ',
+                confirmed: 'Đã xác nhận',
+                completed: 'Hoàn thành',
+                cancelled: 'Hủy',
+              }[orderData.status] || orderData.status || 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Tổng tiền">
+              {orderData.total != null ? orderData.total.toLocaleString() + ' VNĐ' : 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Phương thức thanh toán">
+              {orderData.paymentMethod || 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ghi chú">{orderData.note || 'N/A'}</Descriptions.Item>
+          </Descriptions>
+          <h4 style={{ marginTop: 16 }}>Chi tiết món</h4>
+          <Table
+            columns={columns}
+            dataSource={orderDetails.map(item => ({ ...item, key: item.id || item.foodId }))}
+            rowKey="id"
+            pagination={false}
+            locale={{ emptyText: 'Không có chi tiết món' }}
+          />
+        </Spin>
+      ) : (
+        <p>Không có dữ liệu đơn hàng để hiển thị.</p>
+      )}
+    </Modal>
+  );
 };
 
-const OrderDetail = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-
-    // Fetch order details
-    const { data: order, isLoading, isError } = useOrderById(id);
-
-    // Update order status mutation
-    const updateOrderStatus = useUpdateOrderStatus();
-
-    const handleUpdateStatus = (status) => {
-        updateOrderStatus.mutate(
-            { orderId: id, status },
-            {
-                onSuccess: () => {
-                    message.success(`Order status updated to ${status}`);
-                },
-                onError: (error) => {
-                    message.error(`Failed to update status: ${error.message}`);
-                },
-            }
-        );
-    };
-
-    if (isLoading) {
-        return (
-            <div style={{ textAlign: 'center', padding: '50px' }}>
-                <Spin size="large" />
-            </div>
-        );
-    }
-
-    if (isError || !order) {
-        return (
-            <div style={{ padding: '20px' }}>
-                <h2>Error loading order details</h2>
-                <Button type="primary" onClick={() => navigate('/orders')}>
-                    Back to Orders
-                </Button>
-            </div>
-        );
-    }
-
-    return (
-        <div style={{ padding: '24px' }}>
-            <Button
-                icon={<ArrowLeftOutlined />}
-                onClick={() => navigate('/orders')}
-                style={{ marginBottom: '16px' }}
-            >
-                Back to Orders
-            </Button>
-
-            <Card title={`Order Details - ${order.id}`}>
-                <Descriptions bordered column={2}>
-                    <Descriptions.Item label="Customer">{order.userName}</Descriptions.Item>
-                    <Descriptions.Item label="Department">{order.department}</Descriptions.Item>
-
-                    <Descriptions.Item label="Status">
-                        <Tag color={statusColors[order.status] || 'default'}>
-                            {order.status}
-                        </Tag>
-
-                        {order.status !== ORDER_STATUS.CANCELLED && (
-                            <Select
-                                value={order.status}
-                                style={{ width: 150, marginLeft: '10px' }}
-                                onChange={handleUpdateStatus}
-                                loading={updateOrderStatus.isPending}
-                            >
-                                {Object.values(ORDER_STATUS).map((status) => (
-                                    <Option key={status} value={status}>{status}</Option>
-                                ))}
-                            </Select>
-                        )}
-                    </Descriptions.Item>
-
-                    <Descriptions.Item label="Created">{new Date(order.createdAt).toLocaleString()}</Descriptions.Item>
-                    <Descriptions.Item label="Last Updated">{new Date(order.updatedAt).toLocaleString()}</Descriptions.Item>
-                    <Descriptions.Item label="Total Amount">${order.total.toFixed(2)}</Descriptions.Item>
-
-                    {order.notes && (
-                        <Descriptions.Item label="Notes" span={2}>
-                            {order.notes}
-                        </Descriptions.Item>
-                    )}
-                </Descriptions>
-
-                <h3 style={{ marginTop: '24px' }}>Order Items</h3>
-                <List
-                    bordered
-                    dataSource={order.items}
-                    renderItem={item => (
-                        <List.Item>
-                            <List.Item.Meta
-                                title={item.name}
-                                description={`Quantity: ${item.quantity} × $${item.price.toFixed(2)}`}
-                            />
-                            <div>${item.subtotal.toFixed(2)}</div>
-                        </List.Item>
-                    )}
-                    footer={<div style={{ textAlign: 'right' }}><strong>Total: ${order.total.toFixed(2)}</strong></div>}
-                />
-            </Card>
-        </div>
-    );
-};
-
-export default OrderDetail;
+export default ViewOrderDetail;
