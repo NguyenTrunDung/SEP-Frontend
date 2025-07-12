@@ -40,6 +40,9 @@ import AreasPage from '../modules/Admin/Area/AreasPage.js';
 import LocationsPage from '../modules/Admin/Locations/LocationPage.js';
 import DiseaseCategoriesTable from '../modules/Admin/DiseaseCategory/DiseaseCategoryPage.js';
 import VnPayIntegrationExample from '../components/examples/VnPayIntegrationExample.js';
+import UserManagement from '../modules/Admin/User/index.js';
+import GroupUser from '../modules/Admin/GroupUser/index.js';
+import UserAccount from '../modules/Admin/UserAccount/index.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
@@ -167,6 +170,36 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
         <AdminLayout>
           <CustomerPage />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/user-management',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
+        <AdminLayout>
+          <UserManagement />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/group-user',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
+        <AdminLayout>
+          <GroupUser />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/user-account',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
+        <AdminLayout>
+          <UserAccount />
         </AdminLayout>
       </ProtectedRoute>
     ),

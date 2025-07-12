@@ -70,17 +70,20 @@ const AdminLayout = ({ children }) => {
       "/areas": ["areas"],
       "/locations": ["locations"],
       "/disease-categories": ["disease-categories"],
+      "/admin/user-management": ["user-management"],
+      "/admin/group-user": ["group-user"],
+      "/admin/user-account": ["user-account"],
     };
 
-    return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER]) 
-      ? ["dashboard"] 
-      : hasRequiredRole([ROLES.CASHIER]) 
-      ? ["cashier"] 
-      : hasRequiredRole([ROLES.KITCHEN]) 
-      ? ["kitchen"] 
-      : hasRequiredRole([ROLES.STAFF, ROLES.NURSE]) 
-      ? ["orders"] 
-      : []);
+    return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])
+      ? ["dashboard"]
+      : hasRequiredRole([ROLES.CASHIER])
+        ? ["cashier"]
+        : hasRequiredRole([ROLES.KITCHEN])
+          ? ["kitchen"]
+          : hasRequiredRole([ROLES.STAFF, ROLES.NURSE])
+            ? ["orders"]
+            : []);
   }, [location.pathname, user]);
 
   const siderStyle = {
@@ -186,7 +189,26 @@ const AdminLayout = ({ children }) => {
                 {
                   key: "users",
                   icon: <UserOutlined style={{ fontSize: "18px" }} />,
-                  label: <Link to="/admin/users">Quản lý người dùng</Link>,
+                  label: <Link to="/admin/users">Quản lý nhân viên</Link>,
+                },
+                {
+                  key: "user-wallet-group",
+                  icon: <WalletOutlined style={{ fontSize: "18px" }} />,
+                  label: "Quản lý ví người dùng",
+                  children: [
+                    {
+                      key: "user-management",
+                      label: <Link to="/admin/user-management">Quản lý ví người dùng (Mới)</Link>,
+                    },
+                    {
+                      key: "group-user",
+                      label: <Link to="/admin/group-user">Nhóm người dùng</Link>,
+                    },
+                    {
+                      key: "user-account",
+                      label: <Link to="/admin/user-account">Người dùng</Link>,
+                    },
+                  ],
                 },
                 // Categories - Admin only
                 {
