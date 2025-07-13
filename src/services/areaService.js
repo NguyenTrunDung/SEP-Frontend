@@ -197,8 +197,7 @@ export const areaService = {
       }
 
       const config = {
-        params: { branchId: currentBranchId, name: normalizedName, excludeId },
-        headers: { 'X-Branch-Id': currentBranchId }
+        params: { branchId: currentBranchId, name: normalizedName, excludeId }
       };
 
       const response = await api.get('/api/v1/areas/validate-name', config);
