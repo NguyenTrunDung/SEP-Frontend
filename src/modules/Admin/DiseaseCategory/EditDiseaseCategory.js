@@ -20,7 +20,7 @@ const EditDiseaseCategory = ({ open, onCancel, onSubmit, formData, branchId }) =
         ]);
         return;
       }
-      form.setFieldsValue({ name: formData.diseaseCategoryName });
+      form.setFieldsValue({ name: formData.name });
     } else if (!open) {
       resetForm();
     }

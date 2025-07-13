@@ -67,6 +67,7 @@ const AdminLayout = ({ children }) => {
       "/admin/settings": ["settings"],
       "/food-categories": ["food-categories"],
       "/foods": ["foods"],
+      "/food-for-patients": ["food-for-patients"],
       "/areas": ["areas"],
       "/locations": ["locations"],
       "/disease-categories": ["disease-categories"],

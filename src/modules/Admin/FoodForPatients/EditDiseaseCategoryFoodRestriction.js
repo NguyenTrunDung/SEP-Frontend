@@ -10,10 +10,21 @@ import PropTypes from 'prop-types';
 const { TextArea } = Input;
 
 const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData }) => {
-    const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(formData || {});
+    const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm();
     const { diseaseCategories } = useDiseaseCategories();
     const { foods } = useFoods();
 
+    useEffect(() => {
+        if (open) {
+            // Reset form when modal opens
+            resetForm();
+        } else if (!open) {
+            // Clean up when modal closes
+            resetForm();
+        }
+    }, [open, form, resetForm]);
+
+    // Handle formData changes when modal is open
     useEffect(() => {
         if (formData && open) {
             console.log('🔄 EditDiseaseCategoryFoodRestriction - Setting form data:', formData);
@@ -27,10 +38,8 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                 requiresPhysicianOverride: formData.requiresPhysicianOverride || false,
                 isActive: formData.isActive !== undefined ? formData.isActive : true,
             });
-        } else if (!open) {
-            resetForm();
         }
-    }, [formData, open, form, resetForm]);
+    }, [open, formData, form]);
 
     const handleFormSubmit = async (values) => {
         console.log('🚀 EditDiseaseCategoryFoodRestriction - Form submit with values:', values);

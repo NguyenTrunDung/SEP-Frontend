@@ -15,7 +15,7 @@ const CreateDiseaseCategoryFoodRestriction = ({
     onSubmit,
     initialValues = {},
 }) => {
-    const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(initialValues);
+    const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm();
     const { diseaseCategories } = useDiseaseCategories();
     const { foods } = useFoods();
 
@@ -27,7 +27,14 @@ const CreateDiseaseCategoryFoodRestriction = ({
             // Clean up when modal closes
             resetForm();
         }
-    }, [open, initialValues, form, resetForm]);
+    }, [open, form, resetForm]); // Removed initialValues from dependencies
+
+    // Handle initialValues changes when modal is open
+    useEffect(() => {
+        if (open && initialValues) {
+            form.setFieldsValue(initialValues);
+        }
+    }, [open, initialValues, form]);
 
     const handleFormSubmit = async (values) => {
         console.log('🚀 CreateDiseaseCategoryFoodRestriction - Form submit with values:', values);
