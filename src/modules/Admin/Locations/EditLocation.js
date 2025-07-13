@@ -147,7 +147,7 @@ const EditLocation = ({ open, onCancel, onSubmit, formData, branchId }) => {
       <ReusableForm form={form} onFinish={handleFormSubmit} layout="vertical">
         <Form.Item
           name="areaId"
-          label="Khu vực"
+          label=""
           rules={[{ required: true, message: 'Vui lòng chọn khu vực!' }]}
         >
           <Select
@@ -163,17 +163,21 @@ const EditLocation = ({ open, onCancel, onSubmit, formData, branchId }) => {
             ))}
           </Select>
         </Form.Item>
-        <Form.Item
-          name="name"
-          label="Tên vị trí"
-          rules={[
-            { required: true, message: 'Vui lòng nhập tên vị trí!' },
-            { whitespace: true, message: 'Tên vị trí không được chỉ chứa khoảng trắng!' },
-            { max: 100, message: 'Tên vị trí không được dài quá 100 ký tự!' },
-          ]}
-        >
-          <Input placeholder="Tên vị trí" style={{ width: '100%' }} />
-        </Form.Item>
+        <div className="custom-floating">
+          <label className="floating-label">Tên vị trí</label>
+          <Form.Item
+            name="name"
+            rules={[
+              { required: true, message: 'Vui lòng nhập tên vị trí!' },
+              { whitespace: true, message: 'Tên vị trí không được chỉ chứa khoảng trắng!' },
+              { max: 100, message: 'Tên vị trí không được dài quá 100 ký tự!' },
+            ]}
+            style={{ marginBottom: 0 }}
+          >
+            <Input className="input-label" placeholder="Tên vị trí" />
+          </Form.Item>
+        </div>
+
       </ReusableForm>
     </ReusableModal>
   );

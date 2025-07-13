@@ -108,16 +108,20 @@ const EditDiseaseCategory = ({ open, onCancel, onSubmit, formData, branchId }) =
       </div>
 
       <ReusableForm form={form} onFinish={handleFormSubmit} layout="vertical">
-        <Form.Item
-          name="name"
-          rules={[
-            { required: true, message: 'Vui lòng nhập tên danh mục bệnh!' },
-            { whitespace: true, message: 'Tên không được chỉ chứa khoảng trắng!' },
-          ]}
-          className="floating-form-item"
-        >
-          <Input className="floating-input" placeholder="Tên bệnh" />
-        </Form.Item>
+        <div className="custom-floating">
+          <label className="floating-label">Tên bệnh</label>
+          <Form.Item
+            name="name"
+            rules={[
+              { required: true, message: 'Vui lòng nhập tên danh mục bệnh!' },
+              { whitespace: true, message: 'Tên không được chỉ chứa khoảng trắng!' },
+            ]}
+            style={{ marginBottom: 0 }}
+          >
+            <Input className="input-label" placeholder="Tên bệnh" />
+          </Form.Item>
+        </div>
+
       </ReusableForm>
     </ReusableModal>
   );
