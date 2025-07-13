@@ -7,10 +7,11 @@ import { Modal, message, Input, Button, Space, Tooltip } from 'antd';
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import api from '../../../services/api/config';
 import environment from '../../../config/environment';
+import { fetchUserWalletList } from '../../../services/userWalletService';
 
 const initialUsers = [
     {
-        id: 1,
+        userId: 1, // Đổi từ id sang userId cho đồng bộ
         name: 'Nguyễn Văn A',
         username: 'nguyenvana',
         phone: '0912345678',
@@ -18,7 +19,7 @@ const initialUsers = [
         email: 'vana@example.com',
     },
     {
-        id: 2,
+        userId: 2,
         name: 'Trần Thị B',
         username: 'tranthib',
         phone: '0987654321',
@@ -28,23 +29,66 @@ const initialUsers = [
 ];
 
 const UserManagement = () => {
-    const [users, setUsers] = useState(initialUsers);
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [selectedUser, setSelectedUser] = useState(null);
     const [walletVisible, setWalletVisible] = useState(false);
     const [depositVisible, setDepositVisible] = useState(false);
     const [editVisible, setEditVisible] = useState(false);
     const [isCreate, setIsCreate] = useState(false);
+    const [branchId, setBranchId] = useState(localStorage.getItem('currentBranchId'));
 
-    // Lấy danh sách user khi load trang
+    // Hàm load lại danh sách user wallet
+    const loadUserWalletList = () => {
+        setLoading(true);
+        fetchUserWalletList()
+            .then((users) => {
+                const safeUsers = users.map(u => ({
+                    ...u,
+                    name: u.fullName == null ? 'NULL' : u.fullName,
+                    username: u.email == null ? 'NULL' : u.email,
+                    phone: u.phoneNumber == null ? 'NULL' : u.phoneNumber,
+                    balance: u.balance == null ? 0 : u.balance,
+                    customerCode: u.customerCode == null ? 'NULL' : u.customerCode,
+                    isCustomerAccount: u.isCustomerAccount == null ? 'NULL' : u.isCustomerAccount,
+                    isCustomerEnabled: u.isCustomerEnabled == null ? 'NULL' : u.isCustomerEnabled,
+                }));
+                setUsers(safeUsers);
+            })
+            .catch(() => message.error('Không thể tải danh sách người dùng'))
+            .finally(() => setLoading(false));
+    };
+
+    // Lắng nghe sự thay đổi branchId trong localStorage (tab khác) và custom event (tab hiện tại)
     useEffect(() => {
-        // TODO: Bỏ mock, dùng API thực tế khi backend sẵn sàng
-        api.get(environment.api.endpoints.users)
-            .then(res => setUsers(res.data))
-            .catch(() => message.error('Không thể tải danh sách người dùng'));
+        const handleStorage = (e) => {
+            if (e.key === 'currentBranchId') {
+                setBranchId(localStorage.getItem('currentBranchId'));
+            }
+        };
+        const handleBranchChanged = () => {
+            setBranchId(localStorage.getItem('currentBranchId'));
+        };
+        window.addEventListener('storage', handleStorage);
+        window.addEventListener('branchChanged', handleBranchChanged);
+        return () => {
+            window.removeEventListener('storage', handleStorage);
+            window.removeEventListener('branchChanged', handleBranchChanged);
+        };
     }, []);
 
-    // Filter users theo search (có thể dùng API filter nếu backend hỗ trợ)
+    // Load lại data khi branchId thay đổi
+    useEffect(() => {
+        if (!branchId) return;
+        loadUserWalletList();
+    }, [branchId]);
+
+    // Hàm này bạn gọi sau khi chuyển branch thành công
+    const handleBranchChange = () => {
+        loadUserWalletList();
+    };
+
     const filteredUsers = users.filter(u => {
         const s = search.toLowerCase();
         return (
@@ -80,9 +124,9 @@ const UserManagement = () => {
             cancelText: 'Hủy',
             onOk: () => {
                 // TODO: Gọi API xóa user
-                api.delete(`${environment.api.endpoints.users}/${user.id}`)
+                api.delete(`${environment.api.endpoints.users}/${user.userId}`)
                     .then(() => {
-                        setUsers(prev => prev.filter(u => u.id !== user.id));
+                        setUsers(prev => prev.filter(u => u.userId !== user.userId));
                         message.success('Đã xóa người dùng');
                     })
                     .catch(() => message.error('Xóa người dùng thất bại'));
@@ -94,7 +138,7 @@ const UserManagement = () => {
     const handleDepositSubmit = (values) => {
         setDepositVisible(false);
         // TODO: Gọi API nạp tiền
-        // api.post(environment.api.buildEndpoint('/wallets/deposit'), { userId: selectedUser.id, ...values })
+        // api.post(environment.api.buildEndpoint('/wallets/deposit'), { userId: selectedUser.userId, ...values })
         message.success(`Nạp ${values.amount.toLocaleString('vi-VN')} thành công (mock)`);
     };
     const handleEditSubmit = (values) => {
@@ -108,10 +152,10 @@ const UserManagement = () => {
                 .catch(() => message.error('Thêm người dùng thất bại'));
         } else {
             // TODO: Gọi API cập nhật user
-            api.put(`${environment.api.endpoints.users}/${selectedUser.id}`, values)
+            api.put(`${environment.api.endpoints.users}/${selectedUser.userId}`, values)
                 .then(res => {
                     setUsers(prev => prev.map(u =>
-                        u.id === selectedUser.id ? res.data : u
+                        u.userId === selectedUser.userId ? res.data : u
                     ));
                     message.success('Cập nhật thông tin thành công');
                 })
@@ -129,11 +173,11 @@ const UserManagement = () => {
 
     // Làm mới
     const handleRefresh = () => {
-        setSearch('');
-        // TODO: Gọi lại API lấy danh sách user
-        api.get(environment.api.endpoints.users)
-            .then(res => setUsers(res.data))
-            .catch(() => message.error('Không thể tải danh sách người dùng'));
+        setLoading(true);
+        fetchUserWalletList()
+            .then(setUsers)
+            .catch(() => message.error('Không thể tải danh sách người dùng'))
+            .finally(() => setLoading(false));
         message.success('Đã làm mới danh sách');
     };
 
@@ -171,7 +215,8 @@ const UserManagement = () => {
                 onDeposit={handleDeposit}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                users={filteredUsers}
+                users={users}
+                loading={loading}
             />
             <WalletModal
                 visible={walletVisible}

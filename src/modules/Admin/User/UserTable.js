@@ -1,25 +1,8 @@
-import React from 'react';
-import { Table, Button, Space, Tooltip, Popconfirm } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Space, Tooltip, Popconfirm, message } from 'antd';
 import { EyeOutlined, EditOutlined, DeleteOutlined, WalletOutlined } from '@ant-design/icons';
 
-const mockUsers = [
-    {
-        id: 1,
-        name: 'Nguyễn Văn A',
-        username: 'nguyenvana',
-        phone: '0912345678',
-        balance: 45400,
-    },
-    {
-        id: 2,
-        name: 'Trần Thị B',
-        username: 'tranthib',
-        phone: '0987654321',
-        balance: 120000,
-    },
-];
-
-const UserTable = ({ onViewWallet, onDeposit, onEdit, onDelete }) => {
+const UserTable = ({ users, loading, ...props }) => {
     const columns = [
         {
             title: 'TÊN KHÁCH HÀNG',
@@ -56,7 +39,7 @@ const UserTable = ({ onViewWallet, onDeposit, onEdit, onDelete }) => {
                         <Button
                             type="text"
                             icon={<EyeOutlined />}
-                            onClick={() => onViewWallet(record)}
+                            onClick={() => props.onViewWallet(record)}
                             className="action-btn view-btn"
                             size="small"
                         />
@@ -65,7 +48,7 @@ const UserTable = ({ onViewWallet, onDeposit, onEdit, onDelete }) => {
                         <Button
                             type="text"
                             icon={<WalletOutlined />}
-                            onClick={() => onDeposit(record)}
+                            onClick={() => props.onDeposit(record)}
                             className="action-btn deposit-btn"
                             size="small"
                         />
@@ -74,7 +57,7 @@ const UserTable = ({ onViewWallet, onDeposit, onEdit, onDelete }) => {
                         <Button
                             type="text"
                             icon={<EditOutlined />}
-                            onClick={() => onEdit(record)}
+                            onClick={() => props.onEdit(record)}
                             className="action-btn edit-btn"
                             size="small"
                         />
@@ -83,7 +66,7 @@ const UserTable = ({ onViewWallet, onDeposit, onEdit, onDelete }) => {
                         <Popconfirm
                             title="Xóa người dùng"
                             description={`Bạn có chắc chắn muốn xóa người dùng ${record.name}?`}
-                            onConfirm={() => onDelete(record)}
+                            onConfirm={() => props.onDelete(record)}
                             okText="Xóa"
                             cancelText="Hủy"
                             okButtonProps={{ danger: true }}
@@ -102,7 +85,7 @@ const UserTable = ({ onViewWallet, onDeposit, onEdit, onDelete }) => {
         },
     ];
 
-    return <Table rowKey="id" columns={columns} dataSource={mockUsers} pagination={false} />;
+    return <Table rowKey="userId" columns={columns} dataSource={users} loading={loading} pagination={false} />;
 };
 
 export default UserTable; 

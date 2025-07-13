@@ -73,13 +73,15 @@ const environment = {
                     categoriesByDate: this.getVersionedPath('/public/menus/categories/by-date'),
                     foodsByCategory: (categoryId) => this.getVersionedPath(`/public/menus/categories/${categoryId}/foods`)
                 },
-                
+
                 // wallet user endpoints
                 wallet: {
-                    getByUserId: (userId) => this.getVersionedPath(`/wallets/${userId}`),
-                    deposit: () => this.getVersionedPath('/wallets/deposit'),
-                    depositHistory: (userId) => this.getVersionedPath(`/wallets/${userId}/deposit-history`),
-                    purchaseHistory: (userId) => this.getVersionedPath(`/wallets/${userId}/purchase-history`),
+                    userList: () => this.getVersionedPath('/UserWallet/users'),
+                    userListByBranch: () => this.getVersionedPath('/UserWallet/users-by-branch'),
+                    getByUserId: (userId) => this.getVersionedPath(`/UserWallet/${userId}`),
+                    deposit: () => this.getVersionedPath('/UserWallet/deposit'),
+                    depositHistory: (userId) => this.getVersionedPath(`/UserWallet/${userId}/deposit-history`),
+                    purchaseHistory: (userId) => this.getVersionedPath(`/UserWallet/${userId}/purchase-history`),
                 },
             };
         },
