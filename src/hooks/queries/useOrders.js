@@ -48,7 +48,7 @@ export const useOrders = (branchId, filters = {}, searchText = '', options = {})
         } else if (Object.values(filters).some(val => val)) {
           response = await orderService.filterOrders({ ...filters, branchId: currentBranchId });
         } else {
-          response = await orderService.getOrders(currentBranchId);
+          response = await orderService.getOrdersByBranch(currentBranchId);
         }
         const orderData = response?.data?.data || response?.data || [];
         if (environment.features.enableLogging) {
@@ -156,37 +156,6 @@ export const useUpdateOrder = (options = {}) => {
       const errorMessage = error.response?.data?.message || 'Không thể cập nhật đơn hàng!';
       message.error(errorMessage);
       console.error('❌ Failed to update order:', error);
-    },
-    ...options,
-  });
-};
-
-export const useDeleteOrder = (options = {}) => {
-  const queryClient = useQueryClient();
-  const currentBranchId = normalizeBranchId();
-
-  return useMutation({
-    mutationFn: ({ orderId, branchId }) => {
-      const targetBranchId = normalizeBranchId(branchId);
-      if (environment.features.enableLogging) {
-        console.log(`🔍 Deleting order ${orderId} for branch: ${targetBranchId}`);
-      }
-      return orderService.deleteOrder(orderId, targetBranchId);
-    },
-    onSuccess: (response, variables) => {
-      message.success(response.message || 'Xóa đơn hàng thành công!');
-      const targetBranchId = normalizeBranchId(variables.branchId);
-      queryClient.removeQueries({ queryKey: ORDER_QUERY_KEYS.detail(variables.orderId, targetBranchId), exact: true });
-      queryClient.setQueryData(ORDER_QUERY_KEYS.list(targetBranchId), (oldData) => {
-        return oldData ? oldData.filter((order) => order.id !== variables.orderId) : [];
-      });
-      queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.list(targetBranchId), exact: true });
-      queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.lists(), exact: true });
-    },
-    onError: (error) => {
-      const errorMessage = error.response?.data?.message || 'Không thể xóa đơn hàng!';
-      message.error(errorMessage);
-      console.error('❌ Failed to delete order:', error);
     },
     ...options,
   });

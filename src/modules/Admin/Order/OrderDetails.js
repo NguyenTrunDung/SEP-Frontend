@@ -15,28 +15,89 @@ import {
 } from 'antd';
 import moment from 'moment';
 import './ViewOrderDetail.css';
+import { useUpdateOrder } from '../../../hooks/queries/useOrders';
 
 const { Option } = Select;
 
-const ViewOrderDetail = ({ open, onCancel, orderData = {}, orderDetails = [] }) => {
+const ViewOrderDetail = ({
+  open,
+  onCancel,
+  orderData = {},
+  orderDetails = [],
+  branchId,
+  onStatusChange,
+}) => {
   const [formData, setFormData] = useState({});
-  const [confirmed, setConfirmed] = useState(false);
+  const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
 
   useEffect(() => {
     if (orderData) {
       setFormData(orderData);
-      setConfirmed(orderData.status === 'confirmed');
     }
   }, [orderData]);
 
-  const handleConfirmOrder = () => {
-    setConfirmed(true);
-    message.success('Đơn hàng đã được xác nhận!');
+  const handleConfirmOrder = async () => {
+    try {
+      await updateOrder({
+        orderId: orderData.id,
+        orderData: { status: 'confirmed' }, // Changed to 'confirmed' for pending -> confirmed transition
+        branchId,
+      });
+      setFormData((prev) => ({ ...prev, status: 'confirmed' }));
+      message.success('Đơn hàng đã được xác nhận!');
+      onStatusChange?.();
+    } catch (error) {
+      console.error('Lỗi xác nhận đơn:', error);
+      message.error('Chuyển trạng thái đơn hàng thất bại!');
+    }
   };
 
-  const handleCancelOrder = () => {
-    setFormData({ ...formData, status: 'cancelled' });
-    message.success('Đã hủy đơn hàng!');
+  const handleDeliverOrder = async () => {
+    try {
+      await updateOrder({
+        orderId: orderData.id,
+        orderData: { status: 'delivered' },
+        branchId,
+      });
+      setFormData((prev) => ({ ...prev, status: 'delivered' }));
+      message.success('Đơn hàng đã được chuyển sang trạng thái Đang giao hàng!');
+      onStatusChange?.();
+    } catch (error) {
+      console.error('Lỗi giao hàng:', error);
+      message.error('Chuyển trạng thái đơn hàng thất bại!');
+    }
+  };
+
+  const handleCompleteOrder = async () => {
+    try {
+      await updateOrder({
+        orderId: orderData.id,
+        orderData: { status: 'completed' },
+        branchId,
+      });
+      setFormData((prev) => ({ ...prev, status: 'completed' }));
+      message.success('Đơn hàng đã được hoàn thành!');
+      onStatusChange?.();
+    } catch (error) {
+      console.error('Lỗi hoàn thành đơn:', error);
+      message.error('Chuyển trạng thái đơn hàng thất bại!');
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    try {
+      await updateOrder({
+        orderId: orderData.id,
+        orderData: { status: 'cancelled' },
+        branchId,
+      });
+      setFormData((prev) => ({ ...prev, status: 'cancelled' }));
+      message.success('Đã hủy đơn hàng!');
+      onStatusChange?.();
+    } catch (error) {
+      console.error('Lỗi hủy đơn:', error);
+      message.error('Hủy đơn hàng thất bại!');
+    }
   };
 
   const columns = [
@@ -63,18 +124,23 @@ const ViewOrderDetail = ({ open, onCancel, orderData = {}, orderDetails = [] }) 
         <Row justify="space-between" align="middle">
           <Col><h2 style={{ fontWeight: 600 }}>Xem chi tiết</h2></Col>
           <Col>
-            <Button danger onClick={onCancel} style={{
-              backgroundColor: '#ff4d4f',
-              color: '#fff',
-              border: 'none',
-              minWidth: 64,
-              height: 32,
-              fontSize: 14
-            }}>X</Button>
+            <Button
+              danger
+              onClick={onCancel}
+              style={{
+                backgroundColor: '#ff4d4f',
+                color: '#fff',
+                border: 'none',
+                minWidth: 64,
+                height: 32,
+                fontSize: 14,
+              }}
+            >
+              X
+            </Button>
           </Col>
         </Row>
 
-        {/* Thông tin khách hàng */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col span={6}>
             <label className="floating-label">Tên khách hàng</label>
@@ -104,34 +170,39 @@ const ViewOrderDetail = ({ open, onCancel, orderData = {}, orderDetails = [] }) 
           </Col>
         </Row>
 
-        {/* Địa chỉ & giao hàng */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col span={6}>
             <label className="floating-label">Hình thức giao</label>
-            <Select value={formData.deliveryMethod} disabled style={{ width: '100%' }}>
+            <Select value={formData.receiveType} disabled style={{ width: '100%' }}>
               <Option value="take">Tự đến lấy</Option>
               <Option value="delivery">Giao hàng</Option>
             </Select>
           </Col>
-          <Col span={6}><Input value={formData.address} disabled placeholder="Địa chỉ" /></Col>
-          <Col span={6}><Input value={formData.note} disabled placeholder="Ghi chú" /></Col>
+          <Col span={6}>
+            <Input value={formData.customerAddress} disabled placeholder="Địa chỉ" />
+          </Col>
+          <Col span={6}>
+            <Input value={formData.note} disabled placeholder="Ghi chú" />
+          </Col>
           <Col span={2}>
             <div style={{ display: 'flex', alignItems: 'center', height: '100%', marginTop: 1 }}>
               <Switch checked={formData.getTools} disabled style={{ marginRight: 8 }} />
-              <span style={{ color: '#6B7280', fontSize: 14, whiteSpace: 'nowrap' }}>Lấy dụng cụ</span>
+              <span style={{ color: '#6B7280', fontSize: 14, whiteSpace: 'nowrap' }}>
+                Lấy dụng cụ
+              </span>
             </div>
           </Col>
         </Row>
 
-        {/* Trạng thái */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col span={6}>
             <label className="floating-label">Trạng thái</label>
             <Select value={formData.status} disabled style={{ width: '100%' }}>
-              <Option value="pending">Chưa xử lý</Option>
+              <Option value="pending">Đang chờ</Option>
               <Option value="confirmed">Đã xác nhận</Option>
+              <Option value="delivered">Đang giao hàng</Option>
               <Option value="completed">Hoàn thành</Option>
-              <Option value="cancelled">Đã hủy</Option>
+              <Option value="cancelled">Hủy</Option>
             </Select>
           </Col>
           <Col span={6}>
@@ -142,58 +213,73 @@ const ViewOrderDetail = ({ open, onCancel, orderData = {}, orderDetails = [] }) 
             <label className="floating-label">Thành tiền</label>
             <Input value={formData.total} disabled />
           </Col>
-          <Col span={6}><Input value={formData.location} disabled placeholder="Vị trí" /></Col>
+          <Col span={6}>
+            <Input value={formData.location} disabled placeholder="Vị trí" />
+          </Col>
         </Row>
 
-        {/* Khu vực và các nút */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }} align="middle">
-          <Col span={6}><Input value={formData.area} disabled placeholder="Khu vực" /></Col>
+          <Col span={6}>
+            <Input value={formData.area} disabled placeholder="Khu vực" />
+          </Col>
 
-          {/* Nút xác nhận và hủy đơn chỉ hiển thị nếu chưa hoàn thành hoặc bị huỷ */}
-          {(formData.status !== 'completed' && formData.status !== 'cancelled') && (
-            <>
-              <Col span={3}>
-                {confirmed ? (
-                  <Button disabled style={{ width: '100%' }}>Đang giao hàng</Button>
-                ) : (
-                  <Button
-                    type="primary"
-                    style={{ width: '100%', backgroundColor: '#00B8A9', border: 'none' }}
-                    onClick={handleConfirmOrder}
-                  >
-                    Xác Nhận
-                  </Button>
-                )}
-              </Col>
+          <Col span={3}>
+            {formData.status === 'pending' ? (
+              <Button
+                type="primary"
+                style={{ width: '100%', backgroundColor: '#00B8A9', border: 'none' }}
+                onClick={handleConfirmOrder}
+                loading={isUpdating}
+              >
+                Xác Nhận
+              </Button>
+            ) : formData.status === 'confirmed' ? (
+              <Button
+                type="primary"
+                style={{ width: '100%', backgroundColor: '#0d8ce0', border: 'none' }}
+                onClick={handleDeliverOrder}
+                loading={isUpdating}
+              >
+                Đang giao hàng
+              </Button>
+            ) : formData.status === 'delivered' ? (
+              <Button
+                type="primary"
+                style={{ width: '100%', backgroundColor: '#52c41a', border: 'none' }}
+                onClick={handleCompleteOrder}
+                loading={isUpdating}
+              >
+                Hoàn thành
+              </Button>
+            ) : null}
+          </Col>
 
-              {!confirmed && (
-                <Col span={3}>
-                  <Popconfirm
-                    title="Bạn có chắc muốn hủy đơn hàng này?"
-                    onConfirm={handleCancelOrder}
-                    okText="Hủy đơn"
-                    cancelText="Thoát"
-                    okButtonProps={{ danger: true }}
-                  >
-                    <Button
-                      danger
-                      style={{
-                        backgroundColor: '#ff4d4f',
-                        color: '#fff',
-                        border: 'none',
-                        width: '100%',
-                      }}
-                    >
-                      Hủy Đơn
-                    </Button>
-                  </Popconfirm>
-                </Col>
-              )}
-            </>
+          {['pending', 'confirmed'].includes(formData.status) && (
+            <Col span={3}>
+              <Popconfirm
+                title="Bạn có chắc muốn hủy đơn hàng này?"
+                onConfirm={handleCancelOrder}
+                okText="Hủy đơn"
+                cancelText="Thoát"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  danger
+                  style={{
+                    backgroundColor: '#ff4d4f',
+                    color: '#fff',
+                    border: 'none',
+                    width: '100%',
+                  }}
+                  loading={isUpdating}
+                >
+                  Hủy Đơn
+                </Button>
+              </Popconfirm>
+            </Col>
           )}
         </Row>
 
-        {/* Bảng món ăn */}
         <Table
           style={{ marginTop: 32 }}
           columns={columns}

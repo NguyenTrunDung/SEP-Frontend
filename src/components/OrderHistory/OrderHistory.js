@@ -1,15 +1,19 @@
-// src/components/OrderHistory/OrderHistory.js
 import React, { useState, useEffect } from 'react';
-import { Modal, Typography, Spin, Alert, Table, message, Input, Button, Rate, Form, Input as AntInput } from 'antd';
+import { Modal, Typography, Spin, Alert, Button, Input, Table, message } from 'antd';
 import { EyeOutlined, CommentOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { orderService } from '../../services/orderService';
-import { ROLES } from '../../constants/roles';
-import { formatDateTime, formatAmount } from '../../mocks/orderHistoryData';
+import { formatAmount } from '../../mocks/orderHistoryData';
+import ReusableTableV2 from '../../components/common/ReusableTableV2';
+import FeedbackModal from '../Feedback/Feedback';
+import ViewFeedbackModal from '../Feedback/ViewFeedbackModal';
+import EditFeedbackModal from '../Feedback/EditFeedbackModal';
+
+
+import './OrderHistory.css';
 
 const { Text } = Typography;
 const { Search } = Input;
-const { TextArea } = AntInput;
 
 const OrderHistoryModal = ({ visible, onClose }) => {
   const { user } = useAuth();
@@ -21,29 +25,76 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
-  const [feedbackForm] = Form.useForm();
   const [filterId, setFilterId] = useState(null);
   const [filterStatus, setFilterStatus] = useState(null);
+  const [viewFeedbackVisible, setViewFeedbackVisible] = useState(false);
+  const [currentFeedbacks, setCurrentFeedbacks] = useState([]);
+  const [editFeedback, setEditFeedback] = useState(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+
+
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!visible || !user) return;
-
-      if (user.role !== ROLES.NURSE) {
-        message.error('Chỉ điều dưỡng mới có thể xem lịch sử đơn hàng.');
-        setError('Chỉ điều dưỡng mới có thể xem lịch sử đơn hàng.');
+      if (!visible || !user) {
+        console.log('Không có user hoặc modal không hiển thị');
         return;
       }
 
       setLoading(true);
       try {
-        const userOrders = await orderService.getOrders({ userId: user.id });
-        setOrders(userOrders);
-        setFilteredOrders(userOrders);
+        console.log('Fetching orders for userId:', user.id);
+        const userOrders = await orderService.filterOrders({ userId: user.id });
+        console.log('API Response (filterOrders):', JSON.stringify(userOrders, null, 2));
+
+        const detailedOrders = await Promise.all(
+          (userOrders.data || []).map(async (order) => {
+            if (order.userId === user.id || order.userId === String(user.id)) {
+              try {
+                const orderDetails = await orderService.getOrderDetails(order.id);
+                const items = Array.isArray(orderDetails.data) ? orderDetails.data : [];
+                console.log(`Order Details for order ${order.id}:`, JSON.stringify(items, null, 2));
+                return {
+                  ...order,
+                  orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
+                  items: items.map((item) => ({
+                    menuItemId: item.id || `item-${Math.random()}`,
+                    name: item.foodName || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
+                    price: item.price ?? 0,
+                    quantity: item.qty ?? 0,
+                    subtotal: item.total ?? (item.price ?? 0) * (item.qty ?? 0),
+                  })),
+                };
+              } catch (error) {
+                console.error(`Failed to fetch details for order ${order.id}:`, error);
+                return {
+                  ...order,
+                  orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
+                  items: [],
+                };
+              }
+            }
+            return order;
+          })
+        );
+
+        const normalizedOrders = detailedOrders.filter(
+          (order) => order.userId === user.id || order.userId === String(user.id)
+        );
+
+        if (normalizedOrders.length === 0) {
+          console.warn('No orders found for userId:', user.id);
+        } else {
+          console.log('Filtered orders for userId:', user.id, 'Count:', normalizedOrders.length);
+          console.log('Order details:', JSON.stringify(normalizedOrders.map((o) => ({ id: o.id, orderDate: o.orderDate, items: o.items })), null, 2));
+        }
+
+        setOrders(normalizedOrders);
+        setFilteredOrders(normalizedOrders);
         setError(null);
       } catch (err) {
         setError('Không thể tải lịch sử đơn hàng. Vui lòng thử lại.');
-        console.error('Error fetching orders:', err);
+        console.error('Error fetching orders:', err.response?.data || err.message);
       } finally {
         setLoading(false);
       }
@@ -57,15 +108,15 @@ const OrderHistoryModal = ({ visible, onClose }) => {
 
     if (search) {
       filtered = filtered.filter(order =>
-        order.id.toLowerCase().includes(search.toLowerCase()) ||
-        order.items.some(item =>
-          item.name.toLowerCase().includes(search.toLowerCase())
-        ) ||
-        (order.status === 'DELIVERED' ? 'Đã hoàn tất' : 'Đang giao hàng').toLowerCase().includes(search.toLowerCase())
+        String(order.id || '').toLowerCase().includes(search.toLowerCase()) ||
+        (Array.isArray(order.items) && order.items.some(item =>
+          (item.foodName || item.name || '').toLowerCase().includes(search.toLowerCase())
+        )) ||
+        (order.status === 'DELIVERED' ? 'Đã hoàn tất' : order.status === 'PENDING' ? 'Đang giao hàng' : order.status || '').toLowerCase().includes(search.toLowerCase())
       );
     } else {
       if (idFilter) {
-        filtered = filtered.filter(order => order.id.toLowerCase().includes(idFilter.toLowerCase()));
+        filtered = filtered.filter(order => String(order.id || '').toLowerCase().includes(idFilter.toLowerCase()));
       }
       if (statusFilter) {
         filtered = filtered.filter(order => order.status === statusFilter);
@@ -113,7 +164,14 @@ const OrderHistoryModal = ({ visible, onClose }) => {
 
   const handleFeedback = (order) => {
     setSelectedOrder(order);
-    setFeedbackModalVisible(true);
+    const hasFeedback = Array.isArray(order.feedbacks) && order.feedbacks.length > 0;
+
+    if (hasFeedback) {
+      setCurrentFeedbacks(order.feedbacks);
+      setViewFeedbackVisible(true);
+    } else {
+      setFeedbackModalVisible(true);
+    }
   };
 
   const handleCloseDetailModal = () => {
@@ -121,30 +179,95 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     setSelectedOrder(null);
   };
 
-  const handleCloseFeedbackModal = () => {
+  const handleFeedbackSubmit = (values) => {
+    const newFeedback = {
+      ...values,
+      user: {
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar || '/images/default-avatar.png',
+        customerName: selectedOrder.customerName || user.name || 'Ẩn danh', // ✅ Thêm dòng này
+      },
+      timestamp: new Date().toISOString(),
+      id: `${selectedOrder.id}-${Date.now()}`,
+    };
+
+
+    const updatedOrders = orders.map((order) => {
+      if (order.id === selectedOrder.id) {
+        const updatedFeedbacks = Array.isArray(order.feedbacks)
+          ? [...order.feedbacks, newFeedback]
+          : [newFeedback];
+
+        return {
+          ...order,
+          feedbacks: updatedFeedbacks,
+        };
+      }
+      return order;
+    });
+
+    setOrders(updatedOrders);
+    setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+    message.success('Gửi đánh giá thành công!');
     setFeedbackModalVisible(false);
     setSelectedOrder(null);
-    feedbackForm.resetFields();
+  };
+  const handleDeleteFeedback = (feedbackId) => {
+    const updatedOrders = orders.map((order) => {
+      if (order.id === selectedOrder.id) {
+        const updatedFeedbacks = order.feedbacks?.filter(fb => fb.id !== feedbackId) || [];
+        return { ...order, feedbacks: updatedFeedbacks };
+      }
+      return order;
+    });
+
+    setOrders(updatedOrders);
+    setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+    message.success('Xóa đánh giá thành công!');
+
+
+    setViewFeedbackVisible(false);
+    setSelectedOrder(null);
   };
 
-  const handleFeedbackSubmit = (values) => {
-    console.log('Feedback submitted for order:', selectedOrder.id, values);
-    message.success('Gửi đánh giá thành công!');
-    handleCloseFeedbackModal();
-  };
+
 
   const getSortedOrders = () => {
     return [...filteredOrders].sort((a, b) => {
       try {
-        const dateA = new Date(a.createdAt);
-        const dateB = new Date(b.createdAt);
-        return dateB.valueOf() - dateA.valueOf();
-      } catch (error) {
-        console.warn('Date sorting error:', error);
+        return new Date(b.orderDate) - new Date(a.orderDate);
+      } catch {
         return 0;
       }
     });
   };
+
+  const handleEditFeedback = (feedback) => {
+    setEditFeedback(feedback);
+    setEditModalVisible(true);
+    setViewFeedbackVisible(false);
+  };
+  const handleUpdateFeedback = (updatedFeedback) => {
+    const updatedOrders = orders.map((order) => {
+      if (order.id === selectedOrder.id) {
+        const updatedFeedbacks = order.feedbacks.map((fb) =>
+          fb.id === updatedFeedback.id ? updatedFeedback : fb
+        );
+        return { ...order, feedbacks: updatedFeedbacks };
+      }
+      return order;
+    });
+
+    setOrders(updatedOrders);
+    setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+    message.success('Cập nhật đánh giá thành công!');
+    setEditModalVisible(false);
+    setEditFeedback(null);
+    setSelectedOrder(null);
+  };
+
+
 
   const overviewColumns = [
     {
@@ -153,7 +276,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       key: 'id',
       filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
         <div style={{ padding: 8 }}>
-          <AntInput
+          <Input
             placeholder="Tìm mã đơn hàng"
             value={selectedKeys[0]}
             onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
@@ -173,7 +296,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           </Button>
         </div>
       ),
-      onFilter: (value, record) => record.id.toLowerCase().includes(value.toLowerCase()),
+      onFilter: (value, record) => String(record.id || '').toLowerCase().includes(value.toLowerCase()),
       filteredValue: filterId ? [filterId] : null,
     },
     {
@@ -182,53 +305,60 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       key: 'items',
       render: (items) => (
         <span>
-          {items.map((item) => item.name).join(', ')}
+          {Array.isArray(items) && items.length > 0
+            ? items.map((item) => item.foodName || item.name || 'Không xác định').join(', ')
+            : 'Không có món ăn'}
         </span>
       ),
     },
     {
       title: 'Thời gian đặt',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
+      dataIndex: 'orderDate',
+      key: 'orderDate',
       sorter: (a, b) => {
         try {
-          const dateA = new Date(a.createdAt);
-          const dateB = new Date(b.createdAt);
+          const dateA = new Date(a.orderDate);
+          const dateB = new Date(b.orderDate);
           return dateA.valueOf() - dateB.valueOf();
         } catch (error) {
           console.warn('Date sorting error:', error);
           return 0;
         }
       },
-      render: (createdAt) => formatDateTime(new Date(createdAt)),
+      render: (orderDate) =>
+        orderDate ? new Date(orderDate).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A',
     },
     {
       title: 'Tổng thanh toán',
       dataIndex: 'total',
       key: 'total',
-      render: (total) => formatAmount(total),
+      render: (total) => formatAmount(total || 0),
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <span className="vietnamese-text">
-          {status === 'DELIVERED' ? 'Đã hoàn tất' : status === 'PENDING' ? 'Đang giao hàng' : status}
-        </span>
+        {
+          pending: 'Đang chờ',
+          confirmed: 'Đã xác nhận',
+          delivered: 'Đang giao hàng',
+          completed: 'Hoàn thành',
+          cancelled: 'Hủy',
+        }[status?.toLowerCase()] || status || 'N/A'
       ),
       filters: [
-        { text: 'Đã hoàn tất', value: 'DELIVERED' },
-        { text: 'Đang giao hàng', value: 'PENDING' },
-        { text: 'Đang chuẩn bị', value: 'PREPARING' },
-        { text: 'Sẵn sàng', value: 'READY' },
-        { text: 'Đã hủy', value: 'CANCELLED' },
+        { text: 'Đang chờ', value: 'pending' },
+        { text: 'Đã xác nhận', value: 'confirmed' },
+        { text: 'Đang giao hàng', value: 'delivered' },
+        { text: 'Hoàn thành', value: 'completed' },
+        { text: 'Hủy', value: 'cancelled' },
       ],
-      onFilter: (value, record) => record.status === value,
+      onFilter: (value, record) => record.status?.toLowerCase() === value,
       filteredValue: filterStatus ? [filterStatus] : null,
     },
     {
-      title: 'Hành động',
+      title: '',
       key: 'action',
       render: (_, record) => (
         <div className="action-buttons">
@@ -247,7 +377,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
             className="action-btn"
             size="small"
             title="Đánh giá"
-            disabled={record.status !== 'DELIVERED'}
+            disabled={record.status !== 'completed'}
           />
         </div>
       ),
@@ -257,25 +387,31 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const detailColumns = [
     {
       title: 'Món ăn',
-      dataIndex: 'name',
-      key: 'name',
+      dataIndex: 'foodName',
+      key: 'foodName',
+      align: 'left',
+      render: (foodName, record) => foodName || record.name || 'Không xác định',
     },
     {
       title: 'Số lượng',
       dataIndex: 'quantity',
       key: 'quantity',
+      align: 'left',
+      render: (quantity, record) => record.qty ?? quantity ?? 0,
     },
     {
       title: 'Đơn giá',
       dataIndex: 'price',
       key: 'price',
-      render: (price) => formatAmount(price),
+      align: 'left',
+      render: (price) => formatAmount(price ?? 0),
     },
     {
       title: 'Thành tiền',
       dataIndex: 'subtotal',
       key: 'subtotal',
-      render: (subtotal) => formatAmount(subtotal),
+      align: 'left',
+      render: (subtotal, record) => formatAmount(record.total ?? subtotal ?? 0),
     },
   ];
 
@@ -286,7 +422,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         onCancel={onClose}
         footer={null}
         centered
-        width={800}
+        width={860}
         closeIcon={<span style={{ color: '#000', fontSize: '26px', fontWeight: 400 }}>×</span>}
         styles={{
           content: { padding: 0, borderRadius: 8 },
@@ -307,7 +443,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               alignItems: 'center',
             }}
           >
-            Đơn hàng đã đặt
+            Lịch sử đơn hàng
           </div>
           <div style={{ padding: '16px', background: '#fff' }}>
             <div className="reusable-table-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -341,23 +477,23 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               ) : filteredOrders.length === 0 ? (
                 <Text>{searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}</Text>
               ) : (
-                <Table
+                <ReusableTableV2
+                  dataSource={getSortedOrders().map(order => ({ ...order, key: order.id }))}
                   columns={overviewColumns}
-                  dataSource={getSortedOrders()}
+                  loading={loading}
+                  listHeader="LỊCH SỬ ĐƠN HÀNG"
+                  emptyMessage={searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}
                   pagination={{
-                    pageSize: 10,
+                    show: true,
+                    pageSizeOptions: [5, 10, 20],
+                    showTotal: true,
                     showSizeChanger: true,
-                    showQuickJumper: true,
+                    total: filteredOrders.length,
                     showTotal: (total, range) =>
                       `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} đơn hàng`,
                   }}
                   rowKey="id"
-                  size="small"
-                  bordered
-                  style={{ marginTop: '8px' }}
-                  headStyle={{ backgroundColor: '#f0f0f0', fontWeight: 500 }}
-                  onChange={handleTableChange}
-                  className="reusable-table"
+                  className="order-history-table"
                 />
               )}
             </div>
@@ -396,30 +532,47 @@ const OrderHistoryModal = ({ visible, onClose }) => {
             <div style={{ padding: '16px', background: '#fff' }}>
               <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
                 <Text style={{ fontWeight: 400 }}>Mã đơn hàng: </Text>
-                <Text style={{ fontWeight: 500 }}>{selectedOrder.id}</Text>
+                <Text style={{ fontWeight: 500 }}>{selectedOrder.id || 'Không xác định'}</Text>
+              </div>
+              <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
+                <Text style={{ fontWeight: 400 }}>Người đặt: </Text>
+                <Text style={{ fontWeight: 500 }}>{selectedOrder.customerName || 'Không xác định'}</Text>
+
               </div>
               <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
                 <Text style={{ fontWeight: 400 }}>Thời gian đặt: </Text>
                 <Text style={{ fontWeight: 500 }}>
-                  {formatDateTime(new Date(selectedOrder.createdAt))}
+                  {selectedOrder.orderDate
+                    ? new Date(selectedOrder.orderDate).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+                    : 'N/A'}
                 </Text>
               </div>
               <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
                 <Text style={{ fontWeight: 400 }}>Thời gian cập nhật: </Text>
                 <Text style={{ fontWeight: 500 }}>
-                  {formatDateTime(new Date(selectedOrder.updatedAt))}
+                  {selectedOrder.updatedAt
+                    ? new Date(selectedOrder.updatedAt).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+                    : 'N/A'}
                 </Text>
               </div>
               <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
                 <Text style={{ fontWeight: 400 }}>Tổng thanh toán: </Text>
                 <Text style={{ fontWeight: 700 }}>
-                  {formatAmount(selectedOrder.total)}
+                  {formatAmount(selectedOrder.total || 0)}
                 </Text>
               </div>
               <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
                 <Text style={{ fontWeight: 400 }}>Trạng thái đơn hàng: </Text>
                 <Text style={{ fontWeight: 500 }}>
-                  {selectedOrder.status === 'DELIVERED' ? 'Đã hoàn tất' : selectedOrder.status === 'PENDING' ? 'Đang giao hàng' : selectedOrder.status}
+                  {
+                    {
+                      pending: 'Đang chờ',
+                      confirmed: 'Đã xác nhận',
+                      delivered: 'Đang giao hàng',
+                      completed: 'Hoàn thành',
+                      cancelled: 'Hủy',
+                    }[selectedOrder.status?.toLowerCase()] || selectedOrder.status || 'Không xác định'
+                  }
                 </Text>
               </div>
               <Text style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '8px' }}>
@@ -427,7 +580,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               </Text>
               <Table
                 columns={detailColumns}
-                dataSource={selectedOrder.items}
+                dataSource={Array.isArray(selectedOrder.items) ? selectedOrder.items : []}
                 pagination={false}
                 rowKey="menuItemId"
                 size="small"
@@ -439,73 +592,40 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           </div>
         )}
       </Modal>
-      <Modal
-        open={feedbackModalVisible}
-        onCancel={handleCloseFeedbackModal}
-        footer={null}
-        centered
-        width={500}
-        closeIcon={<span style={{ color: '#000', fontSize: '26px', fontWeight: 400 }}>×</span>}
-        styles={{
-          content: { padding: 0, borderRadius: 8 },
-          body: { padding: 0 },
-          header: { display: 'none' },
+      <FeedbackModal
+        visible={feedbackModalVisible}
+        onClose={() => {
+          setFeedbackModalVisible(false);
+          setSelectedOrder(null);
         }}
-      >
-        {selectedOrder && (
-          <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
-            <div
-              style={{
-                backgroundColor: '#b4c80f',
-                color: '#000',
-                padding: '12px 20px',
-                fontSize: '18px',
-                fontWeight: 400,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              Đánh giá đơn hàng
-            </div>
-            <div style={{ padding: '16px', background: '#fff' }}>
-              <div style={{ display: 'block', fontSize: '13px', marginBottom: '8px' }}>
-                <Text style={{ fontWeight: 400 }}>Mã đơn hàng: </Text>
-                <Text style={{ fontWeight: 500 }}>{selectedOrder.id}</Text>
-              </div>
-              <Form
-                form={feedbackForm}
-                onFinish={handleFeedbackSubmit}
-                layout="vertical"
-              >
-                <Form.Item
-                  name="rating"
-                  label="Đánh giá chất lượng"
-                  rules={[{ required: true, message: 'Vui lòng chọn số sao đánh giá!' }]}
-                >
-                  <Rate />
-                </Form.Item>
-                <Form.Item
-                  name="comment"
-                  label="Nhận xét"
-                  rules={[{ required: true, message: 'Vui lòng nhập nhận xét!' }]}
-                >
-                  <TextArea rows={4} placeholder="Nhập nhận xét của bạn" />
-                </Form.Item>
-                <Form.Item>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f', color: '#000' }}
-                  >
-                    Gửi đánh giá
-                  </Button>
-                </Form.Item>
-              </Form>
-            </div>
-          </div>
-        )}
-      </Modal>
+        selectedOrder={selectedOrder}
+        onSubmit={handleFeedbackSubmit}
+      />
+
+      <ViewFeedbackModal
+        visible={viewFeedbackVisible}
+        onClose={() => {
+          setViewFeedbackVisible(false);
+          setSelectedOrder(null);
+        }}
+        selectedOrder={selectedOrder}
+        feedbacks={currentFeedbacks}
+        onDelete={handleDeleteFeedback}
+        onEdit={handleEditFeedback}
+      />
+      <EditFeedbackModal
+        visible={editModalVisible}
+        onClose={() => {
+          setEditModalVisible(false);
+          setEditFeedback(null);
+          setSelectedOrder(null);
+        }}
+        selectedOrder={selectedOrder}
+        feedback={editFeedback}
+        onUpdate={handleUpdateFeedback}
+      />
+
+
     </>
   );
 };

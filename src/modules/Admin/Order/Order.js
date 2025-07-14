@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { message, Button, Tooltip, Popconfirm } from 'antd';
-import { EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import { message, Button, Tooltip } from 'antd';
+import { EyeOutlined } from '@ant-design/icons';
 import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import ViewOrderDetail from './OrderDetails';
 import { useAntModal } from '../../../hooks/useAntModal';
-import {
-  useOrders,
-  useDeleteOrder,
-} from '../../../hooks/queries/useOrders';
+import { useOrders } from '../../../hooks/queries/useOrders';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
 import { environment } from '../../../services/api/config';
 import './Order.css';
@@ -27,7 +24,6 @@ const OrdersTableV2 = () => {
 
   const { open: viewOpen, showModal: showViewModal, handleCancel: handleViewCancel } = useAntModal();
   const { orders, isLoading, error, refetch } = useOrders(branchId, filters, searchText);
-  const deleteOrderMutation = useDeleteOrder();
   const { handleNonPermissionError } = useGlobalErrorHandler();
 
   useEffect(() => {
@@ -59,21 +55,6 @@ const OrdersTableV2 = () => {
       : ordersData;
   }, [ordersData, searchText, filters]);
 
-  const handleDelete = async (record) => {
-    if (String(record.branchId) !== String(branchId)) {
-      message.error('Không thể xóa đơn hàng từ chi nhánh khác!');
-      return;
-    }
-    try {
-      await deleteOrderMutation.mutateAsync({ orderId: record.id, branchId });
-      message.success('Xóa đơn hàng thành công');
-      refetch();
-    } catch (error) {
-      console.error('❌ Failed to delete order:', error);
-      message.error(error?.response?.data?.message || 'Lỗi khi xóa đơn hàng!');
-    }
-  };
-
   const handleViewDetail = (record) => {
     if (String(record.branchId) !== String(branchId)) {
       message.error('Không thể xem chi tiết đơn hàng từ chi nhánh khác!');
@@ -85,6 +66,10 @@ const OrdersTableV2 = () => {
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
+  };
+
+  const handleStatusChange = () => {
+    refetch(); // Refresh the order list after status change
   };
 
   const paginationConfig = {
@@ -101,8 +86,8 @@ const OrdersTableV2 = () => {
       <PageWrapperV2
         title="Đơn hàng"
         loading={isLoading}
-        showAddButton={false}            // ✅ Ẩn nút Thêm
-        showRefreshButton={false}        // ✅ Ẩn nút Làm mới
+        showAddButton={false}
+        showRefreshButton={false}
         searchProps={{
           value: searchText,
           onChange: (e) => setSearchText(e.target.value),
@@ -120,6 +105,7 @@ const OrdersTableV2 = () => {
               options: [
                 { value: 'pending', label: 'Đang chờ' },
                 { value: 'confirmed', label: 'Đã xác nhận' },
+                { value: 'delivered', label: 'Đang giao hàng' },
                 { value: 'completed', label: 'Hoàn thành' },
                 { value: 'cancelled', label: 'Hủy' },
               ],
@@ -166,6 +152,7 @@ const OrdersTableV2 = () => {
                 ({
                   pending: 'Đang chờ',
                   confirmed: 'Đã xác nhận',
+                  delivered: 'Đang giao hàng',
                   completed: 'Hoàn thành',
                   cancelled: 'Hủy',
                 }[status] || status || 'N/A'),
@@ -183,7 +170,7 @@ const OrdersTableV2 = () => {
             {
               title: null,
               key: 'actions',
-              width: 160,
+              width: 80,
               align: 'center',
               render: (_, record) => (
                 <div>
@@ -193,22 +180,6 @@ const OrdersTableV2 = () => {
                       icon={<EyeOutlined />}
                       onClick={() => handleViewDetail(record)}
                     />
-                  </Tooltip>
-                  <Tooltip title="Xóa">
-                    <Popconfirm
-                      title="Xóa đơn hàng"
-                      description={`Bạn có chắc chắn muốn xóa đơn hàng ${record.id}?`}
-                      onConfirm={() => handleDelete(record)}
-                      okText="Xóa"
-                      cancelText="Hủy"
-                      okButtonProps={{ danger: true }}
-                    >
-                      <Button
-                        type="text"
-                        icon={<DeleteOutlined />}
-                        danger
-                      />
-                    </Popconfirm>
                   </Tooltip>
                 </div>
               ),
@@ -228,6 +199,7 @@ const OrdersTableV2 = () => {
         onCancel={handleViewCancel}
         orderData={viewOrder}
         branchId={branchId}
+        onStatusChange={handleStatusChange} // Pass the refetch function
       />
     </div>
   );
