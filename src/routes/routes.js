@@ -39,6 +39,7 @@ import VnPayReturn from '../components/Payment/VnPayReturn.js';
 import AreasPage from '../modules/Admin/Area/AreasPage.js';
 import LocationsPage from '../modules/Admin/Locations/LocationPage.js';
 import DiseaseCategoriesTable from '../modules/Admin/DiseaseCategory/DiseaseCategoryPage.js';
+import FoodForPatientPage from '../modules/Admin/FoodForPatients/index.js';
 import VnPayIntegrationExample from '../components/examples/VnPayIntegrationExample.js';
 
 const roleHomeRedirects = {
@@ -267,6 +268,16 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
         <AdminLayout>
           <DiseaseCategoriesTable />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/food-for-patients',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <FoodForPatientPage />
         </AdminLayout>
       </ProtectedRoute>
     ),

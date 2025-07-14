@@ -9,7 +9,6 @@ export const orderService = {
     async getOrdersByBranch(branchId, options = {}) {
         try {
             const response = await api.get(`/api/v1/order/branch/${branchId}`, {
-                headers: branchId ? { 'X-Branch-Id': branchId } : {},
                 ...options
             });
             return response.data;
@@ -106,7 +105,6 @@ export const orderService = {
             console.log('Creating order with data:', orderDto);
 
             const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
-                headers: branchId ? { 'X-Branch-Id': branchId } : {},
                 ...options
             });
 
@@ -145,7 +143,6 @@ export const orderService = {
             };
 
             const response = await api.post('/api/v1/order/AddDishesforPatient', patientOrderDto, {
-                headers: branchId ? { 'X-Branch-Id': branchId } : {},
                 ...options
             });
 
@@ -181,7 +178,6 @@ export const orderService = {
     async getOrdersForChef(branchId, options = {}) {
         try {
             const response = await api.get(`/api/v1/order/chef/${branchId}`, {
-                headers: branchId ? { 'X-Branch-Id': branchId } : {},
                 ...options
             });
             return response.data;
@@ -230,7 +226,6 @@ export const orderService = {
             console.log('Creating VNPay order with data:', orderDto);
 
             const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
-                headers: branchId ? { 'X-Branch-Id': branchId } : {},
                 ...options
             });
 
