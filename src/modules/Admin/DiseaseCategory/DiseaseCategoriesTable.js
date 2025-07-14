@@ -18,8 +18,8 @@ const DiseaseCategoriesTable = ({ data, loading, onEdit, onDelete, onRefresh, on
     return !searchText
       ? data
       : data.filter((item) =>
-          item.diseaseCategoryName?.toLowerCase().includes(searchText.toLowerCase())
-        );
+        item.name?.toLowerCase().includes(searchText.toLowerCase())
+      );
   }, [data, searchText]);
 
   const paginatedData = useMemo(() => {
@@ -78,13 +78,13 @@ const DiseaseCategoriesTable = ({ data, loading, onEdit, onDelete, onRefresh, on
         <div className="disease-category-list">
           {paginatedData.map((item) => (
             <div className="disease-category-item" key={item.id}>
-              <span className="disease-category-name">{item.diseaseCategoryName}</span>
+              <span className="disease-category-name">{item.name}</span>
               <div className="actions">
                 <Tooltip title="Chỉnh sửa">
                   <Button type="text" icon={<EditOutlined />} onClick={() => onEdit(item)} />
                 </Tooltip>
                 <Popconfirm
-                  title={`Xoá ${item.diseaseCategoryName}?`}
+                  title={`Xoá ${item.name}?`}
                   onConfirm={() => onDelete(item)}
                 >
                   <Button type="text" icon={<DeleteOutlined />} danger />

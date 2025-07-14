@@ -36,23 +36,29 @@ const DiseaseCategoriesPage = () => {
     if (error) {
       handleNonPermissionError(error, 'Không thể tải danh sách danh mục bệnh.');
     }
-  }, [error]);
+  }, [error, handleNonPermissionError]);
 
   const handleCreateOrUpdate = async (formData) => {
     try {
-      const payload = { name: formData.name, branchId };
       if (formData.id) {
-        await updateCategory.mutateAsync({ categoryId: formData.id, categoryData: payload, branchId });
-        message.success('Cập nhật danh mục bệnh thành công');
+        // Update with just the name field
+        await updateCategory.mutateAsync({
+          id: formData.id,
+          name: formData.name,
+          branchId
+        });
         handleEditCancel();
       } else {
-        await createCategory.mutateAsync({ categoryData: payload, branchId });
-        message.success('Tạo danh mục bệnh thành công');
+        // Create with just the name field
+        await createCategory.mutateAsync({
+          name: formData.name,
+          branchId
+        });
         handleAddCancel();
       }
-      refetch();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Lỗi khi lưu danh mục bệnh!');
+      // Error handling is done in the mutation hooks
+      console.error('Error in handleCreateOrUpdate:', err);
     }
   };
 
@@ -69,11 +75,13 @@ const DiseaseCategoriesPage = () => {
       return message.error('Không thể xoá danh mục bệnh từ chi nhánh khác!');
     }
     try {
-      await deleteCategory.mutateAsync({ categoryId: record.id, branchId });
-      message.success('Xoá danh mục bệnh thành công');
-      refetch();
+      await deleteCategory.mutateAsync({
+        id: record.id,
+        branchId
+      });
     } catch (err) {
-      message.error(err.response?.data?.message || 'Lỗi khi xoá danh mục bệnh!');
+      // Error handling is done in the mutation hook
+      console.error('Error in handleDelete:', err);
     }
   };
 

@@ -20,28 +20,22 @@ const normalizeBranchId = (branchId) => {
 };
 
 export const orderService = {
-  /**
-   * Get orders by branch ID for admin/management interfaces
-   * GET /api/v1/order/branch/{branchId}
-   */
-  async getOrdersByBranch(branchId, options = {}) {
-    try {
-      const currentBranchId = normalizeBranchId(branchId);
-      if (environment.features.enableLogging) {
-        console.log('🔍 orderService.getOrders - requesting orders for branch:', currentBranchId);
-      }
-      const response = await api.get(`/api/v1/order/branch/${currentBranchId}`);
-      if (environment.features.enableLogging) {
-        console.log('✅ Raw API response:', JSON.stringify(response.data, null, 2));
-      }
-      return response.data;
-    } catch (error) {
-      if (environment.features.enableLogging) {
-        console.error('❌ Failed to fetch orders:', error.response?.data?.message || error.message);
-      }
-      throw error;
-    }
-  },
+    /**
+     * Get orders by branch ID for admin/management interfaces
+     * GET /api/v1/order/branch/{branchId}
+     */
+    async getOrdersByBranch(branchId, options = {}) {
+        try {
+            const response = await api.get(`/api/v1/order/branch/${branchId}`, {
+                headers: branchId ? { 'X-Branch-Id': branchId } : {},
+                ...options
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Failed to fetch orders by branch:', error);
+            throw error;
+        }
+    },
 
   /**
    * Search orders by keyword
@@ -129,10 +123,10 @@ export const orderService = {
 
       console.log('Creating order with data:', orderDto);
 
-      const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
-        headers: branchId ? { 'X-Branch-Id': branchId } : {},
-        ...options
-      });
+            const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
+                headers: branchId ? { 'X-Branch-Id': branchId } : {},
+                ...options
+            });
 
       console.log('Order created successfully:', response.data);
       return response.data;
@@ -168,10 +162,10 @@ export const orderService = {
         }))
       };
 
-      const response = await api.post('/api/v1/order/AddDishesforPatient', patientOrderDto, {
-        headers: branchId ? { 'X-Branch-Id': branchId } : {},
-        ...options
-      });
+            const response = await api.post('/api/v1/order/AddDishesforPatient', patientOrderDto, {
+                headers: branchId ? { 'X-Branch-Id': branchId } : {},
+                ...options
+            });
 
       return response.data;
     } catch (error) {
@@ -220,22 +214,22 @@ async updateOrder(orderId, orderData) {
     }
   },
 
-  /**
-   * Get orders for chef (kitchen view)
-   * GET /api/v1/order/chef/{branchId}
-   */
-  async getOrdersForChef(branchId, options = {}) {
-    try {
-      const response = await api.get(`/api/v1/order/chef/${branchId}`, {
-        headers: branchId ? { 'X-Branch-Id': branchId } : {},
-        ...options
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch chef orders:', error);
-      throw error;
-    }
-  },
+    /**
+     * Get orders for chef (kitchen view)
+     * GET /api/v1/order/chef/{branchId}
+     */
+    async getOrdersForChef(branchId, options = {}) {
+        try {
+            const response = await api.get(`/api/v1/order/chef/${branchId}`, {
+                headers: branchId ? { 'X-Branch-Id': branchId } : {},
+                ...options
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Failed to fetch chef orders:', error);
+            throw error;
+        }
+    },
 
   /**
    * Create order for VNPay payment (with pending payment status)
@@ -275,10 +269,10 @@ async updateOrder(orderId, orderData) {
 
       console.log('Creating VNPay order with data:', orderDto);
 
-      const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
-        headers: branchId ? { 'X-Branch-Id': branchId } : {},
-        ...options
-      });
+            const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
+                headers: branchId ? { 'X-Branch-Id': branchId } : {},
+                ...options
+            });
 
       console.log('VNPay order created successfully:', response.data);
       return response.data;

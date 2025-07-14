@@ -3,7 +3,7 @@ import { ConfigProvider, Button, Space, Input, Tooltip, Popconfirm, message, Mod
 import { EyeOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import ReusableTable from '../../../components/common/ReusableTable';
 import PropTypes from 'prop-types';
-import { getAllowedFoodsForPatient, addOrderForPatient } from '../../../mocks/patientData';
+import { useAllowedFoodsForPatient, useCreatePatientOrder } from '../../../hooks/queries/usePatientFoodQueries';
 import locale from 'antd/locale/vi_VN';
 
 const { Title, Text } = Typography;
@@ -35,7 +35,7 @@ const getVietnameseDays = () => {
   return days;
 };
 
-const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Remove default - let parent explicitly control loading state
+const PatientTable = ({ dataSource = [], loading, onView, nurseId, branchId }) => {
   const [searchText, setSearchText] = useState('');
   const [foodModalVisible, setFoodModalVisible] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -48,6 +48,36 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
   const [note, setNote] = useState('');
   const [activeDay, setActiveDay] = useState('2'); // Default to Tuesday (17/6/2025)
   const categoryRefs = useRef({});
+
+  // Use branch ID from parent component (inherited from Navbar selection)
+  const currentBranchId = branchId || localStorage.getItem('currentBranchId') || '1';
+
+  // Get the first disease category ID from the selected patient
+  const selectedDiseaseCategoryId = selectedPatient?.diseaseCategories?.length > 0
+    ? selectedPatient.diseaseCategories[0].diseaseCategoryId
+    : null;
+
+  // Debug logging
+  console.log('🔍 PatientTable - Selected Patient:', {
+    patientId: selectedPatient?.id,
+    patientName: selectedPatient?.fullName,
+    diseaseCategories: selectedPatient?.diseaseCategories,
+    selectedDiseaseCategoryId: selectedDiseaseCategoryId
+  });
+
+  // Patient food queries - only fetch when we have a selected patient
+  const {
+    data: allowedFoodsData,
+    isLoading: foodsLoading,
+    error: foodsError,
+    refetch: refetchAllowedFoods
+  } = useAllowedFoodsForPatient(
+    selectedPatient?.id || '',
+    selectedDiseaseCategoryId,
+    { enabled: !!selectedPatient?.id }
+  );
+
+  const createPatientOrderMutation = useCreatePatientOrder();
 
   const vietnameseDays = getVietnameseDays();
 
@@ -65,8 +95,8 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
     if (!searchText.trim()) return dataSource;
     const searchLower = searchText.trim().toLowerCase();
     return dataSource.filter(item =>
-      (item.FullName || '').toLowerCase().includes(searchLower) ||
-      (item.MedicalRecordNumber || '').toLowerCase().includes(searchLower)
+      (item.fullName || '').toLowerCase().includes(searchLower) ||
+      (item.medicalRecordNumber || '').toLowerCase().includes(searchLower)
     );
   }, [dataSource, searchText]);
 
@@ -96,19 +126,16 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
 
   const handleAddToMenu = async (record) => {
     setSelectedPatient(record);
-    try {
-      const foods = await getAllowedFoodsForPatient(record.Id, dayToMenuMap[activeDay]);
-      setAvailableFoods(foods);
-      setSelectedFoods([]);
-      setFoodModalVisible(true);
-    } catch (error) {
-      message.error('Lỗi khi tải danh sách món ăn');
-    }
+    setSelectedFoods([]);
+    setFoodModalVisible(true);
+
+    // The allowed foods will be fetched automatically by the hook
+    // when selectedPatient is set
   };
 
   const handleShowDetails = (food) => {
     setSelectedFood(food);
-    const existingOrder = patientOrders[selectedPatient?.Id]?.find(item => item.Id === food.Id);
+    const existingOrder = patientOrders[selectedPatient?.id]?.find(item => item.id === food.id);
     if (existingOrder) {
       setQuantity(existingOrder.quantity || 1);
       setNote(existingOrder.note || '');
@@ -121,7 +148,7 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
 
   const handleAddOrUpdateOrder = () => {
     if (!selectedFood) return;
-    const existingOrder = patientOrders[selectedPatient?.Id]?.find(item => item.Id === selectedFood.Id);
+    const existingOrder = patientOrders[selectedPatient?.id]?.find(item => item.id === selectedFood.id);
     const newFood = {
       ...selectedFood,
       quantity,
@@ -131,21 +158,21 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
     if (existingOrder) {
       setPatientOrders({
         ...patientOrders,
-        [selectedPatient.Id]: patientOrders[selectedPatient.Id].map(item =>
-          item.Id === selectedFood.Id ? newFood : item
+        [selectedPatient.id]: patientOrders[selectedPatient.id].map(item =>
+          item.id === selectedFood.id ? newFood : item
         ),
       });
-      message.success(`${selectedFood.Name} đã được cập nhật!`);
+      message.success(`${selectedFood.name} đã được cập nhật!`);
     } else {
       setPatientOrders({
         ...patientOrders,
-        [selectedPatient.Id]: [
-          ...(patientOrders[selectedPatient.Id] || []),
+        [selectedPatient.id]: [
+          ...(patientOrders[selectedPatient.id] || []),
           newFood,
         ],
       });
-      setSelectedFoods([...selectedFoods, selectedFood.Id]);
-      message.success(`${selectedFood.Name} đã được thêm!`);
+      setSelectedFoods([...selectedFoods, selectedFood.id]);
+      message.success(`${selectedFood.name} đã được thêm!`);
     }
     setDetailModalVisible(false);
   };
@@ -155,36 +182,100 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
       message.warning('Vui lòng chọn ít nhất một món ăn');
       return;
     }
+
     try {
-      const result = await addOrderForPatient(selectedPatient.Id, selectedFoods, nurseId, dayToMenuMap[activeDay]);
-      if (result.success) {
-        message.success(`Đã thêm món ăn cho bệnh nhân ${selectedPatient.FullName} vào ${dayToMenuMap[activeDay]}`);
-        setFoodModalVisible(false);
-      } else {
-        message.error('Lỗi khi thêm món ăn');
-      }
+      // Prepare order data from selected foods with their quantities and notes
+      const orderDetails = selectedFoods.map(foodId => {
+        const food = patientOrders[selectedPatient.id]?.find(item => item.id === foodId);
+        return {
+          foodId: foodId,
+          quantity: food?.quantity || 1,
+          notes: food?.note || ''
+        };
+      });
+
+      const orderData = {
+        patientId: selectedPatient.id,
+        patientName: selectedPatient.fullName,
+        menuType: dayToMenuMap[activeDay],
+        branchId: currentBranchId,
+        nurseId: nurseId,
+        orderDetails: orderDetails
+      };
+
+      await createPatientOrderMutation.mutateAsync(orderData);
+      message.success(`Đã thêm món ăn cho bệnh nhân ${selectedPatient.fullName} vào ${dayToMenuMap[activeDay]}`);
+      setFoodModalVisible(false);
+
+      // Clear the patient orders for this patient
+      setPatientOrders(prev => ({
+        ...prev,
+        [selectedPatient.id]: []
+      }));
     } catch (error) {
-      message.error('Lỗi khi thêm món ăn');
+      message.error(error.message || 'Lỗi khi thêm món ăn');
     }
   };
 
   const handleDayChange = async (value) => {
     setActiveDay(value);
+    // The allowed foods will be refetched automatically when the hook detects changes
     if (selectedPatient) {
-      try {
-        const foods = await getAllowedFoodsForPatient(selectedPatient.Id, dayToMenuMap[value]);
-        setAvailableFoods(foods);
-      } catch (error) {
-        message.error('Lỗi khi tải danh sách món ăn');
-      }
+      refetchAllowedFoods();
     }
   };
 
+  // Sync API data with local state
+  useEffect(() => {
+    if (allowedFoodsData) {
+      // Extract the foods array from the API response structure
+      const foodsArray = Array.isArray(allowedFoodsData?.data)
+        ? allowedFoodsData.data
+        : Array.isArray(allowedFoodsData)
+          ? allowedFoodsData
+          : [];
+
+      setAvailableFoods(foodsArray);
+
+      // Debug logging
+      console.log('🍽️ PatientTable - Allowed Foods Data:', {
+        rawResponse: allowedFoodsData,
+        extractedFoods: foodsArray,
+        foodCount: foodsArray.length
+      });
+    }
+  }, [allowedFoodsData]);
+
+  // Show loading state when fetching foods
+  useEffect(() => {
+    if (foodsLoading) {
+      message.loading('Đang tải danh sách món ăn...', 0);
+    } else {
+      message.destroy();
+    }
+  }, [foodsLoading]);
+
+  // Show error state when there's an error fetching foods
+  useEffect(() => {
+    if (foodsError) {
+      message.error('Lỗi khi tải danh sách món ăn: ' + (foodsError.message || 'Lỗi không xác định'));
+    }
+  }, [foodsError]);
+
   const groupedFoods = useMemo(() => {
-    const diseaseName = selectedPatient?.DiseaseCategoryNames || 'Phù hợp';
+    // Ensure availableFoods is an array before using reduce
+    if (!Array.isArray(availableFoods) || availableFoods.length === 0) {
+      return {};
+    }
+
+    // Extract disease category names from the diseaseCategories array
+    const diseaseNames = selectedPatient?.diseaseCategories?.length
+      ? selectedPatient.diseaseCategories.map(dc => dc.diseaseCategoryName).join(', ')
+      : 'Phù hợp';
+
     return availableFoods.reduce((acc, food) => {
-      if (!acc[diseaseName]) acc[diseaseName] = [];
-      acc[diseaseName].push(food);
+      if (!acc[diseaseNames]) acc[diseaseNames] = [];
+      acc[diseaseNames].push(food);
       return acc;
     }, {});
   }, [availableFoods, selectedPatient]);
@@ -198,44 +289,49 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
   const columns = [
     {
       title: 'MÃ HỒ SƠ',
-      dataIndex: 'MedicalRecordNumber',
-      key: 'MedicalRecordNumber',
-      sorter: (a, b) => a.MedicalRecordNumber.localeCompare(b.MedicalRecordNumber),
+      dataIndex: 'medicalRecordNumber',
+      key: 'medicalRecordNumber',
+      sorter: (a, b) => (a.medicalRecordNumber || '').localeCompare(b.medicalRecordNumber || ''),
       render: (text) => createElement('span', { className: 'vietnamese-text' }, text || '-'),
     },
     {
       title: 'HỌ TÊN',
-      dataIndex: 'FullName',
-      key: 'FullName',
-      sorter: (a, b) => a.FullName.localeCompare(b.FullName),
+      dataIndex: 'fullName',
+      key: 'fullName',
+      sorter: (a, b) => (a.fullName || '').localeCompare(b.fullName || ''),
       render: (text) => createElement('span', { className: 'vietnamese-text' }, text || '-'),
     },
     {
       title: 'GIỚI TÍNH',
-      dataIndex: 'Gender',
-      key: 'Gender',
+      dataIndex: 'gender',
+      key: 'gender',
       render: (text) => createElement('span', { className: 'vietnamese-text' }, text || '-'),
     },
     {
       title: 'PHÒNG',
-      dataIndex: 'RoomNumber',
-      key: 'RoomNumber',
-      sorter: (a, b) => a.RoomNumber - b.RoomNumber,
+      dataIndex: 'roomNumber',
+      key: 'roomNumber',
+      sorter: (a, b) => (a.roomNumber || '').localeCompare(b.roomNumber || ''),
       render: (text) => createElement('span', { className: 'vietnamese-text' }, text || '-'),
     },
     {
       title: 'GIƯỜNG',
-      dataIndex: 'BedNumber',
-      key: 'BedNumber',
-      sorter: (a, b) => a.BedNumber - b.BedNumber,
+      dataIndex: 'bedNumber',
+      key: 'bedNumber',
+      sorter: (a, b) => (a.bedNumber || '').localeCompare(b.bedNumber || ''),
       render: (text) => createElement('span', { className: 'vietnamese-text' }, text || '-'),
     },
     {
       title: 'NHÓM BỆNH',
-      dataIndex: 'DiseaseCategoryNames',
-      key: 'DiseaseCategoryNames',
-      sorter: (a, b) => (a.DiseaseCategoryNames || '').localeCompare(b.DiseaseCategoryNames || ''),
-      render: (text) => createElement('span', { className: 'vietnamese-text' }, text || 'Chưa xác định'),
+      dataIndex: 'diseaseCategories',
+      key: 'diseaseCategories',
+      render: (diseaseCategories) => {
+        if (!diseaseCategories || !Array.isArray(diseaseCategories) || diseaseCategories.length === 0) {
+          return createElement('span', { className: 'vietnamese-text' }, 'Chưa xác định');
+        }
+        const diseaseNames = diseaseCategories.map(dc => dc.diseaseCategoryName).join(', ');
+        return createElement('span', { className: 'vietnamese-text' }, diseaseNames);
+      },
     },
     {
       title: 'HÀNH ĐỘNG',
@@ -267,7 +363,7 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
               Popconfirm,
               {
                 title: 'Thêm món ăn',
-                description: `Thêm món ăn cho bệnh nhân ${record.FullName}?`,
+                description: `Thêm món ăn cho bệnh nhân ${record.fullName}?`,
                 onConfirm: () => handleAddToMenu(record),
                 okText: 'Thêm',
                 cancelText: 'Hủy',
@@ -332,10 +428,10 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
           columns,
           dataSource: filteredData,
           loading,
-          rowKey: 'Id',
+          rowKey: 'id',
           expandable: {
             expandedRowRender: (record) =>
-              patientOrders[record.Id]?.length ? (
+              patientOrders[record.id]?.length ? (
                 createElement('div', { style: { padding: '16px', background: '#fafafa', borderRadius: '8px' } }, [
                   createElement(Title, { level: 5, style: { marginBottom: '16px', color: '#333' } }, 'Danh sách món ăn đã thêm'),
                   createElement('div', {
@@ -345,9 +441,9 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
                       gap: '16px'
                     }
                   },
-                    patientOrders[record.Id].map(item => (
+                    patientOrders[record.id].map(item => (
                       createElement('div', {
-                        key: item.Id,
+                        key: item.id,
                         className: 'food-card',
                         style: {
                           border: '1px solid #e8e8e8',
@@ -382,12 +478,12 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
                           }
-                        }, item.Name),
+                        }, item.name),
                         createElement('div', { style: { marginBottom: '8px' } }, [
                           createElement(Text, {
                             strong: true,
                             style: { fontSize: '14px', color: '#b41400' }
-                          }, `${item.PriceForPatient.toLocaleString('vi-VN')}đ`),
+                          }, `${item.priceForPatient.toLocaleString('vi-VN')}đ`),
                         ]),
                         item.note && createElement(Text, {
                           style: {
@@ -406,10 +502,10 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
                           onClick: () => {
                             setPatientOrders({
                               ...patientOrders,
-                              [record.Id]: patientOrders[record.Id].filter(food => food.Id !== item.Id),
+                              [record.id]: patientOrders[record.id].filter(food => food.id !== item.id),
                             });
-                            setSelectedFoods(selectedFoods.filter(foodId => foodId !== item.Id));
-                            message.success(`Đã xóa ${item.Name} khỏi danh sách`);
+                            setSelectedFoods(selectedFoods.filter(foodId => foodId !== item.id));
+                            message.success(`Đã xóa ${item.name} khỏi danh sách`);
                           },
                         }, 'Xóa'),
                       ])
@@ -430,7 +526,7 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
           className: 'reusable-table',
         }),
         createElement(Modal, {
-          title: `Thêm món ăn cho ${selectedPatient?.FullName}`,
+          title: `Thêm món ăn cho ${selectedPatient?.fullName}`,
           open: foodModalVisible,
           onCancel: () => setFoodModalVisible(false),
           okText: 'Xác nhận',
@@ -484,9 +580,9 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
                     }
                   },
                     groupedFoods[category].map(food => {
-                      const isInOrder = patientOrders[selectedPatient?.Id]?.some(item => item.Id === food.Id);
+                      const isInOrder = patientOrders[selectedPatient?.id]?.some(item => item.id === food.id);
                       return createElement('div', {
-                        key: food.Id,
+                        key: food.id,
                         className: 'food-card',
                         style: {
                           border: '1px solid #e8e8e8',
@@ -500,8 +596,8 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
                         createElement(Image, {
                           width: '100%',
                           height: 140,
-                          src: food.Image || 'https://via.placeholder.com/200x140?text=No+Image',
-                          alt: food.Name,
+                          src: food.image || 'https://via.placeholder.com/200x140?text=No+Image',
+                          alt: food.name,
                           preview: false,
                           style: { objectFit: 'cover', borderRadius: '6px', marginBottom: '12px' }
                         }),
@@ -517,7 +613,7 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
                             fontSize: '14px',
                             fontWeight: '500',
                           }
-                        }, `x${patientOrders[selectedPatient?.Id]?.find(item => item.Id === food.Id)?.quantity || 1}`),
+                        }, `x${patientOrders[selectedPatient?.id]?.find(item => item.id === food.id)?.quantity || 1}`),
                         createElement(Title, {
                           level: 5,
                           style: {
@@ -528,12 +624,12 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
                           }
-                        }, food.Name),
+                        }, food.name),
                         createElement('div', { style: { marginBottom: '8px' } }, [
                           createElement(Text, {
                             strong: true,
                             style: { fontSize: '14px', color: '#b41400' }
-                          }, `${food.PriceForPatient.toLocaleString('vi-VN')}đ`),
+                          }, `${food.priceForPatient.toLocaleString('vi-VN')}đ`),
                         ]),
                         createElement(Button, {
                           style: {
@@ -582,22 +678,22 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
                 padding: '12px 16px',
                 fontSize: '18px',
               }
-            }, patientOrders[selectedPatient?.Id]?.some(item => item.Id === selectedFood?.Id) ? 'Cập nhật món ăn' : 'Thêm món ăn'),
-            selectedFood?.Image && createElement('img', {
-              src: selectedFood.Image || 'https://via.placeholder.com/600x250?text=No+Image',
-              alt: selectedFood.Name,
+            }, patientOrders[selectedPatient?.id]?.some(item => item.id === selectedFood?.id) ? 'Cập nhật món ăn' : 'Thêm món ăn'),
+            selectedFood?.image && createElement('img', {
+              src: selectedFood.image || 'https://via.placeholder.com/600x250?text=No+Image',
+              alt: selectedFood.name,
               style: { width: '100%', maxHeight: '250px', objectFit: 'cover', display: 'block' },
             }),
             createElement('div', { style: { padding: '12px 16px' } }, [
               createElement(Text, {
                 style: { display: 'block', fontSize: '16px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }
-              }, selectedFood?.Name || 'Không có tên'),
+              }, selectedFood?.name || 'Không có tên'),
               createElement(Text, {
                 style: { display: 'block', fontSize: '14px', color: '#555', marginBottom: '8px' }
-              }, selectedFood?.Description || 'Không có mô tả'),
+              }, selectedFood?.description || 'Không có mô tả'),
               createElement(Text, {
                 style: { display: 'block', fontSize: '16px', fontWeight: 'bold', color: '#b41400', marginBottom: '12px' }
-              }, `${selectedFood?.PriceForPatient.toLocaleString('vi-VN')}đ`),
+              }, `${selectedFood?.priceForPatient.toLocaleString('vi-VN')}đ`),
             ]),
             createElement('div', { style: { padding: '0 16px' } }, [
               createElement(Text, {
@@ -651,7 +747,7 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
                   borderRadius: '6px',
                 },
                 onClick: handleAddOrUpdateOrder,
-              }, patientOrders[selectedPatient?.Id]?.some(item => item.Id === selectedFood?.Id) ? 'Cập nhật món ăn' : 'Thêm món ăn'),
+              }, patientOrders[selectedPatient?.id]?.some(item => item.id === selectedFood?.id) ? 'Cập nhật món ăn' : 'Thêm món ăn'),
             ]),
           ]),
         ]),
@@ -663,19 +759,29 @@ const PatientTable = ({ dataSource = [], loading, onView, nurseId }) => { // Rem
 PatientTable.propTypes = {
   dataSource: PropTypes.arrayOf(
     PropTypes.shape({
-      Id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-      MedicalRecordNumber: PropTypes.string.isRequired,
-      FullName: PropTypes.string.isRequired,
-      Gender: PropTypes.string,
-      RoomNumber: PropTypes.number,
-      BedNumber: PropTypes.number,
-      DiseaseCategoryNames: PropTypes.string,
-      IsActive: PropTypes.bool,
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      medicalRecordNumber: PropTypes.string.isRequired,
+      fullName: PropTypes.string.isRequired,
+      gender: PropTypes.string,
+      roomNumber: PropTypes.string,
+      bedNumber: PropTypes.string,
+      diseaseCategories: PropTypes.arrayOf(
+        PropTypes.shape({
+          diseaseCategoryName: PropTypes.string,
+          diseaseCategoryCode: PropTypes.string,
+          patientSeverityLevel: PropTypes.number,
+        })
+      ),
+      isActive: PropTypes.bool,
+      age: PropTypes.number,
+      isCurrentlyAdmitted: PropTypes.bool,
+      displayLocation: PropTypes.string,
     })
   ),
   loading: PropTypes.bool,
   onView: PropTypes.func,
   nurseId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
 };
 
 export default PatientTable;

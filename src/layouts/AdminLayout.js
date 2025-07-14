@@ -67,20 +67,21 @@ const AdminLayout = ({ children }) => {
       "/admin/settings": ["settings"],
       "/food-categories": ["food-categories"],
       "/foods": ["foods"],
+      "/food-for-patients": ["food-for-patients"],
       "/areas": ["areas"],
       "/locations": ["locations"],
       "/disease-categories": ["disease-categories"],
     };
 
-    return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER]) 
-      ? ["dashboard"] 
-      : hasRequiredRole([ROLES.CASHIER]) 
-      ? ["cashier"] 
-      : hasRequiredRole([ROLES.KITCHEN]) 
-      ? ["kitchen"] 
-      : hasRequiredRole([ROLES.STAFF, ROLES.NURSE]) 
-      ? ["orders"] 
-      : []);
+    return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])
+      ? ["dashboard"]
+      : hasRequiredRole([ROLES.CASHIER])
+        ? ["cashier"]
+        : hasRequiredRole([ROLES.KITCHEN])
+          ? ["kitchen"]
+          : hasRequiredRole([ROLES.STAFF, ROLES.NURSE])
+            ? ["orders"]
+            : []);
   }, [location.pathname, user]);
 
   const siderStyle = {
@@ -172,6 +173,11 @@ const AdminLayout = ({ children }) => {
                   key: "foods",
                   icon: <ShopOutlined style={{ fontSize: "18px" }} />,
                   label: <Link to="/foods">Món ăn</Link>,
+                },
+                {
+                  key: "food-for-patients",
+                  icon: <ShopOutlined style={{ fontSize: "18px" }} />,
+                  label: <Link to="/food-for-patients">Món ăn cho bệnh nhân</Link>,
                 },
               ],
             },
