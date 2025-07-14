@@ -389,7 +389,7 @@ const PaymentModal = ({
                   <div style={{ fontWeight: '500', marginBottom: '4px' }}>{item.dishName}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
                     <div style={{ color: '#000' }}>
-                      {(item.price).toLocaleString('vi-VN')}đ
+                      {typeof item.price === 'number' ? item.price.toLocaleString('vi-VN') + 'đ' : '0đ'}
                     </div>
                     <div style={{ color: '#888' }}>
                       x{item.quantity}
@@ -402,7 +402,9 @@ const PaymentModal = ({
                   )}
                 </div>
                 <div style={{ fontWeight: '500', color: '#ff0000' }}>
-                  {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                  {(typeof item.price === 'number' && typeof item.quantity === 'number')
+                    ? (item.price * item.quantity).toLocaleString('vi-VN') + 'đ'
+                    : '0đ'}
                 </div>
               </div>
             ))}
