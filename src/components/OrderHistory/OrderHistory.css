@@ -1,0 +1,9 @@
+/* OrderHistory.css */
+.order-history-table .ant-table {
+  text-align: left;
+}
+
+.order-history-table .ant-table-thead > tr > th,
+.order-history-table .ant-table-tbody > tr > td {
+  text-align: left !important;
+}
