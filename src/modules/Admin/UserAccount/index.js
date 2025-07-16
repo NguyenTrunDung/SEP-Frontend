@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Table, Button, Space, Tooltip, Switch, message, Popconfirm, Input, Select } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import UserAccountModal from './UserAccountModal';
+import { fetchUserAccountsByBranch, updateUserAccountStatus } from '../../../services/userAccountService';
 
 // Mock nhóm người dùng
 const mockGroups = [
@@ -13,26 +14,48 @@ const mockGroups = [
     { id: 6, name: 'Nhân viên giao hàng' },
 ];
 
-// Mock user data
-const initialUsers = [
-    { id: 1, username: 'admin', name: 'Nguyễn Văn A', groupId: 1, dob: '1990-01-01', email: 'admin@example.com', phone: '0912345678', address: 'Hà Nội', status: true },
-    { id: 2, username: 'staff1', name: 'Trần Thị B', groupId: 2, dob: '1995-05-10', email: 'staff1@example.com', phone: '0987654321', address: 'HCM', status: false },
-];
 
 const UserAccount = () => {
-    const [users, setUsers] = useState(initialUsers);
+    const [users, setUsers] = useState([]);
     const [search, setSearch] = useState('');
     const [groupFilter, setGroupFilter] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [isEdit, setIsEdit] = useState(false);
 
+    // Fetch user accounts by branch on mount
+    React.useEffect(() => {
+        const branchId = localStorage.getItem('currentBranchId') || '1';
+        fetchUserAccountsByBranch(branchId)
+            .then(data => {
+                let arr = Array.isArray(data) ? data : (data ? [data] : []);
+                // Map API data to table fields
+                const mapped = arr.map(u => ({
+                    id: u.userId,
+                    username: u.branchRoleName,
+                    name: u.fullName,
+                    email: u.email,
+                    branchId: u.branchId,
+                    groupId: u.branchRoleId,
+                    groupName: u.branchRoleName,
+                    status: u.isActive
+                }));
+                setUsers(mapped);
+                message.success('Lấy danh sách tài khoản thành công!');
+            })
+            .catch(err => {
+                message.error('Không thể lấy danh sách tài khoản!');
+            });
+    }, []);
+
     // Filter users theo search và group
     const filteredUsers = users.filter(u => {
-        const s = search.toLowerCase();
+        const s = (search || '').toLowerCase();
         const groupOk = groupFilter ? u.groupId === groupFilter : true;
         return (
-            (u.name.toLowerCase().includes(s) || u.username.toLowerCase().includes(s) || u.email.toLowerCase().includes(s)) && groupOk
+            ((u.name && u.name.toLowerCase().includes(s)) ||
+                (u.username && u.username.toLowerCase().includes(s)) ||
+                (u.email && u.email.toLowerCase().includes(s))) && groupOk
         );
     });
 
@@ -73,25 +96,45 @@ const UserAccount = () => {
 
     // Làm mới
     const handleRefresh = () => {
-        // TODO: Gọi API lấy lại danh sách user
-        setUsers(initialUsers);
-        setSearch('');
-        setGroupFilter(null);
-        message.success('Đã làm mới danh sách');
+        const branchId = localStorage.getItem('currentBranchId') || '1';
+        fetchUserAccountsByBranch(branchId)
+            .then(data => {
+                let arr = Array.isArray(data) ? data : (data ? [data] : []);
+                const mapped = arr.map(u => ({
+                    id: u.userId,
+                    username: u.branchRoleName, // or u.userName if available
+                    name: u.fullName,
+                    email: u.email,
+                    branchId: u.branchId,
+                    groupId: u.branchRoleId,
+                    groupName: u.branchRoleName,
+                    status: u.isActive
+                }));
+                setUsers(mapped);
+                setSearch('');
+                setGroupFilter(null);
+                message.success('Đã làm mới danh sách');
+            })
+            .catch(err => {
+                message.error('Không thể làm mới danh sách tài khoản!');
+            });
     };
 
     // Đổi trạng thái
-    const handleStatusChange = (checked, user) => {
-        // TODO: Gọi API cập nhật trạng thái user
-        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: checked } : u));
-        message.success('Đã cập nhật trạng thái (mock)');
+    const handleStatusChange = async (checked, user) => {
+        try {
+            await updateUserAccountStatus(user, checked);
+            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: checked } : u));
+            message.success('Đã cập nhật trạng thái!');
+        } catch (err) {
+            message.error('Cập nhật trạng thái thất bại!');
+        }
     };
 
     const columns = [
-        { title: 'Tài khoản', dataIndex: 'username', key: 'username', sorter: (a, b) => a.username.localeCompare(b.username) },
-        { title: 'Tên người dùng', dataIndex: 'name', key: 'name', sorter: (a, b) => a.name.localeCompare(b.name) },
-        { title: 'Ngày sinh', dataIndex: 'dob', key: 'dob', sorter: (a, b) => (a.dob || '').localeCompare(b.dob || '') },
-        { title: 'Email', dataIndex: 'email', key: 'email', sorter: (a, b) => a.email.localeCompare(b.email) },
+        { title: 'Tài khoản', dataIndex: 'username', key: 'username', sorter: (a, b) => (a.username || '').localeCompare(b.username || '') },
+        { title: 'Tên người dùng', dataIndex: 'name', key: 'name', sorter: (a, b) => (a.name || '').localeCompare(b.name || '') },
+        { title: 'Email', dataIndex: 'email', key: 'email', sorter: (a, b) => (a.email || '').localeCompare(b.email || '') },
         {
             title: 'Trạng thái',
             dataIndex: 'status',

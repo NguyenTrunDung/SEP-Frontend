@@ -83,6 +83,24 @@ const environment = {
                     depositHistory: (userId) => this.getVersionedPath(`/UserWallet/${userId}/deposit-history`),
                     purchaseHistory: (userId) => this.getVersionedPath(`/UserWallet/${userId}/purchase-history`),
                 },
+
+                // Group user
+                groupUsers: {
+                    getByBranch: (branchId) => this.getVersionedPath(`/BranchRoleManagement/branch/${branchId}`),
+                    getById: (id) => this.getVersionedPath(`/BranchRoleManagement/${id}`),
+                    update: (id) => this.getVersionedPath(`/BranchRoleManagement/${id}`),
+                    delete: (id) => this.getVersionedPath(`/BranchRoleManagement/${id}`),
+                    create: () => this.getVersionedPath('/BranchRoleManagement'),
+                },
+
+                // User account
+                userAccounts: {
+                    getByBranch: (branchId) => this.getVersionedPath(`/BranchUserManagement/users?branchId=${branchId}`),
+                    getById: (id) => this.getVersionedPath(`/BranchUserManagement/${id}`),
+                    update: (id) => this.getVersionedPath(`/BranchUserManagement/update`),
+                    delete: (id) => this.getVersionedPath(`/BranchUserManagement/${id}`),
+                    create: () => this.getVersionedPath('/BranchUserManagement'),
+                },
             };
         },
 
