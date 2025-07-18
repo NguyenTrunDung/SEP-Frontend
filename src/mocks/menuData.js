@@ -2,7 +2,7 @@
 import { delay } from '../mocks/authData';
 
 export const mockMenus = [
-  { ID: 1, BranchId: 1, Date: '2025-06-11', dishName: 'Bánh mì', price: 20000, category: 'Ăn sáng', image: 'https://via.placeholder.com/200x140', description: 'Bánh mì đặc biệt' },
+  { ID: 1, BranchId: 1, Date: '2025-06-17', dishName: 'Bánh mì', price: 20000, category: 'Ăn sáng', image: 'https://via.placeholder.com/200x140', description: 'Bánh mì đặc biệt' },
   // Thêm các mục khác nếu cần
 ];
 
