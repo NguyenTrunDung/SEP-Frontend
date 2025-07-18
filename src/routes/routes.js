@@ -182,6 +182,16 @@ const routes = [
     ),
   },
   {
+    path: '/feedbacks',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF]}>
+        <AdminLayout>
+          <Feedbacks />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/branches',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
