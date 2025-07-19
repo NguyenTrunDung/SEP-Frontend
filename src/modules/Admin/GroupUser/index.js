@@ -169,6 +169,9 @@ const GroupUser = () => {
     const [editingGroup, setEditingGroup] = useState(null);
     const [checkedKeys, setCheckedKeys] = useState([]);
     const [isEdit, setIsEdit] = useState(false);
+    // Thêm state cho phân trang
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     // Fetch group users by branch on mount
     React.useEffect(() => {
@@ -185,6 +188,8 @@ const GroupUser = () => {
     }, []);
 
     const filteredGroups = groups.filter(g => g.name && g.name.toLowerCase().includes(search.toLowerCase()));
+    // Tính toán dataSource cho trang hiện tại
+    const pagedGroups = filteredGroups.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     const openModal = (group) => {
         setEditingGroup(group);
@@ -291,7 +296,23 @@ const GroupUser = () => {
                     </Button>
                 </Space>
             </div>
-            <Table rowKey="id" columns={columns} dataSource={filteredGroups} pagination={false} />
+            <Table
+                rowKey="id"
+                columns={columns}
+                dataSource={pagedGroups}
+                pagination={{
+                    total: filteredGroups.length,
+                    current: currentPage,
+                    pageSize,
+                    showSizeChanger: true,
+                    pageSizeOptions: ['5', '10', '20', '50'],
+                    onChange: (page, size) => {
+                        setCurrentPage(page);
+                        setPageSize(size);
+                    },
+                    showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} nhóm`,
+                }}
+            />
             <GroupUserModal
                 visible={modalVisible}
                 onCancel={closeModal}

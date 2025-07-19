@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Form, Input, Tree } from 'antd';
+import { Modal, Form, Input, Button, Tree } from 'antd';
 
 const GroupUserModal = ({
     visible,
@@ -19,24 +19,22 @@ const GroupUserModal = ({
         } else {
             form.resetFields();
         }
-    }, [visible, initialValues, form]);
+    }, [visible, form]);
 
-    const handleOk = () => {
-        form.validateFields().then(values => {
-            onOk({ ...values, permissions: checkedKeys });
-        });
+    // Sử dụng onFinish để submit form giống các modal khác
+    const handleFinish = (values) => {
+        onOk({ ...values, permissions: checkedKeys });
     };
 
     return (
         <Modal
             open={visible}
             onCancel={onCancel}
-            onOk={handleOk}
+            // Không dùng onOk, dùng submit button của form
+            footer={null}
             title={isEdit ? 'Sửa nhóm người dùng' : 'Thêm nhóm người dùng'}
-            okText="Lưu"
-            cancelText="Hủy"
         >
-            <Form form={form} layout="vertical">
+            <Form form={form} layout="vertical" onFinish={handleFinish}>
                 <Form.Item label="Tên nhóm người dùng" name="name" rules={[{ required: true, message: 'Nhập tên nhóm!' }]}>
                     <Input />
                 </Form.Item>
@@ -46,8 +44,16 @@ const GroupUserModal = ({
                     treeData={menuTree}
                     checkedKeys={checkedKeys}
                     onCheck={onCheckedKeysChange}
-                    style={{ background: '#f9f9f9', padding: 12, borderRadius: 8 }}
+                    style={{ background: '#f9f9f9', padding: 12, borderRadius: 8, height: 300, overflowY: 'auto' }}
                 />
+                <Form.Item style={{ marginTop: 24, textAlign: 'right' }}>
+                    <Button type="primary" htmlType="submit">
+                        {isEdit ? 'Lưu' : 'Tạo nhóm'}
+                    </Button>
+                    <Button style={{ marginLeft: 8 }} onClick={onCancel}>
+                        Hủy
+                    </Button>
+                </Form.Item>
             </Form>
         </Modal>
     );

@@ -2,31 +2,31 @@ import React, { useState, useEffect } from 'react';
 import UserTable from './UserTable';
 import WalletModal from './WalletModal';
 import DepositModal from './DepositModal';
-import EditUserModal from './EditUserModal';
+import UserModal from './UserModal';
 import { Modal, message, Input, Button, Space, Tooltip } from 'antd';
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import api from '../../../services/api/config';
 import environment from '../../../config/environment';
-import { fetchUserWalletList } from '../../../services/userWalletService';
+import { fetchUserWalletList, depositToWallet, createUser, updateWallet, deleteUserWallet } from '../../../services/userWalletService';
 
-const initialUsers = [
-    {
-        userId: 1, // Đổi từ id sang userId cho đồng bộ
-        name: 'Nguyễn Văn A',
-        username: 'nguyenvana',
-        phone: '0912345678',
-        balance: 45400,
-        email: 'vana@example.com',
-    },
-    {
-        userId: 2,
-        name: 'Trần Thị B',
-        username: 'tranthib',
-        phone: '0987654321',
-        balance: 120000,
-        email: 'thib@example.com',
-    },
-];
+// const initialUsers = [
+//     {
+//         userId: 1,
+//         name: 'Nguyễn Văn A',
+//         username: 'nguyenvana',
+//         phone: '0912345678',
+//         balance: 45400,
+//         email: 'vana@example.com',
+//     },
+//     {
+//         userId: 2,
+//         name: 'Trần Thị B',
+//         username: 'tranthib',
+//         phone: '0987654321',
+//         balance: 120000,
+//         email: 'thib@example.com',
+//     },
+// ];
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -36,8 +36,14 @@ const UserManagement = () => {
     const [walletVisible, setWalletVisible] = useState(false);
     const [depositVisible, setDepositVisible] = useState(false);
     const [editVisible, setEditVisible] = useState(false);
-    const [isCreate, setIsCreate] = useState(false);
     const [branchId, setBranchId] = useState(localStorage.getItem('currentBranchId'));
+    const [createVisible, setCreateVisible] = useState(false);
+    // State cho modal user chung
+    const [userModalVisible, setUserModalVisible] = useState(false);
+    const [userModalMode, setUserModalMode] = useState('create'); // 'create' | 'edit'
+    const [editingUser, setEditingUser] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     // Hàm load lại danh sách user wallet
     const loadUserWalletList = () => {
@@ -90,14 +96,32 @@ const UserManagement = () => {
     };
 
     const filteredUsers = users.filter(u => {
-        const s = search.toLowerCase();
+        const s = search.trim().toLowerCase();
+        // Gộp họ và tên, loại bỏ null/undefined
+        const firstName = (u.firstName || '').toLowerCase();
+        const lastName = (u.lastName || '').toLowerCase();
+        const fullName = (firstName + ' ' + lastName).trim();
+        const name = (u.name || '').toLowerCase();
+        const username = (u.username || '').toLowerCase();
+        const email = (u.email || '').toLowerCase();
+        const phone = (u.phone || u.phoneNumber || '').toLowerCase();
+        const customerCode = (u.customerCode || '').toLowerCase();
+        // Có thể thêm các trường khác nếu cần
         return (
-            u.name.toLowerCase().includes(s) ||
-            u.username.toLowerCase().includes(s) ||
-            u.phone.includes(s)
+            name.includes(s) ||
+            fullName.includes(s) ||
+            firstName.includes(s) ||
+            lastName.includes(s) ||
+            username.includes(s) ||
+            email.includes(s) ||
+            phone.includes(s) ||
+            customerCode.includes(s)
         );
     });
     // TODO: Nếu muốn search bằng API, gọi api.get(`${environment.api.endpoints.users}?search=${search}`)
+
+    // Tính toán dataSource cho trang hiện tại
+    const pagedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     // Xử lý action
     const handleViewWallet = (user) => {
@@ -111,64 +135,56 @@ const UserManagement = () => {
         setDepositVisible(true);
     };
     const handleEdit = (user) => {
-        setSelectedUser(user);
-        setIsCreate(false);
-        setEditVisible(true);
+        setEditingUser(user);
+        setUserModalMode('edit');
+        setUserModalVisible(true);
     };
     const handleDelete = (user) => {
-        Modal.confirm({
-            title: 'Xác nhận xóa',
-            content: `Bạn có chắc muốn xóa người dùng "${user.name}"?`,
-            okText: 'Xóa',
-            okType: 'danger',
-            cancelText: 'Hủy',
-            onOk: () => {
-                // TODO: Gọi API xóa user
-                api.delete(`${environment.api.endpoints.users}/${user.userId}`)
-                    .then(() => {
-                        setUsers(prev => prev.filter(u => u.userId !== user.userId));
-                        message.success('Đã xóa người dùng');
-                    })
-                    .catch(() => message.error('Xóa người dùng thất bại'));
-            },
-        });
+        const branchId = localStorage.getItem('currentBranchId');
+        deleteUserWallet(user.userId, branchId)
+            .then(() => {
+                setUsers(prev => prev.filter(u => u.userId !== user.userId));
+                message.success('Đã xóa người dùng');
+            })
+            .catch(() => message.error('Xóa người dùng thất bại'));
     };
 
     // Xử lý submit form
-    const handleDepositSubmit = (values) => {
+    const handleDepositSubmit = async (values) => {
         setDepositVisible(false);
-        // TODO: Gọi API nạp tiền
-        // api.post(environment.api.buildEndpoint('/wallets/deposit'), { userId: selectedUser.userId, ...values })
-        message.success(`Nạp ${values.amount.toLocaleString('vi-VN')} thành công (mock)`);
-    };
-    const handleEditSubmit = (values) => {
-        if (isCreate) {
-            // TODO: Gọi API tạo user
-            api.post(environment.api.endpoints.users, values)
-                .then(res => {
-                    setUsers(prev => [...prev, res.data]);
-                    message.success('Thêm người dùng thành công');
-                })
-                .catch(() => message.error('Thêm người dùng thất bại'));
-        } else {
-            // TODO: Gọi API cập nhật user
-            api.put(`${environment.api.endpoints.users}/${selectedUser.userId}`, values)
-                .then(res => {
-                    setUsers(prev => prev.map(u =>
-                        u.userId === selectedUser.userId ? res.data : u
-                    ));
-                    message.success('Cập nhật thông tin thành công');
-                })
-                .catch(() => message.error('Cập nhật thông tin thất bại'));
+        try {
+            console.log('Dữ liệu nhận từ form nạp tiền:', values);
+            await depositToWallet({
+                userId: selectedUser.userId,
+                amount: values.amount,
+                description: values.description || '',
+                createdBy: localStorage.getItem('rememberedEmail') || '',
+                branchId: Number(localStorage.getItem('currentBranchId'))
+            });
+            message.success(`Nạp ${values.amount.toLocaleString('vi-VN')} thành công!`);
+            loadUserWalletList();
+        } catch (err) {
+            message.error('Nạp tiền thất bại!');
         }
+    };
+    const handleEditSubmit = async (values) => {
+        // TODO: Gọi API cập nhật user (giữ nguyên logic cũ hoặc cập nhật nếu có API update mới)
+        api.put(`${environment.api.endpoints.users}/${selectedUser.userId}`, values)
+            .then(res => {
+                setUsers(prev => prev.map(u =>
+                    u.userId === selectedUser.userId ? res.data : u
+                ));
+                message.success('Cập nhật thông tin thành công');
+            })
+            .catch(() => message.error('Cập nhật thông tin thất bại'));
         setEditVisible(false);
     };
 
     // Thêm mới user
     const handleCreate = () => {
-        setSelectedUser(null);
-        setIsCreate(true);
-        setEditVisible(true);
+        setEditingUser(null);
+        setUserModalMode('create');
+        setUserModalVisible(true);
     };
 
     // Làm mới
@@ -215,8 +231,20 @@ const UserManagement = () => {
                 onDeposit={handleDeposit}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                users={users}
+                users={pagedUsers}
                 loading={loading}
+                pagination={{
+                    total: filteredUsers.length,
+                    current: currentPage,
+                    pageSize,
+                    showSizeChanger: true,
+                    pageSizeOptions: ['5', '10', '20', '50'],
+                    onChange: (page, size) => {
+                        setCurrentPage(page);
+                        setPageSize(size);
+                    },
+                    showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} người dùng`,
+                }}
             />
             <WalletModal
                 visible={walletVisible}
@@ -230,12 +258,69 @@ const UserManagement = () => {
                 onSubmit={handleDepositSubmit}
                 user={selectedUser}
             />
-            <EditUserModal
-                visible={editVisible}
-                onClose={() => setEditVisible(false)}
-                onSubmit={handleEditSubmit}
-                user={selectedUser}
-                isCreate={isCreate}
+            <UserModal
+                visible={userModalVisible}
+                mode={userModalMode}
+                user={editingUser}
+                onClose={() => setUserModalVisible(false)}
+                onSubmit={async (values) => {
+                    const branchId = Number(localStorage.getItem('currentBranchId'));
+                    const createdBy = localStorage.getItem('rememberedEmail') || '';
+                    if (userModalMode === 'create') {
+                        const description = values.description || values.note || '';
+                        const payload = {
+                            userId: values.userId,
+                            amount: values.amount ?? 0,
+                            branchId,
+                            description,
+                            createdBy,
+                            userName: values.userName,
+                            password: values.password,
+                            firstName: values.firstName,
+                            lastName: values.lastName,
+                            email: values.email,
+                            phoneNumber: values.phoneNumber
+                        };
+                        console.log('Payload gửi lên API:', payload);
+                        try {
+                            await createUser(payload);
+                            message.success('Thêm ví thành công');
+                            setUserModalVisible(false);
+                            loadUserWalletList();
+                        } catch (err) {
+                            const apiMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message;
+                            if (apiMsg) {
+                                message.error(apiMsg);
+                            } else {
+                                message.error('Thêm ví thất bại');
+                            }
+                        }
+                    } else {
+                        const payload = {
+                            userId: editingUser.userId,
+                            branchId,
+                            userName: values.userName,
+                            firstName: values.firstName,
+                            lastName: values.lastName,
+                            email: values.email,
+                            phoneNumber: values.phoneNumber,
+                            isActived: true
+                        };
+                        try {
+                            await updateWallet(payload);
+                            message.success('Cập nhật người dùng thành công');
+                            setUserModalVisible(false);
+                            loadUserWalletList();
+                        } catch (err) {
+                            const apiMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message;
+                            if (apiMsg) {
+                                message.error(apiMsg);
+                            } else {
+                                message.error('Câp nhật thất bại');
+                            }
+                        }
+                    }
+                }}
             />
         </div>
     );

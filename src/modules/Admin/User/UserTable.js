@@ -5,29 +5,41 @@ import { EyeOutlined, EditOutlined, DeleteOutlined, WalletOutlined } from '@ant-
 const UserTable = ({ users, loading, ...props }) => {
     const columns = [
         {
-            title: 'TÊN KHÁCH HÀNG',
-            dataIndex: 'name',
-            key: 'name',
-            sorter: (a, b) => a.name.localeCompare(b.name),
+            title: 'TÊN NGƯỜI DÙNG',
+            dataIndex: 'userName',
+            key: 'userName',
+            sorter: (a, b) => (a.userName || '').localeCompare(b.userName || ''),
         },
         {
-            title: 'TÀI KHOẢN',
-            dataIndex: 'username',
-            key: 'username',
-            sorter: (a, b) => a.username.localeCompare(b.username),
+            title: 'HỌ',
+            dataIndex: 'firstName',
+            key: 'firstName',
+            sorter: (a, b) => (a.firstName || '').localeCompare(b.firstName || ''),
+        },
+        {
+            title: 'TÊN',
+            dataIndex: 'lastName',
+            key: 'lastName',
+            sorter: (a, b) => (a.lastName || '').localeCompare(b.lastName || ''),
+        },
+        {
+            title: 'EMAIL',
+            dataIndex: 'email',
+            key: 'email',
+            sorter: (a, b) => (a.email || '').localeCompare(b.email || ''),
         },
         {
             title: 'SỐ ĐIỆN THOẠI',
-            dataIndex: 'phone',
-            key: 'phone',
-            sorter: (a, b) => a.phone.localeCompare(b.phone),
+            dataIndex: 'phoneNumber',
+            key: 'phoneNumber',
+            sorter: (a, b) => (a.phoneNumber || '').localeCompare(b.phoneNumber || ''),
         },
         {
             title: 'SỐ DƯ',
             dataIndex: 'balance',
             key: 'balance',
-            sorter: (a, b) => a.balance - b.balance,
-            render: (value) => value.toLocaleString('vi-VN'),
+            sorter: (a, b) => (a.balance || 0) - (b.balance || 0),
+            render: (value) => (value == null ? 0 : value).toLocaleString('vi-VN'),
         },
         {
             title: 'HÀNH ĐỘNG',
@@ -65,7 +77,7 @@ const UserTable = ({ users, loading, ...props }) => {
                     <Tooltip title="Xóa">
                         <Popconfirm
                             title="Xóa người dùng"
-                            description={`Bạn có chắc chắn muốn xóa người dùng ${record.name}?`}
+                            description={`Bạn có chắc chắn muốn xóa người dùng ${record.userName || ''}?`}
                             onConfirm={() => props.onDelete(record)}
                             okText="Xóa"
                             cancelText="Hủy"
@@ -85,7 +97,7 @@ const UserTable = ({ users, loading, ...props }) => {
         },
     ];
 
-    return <Table rowKey="userId" columns={columns} dataSource={users} loading={loading} pagination={false} />;
+    return <Table rowKey="userId" columns={columns} dataSource={users} loading={loading} pagination={{ pageSize: 10 }} />;
 };
 
 export default UserTable; 

@@ -5,7 +5,17 @@ const DepositModal = ({ visible, onClose, onSubmit, user }) => {
     const [form] = Form.useForm();
 
     const handleFinish = (values) => {
-        onSubmit(values);
+        // Thêm userId, createdBy, branchId vào values trước khi submit
+        const createdBy = localStorage.getItem('rememberedEmail') || '';
+        const branchId = Number(localStorage.getItem('currentBranchId'));
+        const submitValues = {
+            ...values,
+            userId: user && user.userId,
+            createdBy,
+            branchId
+        };
+        console.log('Values gửi đi:', submitValues);
+        onSubmit(submitValues);
         form.resetFields();
     };
 
@@ -25,7 +35,7 @@ const DepositModal = ({ visible, onClose, onSubmit, user }) => {
 
     return (
         <Modal open={visible} onCancel={onClose} footer={null} title="Nạp tiền vào ví">
-            <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ amount: 0, note: '' }}>
+            <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ amount: 0, description: '' }}>
                 <Form.Item label="Số tiền" name="amount" rules={[{ required: true, message: 'Nhập số tiền!' }]}>
                     <InputNumber
                         min={1000}
@@ -36,7 +46,7 @@ const DepositModal = ({ visible, onClose, onSubmit, user }) => {
                         onPaste={handlePaste}
                     />
                 </Form.Item>
-                <Form.Item label="Mô tả" name="note">
+                <Form.Item label="Mô tả" name="description">
                     <Input.TextArea rows={2} />
                 </Form.Item>
                 <Form.Item>

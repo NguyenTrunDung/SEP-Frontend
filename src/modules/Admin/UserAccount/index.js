@@ -2,18 +2,24 @@ import React, { useState } from 'react';
 import { Table, Button, Space, Tooltip, Switch, message, Popconfirm, Input, Select } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import UserAccountModal from './UserAccountModal';
-import { fetchUserAccountsByBranch, updateUserAccountStatus } from '../../../services/userAccountService';
+import { fetchUserAccountsByBranch, updateUserAccountStatus, createUserAccount, updateUserAccount, deleteUserAccount } from '../../../services/userAccountService';
+import { fetchGroupUsersByBranch } from '../../../services/groupUserService';
+import { extractErrorMessage } from '../../../utils/errorHandler';
 
-// Mock nhóm người dùng
-const mockGroups = [
-    { id: 1, name: 'Quản lý' },
-    { id: 2, name: 'Nhân viên' },
-    { id: 3, name: 'Quản lý chi nhánh' },
-    { id: 4, name: 'Thu ngân' },
-    { id: 5, name: 'Nhà bếp' },
-    { id: 6, name: 'Nhân viên giao hàng' },
-];
 
+// Đổi tên hàm extractErrorMessage thành extractApiErrorMessage
+function extractApiErrorMessage(err) {
+    if (Array.isArray(err?.response?.data)) {
+        // Lấy tất cả description, nối lại thành chuỗi
+        return err.response.data.map(e => e.description).join(', ');
+    }
+    return (
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Đã xảy ra lỗi'
+    );
+}
 
 const UserAccount = () => {
     const [users, setUsers] = useState([]);
@@ -22,33 +28,44 @@ const UserAccount = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [isEdit, setIsEdit] = useState(false);
+    const [groupOptions, setGroupOptions] = useState([]);
+    // Thêm state cho phân trang
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
-    // Fetch user accounts by branch on mount
     React.useEffect(() => {
         const branchId = localStorage.getItem('currentBranchId') || '1';
         fetchUserAccountsByBranch(branchId)
             .then(data => {
                 let arr = Array.isArray(data) ? data : (data ? [data] : []);
-                // Map API data to table fields
                 const mapped = arr.map(u => ({
                     id: u.userId,
                     username: u.branchRoleName,
                     name: u.fullName,
                     email: u.email,
-                    branchId: u.branchId,
                     groupId: u.branchRoleId,
                     groupName: u.branchRoleName,
-                    status: u.isActive
+                    status: u.isActive,
+                    branchId: u.branchId,
+                    firstName: u.firstName,
+                    lastName: u.lastName,
+                    phone: u.phoneNumber,
+                    userName: u.userName
                 }));
                 setUsers(mapped);
                 message.success('Lấy danh sách tài khoản thành công!');
             })
             .catch(err => {
-                message.error('Không thể lấy danh sách tài khoản!');
+                message.error(extractApiErrorMessage(err));
             });
+        fetchGroupUsersByBranch(branchId)
+            .then(data => {
+                let arr = Array.isArray(data) ? data : (data ? [data] : []);
+                setGroupOptions(arr.map(g => ({ value: g.id, label: g.name })));
+            })
+            .catch(() => setGroupOptions([]));
     }, []);
 
-    // Filter users theo search và group
     const filteredUsers = users.filter(u => {
         const s = (search || '').toLowerCase();
         const groupOk = groupFilter ? u.groupId === groupFilter : true;
@@ -58,43 +75,77 @@ const UserAccount = () => {
                 (u.email && u.email.toLowerCase().includes(s))) && groupOk
         );
     });
+    // Tính toán dataSource cho trang hiện tại
+    const pagedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-    // Mở modal thêm/sửa
     const openModal = (user) => {
         setEditingUser(user);
         setModalVisible(true);
         setIsEdit(!!user);
     };
 
-    // Đóng modal
     const closeModal = () => {
         setModalVisible(false);
         setEditingUser(null);
         setIsEdit(false);
     };
 
-    // Xử lý submit
-    const handleModalOk = (values) => {
-        if (editingUser) {
-            // TODO: Gọi API cập nhật user
-            setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...values } : u));
-            message.success('Cập nhật tài khoản thành công (mock)');
+    const handleModalOk = async (values) => {
+        const branchId = localStorage.getItem('currentBranchId') || '1';
+        if (isEdit && editingUser) {
+            try {
+                const payload = {
+                    userId: editingUser.id,
+                    branchId: editingUser.branchId,
+                    firstName: values.firstName,
+                    lastName: values.lastName,
+                    email: values.email,
+                    userName: values.username,
+                    branchRoleId: values.groupId,
+                    phoneNumber: values.phone,
+                    isActive: editingUser.status
+                };
+                console.log('[UpdateUserAccount] Payload:', payload);
+                await updateUserAccount(editingUser.id, payload);
+                message.success('Cập nhật tài khoản thành công!');
+                handleRefresh();
+                closeModal();
+            } catch (err) {
+                // Hiển thị lỗi trả về từ API bằng message.error (không setFields)
+                message.error(extractApiErrorMessage(err));
+            }
         } else {
-            // TODO: Gọi API tạo user
-            setUsers(prev => [...prev, { ...values, id: Date.now(), status: true }]);
-            message.success('Thêm tài khoản thành công (mock)');
+            try {
+                await createUserAccount({
+                    firstName: values.firstName,
+                    lastName: values.lastName,
+                    email: values.email,
+                    userName: values.username,
+                    password: values.password,
+                    branchId: branchId,
+                    branchRoleId: values.groupId,
+                    phoneNumber: values.phone
+                });
+                message.success('Thêm tài khoản thành công!');
+                handleRefresh();
+                closeModal();
+            } catch (err) {
+                // Hiển thị lỗi trả về từ API bằng message.error (không setFields)
+                message.error(extractApiErrorMessage(err));
+            }
         }
-        closeModal();
     };
 
-    // Xử lý xóa
-    const handleDelete = (user) => {
-        // TODO: Gọi API xóa user
-        setUsers(prev => prev.filter(u => u.id !== user.id));
-        message.success('Đã xóa tài khoản (mock)');
+    const handleDelete = async (user) => {
+        try {
+            await deleteUserAccount(user.id, user.branchId);
+            message.success('Đã xóa tài khoản!');
+            handleRefresh();
+        } catch (err) {
+            message.error(extractApiErrorMessage(err));
+        }
     };
 
-    // Làm mới
     const handleRefresh = () => {
         const branchId = localStorage.getItem('currentBranchId') || '1';
         fetchUserAccountsByBranch(branchId)
@@ -102,13 +153,17 @@ const UserAccount = () => {
                 let arr = Array.isArray(data) ? data : (data ? [data] : []);
                 const mapped = arr.map(u => ({
                     id: u.userId,
-                    username: u.branchRoleName, // or u.userName if available
+                    username: u.branchRoleName,
                     name: u.fullName,
                     email: u.email,
-                    branchId: u.branchId,
                     groupId: u.branchRoleId,
                     groupName: u.branchRoleName,
-                    status: u.isActive
+                    status: u.isActive,
+                    branchId: u.branchId,
+                    firstName: u.firstName,
+                    lastName: u.lastName,
+                    phone: u.phoneNumber,
+                    userName: u.userName
                 }));
                 setUsers(mapped);
                 setSearch('');
@@ -116,25 +171,30 @@ const UserAccount = () => {
                 message.success('Đã làm mới danh sách');
             })
             .catch(err => {
-                message.error('Không thể làm mới danh sách tài khoản!');
+                message.error(extractApiErrorMessage(err));
             });
+        fetchGroupUsersByBranch(branchId)
+            .then(data => {
+                let arr = Array.isArray(data) ? data : (data ? [data] : []);
+                setGroupOptions(arr.map(g => ({ value: g.id, label: g.name })));
+            })
+            .catch(() => setGroupOptions([]));
     };
 
-    // Đổi trạng thái
     const handleStatusChange = async (checked, user) => {
         try {
             await updateUserAccountStatus(user, checked);
             setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: checked } : u));
             message.success('Đã cập nhật trạng thái!');
         } catch (err) {
-            message.error('Cập nhật trạng thái thất bại!');
+            message.error(extractApiErrorMessage(err));
         }
     };
 
     const columns = [
-        { title: 'Tài khoản', dataIndex: 'username', key: 'username', sorter: (a, b) => (a.username || '').localeCompare(b.username || '') },
+        { title: 'Tên nhóm người dùng', dataIndex: 'username', key: 'username', sorter: (a, b) => (a.username || '').localeCompare(b.username || '') },
         { title: 'Tên người dùng', dataIndex: 'name', key: 'name', sorter: (a, b) => (a.name || '').localeCompare(b.name || '') },
-        { title: 'Email', dataIndex: 'email', key: 'email', sorter: (a, b) => (a.email || '').localeCompare(b.email || '') },
+        { title: 'Email (Tài khoản)', dataIndex: 'email', key: 'email', sorter: (a, b) => (a.email || '').localeCompare(b.email || '') },
         {
             title: 'Trạng thái',
             dataIndex: 'status',
@@ -209,17 +269,33 @@ const UserAccount = () => {
                     style={{ width: 200 }}
                     value={groupFilter}
                     onChange={setGroupFilter}
-                    options={mockGroups.map(g => ({ value: g.id, label: g.name }))}
+                    options={groupOptions}
                 />
             </div>
-            <Table rowKey="id" columns={columns} dataSource={filteredUsers} pagination={false} />
+            <Table
+                rowKey="id"
+                columns={columns}
+                dataSource={pagedUsers}
+                pagination={{
+                    total: filteredUsers.length,
+                    current: currentPage,
+                    pageSize,
+                    showSizeChanger: true,
+                    pageSizeOptions: ['5', '10', '20', '50'],
+                    onChange: (page, size) => {
+                        setCurrentPage(page);
+                        setPageSize(size);
+                    },
+                    showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} tài khoản`,
+                }}
+            />
             <UserAccountModal
                 visible={modalVisible}
                 onCancel={closeModal}
                 onOk={handleModalOk}
-                initialValues={editingUser || {}}
+                initialValues={editingUser ? { ...editingUser, phone: editingUser.phone || editingUser.phoneNumber } : {}}
                 isEdit={isEdit}
-                groupOptions={mockGroups.map(g => ({ value: g.id, label: g.name }))}
+                groupOptions={groupOptions}
             />
         </div>
     );
