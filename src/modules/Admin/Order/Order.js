@@ -16,7 +16,7 @@ const OrdersTableV2 = () => {
     startOrderDate: null,
     endOrderDate: null,
     status: null,
-    paymentStatus: null,
+    isPaid: null,
   });
   const [ordersData, setOrdersData] = useState([]);
   const [viewOrder, setViewOrder] = useState(null);
@@ -39,21 +39,10 @@ const OrdersTableV2 = () => {
   }, [orders, error, handleNonPermissionError, branchId]);
 
   const filteredData = useMemo(() => {
-    return searchText || Object.values(filters).some(val => val)
-      ? ordersData.filter(order => {
-          const matchesSearch = searchText
-            ? (order.customerName?.toLowerCase().includes(searchText.toLowerCase()) ||
-               order.id?.toString().includes(searchText))
-            : true;
-          const matchesFilters =
-            (!filters.startOrderDate || new Date(order.orderDate) >= new Date(filters.startOrderDate)) &&
-            (!filters.endOrderDate || new Date(order.orderDate) <= new Date(filters.endOrderDate)) &&
-            (!filters.status || order.status === filters.status) &&
-            (!filters.paymentStatus || order.paymentStatus === filters.paymentStatus);
-          return matchesSearch && matchesFilters;
-        })
-      : ordersData;
-  }, [ordersData, searchText, filters]);
+    // Since API now handles all filtering (including search and filters),
+    // we can use the data directly without additional frontend filtering
+    return ordersData;
+  }, [ordersData]);
 
   const handleViewDetail = (record) => {
     if (String(record.branchId) !== String(branchId)) {
@@ -66,6 +55,16 @@ const OrdersTableV2 = () => {
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      startOrderDate: null,
+      endOrderDate: null,
+      status: null,
+      isPaid: null,
+    });
+    setSearchText('');
   };
 
   const handleStatusChange = () => {
@@ -94,6 +93,7 @@ const OrdersTableV2 = () => {
           placeholder: 'Tìm kiếm đơn hàng',
         }}
         filterProps={{
+          filters: filters, // Pass current filter state so PageWrapperV2 can preserve existing filters
           onChange: handleFilterChange,
           fields: [
             { name: 'startOrderDate', type: 'date', label: 'Từ ngày' },
@@ -103,21 +103,22 @@ const OrdersTableV2 = () => {
               type: 'select',
               label: 'Trạng thái đơn hàng',
               options: [
-                { value: 'pending', label: 'Đang chờ' },
-                { value: 'confirmed', label: 'Đã xác nhận' },
-                { value: 'delivered', label: 'Đang giao hàng' },
-                { value: 'completed', label: 'Hoàn thành' },
-                { value: 'cancelled', label: 'Hủy' },
+                { value: 'Pending', label: 'Đang chờ' },
+                { value: 'Confirmed', label: 'Đã xác nhận' },
+                { value: 'Preparing', label: 'Đang chuẩn bị' },
+                { value: 'Delivered', label: 'Đang giao hàng' },
+                { value: 'Completed', label: 'Hoàn thành' },
+                { value: 'Cancelled', label: 'Hủy' },
+                { value: 'PendingPayment', label: 'Chờ thanh toán' },
               ],
             },
             {
-              name: 'paymentStatus',
+              name: 'isPaid',
               type: 'select',
               label: 'Trạng thái thanh toán',
               options: [
-                { value: 'pending', label: 'Chưa thanh toán' },
-                { value: 'paid', label: 'Đã thanh toán' },
-                { value: 'processing', label: 'Đang xử lý' },
+                { value: true, label: 'Đã thanh toán' },
+                { value: false, label: 'Chưa thanh toán' },
               ],
             },
           ],
@@ -149,23 +150,26 @@ const OrdersTableV2 = () => {
               dataIndex: 'status',
               title: 'Trạng thái',
               render: (status) =>
-                ({
-                  pending: 'Đang chờ',
-                  confirmed: 'Đã xác nhận',
-                  delivered: 'Đang giao hàng',
-                  completed: 'Hoàn thành',
-                  cancelled: 'Hủy',
-                }[status] || status || 'N/A'),
+              ({
+                'Pending': 'Đang chờ',
+                'Confirmed': 'Đã xác nhận',
+                'Preparing': 'Đang chuẩn bị',
+                'Delivered': 'Đang giao hàng',
+                'Completed': 'Hoàn thành',
+                'Cancelled': 'Hủy',
+                'PendingPayment': 'Chờ thanh toán',
+                // Legacy mappings for backward compatibility
+                'pending': 'Đang chờ',
+                'confirmed': 'Đã xác nhận',
+                'delivered': 'Đang giao hàng',
+                'completed': 'Hoàn thành',
+                'cancelled': 'Hủy',
+              }[status] || status || 'N/A'),
             },
             {
-              dataIndex: 'paymentStatus',
+              dataIndex: 'isPaid',
               title: 'Thanh toán',
-              render: (status) =>
-                ({
-                  pending: 'Chưa thanh toán',
-                  paid: 'Đã thanh toán',
-                  processing: 'Đang xử lý',
-                }[status] || status || 'N/A'),
+              render: (isPaid) => isPaid ? 'Đã thanh toán' : 'Chưa thanh toán',
             },
             {
               title: null,

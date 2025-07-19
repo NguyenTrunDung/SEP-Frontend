@@ -20,55 +20,110 @@ const normalizeBranchId = (branchId) => {
 };
 
 export const orderService = {
-    /**
-     * Get orders by branch ID for admin/management interfaces
-     * GET /api/v1/order/branch/{branchId}
-     */
-    async getOrdersByBranch(branchId, options = {}) {
-        try {
-            const response = await api.get(`/api/v1/order/branch/${branchId}`, {
-                headers: branchId ? { 'X-Branch-Id': branchId } : {},
-                ...options
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Failed to fetch orders by branch:', error);
-            throw error;
-        }
-    },
-
   /**
-   * Search orders by keyword
-   * GET /api/v1/order/search
+   * Get orders by branch ID with optional filters, search, and date ranges
+   * This replaces the previous separate methods: getOrdersByBranch, searchOrders, filterOrders
+   * GET /api/v1/order/branch/{branchId}
    */
-  async searchOrders(keyword, options = {}) {
+  async getOrdersByBranchWithFilters(branchId, filters = {}, options = {}) {
     try {
-      const response = await api.get('/api/v1/order/search', {
-        params: { keyword },
+      const normalizedBranchId = normalizeBranchId(branchId);
+
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Fetching orders for branch: ${normalizedBranchId}`, { filters });
+      }
+
+      // Build query parameters from filters
+      const queryParams = {};
+
+      // Date filters
+      if (filters.startOrderDate) {
+        queryParams.startOrderDate = filters.startOrderDate;
+      }
+      if (filters.endOrderDate) {
+        queryParams.endOrderDate = filters.endOrderDate;
+      }
+      if (filters.startReceiveDate) {
+        queryParams.startReceiveDate = filters.startReceiveDate;
+      }
+      if (filters.endReceiveDate) {
+        queryParams.endReceiveDate = filters.endReceiveDate;
+      }
+
+      // Other filters
+      if (filters.receiveTime) {
+        queryParams.receiveTime = filters.receiveTime;
+      }
+      if (filters.status) {
+        queryParams.status = filters.status;
+      }
+      if (filters.customerName) {
+        queryParams.customerName = filters.customerName;
+      }
+      if (filters.customerPhone) {
+        queryParams.customerPhone = filters.customerPhone;
+      }
+      if (filters.minTotal) {
+        queryParams.minTotal = filters.minTotal;
+      }
+      if (filters.maxTotal) {
+        queryParams.maxTotal = filters.maxTotal;
+      }
+      if (filters.code) {
+        queryParams.code = filters.code;
+      }
+      if (filters.keyword) {
+        queryParams.keyword = filters.keyword;
+      }
+      // Payment status filter - Added for isPaid support
+      if (filters.isPaid !== undefined && filters.isPaid !== null) {
+        queryParams.isPaid = filters.isPaid;
+      }
+
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Query parameters sent to API:`, queryParams);
+      }
+
+      const response = await api.get(`/api/v1/order/branch/${normalizedBranchId}`, {
+        params: queryParams,
+        headers: normalizedBranchId ? { 'X-Branch-Id': normalizedBranchId } : {},
         ...options
       });
+
+      if (environment.features.enableLogging) {
+        console.log(`✅ Received orders for branch ${normalizedBranchId}:`, response.data);
+      }
+
       return response.data;
     } catch (error) {
-      console.error('Failed to search orders:', error);
+      console.error('Failed to fetch orders by branch with filters:', error);
       throw error;
     }
   },
 
   /**
-   * Filter orders with multiple criteria
-   * GET /api/v1/order/filter
+   * Legacy method for backward compatibility - now uses the unified endpoint
+   * @deprecated Use getOrdersByBranchWithFilters instead
+   */
+  async getOrdersByBranch(branchId, options = {}) {
+    return this.getOrdersByBranchWithFilters(branchId, {}, options);
+  },
+
+  /**
+   * Legacy method for backward compatibility - now uses the unified endpoint
+   * @deprecated Use getOrdersByBranchWithFilters instead
+   */
+  async searchOrders(keyword, branchId, options = {}) {
+    return this.getOrdersByBranchWithFilters(branchId, { keyword }, options);
+  },
+
+  /**
+   * Legacy method for backward compatibility - now uses the unified endpoint
+   * @deprecated Use getOrdersByBranchWithFilters instead
    */
   async filterOrders(filters = {}, options = {}) {
-    try {
-      const response = await api.get('/api/v1/order/filter', {
-        params: filters,
-        ...options
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Failed to filter orders:', error);
-      throw error;
-    }
+    const { branchId, ...otherFilters } = filters;
+    return this.getOrdersByBranchWithFilters(branchId, otherFilters, options);
   },
 
   /**
@@ -123,10 +178,10 @@ export const orderService = {
 
       console.log('Creating order with data:', orderDto);
 
-            const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
-                headers: branchId ? { 'X-Branch-Id': branchId } : {},
-                ...options
-            });
+      const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
+        headers: branchId ? { 'X-Branch-Id': branchId } : {},
+        ...options
+      });
 
       console.log('Order created successfully:', response.data);
       return response.data;
@@ -162,10 +217,10 @@ export const orderService = {
         }))
       };
 
-            const response = await api.post('/api/v1/order/AddDishesforPatient', patientOrderDto, {
-                headers: branchId ? { 'X-Branch-Id': branchId } : {},
-                ...options
-            });
+      const response = await api.post('/api/v1/order/AddDishesforPatient', patientOrderDto, {
+        headers: branchId ? { 'X-Branch-Id': branchId } : {},
+        ...options
+      });
 
       return response.data;
     } catch (error) {
@@ -177,7 +232,7 @@ export const orderService = {
       throw new Error(errorMessage);
     }
   },
-async updateOrder(orderId, orderData) {
+  async updateOrder(orderId, orderData) {
     try {
       const currentBranchId = String(orderData.branchId || environment.multiTenant.getCurrentBranchId() || '1');
       const payload = {
@@ -214,22 +269,22 @@ async updateOrder(orderId, orderData) {
     }
   },
 
-    /**
-     * Get orders for chef (kitchen view)
-     * GET /api/v1/order/chef/{branchId}
-     */
-    async getOrdersForChef(branchId, options = {}) {
-        try {
-            const response = await api.get(`/api/v1/order/chef/${branchId}`, {
-                headers: branchId ? { 'X-Branch-Id': branchId } : {},
-                ...options
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Failed to fetch chef orders:', error);
-            throw error;
-        }
-    },
+  /**
+   * Get orders for chef (kitchen view)
+   * GET /api/v1/order/chef/{branchId}
+   */
+  async getOrdersForChef(branchId, options = {}) {
+    try {
+      const response = await api.get(`/api/v1/order/chef/${branchId}`, {
+        headers: branchId ? { 'X-Branch-Id': branchId } : {},
+        ...options
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch chef orders:', error);
+      throw error;
+    }
+  },
 
   /**
    * Create order for VNPay payment (with pending payment status)
@@ -269,10 +324,10 @@ async updateOrder(orderId, orderData) {
 
       console.log('Creating VNPay order with data:', orderDto);
 
-            const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
-                headers: branchId ? { 'X-Branch-Id': branchId } : {},
-                ...options
-            });
+      const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
+        headers: branchId ? { 'X-Branch-Id': branchId } : {},
+        ...options
+      });
 
       console.log('VNPay order created successfully:', response.data);
       return response.data;
@@ -319,19 +374,19 @@ async updateOrder(orderId, orderData) {
     }
   },
 
-    /**
-     * Map frontend payment method to backend enum
-     * @private
-     */
-    _mapPaymentMethod(paymentMethod) {
-        const paymentMap = {
-            'Tiền mặt': 1,    // Cash
-            'Wallet': 2,      // Wallet
-            'Miễn phí': 3,    // Free
-            'VNPay': 4        // Vnpay
-        };
-        return paymentMap[paymentMethod] || 1; // Default to Cash
-    },
+  /**
+   * Map frontend payment method to backend enum
+   * @private
+   */
+  _mapPaymentMethod(paymentMethod) {
+    const paymentMap = {
+      'Tiền mặt': 1,    // Cash
+      'Wallet': 2,      // Wallet
+      'Miễn phí': 3,    // Free
+      'VNPay': 4        // Vnpay
+    };
+    return paymentMap[paymentMethod] || 1; // Default to Cash
+  },
 
   /**
    * Generate unique order code
