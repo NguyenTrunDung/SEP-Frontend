@@ -39,10 +39,14 @@ import VnPayReturn from '../components/Payment/VnPayReturn.js';
 import AreasPage from '../modules/Admin/Area/AreasPage.js';
 import LocationsPage from '../modules/Admin/Locations/LocationPage.js';
 import DiseaseCategoriesTable from '../modules/Admin/DiseaseCategory/DiseaseCategoryPage.js';
+import FoodForPatientPage from '../modules/Admin/FoodForPatients/index.js';
 import VnPayIntegrationExample from '../components/examples/VnPayIntegrationExample.js';
+
 import UserManagement from '../modules/Admin/User/index.js';
 import GroupUser from '../modules/Admin/GroupUser/index.js';
 import UserAccount from '../modules/Admin/UserAccount/index.js';
+
+import KitchenView from '../modules/Admin/Kitchen/KitchenPage.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
@@ -160,6 +164,16 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
         <AdminLayout>
           <OrderDetails />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/kitchens',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+        <AdminLayout>
+          <KitchenView />
         </AdminLayout>
       </ProtectedRoute>
     ),
@@ -300,6 +314,16 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
         <AdminLayout>
           <DiseaseCategoriesTable />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/food-for-patients',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+        <AdminLayout>
+          <FoodForPatientPage />
         </AdminLayout>
       </ProtectedRoute>
     ),

@@ -1,128 +1,295 @@
-// src/pages/Orders/OrderDetail.js
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Descriptions, List, Tag, Button, Spin, Select, message } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
-import { useOrderById, useUpdateOrderStatus } from '../../../hooks/queries/userOrderQueries';
-import { ORDER_STATUS } from '../../../mocks/orderData';
+import React, { useEffect, useState } from 'react';
+import {
+  Modal,
+  Input,
+  Button,
+  Select,
+  Table,
+  Switch,
+  Row,
+  Col,
+  DatePicker,
+  TimePicker,
+  Popconfirm,
+  message,
+} from 'antd';
+import moment from 'moment';
+import './ViewOrderDetail.css';
+import { useUpdateOrder } from '../../../hooks/queries/useOrders';
 
 const { Option } = Select;
 
-// Tag colors for different statuses
-const statusColors = {
-    [ORDER_STATUS.PENDING]: 'blue',
-    [ORDER_STATUS.PREPARING]: 'orange',
-    [ORDER_STATUS.READY]: 'green',
-    [ORDER_STATUS.DELIVERED]: 'purple',
-    [ORDER_STATUS.CANCELLED]: 'red',
-};
+const ViewOrderDetail = ({
+  open,
+  onCancel,
+  orderData = {},
+  orderDetails = [],
+  branchId,
+  onStatusChange,
+}) => {
+  const [formData, setFormData] = useState({});
+  const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
 
-const OrderDetail = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-
-    // Fetch order details
-    const { data: order, isLoading, isError } = useOrderById(id);
-
-    // Update order status mutation
-    const updateOrderStatus = useUpdateOrderStatus();
-
-    const handleUpdateStatus = (status) => {
-        updateOrderStatus.mutate(
-            { orderId: id, status },
-            {
-                onSuccess: () => {
-                    message.success(`Order status updated to ${status}`);
-                },
-                onError: (error) => {
-                    message.error(`Failed to update status: ${error.message}`);
-                },
-            }
-        );
-    };
-
-    if (isLoading) {
-        return (
-            <div style={{ textAlign: 'center', padding: '50px' }}>
-                <Spin size="large" />
-            </div>
-        );
+  useEffect(() => {
+    if (orderData) {
+      setFormData(orderData);
     }
+  }, [orderData]);
 
-    if (isError || !order) {
-        return (
-            <div style={{ padding: '20px' }}>
-                <h2>Error loading order details</h2>
-                <Button type="primary" onClick={() => navigate('/orders')}>
-                    Back to Orders
-                </Button>
-            </div>
-        );
+  const handleConfirmOrder = async () => {
+    try {
+      await updateOrder({
+        orderId: orderData.id,
+        orderData: { status: 'confirmed' }, // Changed to 'confirmed' for pending -> confirmed transition
+        branchId,
+      });
+      setFormData((prev) => ({ ...prev, status: 'confirmed' }));
+      message.success('Đơn hàng đã được xác nhận!');
+      onStatusChange?.();
+    } catch (error) {
+      console.error('Lỗi xác nhận đơn:', error);
+      message.error('Chuyển trạng thái đơn hàng thất bại!');
     }
+  };
 
-    return (
-        <div style={{ padding: '24px' }}>
+  const handleDeliverOrder = async () => {
+    try {
+      await updateOrder({
+        orderId: orderData.id,
+        orderData: { status: 'delivered' },
+        branchId,
+      });
+      setFormData((prev) => ({ ...prev, status: 'delivered' }));
+      message.success('Đơn hàng đã được chuyển sang trạng thái Đang giao hàng!');
+      onStatusChange?.();
+    } catch (error) {
+      console.error('Lỗi giao hàng:', error);
+      message.error('Chuyển trạng thái đơn hàng thất bại!');
+    }
+  };
+
+  const handleCompleteOrder = async () => {
+    try {
+      await updateOrder({
+        orderId: orderData.id,
+        orderData: { status: 'completed' },
+        branchId,
+      });
+      setFormData((prev) => ({ ...prev, status: 'completed' }));
+      message.success('Đơn hàng đã được hoàn thành!');
+      onStatusChange?.();
+    } catch (error) {
+      console.error('Lỗi hoàn thành đơn:', error);
+      message.error('Chuyển trạng thái đơn hàng thất bại!');
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    try {
+      await updateOrder({
+        orderId: orderData.id,
+        orderData: { status: 'cancelled' },
+        branchId,
+      });
+      setFormData((prev) => ({ ...prev, status: 'cancelled' }));
+      message.success('Đã hủy đơn hàng!');
+      onStatusChange?.();
+    } catch (error) {
+      console.error('Lỗi hủy đơn:', error);
+      message.error('Hủy đơn hàng thất bại!');
+    }
+  };
+
+  const columns = [
+    { title: '#', dataIndex: 'index', key: 'index', render: (_, __, idx) => idx + 1 },
+    { title: 'TÊN MÓN', dataIndex: 'foodName', key: 'foodName' },
+    { title: 'GIÁ TIỀN', dataIndex: 'price', key: 'price', render: (val) => val?.toLocaleString() },
+    { title: 'SỐ LƯỢNG', dataIndex: 'qty', key: 'qty' },
+    { title: 'GHI CHÚ', dataIndex: 'note', key: 'note' },
+    { title: 'TIỀN', dataIndex: 'total', key: 'total', render: (val) => val?.toLocaleString() },
+  ];
+
+  return (
+    <Modal
+      open={open}
+      onCancel={onCancel}
+      footer={null}
+      closable={false}
+      width="100%"
+      style={{ top: 0, padding: 0, height: '100vh' }}
+      bodyStyle={{ height: '100vh', overflowY: 'auto', padding: 24 }}
+      className="custom-view-modal"
+    >
+      <div className="order-detail-wrapper">
+        <Row justify="space-between" align="middle">
+          <Col><h2 style={{ fontWeight: 600 }}>Xem chi tiết</h2></Col>
+          <Col>
             <Button
-                icon={<ArrowLeftOutlined />}
-                onClick={() => navigate('/orders')}
-                style={{ marginBottom: '16px' }}
+              danger
+              onClick={onCancel}
+              style={{
+                backgroundColor: '#ff4d4f',
+                color: '#fff',
+                border: 'none',
+                minWidth: 64,
+                height: 32,
+                fontSize: 14,
+              }}
             >
-                Back to Orders
+              X
             </Button>
+          </Col>
+        </Row>
 
-            <Card title={`Order Details - ${order.id}`}>
-                <Descriptions bordered column={2}>
-                    <Descriptions.Item label="Customer">{order.userName}</Descriptions.Item>
-                    <Descriptions.Item label="Department">{order.department}</Descriptions.Item>
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col span={6}>
+            <label className="floating-label">Tên khách hàng</label>
+            <Input value={formData.customerName} disabled />
+          </Col>
+          <Col span={6}>
+            <label className="floating-label">Số điện thoại</label>
+            <Input value={formData.customerPhone} disabled />
+          </Col>
+          <Col span={6}>
+            <label className="floating-label">Ngày nhận</label>
+            <DatePicker
+              value={formData.receiveDate ? moment(formData.receiveDate) : null}
+              disabled
+              style={{ width: '100%' }}
+              format="DD/MM/YYYY"
+            />
+          </Col>
+          <Col span={6}>
+            <label className="floating-label">Thời gian nhận</label>
+            <TimePicker
+              value={formData.receiveTime ? moment(formData.receiveTime, 'HH:mm') : null}
+              disabled
+              style={{ width: '100%' }}
+              format="HH:mm"
+            />
+          </Col>
+        </Row>
 
-                    <Descriptions.Item label="Status">
-                        <Tag color={statusColors[order.status] || 'default'}>
-                            {order.status}
-                        </Tag>
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col span={6}>
+            <label className="floating-label">Hình thức giao</label>
+            <Select value={formData.receiveType} disabled style={{ width: '100%' }}>
+              <Option value="take">Tự đến lấy</Option>
+              <Option value="delivery">Giao hàng</Option>
+            </Select>
+          </Col>
+          <Col span={6}>
+            <Input value={formData.customerAddress} disabled placeholder="Địa chỉ" />
+          </Col>
+          <Col span={6}>
+            <Input value={formData.note} disabled placeholder="Ghi chú" />
+          </Col>
+          <Col span={2}>
+            <div style={{ display: 'flex', alignItems: 'center', height: '100%', marginTop: 1 }}>
+              <Switch checked={formData.getTools} disabled style={{ marginRight: 8 }} />
+              <span style={{ color: '#6B7280', fontSize: 14, whiteSpace: 'nowrap' }}>
+                Lấy dụng cụ
+              </span>
+            </div>
+          </Col>
+        </Row>
 
-                        {order.status !== ORDER_STATUS.CANCELLED && (
-                            <Select
-                                value={order.status}
-                                style={{ width: 150, marginLeft: '10px' }}
-                                onChange={handleUpdateStatus}
-                                loading={updateOrderStatus.isPending}
-                            >
-                                {Object.values(ORDER_STATUS).map((status) => (
-                                    <Option key={status} value={status}>{status}</Option>
-                                ))}
-                            </Select>
-                        )}
-                    </Descriptions.Item>
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col span={6}>
+            <label className="floating-label">Trạng thái</label>
+            <Select value={formData.status} disabled style={{ width: '100%' }}>
+              <Option value="pending">Đang chờ</Option>
+              <Option value="confirmed">Đã xác nhận</Option>
+              <Option value="delivered">Đang giao hàng</Option>
+              <Option value="completed">Hoàn thành</Option>
+              <Option value="cancelled">Hủy</Option>
+            </Select>
+          </Col>
+          <Col span={6}>
+            <label className="floating-label">Phí vận chuyển</label>
+            <Input value={formData.shippingFee} disabled />
+          </Col>
+          <Col span={6}>
+            <label className="floating-label">Thành tiền</label>
+            <Input value={formData.total} disabled />
+          </Col>
+          <Col span={6}>
+            <Input value={formData.location} disabled placeholder="Vị trí" />
+          </Col>
+        </Row>
 
-                    <Descriptions.Item label="Created">{new Date(order.createdAt).toLocaleString()}</Descriptions.Item>
-                    <Descriptions.Item label="Last Updated">{new Date(order.updatedAt).toLocaleString()}</Descriptions.Item>
-                    <Descriptions.Item label="Total Amount">${order.total.toFixed(2)}</Descriptions.Item>
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }} align="middle">
+          <Col span={6}>
+            <Input value={formData.area} disabled placeholder="Khu vực" />
+          </Col>
 
-                    {order.notes && (
-                        <Descriptions.Item label="Notes" span={2}>
-                            {order.notes}
-                        </Descriptions.Item>
-                    )}
-                </Descriptions>
+          <Col span={3}>
+            {formData.status === 'pending' ? (
+              <Button
+                type="primary"
+                style={{ width: '100%', backgroundColor: '#00B8A9', border: 'none' }}
+                onClick={handleConfirmOrder}
+                loading={isUpdating}
+              >
+                Xác Nhận
+              </Button>
+            ) : formData.status === 'confirmed' ? (
+              <Button
+                type="primary"
+                style={{ width: '100%', backgroundColor: '#0d8ce0', border: 'none' }}
+                onClick={handleDeliverOrder}
+                loading={isUpdating}
+              >
+                Đang giao hàng
+              </Button>
+            ) : formData.status === 'delivered' ? (
+              <Button
+                type="primary"
+                style={{ width: '100%', backgroundColor: '#52c41a', border: 'none' }}
+                onClick={handleCompleteOrder}
+                loading={isUpdating}
+              >
+                Hoàn thành
+              </Button>
+            ) : null}
+          </Col>
 
-                <h3 style={{ marginTop: '24px' }}>Order Items</h3>
-                <List
-                    bordered
-                    dataSource={order.items}
-                    renderItem={item => (
-                        <List.Item>
-                            <List.Item.Meta
-                                title={item.name}
-                                description={`Quantity: ${item.quantity} × $${item.price.toFixed(2)}`}
-                            />
-                            <div>${item.subtotal.toFixed(2)}</div>
-                        </List.Item>
-                    )}
-                    footer={<div style={{ textAlign: 'right' }}><strong>Total: ${order.total.toFixed(2)}</strong></div>}
-                />
-            </Card>
-        </div>
-    );
+          {['pending', 'confirmed'].includes(formData.status) && (
+            <Col span={3}>
+              <Popconfirm
+                title="Bạn có chắc muốn hủy đơn hàng này?"
+                onConfirm={handleCancelOrder}
+                okText="Hủy đơn"
+                cancelText="Thoát"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  danger
+                  style={{
+                    backgroundColor: '#ff4d4f',
+                    color: '#fff',
+                    border: 'none',
+                    width: '100%',
+                  }}
+                  loading={isUpdating}
+                >
+                  Hủy Đơn
+                </Button>
+              </Popconfirm>
+            </Col>
+          )}
+        </Row>
+
+        <Table
+          style={{ marginTop: 32 }}
+          columns={columns}
+          dataSource={orderDetails.map((item, index) => ({ ...item, key: index }))}
+          pagination={false}
+          bordered
+        />
+      </div>
+    </Modal>
+  );
 };
 
-export default OrderDetail;
+export default ViewOrderDetail;

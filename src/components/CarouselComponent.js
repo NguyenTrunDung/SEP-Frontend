@@ -4,7 +4,7 @@ const BannerComponent = () => {
   return (
     <div style={{ position: 'relative', width: 'auto', height: '580px', overflow: 'hidden' }}>
       <img
-        src="/images/banner.png" // Hình banner
+        src="/images/a_vibrant_hospital_image_.png" // Hình banner
         alt="Banner"
         loading="lazy"
         style={{

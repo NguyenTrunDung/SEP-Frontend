@@ -61,12 +61,13 @@ const AdminLayout = ({ children }) => {
       "/dashboard": ["dashboard"],
       "/orders": ["orders"],
       "/menus": ["menus"],
-      "/kitchen": ["kitchen"],
+      "/kitchens": ["kitchen"],
       "/cashier": ["cashier"],
       "/admin/users": ["users"],
       "/admin/settings": ["settings"],
       "/food-categories": ["food-categories"],
       "/foods": ["foods"],
+      "/food-for-patients": ["food-for-patients"],
       "/areas": ["areas"],
       "/locations": ["locations"],
       "/disease-categories": ["disease-categories"],
@@ -150,7 +151,7 @@ const AdminLayout = ({ children }) => {
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.KITCHEN], ["kitchen:view"]) && {
               key: "kitchen",
               icon: <FireFilled style={{ fontSize: "18px" }} />,
-              label: <Link to="/kitchen">Bếp</Link>,
+              label: <Link to="/kitchens">Bếp</Link>,
             },
 
             // Menus - Accessible by Admin, Branch Manager, Manager, and Staff
@@ -175,6 +176,11 @@ const AdminLayout = ({ children }) => {
                   key: "foods",
                   icon: <ShopOutlined style={{ fontSize: "18px" }} />,
                   label: <Link to="/foods">Món ăn</Link>,
+                },
+                {
+                  key: "food-for-patients",
+                  icon: <ShopOutlined style={{ fontSize: "18px" }} />,
+                  label: <Link to="/food-for-patients">Món ăn cho bệnh nhân</Link>,
                 },
               ],
             },

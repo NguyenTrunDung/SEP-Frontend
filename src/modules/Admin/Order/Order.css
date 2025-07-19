@@ -1,0 +1,206 @@
+.order-wrapper {
+  padding: 16px;
+  /* Giảm padding từ 24px */
+  background: #fff;
+  border-radius: 6px;
+  /* Giảm border-radius */
+  max-width: 100%;
+  /* Đảm bảo không vượt màn hình */
+  overflow-x: auto;
+  /* Thêm cuộn ngang nếu cần */
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  /* Giảm margin-bottom từ 16px */
+}
+
+.order-title {
+  font-size: 20px;
+  /* Giảm từ 24px */
+  font-weight: 600;
+  /* Giảm độ đậm */
+  margin: 0;
+}
+
+.add-btn {
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  height: 28px;
+  /* Giảm từ 32px */
+  border-radius: 4px;
+  /* Giảm từ 6px */
+  padding: 0 12px;
+  /* Thêm padding hợp lý */
+  font-size: 14px;
+  /* Giảm kích thước chữ */
+}
+
+.search-input {
+  width: 200px;
+  /* Giảm từ 300px */
+  margin-bottom: 12px;
+  /* Giảm từ 16px */
+  font-size: 14px;
+  /* Giảm kích thước chữ */
+}
+
+.list-header {
+  font-weight: 600;
+  /* Giảm độ đậm */
+  padding: 8px 0;
+  /* Giảm từ 12px */
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+  /* Giảm kích thước chữ */
+}
+
+.order-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  /* Giảm từ 12px */
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  /* Giảm kích thước chữ */
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  /* Giảm từ 8px */
+}
+
+.actions a {
+  font-size: 12px;
+  /* Giảm kích thước chữ cho các liên kết hành động */
+}
+
+.pagination-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  /* Giảm từ 16px */
+}
+
+.page-size {
+  padding: 4px 6px;
+  /* Giảm từ 8px */
+  border-radius: 4px;
+  font-size: 13px;
+  /* Giảm kích thước chữ */
+}
+
+.custom-floating {
+  position: relative;
+  width: 100%;
+}
+
+.input-label {
+  border-radius: 6px;
+  /* Giảm từ 8px */
+  border: 1px solid #d9d9d9;
+  padding: 6px 10px;
+  /* Giảm từ 8px 12px */
+  font-size: 14px;
+  /* Giảm từ 16px */
+  height: 40px;
+  /* Giảm từ 48px */
+  display: flex;
+  align-items: center;
+  color: #3c3c3c;
+}
+
+.floating-label {
+  position: absolute;
+  top: -6px;
+  /* Giảm từ -8px */
+  left: 10px;
+  /* Giảm từ 12px */
+  background: white;
+  padding: 0 3px;
+  /* Giảm từ 4px */
+  font-size: 11px;
+  /* Giảm từ 12px */
+  color: #8c8c8c;
+  pointer-events: none;
+  font-weight: 400;
+  z-index: 1;
+}
+
+/* Responsive cho màn hình nhỏ */
+@media (max-width: 768px) {
+  .order-wrapper {
+    padding: 12px;
+  }
+
+  .order-title {
+    font-size: 18px;
+  }
+
+  .search-input {
+    width: 100%;
+    /* Đầy đủ chiều rộng trên màn hình nhỏ */
+  }
+
+  .order-item {
+    font-size: 12px;
+  }
+
+  .add-btn {
+    height: 26px;
+    font-size: 13px;
+  }
+
+  .input-label {
+    font-size: 13px;
+    height: 36px;
+  }
+
+  .floating-label {
+    font-size: 10px;
+  }
+}
+/* Ẩn nút Thêm và Làm mới trong PageWrapperV2 */
+.orders-table-container .ant-page-header .ant-btn-primary, /* nút Thêm */
+.orders-table-container .ant-page-header .ant-btn svg[aria-label="reload"] /* nút Làm mới */ {
+  display: none !important;
+}
+
+
+.custom-floating {
+  position: relative;
+  width: 180px;
+}
+
+.floating-label {
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  background: white;
+  padding: 0 4px;
+  font-size: 12px;
+  color: #8c8c8c;
+  pointer-events: none;
+  font-weight: 400;
+  z-index: 1;
+}
+
+.floating-select .ant-select-selector {
+  border-radius: 8px !important;
+  height: 36px !important;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}

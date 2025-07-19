@@ -1,7 +1,6 @@
 .page-wrapper-v2 {
-  padding: 24px;
-  background: #fff;
-  border-radius: 8px;
+  padding: 16px;
+  background: #f5f5f5;
 }
 
 .page-header-v2 {
@@ -13,50 +12,102 @@
 
 .page-title-v2 {
   font-size: 24px;
-  font-weight: bold;
+  font-weight: 600;
   margin: 0;
 }
 
 .header-actions-v2 {
   display: flex;
-  align-items: center;
   gap: 8px;
 }
 
-.search-input-v2 {
-  width: 300px;
+.search-filter-section {
+  display: flex;
+  gap: 12px; /* Khoảng cách giữa các khung */
   margin-bottom: 16px;
+  align-items: flex-start; /* Căn chỉnh từ đầu */
+  flex-wrap: wrap; /* Cho phép xuống dòng nếu cần */
+}
+
+.search-filter-section .search-input-v2 {
+  width: 180px; /* Kích thước đồng nhất */
+  border-radius: 4px;
+}
+
+.search-filter-section .ant-picker {
+  width: 180px; /* Kích thước đồng nhất */
+  border-radius: 4px;
+}
+
+.search-filter-section .ant-select {
+  width: 180px; /* Kích thước đồng nhất */
+  border-radius: 4px;
+}
+
+.search-filter-section .ant-select-selector,
+.search-filter-section .ant-picker-input {
+  background-color: white !important;
+  border-radius: 4px;
 }
 
 .page-content-v2 {
-  min-height: 200px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
 }
 
 .loading-state-v2 {
   text-align: center;
-  padding: 40px;
-  color: #999;
-  font-size: 16px;
+  padding: 24px;
+  color: #888;
 }
 
-/* Responsive design */
+
+.custom-floating .input-label {
+  border-radius: 8px;background-color: white !important;
+  border: 1px solid #d9d9d9;
+  padding: 8px 12px;
+  font-size: 14px; /* Điều chỉnh font-size để phù hợp */
+  height: 36px; /* Điều chỉnh chiều cao để khớp với các phần tử khác */
+  display: flex;
+  align-items: center;
+  color: #3c3c3c;
+  position: relative; /* Đảm bảo nhãn nổi hoạt động */
+}
+
+.floating-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #888;
+  margin-bottom: 4px;
+  display: block;
+}
+
+
+.floating-select .ant-select-selector {
+  height: 40px !important;
+  display: flex;
+  align-items: center;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 8px;
+  padding: 0 11px !important;
+  box-sizing: border-box;
+}
+
+/* Media query cho màn hình nhỏ */
 @media (max-width: 768px) {
-  .page-wrapper-v2 {
-    padding: 16px;
-  }
-  
-  .page-header-v2 {
+  .search-filter-section {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    gap: 8px;
   }
-  
-  .search-input-v2 {
+
+  .search-filter-section .search-input-v2,
+  .search-filter-section .ant-picker,
+  .search-filter-section .ant-select {
     width: 100%;
   }
-  
-  .header-actions-v2 {
+
+  .custom-floating {
     width: 100%;
-    justify-content: flex-end;
   }
-} 
+}

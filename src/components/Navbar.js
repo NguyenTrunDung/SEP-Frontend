@@ -13,6 +13,7 @@ import PaymentModal from '../components/Payment/Payment';
 import OrderHistoryModal from '../components/OrderHistory/OrderHistory';
 import WalletModal from '../components/Wallet/Wallet';
 import UserHeader from '../components/common/UserHeader';
+import OrderTrackingPopup from '../components/Order/OrderTrackingPopup';
 
 const { Header } = Layout;
 const { Text } = Typography;
@@ -29,6 +30,7 @@ const Navbar = () => {
     const savedBranch = localStorage.getItem('selectedBranch');
     return savedBranch ? JSON.parse(savedBranch) : null;
   });
+  const [isOrderTrackingVisible, setIsOrderTrackingVisible] = useState(false);
 
   const branches = Array.isArray(branchesData) ? branchesData : [];
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
@@ -88,7 +90,7 @@ const Navbar = () => {
       await switchBranchMutation.mutateAsync(branch.id);
       setSelectedBranch(branch);
       localStorage.setItem('selectedBranch', JSON.stringify(branch));
-      localStorage.setItem('currentBranchId', branch.id); // Sync with multiTenant
+      localStorage.setItem('currentBranchId', branch.id);
       setIsModalVisible(false);
       message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
     } catch (error) {
@@ -180,8 +182,8 @@ const Navbar = () => {
     { key: 'cart', label: 'GIỎ HÀNG' },
     ...(user?.role === ROLES.NURSE
       ? [
-        { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
-      ]
+          { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
+        ]
       : user?.role === ROLES.GUEST
         ? []
         : []
@@ -220,6 +222,7 @@ const Navbar = () => {
                 </Col>
                 <Col>
                   <span
+                    onClick={() => setIsOrderTrackingVisible(true)}
                     style={{
                       color: '#fff',
                       fontSize: '14px',
@@ -313,7 +316,6 @@ const Navbar = () => {
                         </Button>
                       </Col>
                     </Row>
-
                   )}
                 </Col>
               </Row>
@@ -598,6 +600,11 @@ const Navbar = () => {
         <WalletModal
           visible={isWalletModalVisible}
           onClose={() => setIsWalletModalVisible(false)}
+        />
+
+        <OrderTrackingPopup
+          visible={isOrderTrackingVisible}
+          onClose={() => setIsOrderTrackingVisible(false)}
         />
       </Header>
     </ConfigProvider>
