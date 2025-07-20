@@ -211,11 +211,11 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                 return (
                     <div>
                         <span className="vietnamese-text">{diseaseCategoryName || 'Chưa chọn danh mục'}</span>
-                        {category?.code && (
+                        {/* {category?.code && (
                             <Tag color={category.colorCode} style={{ marginLeft: 4 }}>
                                 {category.code}
                             </Tag>
-                        )}
+                        )} */}
                     </div>
                 );
             },
