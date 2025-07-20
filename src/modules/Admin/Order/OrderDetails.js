@@ -40,10 +40,10 @@ const ViewOrderDetail = ({
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: { status: 'confirmed' }, // Changed to 'confirmed' for pending -> confirmed transition
+        orderData: { status: 'Confirmed' }, // Updated to match API format
         branchId,
       });
-      setFormData((prev) => ({ ...prev, status: 'confirmed' }));
+      setFormData((prev) => ({ ...prev, status: 'Confirmed' }));
       message.success('Đơn hàng đã được xác nhận!');
       onStatusChange?.();
     } catch (error) {
@@ -56,10 +56,10 @@ const ViewOrderDetail = ({
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: { status: 'delivered' },
+        orderData: { status: 'Delivered' }, // Updated to match API format
         branchId,
       });
-      setFormData((prev) => ({ ...prev, status: 'delivered' }));
+      setFormData((prev) => ({ ...prev, status: 'Delivered' }));
       message.success('Đơn hàng đã được chuyển sang trạng thái Đang giao hàng!');
       onStatusChange?.();
     } catch (error) {
@@ -72,10 +72,10 @@ const ViewOrderDetail = ({
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: { status: 'completed' },
+        orderData: { status: 'Completed' }, // Updated to match API format
         branchId,
       });
-      setFormData((prev) => ({ ...prev, status: 'completed' }));
+      setFormData((prev) => ({ ...prev, status: 'Completed' }));
       message.success('Đơn hàng đã được hoàn thành!');
       onStatusChange?.();
     } catch (error) {
@@ -88,10 +88,10 @@ const ViewOrderDetail = ({
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: { status: 'cancelled' },
+        orderData: { status: 'Cancelled' }, // Updated to match API format
         branchId,
       });
-      setFormData((prev) => ({ ...prev, status: 'cancelled' }));
+      setFormData((prev) => ({ ...prev, status: 'Cancelled' }));
       message.success('Đã hủy đơn hàng!');
       onStatusChange?.();
     } catch (error) {
@@ -198,11 +198,13 @@ const ViewOrderDetail = ({
           <Col span={6}>
             <label className="floating-label">Trạng thái</label>
             <Select value={formData.status} disabled style={{ width: '100%' }}>
-              <Option value="pending">Đang chờ</Option>
-              <Option value="confirmed">Đã xác nhận</Option>
-              <Option value="delivered">Đang giao hàng</Option>
-              <Option value="completed">Hoàn thành</Option>
-              <Option value="cancelled">Hủy</Option>
+              <Option value="Pending">Đang chờ</Option>
+              <Option value="Confirmed">Đã xác nhận</Option>
+              <Option value="Preparing">Đang chuẩn bị</Option>
+              <Option value="Delivered">Đang giao hàng</Option>
+              <Option value="Completed">Hoàn thành</Option>
+              <Option value="Cancelled">Hủy</Option>
+              <Option value="PendingPayment">Chờ thanh toán</Option>
             </Select>
           </Col>
           <Col span={6}>
@@ -224,7 +226,7 @@ const ViewOrderDetail = ({
           </Col>
 
           <Col span={3}>
-            {formData.status === 'pending' ? (
+            {(formData.status === 'pending' || formData.status === 'Pending') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#00B8A9', border: 'none' }}
@@ -233,7 +235,7 @@ const ViewOrderDetail = ({
               >
                 Xác Nhận
               </Button>
-            ) : formData.status === 'confirmed' ? (
+            ) : (formData.status === 'confirmed' || formData.status === 'Confirmed') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#0d8ce0', border: 'none' }}
@@ -242,7 +244,7 @@ const ViewOrderDetail = ({
               >
                 Đang giao hàng
               </Button>
-            ) : formData.status === 'delivered' ? (
+            ) : (formData.status === 'delivered' || formData.status === 'Delivered') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#52c41a', border: 'none' }}
@@ -254,7 +256,7 @@ const ViewOrderDetail = ({
             ) : null}
           </Col>
 
-          {['pending', 'confirmed'].includes(formData.status) && (
+          {['pending', 'Pending', 'confirmed', 'Confirmed'].includes(formData.status) && (
             <Col span={3}>
               <Popconfirm
                 title="Bạn có chắc muốn hủy đơn hàng này?"

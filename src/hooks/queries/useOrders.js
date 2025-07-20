@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import { orderService } from '../../services/orderService';
 import environment from '../../config/environment';
+import { useMemo } from 'react';
 
 export const ORDER_QUERY_KEYS = {
   all: ['orders'],
@@ -32,33 +33,71 @@ const normalizeBranchId = (branchId) => {
 export const useOrders = (branchId, filters = {}, searchText = '', options = {}) => {
   const currentBranchId = normalizeBranchId(branchId);
 
+  // Create stable query key by serializing filter values instead of using object reference
+  const stableQueryKey = useMemo(() => {
+    const filterKey = {
+      startOrderDate: filters.startOrderDate,
+      endOrderDate: filters.endOrderDate,
+      status: filters.status,
+      isPaid: filters.isPaid
+    };
+    return [
+      ...ORDER_QUERY_KEYS.list(currentBranchId),
+      JSON.stringify(filterKey),
+      searchText
+    ];
+  }, [
+    currentBranchId,
+    filters.startOrderDate,
+    filters.endOrderDate,
+    filters.status,
+    filters.isPaid,
+    searchText
+  ]);
+
   const query = useQuery({
-    queryKey: [...ORDER_QUERY_KEYS.list(currentBranchId), filters, searchText],
+    queryKey: stableQueryKey,
     queryFn: async () => {
       if (!currentBranchId) {
         throw new Error('Branch ID is required');
       }
-      if (environment.features.enableLogging) {
-        console.log(`🔍 Fetching orders for branch: ${currentBranchId}`, { filters, searchText });
-      }
-      let response;
+
+      console.log('🚀 useOrders queryFn executing with:', { filters, searchText });
+
       try {
-        if (searchText) {
-          response = await orderService.searchOrders(searchText, currentBranchId);
-        } else if (Object.values(filters).some(val => val)) {
-          response = await orderService.filterOrders({ ...filters, branchId: currentBranchId });
-        } else {
-          response = await orderService.getOrdersByBranch(currentBranchId);
-        }
-        const orderData = response?.data?.data || response?.data || [];
-        if (environment.features.enableLogging) {
-          console.log(`✅ Received orders for branch ${currentBranchId}:`, JSON.stringify(orderData, null, 2));
-        }
+        // Combine filters and searchText into a single filter object for the API
+        const apiFilters = {
+          // Map frontend filter names to backend parameter names
+          startOrderDate: filters.startOrderDate,
+          endOrderDate: filters.endOrderDate,
+          status: filters.status,
+          // Now include isPaid since it's supported by the API
+          isPaid: filters.isPaid,
+          // Add searchText as keyword if provided
+          ...(searchText && { keyword: searchText })
+        };
+
+        // Remove undefined/null values to keep the API call clean
+        const cleanFilters = Object.fromEntries(
+          Object.entries(apiFilters).filter(([key, value]) =>
+            value !== undefined &&
+            value !== null &&
+            value !== ''
+          )
+        );
+
+        console.log('🔍 Clean filters for API:', cleanFilters);
+
+        const response = await orderService.getOrdersByBranchWithFilters(currentBranchId, cleanFilters);
+
+        // Handle the new API response structure
+        const orderData = response?.data || [];
+
+        console.log(`✅ Query completed successfully. Orders count: ${orderData.length}`);
+
         return orderData;
       } catch (error) {
-        if (environment.features.enableLogging) {
-          console.error(`❌ Failed to fetch orders for branch ${currentBranchId}:`, error);
-        }
+        console.error(`❌ Query failed for branch ${currentBranchId}:`, error);
         throw error;
       }
     },

@@ -37,6 +37,7 @@ const withPageWrapperV2 = (WrappedComponent) => {
           <DatePicker
             key={field.name}
             placeholder={field.label}
+            value={filterProps.filters?.[field.name] ? moment(filterProps.filters[field.name]) : null}
             onChange={(date, dateString) =>
               filterProps.onChange({
                 ...filterProps.filters,
@@ -44,7 +45,7 @@ const withPageWrapperV2 = (WrappedComponent) => {
               })
             }
             style={{ width: 180 }}
-            defaultValue={moment()}
+            allowClear
           />
         );
       }
@@ -340,4 +341,4 @@ PageWrapperV2.propTypes = {
 
 export default PageWrapperV2;
 
-export { withPageWrapperV2};
+export { withPageWrapperV2 };
