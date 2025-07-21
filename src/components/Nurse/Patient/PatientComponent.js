@@ -57,10 +57,10 @@ const PatientPageContent = ({
         title={
           <div className="flex items-center gap-2">
             <EyeOutlined className="text-blue-500" />
-            <span className="text-xl font-semibold">Chi Tiết Bệnh Nhân</span>
+            <span className="text-xl font-semibold"> Chi Tiết Bệnh Nhân</span>
           </div>
         }
-        open={modalProps.open}
+       open={modalProps.open}
         onCancel={modalProps.handleCancel}
         footer={[
           <Button key="close" onClick={modalProps.handleCancel}>

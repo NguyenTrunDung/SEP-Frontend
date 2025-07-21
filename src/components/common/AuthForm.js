@@ -13,7 +13,8 @@ const AuthForm = ({
     showTestAccounts = true,
     customFields = [],
     onSuccess,
-    redirectPath = '/redirect'
+    redirectPath = '/redirect',
+    customStyle = {}
 }) => {
     const [form] = Form.useForm();
     const { login, loading, error } = useAuth() || {};
@@ -142,7 +143,10 @@ const AuthForm = ({
                             loading={loading}
                             size="large"
                             block
-                            style={{ borderRadius: '6px', backgroundColor: '#17a2b8', borderColor: '#17a2b8' }}
+                            style={{
+                                borderRadius: '6px',
+                                ...(customStyle.submitButton || { backgroundColor: '#17a2b8', borderColor: '#17a2b8' })
+                            }}
                         >
                             {submitText}
                         </Button>
@@ -212,7 +216,8 @@ AuthForm.propTypes = {
         })
     ),
     onSuccess: PropTypes.func,
-    redirectPath: PropTypes.string
+    redirectPath: PropTypes.string,
+    customStyle: PropTypes.object
 };
 
 export default AuthForm;

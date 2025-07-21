@@ -65,7 +65,7 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermissions, redirectP
     if (!token) {
         // Redirect to login page with return url
         console.log('🚫 No token, redirecting to login');
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        return <Navigate to="/" state={{ from: location }} replace />;
     }
 
     // If user object is not loaded yet, show loading

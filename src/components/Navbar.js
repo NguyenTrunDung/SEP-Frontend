@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar } from 'antd';
-import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined } from '@ant-design/icons';
+import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar, Card, Image } from 'antd';
+import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined, CloseOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePublicBranchesOnly, usePublicSwitchBranchOnly } from '../hooks/queries/useBranchSelector';
 import { useCart } from '../context/CartContext';
@@ -14,9 +14,10 @@ import OrderHistoryModal from '../components/OrderHistory/OrderHistory';
 import WalletModal from '../components/Wallet/Wallet';
 import UserHeader from '../components/common/UserHeader';
 import OrderTrackingPopup from '../components/Order/OrderTrackingPopup';
+import AuthForm from '../components/common/AuthForm';
 
 const { Header } = Layout;
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 const Navbar = () => {
   const { data: branchesData, isLoading: loading, isError, error } = usePublicBranchesOnly();
@@ -31,6 +32,7 @@ const Navbar = () => {
     return savedBranch ? JSON.parse(savedBranch) : null;
   });
   const [isOrderTrackingVisible, setIsOrderTrackingVisible] = useState(false);
+  const [isLoginModalVisible, setIsLoginModalVisible] = useState(false);
 
   const branches = Array.isArray(branchesData) ? branchesData : [];
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
@@ -150,7 +152,7 @@ const Navbar = () => {
   const handleLogout = () => {
     console.log('Logging out user:', user);
     logout();
-    navigate('/login');
+    navigate('/');
     setIsUserMenuVisible(false);
   };
 
@@ -167,13 +169,12 @@ const Navbar = () => {
   };
 
   const handleLoginClick = () => {
-    console.log('Navigating to login');
-    navigate('/login');
+    setIsLoginModalVisible(true);
   };
 
-  const handleRegisterClick = () => {
-    console.log('Navigating to register');
-    navigate('/register');
+  const handleLoginSuccess = () => {
+    setIsLoginModalVisible(false);
+    message.success('Đăng nhập thành công!');
   };
 
   const menuItems = [
@@ -269,7 +270,8 @@ const Navbar = () => {
                       }}
                       greetingStyle={{ color: '#fff', fontSize: '14px' }}
                       onLogout={() => {
-                        handleLogout();
+                        logout();
+                        navigate('/');
                       }}
                     />
                   ) : (
@@ -292,27 +294,6 @@ const Navbar = () => {
                           ghost
                         >
                           Đăng nhập
-                        </Button>
-                      </Col>
-
-                      <Col>
-                        <Button
-                          type="default"
-                          onClick={handleRegisterClick}
-                          style={{
-                            color: '#fff',
-                            borderColor: '#fff',
-                            backgroundColor: 'transparent',
-                            fontSize: 13,
-                            height: 28,
-                            padding: '0 10px',
-                            borderRadius: 16,
-                            fontWeight: 500,
-                            lineHeight: '26px',
-                          }}
-                          ghost
-                        >
-                          Đăng ký
                         </Button>
                       </Col>
                     </Row>
@@ -601,6 +582,76 @@ const Navbar = () => {
           visible={isWalletModalVisible}
           onClose={() => setIsWalletModalVisible(false)}
         />
+
+        <Modal
+          open={isLoginModalVisible}
+          onCancel={() => setIsLoginModalVisible(false)}
+          footer={null}
+          centered
+          width={500}
+          destroyOnClose
+          closeIcon={<CloseOutlined style={{ color: '#000', fontSize: '20px' }} />}
+          styles={{
+            content: { padding: 0, borderRadius: 8, overflow: 'hidden' },
+            body: { padding: 0 },
+          }}
+        >
+          <Card bordered={false} style={{ borderRadius: 8 }}>
+            <div style={{ padding: '40px 32px' }}>
+              <div style={{
+                textAlign: 'center'
+              }}>
+                <Image
+                  src="/images/lg.png"
+                  alt="Dussmann Logo"
+                  preview={false}
+                  width={120}
+                  style={{  }}
+                />
+                <Title level={3} style={{ margin: '16px 0 8px' }}>
+                  Welcome to Hệ thống đặt suất ăn bệnh viện!
+                </Title>
+                <Text type="secondary" style={{ display: 'block', marginBottom: '4px', fontSize: '16px' }}>
+                  Vui lòng đăng nhập để tiếp tục
+                </Text>
+              </div>
+
+              <ConfigProvider
+                theme={{
+                  components: {
+                    Input: {
+                      activeBorderColor: '#b4c80f',
+                      hoverBorderColor: '#b4c80f',
+                      activeShadow: '0 0 0 2px rgba(180, 200, 15, 0.2)'
+                    },
+                    Checkbox: {
+                      colorPrimary: '#b4c80f'
+                    }
+                  }
+                }}
+              >
+                <AuthForm
+                  onSuccess={handleLoginSuccess}
+                  redirectPath="/"
+                  showTestAccounts={false}
+                  submitText="Đăng Nhập"
+                  customStyle={{
+                    submitButton: {
+                      backgroundColor: '#b4c80f',
+                      borderColor: '#b4c80f',
+                      color: '#000',
+                      '&:hover': {
+                        backgroundColor: '#a3b60e',
+                        borderColor: '#a3b60e',
+                        color: '#000'
+                      }
+                    }
+                  }}
+                />
+              </ConfigProvider>
+            </div>
+          </Card>
+        </Modal>
 
         <OrderTrackingPopup
           visible={isOrderTrackingVisible}
