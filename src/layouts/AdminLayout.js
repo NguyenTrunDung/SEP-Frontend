@@ -72,6 +72,9 @@ const AdminLayout = ({ children }) => {
       "/areas": ["areas"],
       "/locations": ["locations"],
       "/disease-categories": ["disease-categories"],
+      "/admin/user-management": ["user-management"],
+      "/admin/group-user": ["group-user"],
+      "/admin/user-account": ["user-account"],
     };
 
     return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])
