@@ -9,11 +9,14 @@ import { useOrders } from '../../../hooks/queries/useOrders';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
 import { environment } from '../../../services/api/config';
 import moment from 'moment';
+import moment from 'moment';
 import './Order.css';
 
 const OrdersTableV2 = () => {
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({
+    startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
+    endOrderDate: moment().format('YYYY-MM-DD'),
     startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
     endOrderDate: moment().format('YYYY-MM-DD'),
     status: null,
