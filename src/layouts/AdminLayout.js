@@ -16,6 +16,7 @@ import {
   AimOutlined,
   ShopOutlined,
   CommentOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
@@ -72,7 +73,12 @@ const AdminLayout = ({ children }) => {
       "/areas": ["areas"],
       "/locations": ["locations"],
       "/disease-categories": ["disease-categories"],
+
       "/feedbacks": ["feedbacks"],
+      "/admin/user-management": ["user-management"],
+      "/admin/group-user": ["group-user"],
+      "/admin/user-account": ["user-account"],
+      "/branchs": ["branchs"],
     };
 
     return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])
@@ -198,10 +204,30 @@ const AdminLayout = ({ children }) => {
               label: "Cài đặt hệ thống",
               children: [
                 // Users Management - Admin only
+
                 {
                   key: "users",
                   icon: <UserOutlined style={{ fontSize: "18px" }} />,
-                  label: <Link to="/admin/users">Quản lý người dùng</Link>,
+                  label: <Link to="/admin/users">Quản lý nhân viên</Link>,
+                },
+                {
+                  key: "user-wallet-group",
+                  icon: <WalletOutlined style={{ fontSize: "18px" }} />,
+                  label: "Quản lý ví người dùng",
+                  children: [
+                    {
+                      key: "user-management",
+                      label: <Link to="/admin/user-management">Quản lý ví người dùng (Mới)</Link>,
+                    },
+                    {
+                      key: "group-user",
+                      label: <Link to="/admin/group-user">Nhóm người dùng</Link>,
+                    },
+                    {
+                      key: "user-account",
+                      label: <Link to="/admin/user-account">Người dùng</Link>,
+                    },
+                  ],
                 },
                 // Categories - Admin only
                 {
@@ -210,23 +236,29 @@ const AdminLayout = ({ children }) => {
                   label: "Danh mục",
                   children: [
                     {
+                      key: "branchs",
+                      icon: <ShopOutlined style={{ fontSize: "18px" }} />,
+                      label: <Link to="/branchs">Chi nhánh</Link>,
+                    },
+                    {
                       key: "areas",
-                      icon: <EnvironmentOutlined style={{ fontSize: "18px" }} />,
+                      icon: <GlobalOutlined style={{ fontSize: "18px" }} />,
                       label: <Link to="/areas">Khu vực</Link>,
                     },
+                  
                     {
-                      key: "locations",
-                      icon: <AimOutlined style={{ fontSize: "18px" }} />,
-                      label: <Link to="/locations">Vị trí</Link>,
-                    },
-                    {
-                      key: "disease-categories",
-                      icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
-                      label: <Link to="/disease-categories">Nhóm bệnh</Link>,
-                    },
-                  ],
+                  key: "locations",
+                  icon: <AimOutlined style={{ fontSize: "18px" }} />,
+                  label: <Link to="/locations">Vị trí</Link>,
+                },
+                {
+                  key: "disease-categories",
+                  icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
+                  label: <Link to="/disease-categories">Nhóm bệnh</Link>,
                 },
               ],
+            },
+          ],
             },
           ].filter(Boolean)}
         />

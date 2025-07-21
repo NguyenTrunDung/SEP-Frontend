@@ -226,5 +226,48 @@ export const useSecureAction = () => {
     });
 };
 
+/**
+ * Hook tạo chi nhánh
+ */
+export const useCreateBranch = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ branchData }) => branchService.createBranch(branchData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: BRANCH_KEYS.lists() });
+    },
+  });
+};
+
+/**
+ * Hook cập nhật chi nhánh
+ */
+export const useUpdateBranch = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ branchId, branchData }) =>
+      branchService.updateBranch(branchId, branchData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: BRANCH_KEYS.lists() });
+    },
+  });
+};
+
+/**
+ * Hook xoá chi nhánh
+ */
+export const useDeleteBranch = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ branchId }) => branchService.deleteBranch(branchId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: BRANCH_KEYS.lists() });
+    },
+  });
+};
+
 // Re-export for backward compatibility with existing components
 export { useBranches as default };

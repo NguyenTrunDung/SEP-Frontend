@@ -149,6 +149,9 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
 
   const currentDate = new Date();
   const [activeDay, setActiveDay] = useState(currentDate.getDay() === 0 ? '7' : currentDate.getDay().toString());
+  // Thêm biến xác định ngày hôm nay
+  const todayKey = currentDate.getDay() === 0 ? '7' : currentDate.getDay().toString();
+  const isToday = activeDay === todayKey;
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
@@ -457,21 +460,24 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                                     {item.priceForGuest.toLocaleString('vi-VN')}đ
                                   </Text>
                                 </div>
-                                <Button
-                                  style={{
-                                    backgroundColor: '#b4c80f',
-                                    borderColor: '#b4c80f',
-                                    color: '#000',
-                                    float: 'left',
-                                    padding: '14px 12px',
-                                    fontSize: '15px',
-                                  }}
-                                  type="primary"
-                                  size="small"
-                                  onClick={() => handleShowDetails(item)}
-                                >
-                                  {isInCart ? 'Cập nhật giỏ hàng' : 'Thêm'}
-                                </Button>
+                                {/* Chỉ hiển thị nút Thêm/Cập nhật khi là ngày hôm nay */}
+                                {isToday && (
+                                  <Button
+                                    style={{
+                                      backgroundColor: '#b4c80f',
+                                      borderColor: '#b4c80f',
+                                      color: '#000',
+                                      float: 'left',
+                                      padding: '14px 12px',
+                                      fontSize: '15px',
+                                    }}
+                                    type="primary"
+                                    size="small"
+                                    onClick={() => handleShowDetails(item)}
+                                  >
+                                    {isInCart ? 'Cập nhật giỏ hàng' : 'Thêm'}
+                                  </Button>
+                                )}
                               </div>
                             );
                           })}

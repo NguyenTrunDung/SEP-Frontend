@@ -128,8 +128,8 @@ const OrdersTableV2 = () => {
         <ReusableTableV2
           dataSource={filteredData.map(item => ({ ...item, key: item.id }))}
           columns={[
-            { dataIndex: 'id', title: 'ID', primary: true },
-            { dataIndex: 'customerName', title: 'Tên khách hàng', render: (text) => text || 'N/A' },
+            { dataIndex: 'id', title: 'ID', primary: true, align: 'center' },
+            { dataIndex: 'customerName', title: 'Tên khách hàng', render: (text) => text || 'N/A', align: 'center' },
             {
               dataIndex: 'orderDate',
               title: 'Thời gian đặt',
@@ -145,13 +145,15 @@ const OrdersTableV2 = () => {
               dataIndex: 'receiveDate',
               title: 'Ngày nhận',
               render: (date) => (date ? new Date(date).toLocaleDateString('vi-VN') : 'N/A'),
+              align: 'center',
             },
             {
               dataIndex: 'receiveTime',
               title: 'Giờ nhận',
               render: (time) => (time ? time : 'N/A'),
+              align: 'center',
             },
-            { dataIndex: 'shippingAddress', title: 'Địa chỉ', render: (text) => text || 'N/A' },
+            { dataIndex: 'shippingAddress', title: 'Địa chỉ', render: (text) => text || 'N/A', align: 'center' },
             {
               dataIndex: 'status',
               title: 'Trạng thái',
@@ -168,11 +170,13 @@ const OrdersTableV2 = () => {
                 completed: 'Hoàn thành',
                 cancelled: 'Đã hủy',
               }[status] || status || 'N/A'),
+              align: 'center',
             },
             {
               dataIndex: 'isPaid',
               title: 'Thanh toán',
               render: (isPaid) => (isPaid ? 'Hoàn thành' : 'Chưa xử lý'),
+
             },
             {
               title: null,

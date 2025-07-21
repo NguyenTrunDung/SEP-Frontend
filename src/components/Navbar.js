@@ -295,7 +295,7 @@ const Navbar = () => {
                         </Button>
                       </Col>
 
-                      <Col>
+                      {/* <Col>
                         <Button
                           type="default"
                           onClick={handleRegisterClick}
@@ -314,7 +314,7 @@ const Navbar = () => {
                         >
                           Đăng ký
                         </Button>
-                      </Col>
+                      </Col> */}
                     </Row>
                   )}
                 </Col>
@@ -399,7 +399,7 @@ const Navbar = () => {
               fontWeight: 600,
             }}
           >
-            Chọn chi nhánh
+            Chọn bệnh viện
           </div>
           <div
             style={{
