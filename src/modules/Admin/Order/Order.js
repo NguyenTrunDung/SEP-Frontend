@@ -111,6 +111,7 @@ const OrdersTableV2 = () => {
                 { value: 'Delivered', label: 'Đang giao hàng' },
                 { value: 'Completed', label: 'Hoàn thành' },
                 { value: 'Cancelled', label: 'Đã hủy' },
+
               ],
             },
             {
@@ -169,6 +170,7 @@ const OrdersTableV2 = () => {
                 delivered: 'Đang giao hàng',
                 completed: 'Hoàn thành',
                 cancelled: 'Đã hủy',
+
               }[status] || status || 'N/A'),
               align: 'center',
             },
