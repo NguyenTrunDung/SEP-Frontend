@@ -511,194 +511,193 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', height: '80vh' }}>
+                {/* Header */}
+                <div
+                  style={{
+                    backgroundColor: '#b4c80f',
+                    color: '#000',
+                    padding: '12px 16px',
+                    fontSize: '18px',
+                    borderRadius: '8px 8px 0 0',
+                  }}
+                >
+                  {cartItems.some(item => item.FoodId === selectedMenuItem?.id)
+                    ? 'Cập nhật giỏ hàng'
+                    : 'Thêm vào giỏ hàng'}
+                </div>
+
                 {/* Nội dung chính có thể cuộn */}
-                <div style={{ flex: 1, overflowY: 'auto' }}>
-                  <div style={{ borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
-                    {/* Header */}
-                    <div
+                <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                  {/* Image */}
+                  <img
+                    src={getImageUrlWithFallback(
+                      selectedMenuItem?.imageUrl || selectedMenuItem?.image,
+                      '/images/placeholder-food.png'
+                    )}
+                    alt={selectedMenuItem?.name || selectedMenuItem?.dishName}
+                    style={{
+                      width: '100%',
+                      maxHeight: '250px',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
+                    onError={(e) => {
+                      e.target.src = '/images/placeholder-food.png';
+                      console.warn('Failed to load modal image:', selectedMenuItem?.imageUrl);
+                    }}
+                  />
+
+                  {/* Dish Info */}
+                  <div style={{ padding: '6px 6px 0' }}>
+                    <Text
                       style={{
-                        backgroundColor: '#b4c80f',
-                        color: '#000',
-                        padding: '12px 16px',
-                        fontSize: '18px',
+                        display: 'block',
+                        fontSize: '15px',
+                        fontWeight: 'bold',
+                        color: '#333',
+                        marginBottom: '1px',
                       }}
                     >
-                      {cartItems.some(item => item.FoodId === selectedMenuItem?.id)
-                        ? 'Cập nhật giỏ hàng'
-                        : 'Thêm vào giỏ hàng'}
-                    </div>
-
-                    {/* Image */}
-                    <img
-                      src={getImageUrlWithFallback(
-                        selectedMenuItem?.imageUrl || selectedMenuItem?.image,
-                        '/images/placeholder-food.png'
-                      )}
-                      alt={selectedMenuItem?.name || selectedMenuItem?.dishName}
+                      {selectedMenuItem?.name || selectedMenuItem?.dishName || 'No name'}
+                    </Text>
+                    <Text
                       style={{
-                        width: '100%',
-                        maxHeight: '250px',
-                        objectFit: 'cover',
                         display: 'block',
+                        fontSize: '15px',
+                        color: '#555',
+                        marginBottom: '1px',
                       }}
-                      onError={(e) => {
-                        e.target.src = '/images/placeholder-food.png';
-                        console.warn('Failed to load modal image:', selectedMenuItem?.imageUrl);
+                    >
+                      {selectedMenuItem?.description || 'No description available'}
+                    </Text>
+                    <Text
+                      style={{
+                        display: 'block',
+                        fontSize: '15px',
+                        fontWeight: 'bold',
+                        color: '#ff0000',
+                        marginBottom: '1px',
                       }}
+                    >
+                      {(selectedMenuItem?.priceForGuest || selectedMenuItem?.price)?.toLocaleString('vi-VN') || '0'}đ
+                    </Text>
+                  </div>
+
+                  {/* Note */}
+                  <div style={{ padding: '0 6px' }}>
+                    <Text
+                      style={{
+                        display: 'block',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        color: '#333',
+                        marginBottom: '0px',
+                      }}
+                    >
+                      Ghi chú:
+                    </Text>
+                    <Input.TextArea
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      style={{
+                        marginBottom: '20px',
+                        height: '115px',
+                        resize: 'none',
+                      }}
+                      placeholder="Ghi chú..."
                     />
+                  </div>
 
-                    {/* Dish Info */}
-                    <div style={{ padding: '6px 6px 0' }}>
-                      <Text
-                        style={{
-                          display: 'block',
-                          fontSize: '15px',
-                          fontWeight: 'bold',
-                          color: '#333',
-                          marginBottom: '1px',
-                        }}
-                      >
-                        {selectedMenuItem?.name || selectedMenuItem?.dishName || 'No name'}
-                      </Text>
-                      <Text
-                        style={{
-                          display: 'block',
-                          fontSize: '15px',
-                          color: '#555',
-                          marginBottom: '1px',
-                        }}
-                      >
-                        {selectedMenuItem?.description || 'No description available'}
-                      </Text>
-                      <Text
-                        style={{
-                          display: 'block',
-                          fontSize: '15px',
-                          fontWeight: 'bold',
-                          color: '#ff0000',
-                          marginBottom: '1px',
-                        }}
-                      >
-                        {(selectedMenuItem?.priceForGuest || selectedMenuItem?.price)?.toLocaleString('vi-VN') || '0'}đ
-                      </Text>
-                    </div>
+                  {/* Quantity Controls */}
+                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                    <Button
+                      style={{
+                        backgroundColor: '#b4c80f',
+                        borderColor: '#b4c80f',
+                        color: '#000',
+                        borderRadius: '50%',
+                        width: '36px',
+                        height: '36px',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                      }}
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    >
+                      -
+                    </Button>
+                    <span style={{ margin: '0 16px', fontSize: '16px' }}>{quantity}</span>
+                    <Button
+                      style={{
+                        backgroundColor: '#b4c80f',
+                        borderColor: '#b4c80f',
+                        color: '#000',
+                        borderRadius: '50%',
+                        width: '36px',
+                        height: '36px',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                      }}
+                      onClick={() => setQuantity(quantity + 1)}
+                    >
+                      +
+                    </Button>
+                  </div>
 
-                    {/* Note */}
-                    <div style={{ padding: '0 6px' }}>
-                      <Text
+                  {/* Feedback Section */}
+                  <div style={{ padding: '16px', background: '#fff' }}>
+                    {mockFeedbacks.map((feedback) => (
+                      <div
+                        key={feedback.id}
                         style={{
-                          display: 'block',
-                          fontSize: '13px',
-                          fontWeight: 'bold',
-                          color: '#333',
-                          marginBottom: '0px',
+                          borderBottom: '1px solid #f0f0f0',
+                          padding: '16px 0',
+                          position: 'relative',
                         }}
                       >
-                        Ghi chú:
-                      </Text>
-                      <Input.TextArea
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        style={{
-                          marginBottom: '20px',
-                          height: '115px',
-                          resize: 'none',
-                        }}
-                        placeholder="Ghi chú..."
-                      />
-                    </div>
+                        {/* Avatar + Customer Name */}
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                          <Avatar
+                            size={48}
+                            src={feedback.user?.avatar}
+                            icon={!feedback.user?.avatar && <UserOutlined />}
+                            style={{ marginRight: 12 }}
+                          />
+                          <Text strong>{feedback.customerName || 'Ẩn danh'}</Text>
+                        </div>
 
-                    {/* Quantity Controls */}
-                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                      <Button
-                        style={{
-                          backgroundColor: '#b4c80f',
-                          borderColor: '#b4c80f',
-                          color: '#000',
-                          borderRadius: '50%',
-                          width: '36px',
-                          height: '36px',
-                          fontSize: '18px',
-                          fontWeight: 'bold',
-                        }}
-                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      >
-                        -
-                      </Button>
-                      <span style={{ margin: '0 16px', fontSize: '16px' }}>{quantity}</span>
-                      <Button
-                        style={{
-                          backgroundColor: '#b4c80f',
-                          borderColor: '#b4c80f',
-                          color: '#000',
-                          borderRadius: '50%',
-                          width: '36px',
-                          height: '36px',
-                          fontSize: '18px',
-                          fontWeight: 'bold',
-                        }}
-                        onClick={() => setQuantity(quantity + 1)}
-                      >
-                        +
-                      </Button>
-                    </div>
-
-                    {/* Feedback Section */}
-                    <div style={{ padding: '16px', background: '#fff' }}>
-                      {mockFeedbacks.map((feedback) => (
-                        <div
-                          key={feedback.id}
-                          style={{
-                            borderBottom: '1px solid #f0f0f0',
-                            padding: '16px 0',
-                            position: 'relative',
-                          }}
-                        >
-                          {/* Avatar + Customer Name */}
-                          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-                            <Avatar
-                              size={48}
-                              src={feedback.user?.avatar}
-                              icon={!feedback.user?.avatar && <UserOutlined />}
-                              style={{ marginRight: 12 }}
+                        {/* Nội dung đánh giá */}
+                        <div style={{ paddingLeft: 60 }}>
+                          <div style={{ marginBottom: 8 }}>
+                            <Rate
+                              value={feedback.rating}
+                              disabled
+                              style={{ fontSize: 16, color: '#fadb14' }}
                             />
-                            <Text strong>{feedback.customerName || 'Ẩn danh'}</Text>
                           </div>
-
-                          {/* Nội dung đánh giá */}
-                          <div style={{ paddingLeft: 60 }}>
+                          <div style={{ marginBottom: 8 }}>
+                            <Text>{feedback.content}</Text>
+                          </div>
+                          {Array.isArray(feedback.images) && feedback.images.length > 0 && (
                             <div style={{ marginBottom: 8 }}>
-                              <Rate
-                                value={feedback.rating}
-                                disabled
-                                style={{ fontSize: 16, color: '#fadb14' }}
+                              <img
+                                src={feedback.images[0].url}
+                                alt="Feedback"
+                                style={{
+                                  width: 160,
+                                  height: 160,
+                                  objectFit: 'cover',
+                                  border: '1px solid #ddd',
+                                  borderRadius: 4,
+                                }}
                               />
                             </div>
-                            <div style={{ marginBottom: 8 }}>
-                              <Text>{feedback.content}</Text>
-                            </div>
-                            {Array.isArray(feedback.images) && feedback.images.length > 0 && (
-                              <div style={{ marginBottom: 8 }}>
-                                <img
-                                  src={feedback.images[0].url}
-                                  alt="Feedback"
-                                  style={{
-                                    width: 160,
-                                    height: 160,
-                                    objectFit: 'cover',
-                                    border: '1px solid #ddd',
-                                    borderRadius: 4,
-                                  }}
-                                />
-                              </div>
-                            )}
-                            <Text type="secondary" style={{ fontSize: 13 }}>
-                              {feedback.createdAt}
-                            </Text>
-                          </div>
+                          )}
+                          <Text type="secondary" style={{ fontSize: 13 }}>
+                            {feedback.createdAt}
+                          </Text>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -723,6 +722,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                 </div>
               </div>
             </Modal>
+
           </div>
         </Content>
       </Layout>
