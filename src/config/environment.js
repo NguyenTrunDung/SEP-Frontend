@@ -72,7 +72,45 @@ const environment = {
                     menuByDate: this.getVersionedPath('/public/menus/menu-by-date'),
                     categoriesByDate: this.getVersionedPath('/public/menus/categories/by-date'),
                     foodsByCategory: (categoryId) => this.getVersionedPath(`/public/menus/categories/${categoryId}/foods`)
-                }
+                },
+
+                // wallet user endpoints
+                wallet: {
+                    userList: () => this.getVersionedPath('/UserWallet/users'),
+                    userListByBranch: () => this.getVersionedPath('/UserWallet/users-by-branch'),
+                    // getByUserId: (userId) => this.getVersionedPath(`/UserWallet/${userId}`),
+                    // deposit: () => this.getVersionedPath('/UserWallet/deposit'),
+                    // depositHistory: (userId) => this.getVersionedPath(`/UserWallet/${userId}/deposit-history`),
+                    // purchaseHistory: (userId) => this.getVersionedPath(`/UserWallet/${userId}/purchase-history`),
+                    deposit: () => this.getVersionedPath('/Wallet/deposit'),
+                    setBalance: () => this.getVersionedPath('/Wallet/set-balance'),
+                    creditHistory: () => this.getVersionedPath('/Wallet/credit-history'),
+                    branchTransactions: () => this.getVersionedPath('/Wallet/branch-transactions'),
+                    purchaseHistory: (userId) => this.getVersionedPath(`/Wallet/purchase-history?userId=${userId}`),
+                    addTransaction: () => this.getVersionedPath('/Wallet/add-transaction'),
+                    create: () => this.getVersionedPath('/Wallet/create-wallet'),
+                    deactivates: (id) => this.getVersionedPath(`/Wallet/deactivates/${id}`),
+                    deleteUserWallet: (userId, branchId) => this.getVersionedPath(`/Wallet/delete/${userId}/branch/${branchId}`),
+                    update: (id) => this.getVersionedPath(`/BranchUserManagement/update-user-wallet`),
+                },
+
+                // Group user
+                groupUsers: {
+                    getByBranch: (branchId) => this.getVersionedPath(`/BranchRoleManagement/branch/${branchId}`),
+                    getById: (id) => this.getVersionedPath(`/BranchRoleManagement/${id}`),
+                    update: (id) => this.getVersionedPath(`/BranchRoleManagement/${id}`),
+                    delete: (id) => this.getVersionedPath(`/BranchRoleManagement/${id}`),
+                    create: () => this.getVersionedPath('/BranchRoleManagement'),
+                },
+
+                // User account
+                userAccounts: {
+                    getByBranch: (branchId) => this.getVersionedPath(`/BranchUserManagement/users?branchId=${branchId}`),
+                    getById: (id) => this.getVersionedPath(`/BranchUserManagement/${id}`),
+                    update: (id) => this.getVersionedPath(`/BranchUserManagement/update`),
+                    delete: (id, branchId) => this.getVersionedPath(`/BranchUserManagement/${id}/branch/${branchId}`),
+                    create: () => this.getVersionedPath('/BranchUserManagement/create'),
+                },
             };
         },
 
