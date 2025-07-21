@@ -103,13 +103,11 @@ const OrdersTableV2 = () => {
               type: 'select',
               label: 'Trạng thái đơn hàng',
               options: [
-                { value: 'Pending', label: 'Đang chờ' },
-                { value: 'Confirmed', label: 'Đã xác nhận' },
+                { value: 'Pending', label: 'Chưa xử lý' },
                 { value: 'Preparing', label: 'Đang chuẩn bị' },
                 { value: 'Delivered', label: 'Đang giao hàng' },
                 { value: 'Completed', label: 'Hoàn thành' },
                 { value: 'Cancelled', label: 'Hủy' },
-                { value: 'PendingPayment', label: 'Chờ thanh toán' },
               ],
             },
             {
@@ -127,49 +125,59 @@ const OrdersTableV2 = () => {
         <ReusableTableV2
           dataSource={filteredData.map(item => ({ ...item, key: item.id }))}
           columns={[
-            { dataIndex: 'id', title: 'ID', primary: true },
-            { dataIndex: 'customerName', title: 'Tên khách hàng', render: (text) => text || 'N/A' },
+            { dataIndex: 'id', title: 'ID', primary: true, align: 'center' },
+            { dataIndex: 'customerName', title: 'Tên khách hàng', render: (text) => text || 'N/A', align: 'center' },
             {
               dataIndex: 'orderDate',
               title: 'Thời gian đặt',
               render: (date) =>
                 date ? new Date(date).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A',
+              align: 'center',
             },
             {
               dataIndex: 'receiveDate',
               title: 'Ngày nhận',
               render: (date) => (date ? new Date(date).toLocaleDateString('vi-VN') : 'N/A'),
+              align: 'center',
             },
             {
               dataIndex: 'receiveTime',
               title: 'Giờ nhận',
               render: (time) => (time ? time : 'N/A'),
+              align: 'center',
             },
-            { dataIndex: 'shippingAddress', title: 'Địa chỉ', render: (text) => text || 'N/A' },
+            { dataIndex: 'shippingAddress', title: 'Địa chỉ', render: (text) => text || 'N/A', align: 'center' },
             {
               dataIndex: 'status',
               title: 'Trạng thái',
               render: (status) =>
               ({
-                'Pending': 'Đang chờ',
-                'Confirmed': 'Đã xác nhận',
+                // 'Pending': 'Đang chờ',
+                // 'Confirmed': 'Đã xác nhận',
+                // 'Preparing': 'Đang chuẩn bị',
+                // 'Delivered': 'Đang giao hàng',
+                // 'Completed': 'Hoàn thành',
+                // 'Cancelled': 'Hủy',
+                // 'PendingPayment': 'Chờ thanh toán',
+                // // Legacy mappings for backward compatibility
+                // 'pending': 'Đang chờ',
+                // 'confirmed': 'Đã xác nhận',
+                // 'delivered': 'Đang giao hàng',
+                // 'completed': 'Hoàn thành',
+                // 'cancelled': 'Hủy',
+                'Pending': 'Chưa xử lý',
                 'Preparing': 'Đang chuẩn bị',
                 'Delivered': 'Đang giao hàng',
                 'Completed': 'Hoàn thành',
-                'Cancelled': 'Hủy',
-                'PendingPayment': 'Chờ thanh toán',
-                // Legacy mappings for backward compatibility
-                'pending': 'Đang chờ',
-                'confirmed': 'Đã xác nhận',
-                'delivered': 'Đang giao hàng',
-                'completed': 'Hoàn thành',
-                'cancelled': 'Hủy',
+                'Cancelled': 'Đã hủy',
               }[status] || status || 'N/A'),
+              align: 'center',
             },
             {
               dataIndex: 'isPaid',
               title: 'Thanh toán',
               render: (isPaid) => isPaid ? 'Đã thanh toán' : 'Chưa thanh toán',
+              align: 'center',
             },
             {
               title: null,
