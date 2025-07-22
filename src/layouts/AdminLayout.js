@@ -17,6 +17,7 @@ import {
   ShopOutlined,
   CommentOutlined,
   GlobalOutlined,
+  TeamOutlined
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
@@ -79,6 +80,7 @@ const AdminLayout = ({ children }) => {
       "/admin/group-user": ["group-user"],
       "/admin/user-account": ["user-account"],
       "/branchs": ["branchs"],
+      "/departments": ["departments"],
     };
 
     return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])
@@ -245,20 +247,25 @@ const AdminLayout = ({ children }) => {
                       icon: <GlobalOutlined style={{ fontSize: "18px" }} />,
                       label: <Link to="/areas">Khu vực</Link>,
                     },
-                  
+
                     {
-                  key: "locations",
-                  icon: <AimOutlined style={{ fontSize: "18px" }} />,
-                  label: <Link to="/locations">Vị trí</Link>,
-                },
-                {
-                  key: "disease-categories",
-                  icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
-                  label: <Link to="/disease-categories">Nhóm bệnh</Link>,
+                      key: "locations",
+                      icon: <AimOutlined style={{ fontSize: "18px" }} />,
+                      label: <Link to="/locations">Vị trí</Link>,
+                    },
+                    {
+                      key: "departments",
+                      icon: <TeamOutlined style={{ fontSize: "18px" }} />,
+                      label: <Link to="/departments">Phòng ban</Link>,
+                    },
+                    {
+                      key: "disease-categories",
+                      icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
+                      label: <Link to="/disease-categories">Nhóm bệnh</Link>,
+                    },
+                  ],
                 },
               ],
-            },
-          ],
             },
           ].filter(Boolean)}
         />
