@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { environment } from '../../services/api/config';
 import { menuService } from '../../services/menuService';
-import { getFilteredMenus } from '../../mocks/menuData';
+import { getFilteredMenus, mockMenus, mockFoodCategories } from '../../mocks/menuData';
 
 // Query keys for menu-related queries
 export const MENU_KEYS = {
@@ -15,6 +15,9 @@ export const MENU_KEYS = {
 /**
  * Service function to fetch menu by date
  */
+/**
+ * Service function to fetch menu by date
+ */
 const fetchMenuByDate = async (filters = {}) => {
   try {
     const response = await api.get(environment.api.endpoints.publicMenus.menuByDate, {
@@ -23,6 +26,14 @@ const fetchMenuByDate = async (filters = {}) => {
 
     // Extract the actual data from the API response structure
     const menuData = response.data?.data || null;
+
+    // Check if API returned empty or no data
+    if (!menuData || !menuData.foods?.length || !menuData.categories?.length) {
+      if (environment.features.enableLogging) {
+        console.warn('⚠️ API returned empty or no data, falling back to mock data');
+      }
+      throw new Error('Empty API response');
+    }
 
     if (environment.features.enableLogging) {
       console.log('✅ Fetched menu from API:', {
@@ -42,16 +53,12 @@ const fetchMenuByDate = async (filters = {}) => {
     };
   } catch (error) {
     if (environment.features.enableLogging) {
-      console.warn('⚠️ API request failed, falling back to mock data:', error.message);
+      console.warn('⚠️ API request failed or returned empty, using mock data:', error.message);
     }
 
-    // Fallback to mock data on API failure
+    // Fallback to mock data
     try {
-      const mockData = getFilteredMenus(filters);
-
-      if (environment.features.enableLogging) {
-        console.log('📋 Using mock menu data:', mockData?.length, 'items');
-      }
+      const mockData = await getFilteredMenus(filters);
 
       // Transform mock data to match API structure
       const transformedMockData = mockData.map(item => ({
@@ -69,11 +76,23 @@ const fetchMenuByDate = async (filters = {}) => {
         sort: item.ID
       }));
 
+      if (environment.features.enableLogging) {
+        console.log('📋 Using mock menu data:', {
+          foods: mockData.length,
+          categories: mockFoodCategories.length, // Sửa từ mockMenus thành mockFoodCategories
+          date: filters.date
+        });
+      }
+
       return {
         foods: transformedMockData,
-        categories: [], // Mock categories would need to be extracted separately
+        categories: mockFoodCategories.map(category => ({
+          id: category.ID,
+          name: category.Name,
+          imageUrl: category.Image
+        })),
         foodsTotalCount: transformedMockData.length,
-        categoriesTotalCount: 0,
+        categoriesTotalCount: mockFoodCategories.length,
         isUsingMockData: true
       };
     } catch (mockError) {
@@ -84,7 +103,6 @@ const fetchMenuByDate = async (filters = {}) => {
     }
   }
 };
-
 /**
  * Hook for fetching menu data by date with branch context
  */

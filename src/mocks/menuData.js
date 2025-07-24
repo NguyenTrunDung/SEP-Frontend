@@ -4,7 +4,7 @@ export const mockMenus = [
   {
     ID: 1,
     BranchId: 1,
-    Date: '2025-07-21', // CẬP NHẬT NGÀY ĐỂ PHÙ HỢP VỚI NGÀY HIỆN TẠI
+    Date: '2025-07-23', // CẬP NHẬT NGÀY ĐỂ PHÙ HỢP VỚI NGÀY HIỆN TẠI
     dishName: 'Bánh mì pate',
     price: 20000,
     category: 'Ăn sáng',
@@ -15,7 +15,7 @@ export const mockMenus = [
   {
     ID: 2,
     BranchId: 1,
-    Date: '2025-07-21',
+    Date: '2025-07-23',
     dishName: 'Phở bò',
     price: 50000,
     category: 'Ăn trưa',
@@ -26,7 +26,7 @@ export const mockMenus = [
   {
     ID: 3,
     BranchId: 1,
-    Date: '2025-07-21',
+    Date: '2025-07-23',
     dishName: 'Cơm chiên dương châu',
     price: 45000,
     category: 'Ăn trưa',
@@ -37,7 +37,7 @@ export const mockMenus = [
   {
     ID: 4,
     BranchId: 1,
-    Date: '2025-07-20',
+    Date: '2025-07-24',
     dishName: 'Chè ba màu',
     price: 15000,
     category: 'Tráng miệng',

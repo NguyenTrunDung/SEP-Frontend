@@ -58,32 +58,81 @@ const Navbar = () => {
   const [activeKey, setActiveKey] = useState('home');
 
   useEffect(() => {
-    const navType = performance.getEntriesByType("navigation")[0]?.type;
-    const savedBranch = localStorage.getItem('selectedBranch');
+    const navType = performance.getEntriesByType('navigation')[0]?.type || 'reload';
     const excludeRoutes = ['/login', '/register', '/contact'];
+    const justLoggedOut = sessionStorage.getItem('justLoggedOut') === 'true';
+    const savedBranch = localStorage.getItem('selectedBranch');
 
-    if (navType === 'reload') {
-      localStorage.removeItem('selectedBranch');
-      localStorage.removeItem('currentBranchId');
-      setSelectedBranch(null);
-      if (!excludeRoutes.includes(location.pathname)) {
-        setIsModalVisible(true);
+    console.log('Navbar useEffect triggered:', {
+      navType,
+      currentPath: location.pathname,
+      isExcludedRoute: excludeRoutes.includes(location.pathname),
+      isNurse: user?.role === ROLES.NURSE,
+      user: !!user,
+      justLoggedOut,
+      hasSelectedBranch: !!savedBranch,
+    });
+
+    // On page load or reload
+    if (navType === 'reload' || navType === 'navigate') {
+      // Clear justLoggedOut on full page reload
+      sessionStorage.removeItem('justLoggedOut');
+
+      // Clear selected branch for non-nurse users or if no user
+      if (!user || user?.role !== ROLES.NURSE) {
+        localStorage.removeItem('selectedBranch');
+        localStorage.removeItem('currentBranchId');
+        setSelectedBranch(null);
       }
-    } else {
-      if (!savedBranch) {
+
+      // Show popup if: not on excluded routes and not a nurse
+      if (!excludeRoutes.includes(location.pathname) && (!user || user?.role !== ROLES.NURSE)) {
+        console.log('Showing branch selection popup on page load/reload');
         setIsModalVisible(true);
       } else {
-        setSelectedBranch(JSON.parse(savedBranch));
+        console.log('Not showing popup on page load/reload:', {
+          isNurse: user?.role === ROLES.NURSE,
+          isExcludedRoute: excludeRoutes.includes(location.pathname),
+          hasUser: !!user,
+        });
         setIsModalVisible(false);
       }
+    } else {
+      // For SPA navigation
+      console.log('SPA navigation, checking popup conditions:', {
+        savedBranch: !!savedBranch,
+        justLoggedOut,
+        isNurse: user?.role === ROLES.NURSE,
+        isExcludedRoute: excludeRoutes.includes(location.pathname),
+        hasUser: !!user,
+      });
+
+      // Show popup if: not on excluded routes, not a nurse, no branch selected, not just logged out
+      if (
+        !excludeRoutes.includes(location.pathname) &&
+        (!user || user?.role !== ROLES.NURSE) &&
+        !savedBranch &&
+        !justLoggedOut
+      ) {
+        console.log('Showing branch selection popup on SPA navigation');
+        setIsModalVisible(true);
+      } else {
+        console.log('Not showing popup on SPA navigation:', {
+          isNurse: user?.role === ROLES.NURSE,
+          isExcludedRoute: excludeRoutes.includes(location.pathname),
+          justLoggedOut,
+          hasSavedBranch: !!savedBranch,
+          hasUser: !!user,
+        });
+        setIsModalVisible(false);
+      }
+      setSelectedBranch(savedBranch ? JSON.parse(savedBranch) : null);
     }
-  }, []);
+  }, [location.pathname, user]);
 
   useEffect(() => {
     console.log('Navbar - User data:', { user, role: user?.role, location: location.pathname });
   }, [user, location]);
-
-  const showModal = () => setIsModalVisible(true);
 
   const handleBranchSelect = async (branch) => {
     try {
@@ -92,6 +141,7 @@ const Navbar = () => {
       localStorage.setItem('selectedBranch', JSON.stringify(branch));
       localStorage.setItem('currentBranchId', branch.id);
       setIsModalVisible(false);
+      sessionStorage.removeItem('justLoggedOut'); // Clear justLoggedOut after branch selection
       message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
     } catch (error) {
       console.error('Failed to switch branch:', error);
@@ -150,6 +200,10 @@ const Navbar = () => {
   const handleLogout = () => {
     console.log('Logging out user:', user);
     logout();
+    localStorage.removeItem('selectedBranch');
+    localStorage.removeItem('currentBranchId');
+    sessionStorage.setItem('justLoggedOut', 'true');
+    setSelectedBranch(null);
     navigate('/login');
     setIsUserMenuVisible(false);
   };
@@ -240,11 +294,9 @@ const Navbar = () => {
                 </Col>
                 <Col>
                   <span
-                    onClick={showModal}
                     style={{
                       color: '#fff',
                       fontSize: '14px',
-                      cursor: 'pointer',
                       padding: '4px 12px',
                       border: '1px solid #fff',
                       borderRadius: '8px',
@@ -294,27 +346,6 @@ const Navbar = () => {
                           Đăng nhập
                         </Button>
                       </Col>
-
-                      {/* <Col>
-                        <Button
-                          type="default"
-                          onClick={handleRegisterClick}
-                          style={{
-                            color: '#fff',
-                            borderColor: '#fff',
-                            backgroundColor: 'transparent',
-                            fontSize: 13,
-                            height: 28,
-                            padding: '0 10px',
-                            borderRadius: 16,
-                            fontWeight: 500,
-                            lineHeight: '26px',
-                          }}
-                          ghost
-                        >
-                          Đăng ký
-                        </Button>
-                      </Col> */}
                     </Row>
                   )}
                 </Col>
@@ -378,9 +409,9 @@ const Navbar = () => {
         <Modal
           open={isModalVisible}
           footer={null}
+          closable={false}
+          maskClosable={false}
           centered
-          closable={true}
-          onCancel={() => setIsModalVisible(false)}
           width="min(100vw, 600px)"
           style={{ padding: 0, margin: 0, top: 0 }}
           modalRender={(node) => <div style={{ margin: 0, padding: 0 }}>{node}</div>}
