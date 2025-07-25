@@ -17,6 +17,7 @@ import Unauthorized from '../modules/Unauthorized.js';
 // Order pages
 import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
+import Feedbacks from '../modules/Admin/Feedback/Feedbacks.js';
 
 //Cart
 
@@ -47,6 +48,8 @@ import GroupUser from '../modules/Admin/GroupUser/index.js';
 import UserAccount from '../modules/Admin/UserAccount/index.js';
 
 import KitchenView from '../modules/Admin/Kitchen/KitchenPage.js';
+import BranchesPage from '../modules/Admin/Branch/BranchesPage.js';
+import DepartmentsPage from '../modules/Admin/Department/DepartmentsPage.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
@@ -174,6 +177,36 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
         <AdminLayout>
           <KitchenView />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/branchs',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+        <AdminLayout>
+          <BranchesPage />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/departments',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+        <AdminLayout>
+          <DepartmentsPage />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/feedbacks',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF]}>
+        <AdminLayout>
+          <Feedbacks />
         </AdminLayout>
       </ProtectedRoute>
     ),

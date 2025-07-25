@@ -15,6 +15,9 @@ import {
   EnvironmentOutlined,
   AimOutlined,
   ShopOutlined,
+  CommentOutlined,
+  GlobalOutlined,
+  TeamOutlined
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
@@ -71,9 +74,13 @@ const AdminLayout = ({ children }) => {
       "/areas": ["areas"],
       "/locations": ["locations"],
       "/disease-categories": ["disease-categories"],
+
+      "/feedbacks": ["feedbacks"],
       "/admin/user-management": ["user-management"],
       "/admin/group-user": ["group-user"],
       "/admin/user-account": ["user-account"],
+      "/branchs": ["branchs"],
+      "/departments": ["departments"],
     };
 
     return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])
@@ -137,7 +144,7 @@ const AdminLayout = ({ children }) => {
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.NURSE], ["orders:view"]) && {
               key: "orders",
               icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/orders">Quản lý đơn hàng</Link>,
+              label: <Link to="/orders">Đơn hàng</Link>,
             },
 
             // Cashier - Accessible by Cashier, Admin, and Branch Manager
@@ -158,8 +165,15 @@ const AdminLayout = ({ children }) => {
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF], ["foods:view"]) && {
               key: "menus",
               icon: <MenuOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/menus">Quản lý thực đơn</Link>,
+              label: <Link to="/menus">Thực đơn</Link>,
             },
+
+            canAccess([ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF], ["feedbacks:view"]) && {
+              key: "feedbacks",
+              icon: <CommentOutlined style={{ fontSize: "18px" }} />,
+              label: <Link to="/feedbacks">Đánh giá</Link>,
+            },
+
 
             // Food Management - Admin, Branch Manager, Manager, Staff, Doctor
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR], ["foods:view"]) && {
@@ -192,6 +206,7 @@ const AdminLayout = ({ children }) => {
               label: "Cài đặt hệ thống",
               children: [
                 // Users Management - Admin only
+
                 {
                   key: "users",
                   icon: <UserOutlined style={{ fontSize: "18px" }} />,
@@ -223,14 +238,25 @@ const AdminLayout = ({ children }) => {
                   label: "Danh mục",
                   children: [
                     {
+                      key: "branchs",
+                      icon: <ShopOutlined style={{ fontSize: "18px" }} />,
+                      label: <Link to="/branchs">Chi nhánh</Link>,
+                    },
+                    {
                       key: "areas",
-                      icon: <EnvironmentOutlined style={{ fontSize: "18px" }} />,
+                      icon: <GlobalOutlined style={{ fontSize: "18px" }} />,
                       label: <Link to="/areas">Khu vực</Link>,
                     },
+
                     {
                       key: "locations",
                       icon: <AimOutlined style={{ fontSize: "18px" }} />,
                       label: <Link to="/locations">Vị trí</Link>,
+                    },
+                    {
+                      key: "departments",
+                      icon: <TeamOutlined style={{ fontSize: "18px" }} />,
+                      label: <Link to="/departments">Phòng ban</Link>,
                     },
                     {
                       key: "disease-categories",
