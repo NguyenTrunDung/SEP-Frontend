@@ -21,11 +21,11 @@ const DefaultLayout = () => {
       <Carousel />
       <Menu />
       <Desease />
-      <Content style={{ padding: '24px', background: '#fff' }}>
+      {/* <Content style={{ padding: '24px', background: '#fff' }}>
         <div style={{ minHeight: '360px' }}>
           <Outlet />
         </div>
-      </Content>
+      </Content> */}
       <FooterComponent />
     </Layout>
   );
