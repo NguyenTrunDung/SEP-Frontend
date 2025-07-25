@@ -498,7 +498,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                 },
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', height: '80vh' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
                 <div
                   style={{
                     backgroundColor: '#b4c80f',

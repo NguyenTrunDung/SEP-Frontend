@@ -1,26 +1,20 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ConfigProvider, Button, Space, message, Modal, Typography, Image, Select, Input } from 'antd';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { message, Button, Select, Typography, Checkbox, InputNumber, Input } from 'antd';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import PropTypes from 'prop-types';
 import { useAllowedFoodsForPatient, useCreatePatientOrder } from '../../../hooks/queries/usePatientFoodQueries';
+import { useMenus } from '../../../hooks/queries/useMenuQueries';
+import { mockFoodCategories } from '../../../mocks/menuData';
 import locale from 'antd/locale/vi_VN';
-import { v4 as uuidv4 } from 'uuid';
-import './PatientTable.css';
+import { ConfigProvider } from 'antd';
 
 const { Title, Text } = Typography;
-
-const debounce = (func, delay) => {
-  let timeoutId;
-  return (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
-  };
-};
 
 const getVietnameseDays = () => {
   const formatter = new Intl.DateTimeFormat('vi-VN', { weekday: 'long' });
   const days = [];
-  const baseDate = new Date(2025, 5, 16); // Start from Monday (16/6/2025)
+  const baseDate = new Date(2025, 6, 21); // Start from Monday, July 21, 2025
+
   for (let i = 0; i < 7; i++) {
     const date = new Date(baseDate);
     date.setDate(baseDate.getDate() + i);
@@ -30,205 +24,410 @@ const getVietnameseDays = () => {
       value: (i + 1).toString(),
     });
   }
+
   return days;
 };
 
-const PatientTable = ({ dataSource = [], loading, nurseId, branchId }) => {
-  const [searchText, setSearchText] = useState('');
-  const [foodModalVisible, setFoodModalVisible] = useState(false);
+const getFormattedDate = (dayKey) => {
+  const dayOffset = parseInt(dayKey) - 1;
+  const baseDate = new Date(2025, 6, 21); // Monday, July 21, 2025
+  const date = new Date(baseDate);
+  date.setDate(baseDate.getDate() + dayOffset);
+  return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+};
+
+const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, setActiveDay, onSelectAllFoods }) => {
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [availableFoods, setAvailableFoods] = useState([]);
-  const [selectedFoods, setSelectedFoods] = useState([]);
+  const [allAvailableFoods, setAllAvailableFoods] = useState([]);
+  const [filteredFoods, setFilteredFoods] = useState([]);
+  const [foodCategories, setFoodCategories] = useState([]);
+  const [selectedFoods, setSelectedFoods] = useState({}); // Change to object to store per patient
   const [patientOrders, setPatientOrders] = useState({});
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedFood, setSelectedFood] = useState(null);
-  const [quantity, setQuantity] = useState(1);
-  const [note, setNote] = useState('');
-  const [activeDay, setActiveDay] = useState('2'); // Default to Tuesday
+  const [quantity, setQuantity] = useState({});
+  const [note, setNote] = useState({});
+  const [isUsingMockData, setIsUsingMockData] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState({});
   const categoryRefs = useRef({});
 
   const currentBranchId = branchId || localStorage.getItem('currentBranchId') || '1';
   const selectedDiseaseCategoryId = selectedPatient?.diseaseCategories?.[0]?.diseaseCategoryId || null;
 
-  const { data: allowedFoodsData, isLoading: foodsLoading, error: foodsError, refetch: refetchAllowedFoods } =
-    useAllowedFoodsForPatient(selectedPatient?.id || '', selectedDiseaseCategoryId, { enabled: !!selectedPatient?.id });
+  console.log('🔍 PatientTable - Initial State:', {
+    selectedPatientId: selectedPatient?.id,
+    selectedPatientName: selectedPatient?.fullName,
+    diseaseCategories: selectedPatient?.diseaseCategories,
+    selectedDiseaseCategoryId,
+    branchId: currentBranchId,
+    activeDay,
+    date: getFormattedDate(activeDay),
+  });
 
-  const createPatientOrderMutation = useCreatePatientOrder();
-  const vietnameseDays = getVietnameseDays();
-
-  const dayToMenuMap = {
-    '1': 'Menu thứ 2',
-    '2': 'Menu thứ 3',
-    '3': 'Menu thứ 4',
-    '4': 'Menu thứ 5',
-    '5': 'Menu thứ 6',
-    '6': 'Menu thứ 7',
-    '7': 'Menu chủ nhật',
-  };
-
-  const filteredData = useMemo(() => {
-    if (!searchText.trim()) return dataSource;
-    const searchLower = searchText.trim().toLowerCase();
-    return dataSource.filter(
-      (item) =>
-        (item.fullName || '').toLowerCase().includes(searchLower) ||
-        (item.medicalRecordNumber || '').toLowerCase().includes(searchLower)
-    );
-  }, [dataSource, searchText]);
-
-  const debouncedSearch = useMemo(
-    () =>
-      debounce((value) => {
-        if (value.trim()) {
-          message.info(`Lọc bệnh nhân theo: ${value.trim()}`);
-        } else {
-          message.info('Đã xóa bộ lọc tìm kiếm');
-        }
-      }, 200),
-    []
+  const {
+    data: allowedFoodsData,
+    isLoading: foodsLoading,
+    error: foodsError,
+    refetch: refetchAllowedFoods,
+  } = useAllowedFoodsForPatient(
+    selectedPatient?.id || '',
+    selectedDiseaseCategoryId || undefined,
+    { enabled: !!selectedPatient?.id }
   );
 
-  const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearchText(value);
-    debouncedSearch(value);
-  };
+  const {
+    data: menuData,
+    isLoading: menuLoading,
+    error: menuError,
+    refetch: refreshMenus,
+  } = useMenus({ date: getFormattedDate(activeDay), branchId: currentBranchId });
 
-  const handleAddToMenu = (record) => {
-    setSelectedPatient(record);
-    setSelectedFoods([]);
-    setPatientOrders((prev) => ({ ...prev, [record.id]: [] }));
-    setFoodModalVisible(true);
-  };
+  useEffect(() => {
+    const fetchMenuAndCategories = async () => {
+      try {
+        console.log('🔍 fetchMenuAndCategories - Fetching for:', {
+          branchId: currentBranchId,
+          date: getFormattedDate(activeDay),
+        });
 
-  const handleShowDetails = (food) => {
-    setSelectedFood(food);
-    const existingOrder = patientOrders[selectedPatient?.id]?.find((item) => item.id === food.id);
-    setQuantity(existingOrder?.quantity || 1);
-    setNote(existingOrder?.note || '');
-    setDetailModalVisible(true);
-  };
+        let menuList = menuData?.foods || [];
+        let categories = menuData?.categories || [];
+        const isMockData = menuData?.isUsingMockData || false;
+        setIsUsingMockData(isMockData);
 
-  const handleAddOrUpdateOrder = () => {
-    if (!selectedFood) return;
-    const existingOrder = patientOrders[selectedPatient?.id]?.find((item) => item.id === selectedFood.id);
-    const newFood = {
-      ...selectedFood,
-      quantity,
-      note,
-      cartId: existingOrder?.cartId || uuidv4(),
-      FoodId: selectedFood.id,
-      dishName: selectedFood.name,
-      price: selectedFood.priceForPatient,
-      image: selectedFood.image || 'https://via.placeholder.com/200x140?text=No+Image',
+        if (!menuList || !Array.isArray(menuList) || menuList.length === 0) {
+          console.warn('⚠️ No menu available for date:', getFormattedDate(activeDay));
+          message.warning(`Không có thực đơn cho ngày ${getFormattedDate(activeDay)}`);
+          setAllAvailableFoods([]);
+          setFoodCategories(isMockData ? mockFoodCategories : []);
+          return;
+        }
+
+        console.log('✅ menuList:', menuList);
+        const allMenuFoods = menuList.map(detail => ({
+          id: detail.id,
+          name: detail.name || 'Unknown Food',
+          categoryId: detail.categoryId || 'unknown',
+          priceForPatient: detail.priceForPatient || detail.priceForGuest || 0,
+          description: detail.description || `From menu on ${getFormattedDate(activeDay)}`,
+          imageUrl: detail.imageUrl || '/images/placeholder-food.png',
+        }));
+
+        console.log('✅ allMenuFoods:', allMenuFoods);
+        setAllAvailableFoods(allMenuFoods);
+
+        if (categories && Array.isArray(categories) && categories.length > 0) {
+          console.log('✅ Using API categories:', categories);
+          setFoodCategories(categories);
+        } else if (isMockData) {
+          console.log('✅ Using mockFoodCategories:', mockFoodCategories);
+          setFoodCategories(mockFoodCategories);
+        } else {
+          const foodCategoryIds = [...new Set(menuList.map(food => food.categoryId).filter(id => id))];
+          const derivedCategories = foodCategoryIds.map(categoryId => ({
+            id: categoryId,
+            name: `Category ${categoryId}`,
+            imageUrl: '/images/placeholder-food.png',
+          }));
+          console.log('✅ Derived categories:', derivedCategories);
+          setFoodCategories(derivedCategories);
+        }
+      } catch (error) {
+        console.error('❌ fetchMenuAndCategories error:', error);
+        message.error('Không thể tải thực đơn hoặc danh mục.');
+        setAllAvailableFoods([]);
+        setFoodCategories([]);
+      }
     };
 
-    setPatientOrders((prev) => ({
-      ...prev,
-      [selectedPatient.id]: existingOrder
-        ? prev[selectedPatient.id].map((item) => (item.id === selectedFood.id ? newFood : item))
-        : [...(prev[selectedPatient.id] || []), newFood],
-    }));
+    if (selectedPatient) {
+      fetchMenuAndCategories();
+    } else {
+      console.log('🔍 No selected patient, resetting states');
+      setAllAvailableFoods([]);
+      setFilteredFoods([]);
+      setFoodCategories([]);
+      setSelectedFoods({});
+      setPatientOrders({});
+      setQuantity({});
+      setNote({});
+      setExpandedCategories({});
+    }
+  }, [selectedPatient, currentBranchId, activeDay, menuData]);
 
-    setSelectedFoods((prev) => (existingOrder ? prev : [...prev, selectedFood.id]));
-    message.success(`${selectedFood.name} đã được ${existingOrder ? 'cập nhật' : 'thêm'}!`);
-    setDetailModalVisible(false);
+  useEffect(() => {
+    console.log('🔍 allowedFoodsData:', allowedFoodsData);
+    console.log('🔍 allAvailableFoods:', allAvailableFoods);
+
+    if (!selectedPatient || !allAvailableFoods.length) {
+      console.warn('⚠️ No selected patient or allAvailableFoods empty, setting filteredFoods to []');
+      setFilteredFoods([]);
+      return;
+    }
+
+    const restrictedFoodIds = new Set(allowedFoodsData?.data?.map(food => food.id) || []);
+    console.log('🔍 restrictedFoodIds:', Array.from(restrictedFoodIds));
+
+    if (restrictedFoodIds.size === 0) {
+      console.warn('⚠️ restrictedFoodIds is empty for patient:', selectedPatient.id);
+      message.warning(`Không tìm thấy món ăn hạn chế cho bệnh nhân ${selectedPatient.id}. Hiển thị tất cả món ăn trong thực đơn.`);
+    } else {
+      console.log('✅ Restricted foods found:', Array.from(restrictedFoodIds).map(id =>
+        allAvailableFoods.find(food => food.id === id)?.name || `ID: ${id}`
+      ));
+    }
+
+    const filtered = allAvailableFoods.filter(food => !restrictedFoodIds.has(food.id));
+    console.log('✅ Filtered excluding restricted foods:', filtered);
+    setFilteredFoods(filtered);
+  }, [allowedFoodsData, allAvailableFoods, selectedPatient]);
+
+  const createPatientOrderMutation = useCreatePatientOrder();
+
+  const vietnameseDays = getVietnameseDays();
+
+  const handleAddToMenu = async (record) => {
+    if (!record || !record.id || !record.fullName) {
+      message.error('Dữ liệu bệnh nhân không hợp lệ.');
+      return;
+    }
+    console.log('🔍 handleAddToMenu:', record);
+    setSelectedPatient({
+      id: record.id,
+      fullName: record.fullName,
+      diseaseCategories: record.diseaseCategories || [],
+    });
+    setSelectedFoods(prev => ({ ...prev, [record.id]: new Set() }));
+    setPatientOrders(prev => ({ ...prev, [record.id]: [] }));
+    setQuantity({});
+    setNote({});
+    setFilteredFoods([]);
+    setExpandedCategories({});
+    if (record.id) refetchAllowedFoods();
   };
 
-  const handleConfirmFoodOrder = async () => {
-    if (!selectedFoods.length) {
+  const handleCheckboxChange = (patientId, foodId) => (e) => {
+    setSelectedFoods(prev => {
+      const patientFoods = new Set(prev[patientId] || []);
+      if (e.target.checked) {
+        patientFoods.add(foodId);
+      } else {
+        patientFoods.delete(foodId);
+      }
+      return { ...prev, [patientId]: patientFoods };
+    });
+  };
+
+  const handleQuantityChange = (foodId) => (value) => {
+    setQuantity(prev => ({ ...prev, [foodId]: value || 1 }));
+  };
+
+  const handleNoteChange = (foodId) => (e) => {
+    setNote(prev => ({ ...prev, [foodId]: e.target.value }));
+  };
+
+  const handleConfirmFoodOrder = async (patientId) => {
+    if (!selectedFoods[patientId]?.size) {
       message.warning('Vui lòng chọn ít nhất một món ăn');
       return;
     }
 
     try {
-      const orderDetails = selectedFoods.map((foodId) => {
-        const food = patientOrders[selectedPatient.id]?.find((item) => item.id === foodId);
+      const patient = dataSource.find(p => p.id === patientId);
+      const orderDetails = Array.from(selectedFoods[patientId]).map(foodId => {
+        const food = filteredFoods.find(f => f.id === foodId);
+        if (!food) {
+          console.warn(`Food with ID ${foodId} not found in filteredFoods`);
+          return null;
+        }
         return {
-          FoodId: foodId,
-          quantity: food?.quantity || 1,
-          note: food?.note || '',
-          cartId: food?.cartId || uuidv4(),
-          dishName: food?.name,
-          price: food?.priceForPatient,
-          image: food?.image || 'https://via.placeholder.com/200x140?text=No+Image',
+          foodId: foodId,
+          quantity: quantity[foodId] || 1,
+          notes: note[foodId] || '',
         };
-      });
+      }).filter(item => item !== null);
+
+      if (orderDetails.length === 0) {
+        message.error('Không tìm thấy món ăn hợp lệ để đặt.');
+        return;
+      }
 
       const orderData = {
-        patientId: selectedPatient.id,
-        patientName: selectedPatient.fullName,
-        menuType: dayToMenuMap[activeDay],
+        patientId: patientId,
+        patientName: patient.fullName,
+        menuType: `Menu for ${getFormattedDate(activeDay)}`,
         branchId: currentBranchId,
         nurseId: nurseId,
         orderDetails,
       };
 
+      console.log('🔍 Submitting orderData:', orderData);
+
       await createPatientOrderMutation.mutateAsync(orderData);
-      message.success(`Đã thêm món ăn cho bệnh nhân ${selectedPatient.fullName} vào ${dayToMenuMap[activeDay]}!`);
-      setFoodModalVisible(false);
-      setPatientOrders((prev) => ({ ...prev, [selectedPatient.id]: [] }));
-      setSelectedFoods([]);
+      message.success(`Đã thêm món ăn cho bệnh nhân ${patient.fullName} vào ngày ${getFormattedDate(activeDay)}`);
+      setPatientOrders(prev => ({
+        ...prev,
+        [patientId]: orderDetails,
+      }));
     } catch (error) {
-      message.error('Không thể thêm món ăn vào đơn hàng.');
+      console.error('❌ Error in handleConfirmFoodOrder:', error);
+      message.error(error.message || 'Lỗi khi thêm món ăn');
     }
   };
 
-  const handleDayChange = (value) => {
+  // New function to select all foods for all patients
+  const handleSelectAllFoodsForAllPatients = async () => {
+    if (!dataSource.length) {
+      message.warning('Không có bệnh nhân nào để chọn món ăn.');
+      return;
+    }
+
+    // Iterate through all patients
+    for (const patient of dataSource) {
+      setSelectedPatient({
+        id: patient.id,
+        fullName: patient.fullName,
+        diseaseCategories: patient.diseaseCategories || [],
+      });
+      await refetchAllowedFoods();
+
+      // Wait for filteredFoods to be updated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      if (filteredFoods.length === 0) {
+        message.warning(`Không có món ăn phù hợp cho bệnh nhân ${patient.fullName}.`);
+        continue;
+      }
+
+      // Select all filtered foods for the patient
+      const newSelectedFoods = new Set(filteredFoods.map(food => food.id));
+      setSelectedFoods(prev => ({
+        ...prev,
+        [patient.id]: newSelectedFoods,
+      }));
+
+      // Set default quantity and note for each food
+      const newQuantities = {};
+      const newNotes = {};
+      filteredFoods.forEach(food => {
+        newQuantities[food.id] = 1;
+        newNotes[food.id] = '';
+      });
+      setQuantity(prev => ({ ...prev, ...newQuantities }));
+      setNote(prev => ({ ...prev, ...newNotes }));
+
+      // Automatically confirm the order for the patient
+      await handleConfirmFoodOrder(patient.id);
+    }
+
+    message.success('Đã chọn và xác nhận tất cả món ăn cho tất cả bệnh nhân.');
+  };
+
+  useEffect(() => {
+    if (onSelectAllFoods) {
+      // Bind the select all function to the prop
+      onSelectAllFoods.current = handleSelectAllFoodsForAllPatients;
+    }
+  }, [onSelectAllFoods, filteredFoods, dataSource]);
+
+  const handleDayChange = async (value) => {
+    console.log('🔍 handleDayChange:', value);
     setActiveDay(value);
-    if (selectedPatient) refetchAllowedFoods();
+    setSelectedPatient(null);
+    setFilteredFoods([]);
+    setExpandedCategories({});
+    refreshMenus();
   };
 
   useEffect(() => {
-    if (allowedFoodsData) {
-      const foodsArray = Array.isArray(allowedFoodsData?.data)
-        ? allowedFoodsData.data
-        : Array.isArray(allowedFoodsData)
-        ? allowedFoodsData
-        : [];
-      setAvailableFoods(foodsArray);
+    if (menuLoading || foodsLoading) {
+      message.loading('Đang tải thực đơn...', 0);
+    } else {
+      message.destroy();
     }
-  }, [allowedFoodsData]);
+  }, [menuLoading, foodsLoading]);
 
   useEffect(() => {
-    if (foodsLoading) message.loading('Đang tải danh sách món ăn...', 0);
-    else message.destroy();
-  }, [foodsLoading]);
-
-  useEffect(() => {
-    if (foodsError) message.error('Lỗi khi tải danh sách món ăn: ' + (foodsError.message || 'Lỗi không xác định'));
-  }, [foodsError]);
+    if (menuError) {
+      console.error('❌ menuError:', menuError);
+      message.error('Lỗi khi tải thực đơn: ' + (menuError.message || 'Lỗi không xác định'));
+    }
+    if (foodsError) {
+      console.error('❌ foodsError:', foodsError);
+      message.error('Lỗi khi tải danh sách món ăn: ' + (foodsError.message || 'Lỗi không xác định'));
+    }
+  }, [menuError, foodsError]);
 
   const groupedFoods = useMemo(() => {
-    if (!Array.isArray(availableFoods) || availableFoods.length === 0) return {};
-    const diseaseNames = selectedPatient?.diseaseCategories?.length
-      ? selectedPatient.diseaseCategories.map((dc) => dc.diseaseCategoryName).join(', ')
-      : 'Phù hợp';
-    return availableFoods.reduce((acc, food) => {
-      acc[diseaseNames] = acc[diseaseNames] || [];
-      acc[diseaseNames].push(food);
+    if (!Array.isArray(filteredFoods) || filteredFoods.length === 0) {
+      console.warn('⚠️ groupedFoods - No filtered foods available');
+      return {};
+    }
+
+    const categoryMap = foodCategories.reduce((map, cat) => {
+      map[cat.id] = cat.name;
+      return map;
+    }, {});
+    console.log('🔍 categoryMap:', categoryMap);
+
+    const result = filteredFoods.reduce((acc, food) => {
+      const categoryName = categoryMap[food.categoryId] || food.category?.name || 'Món khác';
+      if (!acc[categoryName]) acc[categoryName] = [];
+      acc[categoryName].push({
+        ...food,
+        priceForPatient: food.priceForPatient || 0,
+      });
       return acc;
     }, {});
-  }, [availableFoods, selectedPatient]);
-
-  useEffect(() => {
-    if (selectedPatient && activeDay) handleDayChange(activeDay);
-  }, [selectedPatient, activeDay]);
+    console.log('✅ groupedFoods:', result);
+    return result;
+  }, [filteredFoods, foodCategories]);
 
   const columns = [
-    { dataIndex: 'medicalRecordNumber', primary: true, align: 'left', title: 'MÃ HỒ SƠ', render: (text) => text || '-' },
-    { dataIndex: 'fullName', align: 'left', title: 'HỌ TÊN', render: (text) => text || '-' },
-    { dataIndex: 'gender', align: 'left', title: 'GIỚI TÍNH', render: (text) => text || '-' },
-    { dataIndex: 'roomNumber', align: 'left', title: 'PHÒNG', render: (text) => text || '-' },
-    { dataIndex: 'bedNumber', align: 'left', title: 'GIƯỜNG', render: (text) => text || '-' },
+    {
+      dataIndex: 'medicalRecordNumber',
+      align: 'left',
+      title: 'Mã Hồ Sơ',
+      sorter: (a, b) => (a.medicalRecordNumber || '').localeCompare(b.medicalRecordNumber || ''),
+      render: (text) => <span className="vietnamese-text">{text || '-'}</span>,
+    },
+    {
+      dataIndex: 'fullName',
+      align: 'left',
+      title: 'Họ Tên',
+      primary: true,
+      sorter: (a, b) => (a.fullName || '').localeCompare(b.fullName || ''),
+      render: (text) => <span className="vietnamese-text">{text || '-'}</span>,
+    },
+    {
+      dataIndex: 'gender',
+      align: 'left',
+      title: 'Giới Tính',
+      render: (text) => <span className="vietnamese-text">{text || '-'}</span>,
+    },
+    {
+      dataIndex: 'roomNumber',
+      align: 'left',
+      title: 'Phòng',
+      sorter: (a, b) => (a.roomNumber || '').localeCompare(b.roomNumber || ''),
+      render: (text) => <span className="vietnamese-text">{text || '-'}</span>,
+    },
+    {
+      dataIndex: 'bedNumber',
+      align: 'left',
+      title: 'Giường',
+      sorter: (a, b) => (a.bedNumber || '').localeCompare(b.bedNumber || ''),
+      render: (text) => <span className="vietnamese-text">{text || '-'}</span>,
+    },
     {
       dataIndex: 'diseaseCategories',
       align: 'left',
-      title: 'NHÓM BỆNH',
-      render: (diseaseCategories) =>
-        diseaseCategories?.length
-          ? diseaseCategories.map((dc) => dc.diseaseCategoryName).join(', ')
-          : 'Chưa xác định',
+      title: 'Nhóm Bệnh',
+      render: (diseaseCategories) => {
+        if (!diseaseCategories || !Array.isArray(diseaseCategories) || diseaseCategories.length === 0) {
+          return <span className="vietnamese-text">Chưa xác định</span>;
+        }
+        const diseaseNames = diseaseCategories.map(dc => dc.diseaseCategoryName).join(', ');
+        return <span className="vietnamese-text">{diseaseNames}</span>;
+      },
     },
   ];
 
@@ -237,361 +436,242 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId }) => {
     pageSizeOptions: [5, 10, 20, 50],
     showTotal: true,
     showSizeChanger: true,
-    total: filteredData.length,
-    showTotal: (total, range) => `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} bệnh nhân`,
+    total: dataSource.length,
+    showTotal: (total, range) => `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} mục`,
   };
 
   return (
     <ConfigProvider locale={locale}>
-      <ReusableTableV2
-        dataSource={filteredData}
-        columns={columns}
-        loading={loading}
-        listHeader="DANH SÁCH BỆNH NHÂN"
-        emptyMessage="Không tìm thấy bệnh nhân nào."
-        pagination={paginationConfig}
-        searchProps={{
-          value: searchText,
-          onChange: handleSearch,
-          placeholder: 'Tìm kiếm bệnh nhân',
-        }}
-        expandable={{
-          expandedRowRender: (record) => (
-            <div style={{ padding: '16px', background: '#fafafa', borderRadius: '8px' }}>
-              <Button
-                type="primary"
-                style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f', marginBottom: '16px' }}
-                onClick={() => handleAddToMenu(record)}
-              >
-                Thêm món ăn
-              </Button>
-              {patientOrders[record.id]?.length ? (
-                <div>
-                  <Title level={5} style={{ marginBottom: '16px', color: '#333' }}>
-                    Danh sách món ăn đã thêm
-                  </Title>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                      gap: '16px',
-                    }}
-                  >
-                    {patientOrders[record.id].map((item) => (
-                      <div
-                        key={item.id}
-                        className="food-card"
-                        style={{
-                          border: '1px solid #e8e8e8',
-                          borderRadius: '8px',
-                          padding: '12px',
-                          background: '#fff',
-                          position: 'relative',
-                        }}
-                      >
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            backgroundColor: '#b4c80f',
-                            color: '#fff',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                          }}
-                        >
-                          x{item.quantity || 1}
-                        </div>
-                        <Title
-                          level={5}
-                          style={{
-                            marginBottom: '8px',
-                            fontSize: '16px',
-                            color: '#222',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {item.name}
-                        </Title>
-                        <div style={{ marginBottom: '8px' }}>
-                          <Text strong style={{ fontSize: '14px', color: '#b41400' }}>
-                            {item.priceForPatient.toLocaleString('vi-VN')}đ
-                          </Text>
-                        </div>
-                        {item.note && (
-                          <Text style={{ fontSize: '12px', color: '#666', display: 'block', whiteSpace: 'pre-wrap' }}>
-                            Ghi chú: {item.note}
-                          </Text>
-                        )}
-                        <Button
-                          type="text"
-                          danger
-                          size="small"
-                          style={{ position: 'absolute', bottom: '8px', right: '8px' }}
-                          onClick={() => {
-                            setPatientOrders({
-                              ...patientOrders,
-                              [record.id]: patientOrders[record.id].filter((food) => food.id !== item.id),
-                            });
-                            setSelectedFoods(selectedFoods.filter((foodId) => foodId !== item.id));
-                            message.success(`Đã xóa ${item.name} khỏi danh sách`);
-                          }}
-                        >
-                          Xóa
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <Text style={{ padding: '16px', color: '#666' }}>Chưa có món ăn nào được thêm.</Text>
-              )}
-            </div>
-          ),
-        }}
-      />
-      <Modal
-        title={`Thêm món ăn cho ${selectedPatient?.fullName}`}
-        open={foodModalVisible}
-        onCancel={() => setFoodModalVisible(false)}
-        okText="Xác nhận"
-        cancelText="Hủy"
-        centered
-        width={1200}
-        footer={[
-          <Button key="cancel" onClick={() => setFoodModalVisible(false)}>
-            Hủy
-          </Button>,
-          <Button key="submit" type="primary" onClick={handleConfirmFoodOrder}>
-            Xác nhận
-          </Button>,
-        ]}
-      >
-        <Space style={{ width: '100%', marginBottom: 16 }}>
+      <div className="reusable-table-container">
+        <div style={{ marginBottom: '16px' }}>
           <Select
-            style={{ width: 200 }}
-            placeholder="Chọn ngày"
             value={activeDay}
             onChange={handleDayChange}
-            options={vietnameseDays}
-          />
-        </Space>
-        {Object.keys(groupedFoods).length > 0 ? (
-          <div>
-            {Object.keys(groupedFoods).map((category) => (
-              <div
-                key={category}
-                style={{ marginBottom: '32px', paddingTop: '20px', scrollMarginTop: '140px' }}
-                ref={(el) => (categoryRefs.current[category] = el)}
+            style={{ width: 200 }}
+            placeholder="Chọn ngày"
+          >
+            {vietnameseDays.map(day => (
+              <Select.Option key={day.value} value={day.value}>
+                {day.label}
+              </Select.Option>
+            ))}
+          </Select>
+        </div>
+        <ReusableTableV2
+          dataSource={dataSource}
+          columns={columns}
+          loading={loading}
+          listHeader="HỌ TÊN"
+          emptyMessage="Không tìm thấy bệnh nhân nào."
+          pagination={paginationConfig}
+          expandable={{
+            expandIcon: ({ expanded, onExpand, record }) => (
+              <span
+                onClick={(e) => {
+                  onExpand(record, e);
+                  handleAddToMenu(record);
+                }}
+                style={{ cursor: 'pointer', fontSize: '16px', width: '20px', display: 'inline-block' }}
               >
-                <Title
-                  level={4}
-                  style={{
-                    marginBottom: '16px',
-                    color: '#333',
-                    backgroundColor: '#f0f0f0',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                  }}
-                >
-                  {category}
-                </Title>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                    gap: '16px',
-                  }}
-                >
-                  {groupedFoods[category].map((food) => {
-                    const isInOrder = patientOrders[selectedPatient?.id]?.some((item) => item.id === food.id);
-                    return (
-                      <div
-                        key={food.id}
-                        className="food-card"
-                        style={{
-                          border: '1px solid #e8e8e8',
-                          borderRadius: '8px',
-                          padding: '12px',
-                          background: '#fff',
-                          position: 'relative',
-                        }}
-                      >
-                        <Image
-                          width="100%"
-                          height={140}
-                          src={food.image || 'https://via.placeholder.com/200x140?text=No+Image'}
-                          alt={food.name}
-                          preview={false}
-                          style={{ objectFit: 'cover', borderRadius: '6px', marginBottom: '12px' }}
-                        />
-                        {isInOrder && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              backgroundColor: '#b4c80f',
-                              color: '#fff',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              fontSize: '14px',
-                            }}
-                          >
-                            x{patientOrders[selectedPatient?.id]?.find((item) => item.id === food.id)?.quantity || 1}
+                {expanded ? '−' : '+'}
+              </span>
+            ),
+            expandedRowRender: (record) => (
+              <div style={{ padding: '16px', background: '#fafafa', borderRadius: '8px' }}>
+                {selectedPatient?.id === record.id && (
+                  <>
+                    {menuLoading || foodsLoading ? (
+                      <p>Đang tải thực đơn...</p>
+                    ) : Object.keys(groupedFoods).length === 0 && filteredFoods.length === 0 ? (
+                      <p>Không có món ăn nào phù hợp với bệnh nhân hoặc thực đơn chưa được thiết lập.</p>
+                    ) : (
+                      <div>
+                        {Object.entries(groupedFoods).map(([categoryName, foods]) => (
+                          <div key={categoryName} style={{ marginBottom: '16px' }}>
+                            <div
+                              onClick={() => setExpandedCategories(prev => ({
+                                ...prev,
+                                [categoryName]: !prev[categoryName],
+                              }))}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                                color: '#3c3c3c',
+                                fontSize: 16,
+                                width: 150,
+                              }}
+                            >
+                              <span>{categoryName}</span>
+                              <span>{expandedCategories[categoryName] ? '−' : '+'}</span>
+                            </div>
+                            {expandedCategories[categoryName] && (
+                              <div style={{ paddingLeft: 12, paddingTop: 8 }}>
+                                {foods.map(food => (
+                                  <div
+                                    key={food.id}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      padding: '6px 0',
+                                      borderBottom: '1px solid #f0f0f0',
+                                      gap: 8,
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'center', maxWidth: 180, flex: 1 }}>
+                                      <Checkbox
+                                        checked={selectedFoods[record.id]?.has(food.id) || false}
+                                        onChange={handleCheckboxChange(record.id, food.id)}
+                                        style={{ marginRight: 6 }}
+                                      />
+                                      <span
+                                        style={{
+                                          overflow: 'hidden',
+                                          whiteSpace: 'nowrap',
+                                          textOverflow: 'ellipsis',
+                                        }}
+                                      >
+                                        {food.name}
+                                      </span>
+                                    </div>
+                                    <InputNumber
+                                      min={1}
+                                      value={quantity[food.id] || 1}
+                                      onChange={handleQuantityChange(food.id)}
+                                      style={{ width: 60 }}
+                                    />
+                                    <Input
+                                      value={note[food.id] || ''}
+                                      onChange={handleNoteChange(food.id)}
+                                      placeholder="Ghi chú..."
+                                      style={{ width: 500 }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
-                        <Title
-                          level={5}
-                          style={{
-                            marginBottom: '8px',
-                            fontSize: '16px',
-                            color: '#222',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {food.name}
-                        </Title>
-                        <div style={{ marginBottom: '8px' }}>
-                          <Text strong style={{ fontSize: '14px', color: '#b41400' }}>
-                            {food.priceForPatient.toLocaleString('vi-VN')}đ
-                          </Text>
-                        </div>
+                        ))}
                         <Button
-                          style={{
-                            backgroundColor: '#b4c80f',
-                            borderColor: '#b4c80f',
-                            color: '#000',
-                            width: '100%',
-                            borderRadius: '6px',
-                          }}
                           type="primary"
-                          size="small"
-                          onClick={() => handleShowDetails(food)}
+                          onClick={() => handleConfirmFoodOrder(record.id)}
+                          style={{ marginTop: '16px' }}
                         >
-                          {isInOrder ? 'Cập nhật' : 'Thêm'}
+                          Xác nhận đơn hàng
                         </Button>
                       </div>
-                    );
-                  })}
-                </div>
+                    )}
+                    {patientOrders[record.id]?.length > 0 && (
+                      <>
+                        <Title level={5} style={{ marginTop: '24px', marginBottom: '16px', color: '#333' }}>
+                          Danh sách món ăn đã thêm
+                        </Title>
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                            gap: '16px',
+                          }}
+                        >
+                          {patientOrders[record.id].map(item => (
+                            <div
+                              key={item.foodId}
+                              className="food-card"
+                              style={{
+                                border: '1px solid #e8e8e8',
+                                borderRadius: '8px',
+                                padding: '12px',
+                                background: '#fff',
+                                transition: 'transform 0.2s, box-shadow 0.2s',
+                                position: 'relative',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: 8,
+                                  right: 8,
+                                  backgroundColor: '#b4c80f',
+                                  color: '#fff',
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '14px',
+                                  fontWeight: '500',
+                                }}
+                              >
+                                x{item.quantity || 1}
+                              </div>
+                              <Title
+                                level={5}
+                                style={{
+                                  marginBottom: '8px',
+                                  fontSize: '16px',
+                                  color: '#222',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {filteredFoods.find(f => f.id === item.foodId)?.name || 'Không xác định'}
+                              </Title>
+                              <div style={{ marginBottom: '8px' }}>
+                                <Text
+                                  strong
+                                  style={{ fontSize: '14px', color: '#b41400' }}
+                                >
+                                  {filteredFoods.find(f => f.id === item.foodId)?.priceForPatient?.toLocaleString('vi-VN') || '0'}đ
+                                </Text>
+                              </div>
+                              {item.notes && (
+                                <Text
+                                  style={{
+                                    fontSize: '12px',
+                                    color: '#666',
+                                    display: 'block',
+                                    whiteSpace: 'pre-wrap',
+                                    marginBottom: '8px',
+                                  }}
+                                >
+                                  Ghi chú: {item.notes}
+                                </Text>
+                              )}
+                              <Button
+                                type="text"
+                                danger
+                                size="small"
+                                style={{ position: 'absolute', bottom: '8px', right: '8px' }}
+                                onClick={() => {
+                                  const newOrders = patientOrders[record.id].filter(f => f.foodId !== item.foodId);
+                                  setPatientOrders(prev => ({ ...prev, [record.id]: newOrders }));
+                                  setSelectedFoods(prev => {
+                                    const patientFoods = new Set(prev[record.id]);
+                                    patientFoods.delete(item.foodId);
+                                    return { ...prev, [record.id]: patientFoods };
+                                  });
+                                  message.success(`Đã xóa ${filteredFoods.find(f => f.id === item.foodId)?.name || 'món ăn'} khỏi danh sách`);
+                                }}
+                              >
+                                Xóa
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
               </div>
-            ))}
-          </div>
-        ) : (
-          <Text style={{ textAlign: 'center', display: 'block', marginTop: 24 }} type="secondary">
-            Không có món ăn phù hợp.
-          </Text>
-        )}
-      </Modal>
-      <Modal
-        open={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
-        footer={null}
-        width={600}
-        centered
-        styles={{ content: { padding: 0, borderRadius: '8px' } }}
-      >
-        <div style={{ borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
-          <div
-            style={{
-              backgroundColor: '#b4c80f',
-              color: '#000',
-              padding: '12px 16px',
-              fontSize: '18px',
-            }}
-          >
-            {patientOrders[selectedPatient?.id]?.some((item) => item.id === selectedFood?.id)
-              ? 'Cập nhật món ăn'
-              : 'Thêm món ăn'}
-          </div>
-          {selectedFood?.image && (
-            <img
-              src={selectedFood.image || 'https://via.placeholder.com/600x250?text=No+Image'}
-              alt={selectedFood.name}
-              style={{ width: '100%', maxHeight: '250px', objectFit: 'cover' }}
-            />
-          )}
-          <div style={{ padding: '12px 16px' }}>
-            <Text style={{ display: 'block', fontSize: '16px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>
-              {selectedFood?.name || 'Không có tên'}
-            </Text>
-            <Text style={{ display: 'block', fontSize: '14px', color: '#555', marginBottom: '8px' }}>
-              {selectedFood?.description || 'Không có mô tả'}
-            </Text>
-            <Text
-              style={{ display: 'block', fontSize: '16px', fontWeight: 'bold', color: '#b41400', marginBottom: '12px' }}
-            >
-              {selectedFood?.priceForPatient.toLocaleString('vi-VN')}đ
-            </Text>
-          </div>
-          <div style={{ padding: '0 16px' }}>
-            <Text style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>
-              Ghi chú:
-            </Text>
-            <Input.TextArea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              style={{ marginBottom: '20px', height: '100px', resize: 'none' }}
-              placeholder="Ghi chú..."
-            />
-          </div>
-          <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-            <Button
-              style={{
-                backgroundColor: '#b4c80f',
-                borderColor: '#b4c80f',
-                color: '#000',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                fontSize: '18px',
-                fontWeight: 'bold',
-              }}
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-            >
-              -
-            </Button>
-            <span style={{ margin: '0 16px', fontSize: '16px' }}>{quantity}</span>
-            <Button
-              style={{
-                backgroundColor: '#b4c80f',
-                borderColor: '#b4c80f',
-                color: '#000',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                fontSize: '18px',
-                fontWeight: 'bold',
-              }}
-              onClick={() => setQuantity(quantity + 1)}
-            >
-              +
-            </Button>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '0 16px 16px' }}>
-            <Button
-              style={{
-                backgroundColor: '#b4c80f',
-                borderColor: '#b4c80f',
-                color: '#000',
-                width: '100%',
-                borderRadius: '6px',
-              }}
-              onClick={handleAddOrUpdateOrder}
-            >
-              {patientOrders[selectedPatient?.id]?.some((item) => item.id === selectedFood?.id)
-                ? 'Cập nhật món ăn'
-                : 'Thêm món ăn'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+            ),
+          }}
+          onRow={(record) => ({
+            onClick: (e) => {
+              e.stopPropagation();
+            },
+          })}
+        />
+      </div>
     </ConfigProvider>
   );
 };
@@ -607,6 +687,7 @@ PatientTable.propTypes = {
       bedNumber: PropTypes.string,
       diseaseCategories: PropTypes.arrayOf(
         PropTypes.shape({
+          diseaseCategoryId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
           diseaseCategoryName: PropTypes.string,
           diseaseCategoryCode: PropTypes.string,
           patientSeverityLevel: PropTypes.number,
@@ -621,6 +702,9 @@ PatientTable.propTypes = {
   loading: PropTypes.bool,
   nurseId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  activeDay: PropTypes.string.isRequired,
+  setActiveDay: PropTypes.func.isRequired,
+  onSelectAllFoods: PropTypes.func, // New prop for select all functionality
 };
 
 export default PatientTable;

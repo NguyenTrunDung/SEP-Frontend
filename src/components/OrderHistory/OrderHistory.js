@@ -9,7 +9,6 @@ import FeedbackModal from '../Feedback/Feedback';
 import ViewFeedbackModal from '../Feedback/ViewFeedbackModal';
 import EditFeedbackModal from '../Feedback/EditFeedbackModal';
 
-
 import './OrderHistory.css';
 
 const { Text } = Typography;
@@ -31,8 +30,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const [currentFeedbacks, setCurrentFeedbacks] = useState([]);
   const [editFeedback, setEditFeedback] = useState(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
-
-
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -78,9 +75,14 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           })
         );
 
-        const normalizedOrders = detailedOrders.filter(
-          (order) => order.userId === user.id || order.userId === String(user.id)
-        );
+        const normalizedOrders = detailedOrders
+          .filter(
+            (order) => order.userId === user.id || order.userId === String(user.id)
+          )
+          .map((order) => ({
+            ...order,
+            status: order.status?.toLowerCase() || 'unknown', // Chuẩn hóa status
+          }));
 
         if (normalizedOrders.length === 0) {
           console.warn('No orders found for userId:', user.id);
@@ -93,7 +95,8 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         setFilteredOrders(normalizedOrders);
         setError(null);
       } catch (err) {
-        setError('Không thể tải lịch sử đơn hàng. Vui lòng thử lại.');
+        const errorMessage = err.response?.data?.message || 'Không thể tải lịch sử đơn hàng. Vui lòng thử lại.';
+        setError(errorMessage);
         console.error('Error fetching orders:', err.response?.data || err.message);
       } finally {
         setLoading(false);
@@ -112,7 +115,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         (Array.isArray(order.items) && order.items.some(item =>
           (item.foodName || item.name || '').toLowerCase().includes(search.toLowerCase())
         )) ||
-        (order.status === 'DELIVERED' ? 'Đã hoàn tất' : order.status === 'PENDING' ? 'Đang giao hàng' : order.status || '').toLowerCase().includes(search.toLowerCase())
+        (order.status === 'completed' ? 'Hoàn thành' : order.status === 'pending' ? 'Đang chờ' : order.status || '').toLowerCase().includes(search.toLowerCase())
       );
     } else {
       if (idFilter) {
@@ -163,6 +166,10 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   };
 
   const handleFeedback = (order) => {
+    if (order.status !== 'completed') {
+      message.error('Chỉ có thể đánh giá các đơn hàng đã hoàn thành.');
+      return;
+    }
     setSelectedOrder(order);
     const hasFeedback = Array.isArray(order.feedbacks) && order.feedbacks.length > 0;
 
@@ -180,25 +187,27 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   };
 
   const handleFeedbackSubmit = (values) => {
+    if (selectedOrder.status !== 'completed') {
+      message.error('Không thể gửi đánh giá cho đơn hàng chưa hoàn thành.');
+      return;
+    }
     const newFeedback = {
       ...values,
       user: {
         name: user.name,
         email: user.email,
         avatar: user.avatar || '/images/default-avatar.png',
-        customerName: selectedOrder.customerName || user.name || 'Ẩn danh', // ✅ Thêm dòng này
+        customerName: selectedOrder.customerName || user.name || 'Ẩn danh',
       },
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().IPC(),
       id: `${selectedOrder.id}-${Date.now()}`,
     };
-
 
     const updatedOrders = orders.map((order) => {
       if (order.id === selectedOrder.id) {
         const updatedFeedbacks = Array.isArray(order.feedbacks)
           ? [...order.feedbacks, newFeedback]
           : [newFeedback];
-
         return {
           ...order,
           feedbacks: updatedFeedbacks,
@@ -213,6 +222,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     setFeedbackModalVisible(false);
     setSelectedOrder(null);
   };
+
   const handleDeleteFeedback = (feedbackId) => {
     const updatedOrders = orders.map((order) => {
       if (order.id === selectedOrder.id) {
@@ -225,13 +235,9 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     setOrders(updatedOrders);
     setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
     message.success('Xóa đánh giá thành công!');
-
-
     setViewFeedbackVisible(false);
     setSelectedOrder(null);
   };
-
-
 
   const getSortedOrders = () => {
     return [...filteredOrders].sort((a, b) => {
@@ -248,6 +254,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     setEditModalVisible(true);
     setViewFeedbackVisible(false);
   };
+
   const handleUpdateFeedback = (updatedFeedback) => {
     const updatedOrders = orders.map((order) => {
       if (order.id === selectedOrder.id) {
@@ -266,8 +273,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     setEditFeedback(null);
     setSelectedOrder(null);
   };
-
-
 
   const overviewColumns = [
     {
@@ -345,7 +350,8 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           delivered: 'Đang giao hàng',
           completed: 'Hoàn thành',
           cancelled: 'Hủy',
-        }[status?.toLowerCase()] || status || 'N/A'
+          unknown: 'Không xác định',
+        }[status?.toLowerCase() || 'unknown']
       ),
       filters: [
         { text: 'Đang chờ', value: 'pending' },
@@ -537,7 +543,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
                 <Text style={{ fontWeight: 400 }}>Người đặt: </Text>
                 <Text style={{ fontWeight: 500 }}>{selectedOrder.customerName || 'Không xác định'}</Text>
-
               </div>
               <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
                 <Text style={{ fontWeight: 400 }}>Thời gian đặt: </Text>
@@ -551,7 +556,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                 <Text style={{ fontWeight: 400 }}>Thời gian cập nhật: </Text>
                 <Text style={{ fontWeight: 500 }}>
                   {selectedOrder.updatedAt
-                    ? new Date(selectedOrder.updatedAt).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+                    ? new Date(selectedOrder.updatedAt).toLocaleString('vi-VN', { timeStyle: 'short' })
                     : 'N/A'}
                 </Text>
               </div>
@@ -571,7 +576,8 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                       delivered: 'Đang giao hàng',
                       completed: 'Hoàn thành',
                       cancelled: 'Hủy',
-                    }[selectedOrder.status?.toLowerCase()] || selectedOrder.status || 'Không xác định'
+                      unknown: 'Không xác định',
+                    }[selectedOrder.status?.toLowerCase() || 'unknown']
                   }
                 </Text>
               </div>
@@ -601,7 +607,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         selectedOrder={selectedOrder}
         onSubmit={handleFeedbackSubmit}
       />
-
       <ViewFeedbackModal
         visible={viewFeedbackVisible}
         onClose={() => {
@@ -624,8 +629,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         feedback={editFeedback}
         onUpdate={handleUpdateFeedback}
       />
-
-
     </>
   );
 };

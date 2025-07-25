@@ -1,18 +1,26 @@
-.patient-table-container {
-  padding: 16px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.menu-category-section {
+    margin-bottom: 24px;
 }
 
-.food-card {
-  transition: transform 0.2s, box-shadow 0.2s;
+.menu-category-add-btn {
+    min-width: 100px;
+    height: 36px;
+    font-weight: 500;
 }
 
-.food-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.food-list-item {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 8px 16px;
+    border-bottom: 1px solid #f0f0f0;
 }
-html, body, #root {
-  font-family: Quicksand, sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+
+.dish-config-compact {
+    padding: 16px;
+    background: #fefefe;
+    border-radius: 0 0 6px 6px;
+}
+
+.confirm-order-button {
+    margin-top: 16px;
 }

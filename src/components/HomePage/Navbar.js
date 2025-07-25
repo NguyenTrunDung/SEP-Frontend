@@ -2,18 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar } from 'antd';
 import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { usePublicBranchesOnly, usePublicSwitchBranchOnly } from '../hooks/queries/useBranchSelector';
-import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
-import { ROLES } from '../constants/roles';
+import { usePublicBranchesOnly, usePublicSwitchBranchOnly } from '../../hooks/queries/useBranchSelector';
+import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
+import { ROLES } from '../../constants/roles';
 import locale from 'antd/locale/vi_VN';
-import ProfilePopup from '../components/Nurse/ViewProfilebyNurse';
-import CartModal from '../components/Cart/Cart';
-import PaymentModal from '../components/Payment/Payment';
-import OrderHistoryModal from '../components/OrderHistory/OrderHistory';
-import WalletModal from '../components/Wallet/Wallet';
-import UserHeader from '../components/common/UserHeader';
-import OrderTrackingPopup from '../components/Order/OrderTrackingPopup';
+import ProfilePopup from '../Nurse/ViewProfilebyNurse';
+import CartModal from '../Cart/Cart';
+import PaymentModal from '../Payment/Payment';
+import OrderHistoryModal from '../OrderHistory/OrderHistory';
+import WalletModal from '../Wallet/Wallet';
+import UserHeader from '../common/UserHeader';
+import OrderTrackingPopup from '../Order/OrderTrackingPopup';
 
 const { Header } = Layout;
 const { Text } = Typography;
@@ -32,7 +32,7 @@ const Navbar = () => {
   });
   const [isOrderTrackingVisible, setIsOrderTrackingVisible] = useState(false);
 
-  const branches = Array.isArray(branchesData) ? branchesData : [];
+  const branches = branchesData && Array.isArray(branchesData) ? branchesData : [];
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [isProfilePopupVisible, setIsProfilePopupVisible] = useState(false);
@@ -57,78 +57,51 @@ const Navbar = () => {
   });
   const [activeKey, setActiveKey] = useState('home');
 
+  // Add event listener to clear localStorage on tab/window close
   useEffect(() => {
-    const navType = performance.getEntriesByType('navigation')[0]?.type || 'reload';
+    const handleBeforeUnload = () => {
+      localStorage.removeItem('selectedBranch');
+      localStorage.removeItem('currentBranchId');
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Cleanup the event listener on component unmount
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
     const excludeRoutes = ['/login', '/register', '/contact'];
-    const justLoggedOut = sessionStorage.getItem('justLoggedOut') === 'true';
-    const savedBranch = localStorage.getItem('selectedBranch');
+    const params = new URLSearchParams(location.search);
+    const branchId = params.get('branch');
 
-    console.log('Navbar useEffect triggered:', {
-      navType,
-      currentPath: location.pathname,
-      isExcludedRoute: excludeRoutes.includes(location.pathname),
-      isNurse: user?.role === ROLES.NURSE,
-      user: !!user,
-      justLoggedOut,
-      hasSelectedBranch: !!savedBranch,
-    });
-
-    // On page load or reload
-    if (navType === 'reload' || navType === 'navigate') {
-      // Clear justLoggedOut on full page reload
-      sessionStorage.removeItem('justLoggedOut');
-
-      // Clear selected branch for non-nurse users or if no user
-      if (!user || user?.role !== ROLES.NURSE) {
-        localStorage.removeItem('selectedBranch');
-        localStorage.removeItem('currentBranchId');
-        setSelectedBranch(null);
-      }
-
-      // Show popup if: not on excluded routes and not a nurse
-      if (!excludeRoutes.includes(location.pathname) && (!user || user?.role !== ROLES.NURSE)) {
-        console.log('Showing branch selection popup on page load/reload');
-        setIsModalVisible(true);
+    // Xử lý chi nhánh từ query parameter
+    if (branchId && branches.length > 0 && !selectedBranch) {
+      const branch = branches.find(b => b.id === parseInt(branchId));
+      if (branch) {
+        console.log('Selecting branch from URL:', branch);
+        handleBranchSelect(branch);
+        return;
       } else {
-        console.log('Not showing popup on page load/reload:', {
-          isNurse: user?.role === ROLES.NURSE,
-          isExcludedRoute: excludeRoutes.includes(location.pathname),
-          hasUser: !!user,
-        });
-        setIsModalVisible(false);
+        console.warn('Invalid branch ID in URL:', branchId);
       }
-    } else {
-      // For SPA navigation
-      console.log('SPA navigation, checking popup conditions:', {
-        savedBranch: !!savedBranch,
-        justLoggedOut,
-        isNurse: user?.role === ROLES.NURSE,
-        isExcludedRoute: excludeRoutes.includes(location.pathname),
-        hasUser: !!user,
-      });
-
-      // Show popup if: not on excluded routes, not a nurse, no branch selected, not just logged out
-      if (
-        !excludeRoutes.includes(location.pathname) &&
-        (!user || user?.role !== ROLES.NURSE) &&
-        !savedBranch &&
-        !justLoggedOut
-      ) {
-        console.log('Showing branch selection popup on SPA navigation');
-        setIsModalVisible(true);
-      } else {
-        console.log('Not showing popup on SPA navigation:', {
-          isNurse: user?.role === ROLES.NURSE,
-          isExcludedRoute: excludeRoutes.includes(location.pathname),
-          justLoggedOut,
-          hasSavedBranch: !!savedBranch,
-          hasUser: !!user,
-        });
-        setIsModalVisible(false);
-      }
-      setSelectedBranch(savedBranch ? JSON.parse(savedBranch) : null);
     }
-  }, [location.pathname, user]);
+
+    // Hiển thị modal nếu chưa có chi nhánh được chọn và không ở các tuyến đường loại trừ
+    if (!selectedBranch && !excludeRoutes.includes(location.pathname) && (!user || user?.role !== ROLES.NURSE)) {
+      console.log('Showing branch selection popup: no branch selected');
+      setIsModalVisible(true);
+    } else {
+      console.log('Not showing branch selection popup:', {
+        hasSelectedBranch: !!selectedBranch,
+        isExcludedRoute: excludeRoutes.includes(location.pathname),
+        isNurse: user?.role === ROLES.NURSE,
+      });
+      setIsModalVisible(false);
+    }
+  }, [location.pathname, location.search, branches, selectedBranch, user]);
 
   useEffect(() => {
     console.log('Navbar - User data:', { user, role: user?.role, location: location.pathname });
@@ -141,11 +114,18 @@ const Navbar = () => {
       localStorage.setItem('selectedBranch', JSON.stringify(branch));
       localStorage.setItem('currentBranchId', branch.id);
       setIsModalVisible(false);
-      sessionStorage.removeItem('justLoggedOut'); // Clear justLoggedOut after branch selection
       message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
     } catch (error) {
       console.error('Failed to switch branch:', error);
       message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
+    }
+  };
+
+  const handleOpenBranchModal = () => {
+    if (!user) {
+      setIsModalVisible(true);
+    } else {
+      message.info('Bạn không thể thay đổi chi nhánh khi đã đăng nhập.');
     }
   };
 
@@ -200,10 +180,6 @@ const Navbar = () => {
   const handleLogout = () => {
     console.log('Logging out user:', user);
     logout();
-    localStorage.removeItem('selectedBranch');
-    localStorage.removeItem('currentBranchId');
-    sessionStorage.setItem('justLoggedOut', 'true');
-    setSelectedBranch(null);
     navigate('/login');
     setIsUserMenuVisible(false);
   };
@@ -225,10 +201,6 @@ const Navbar = () => {
     navigate('/login');
   };
 
-  const handleRegisterClick = () => {
-    console.log('Navigating to register');
-    navigate('/register');
-  };
 
   const menuItems = [
     { key: 'home', label: 'TRANG CHỦ', route: '/' },
@@ -294,12 +266,15 @@ const Navbar = () => {
                 </Col>
                 <Col>
                   <span
+                    onClick={!user ? handleOpenBranchModal : undefined}
                     style={{
                       color: '#fff',
                       fontSize: '14px',
                       padding: '4px 12px',
                       border: '1px solid #fff',
                       borderRadius: '8px',
+                      cursor: user ? 'not-allowed' : 'pointer',
+                      opacity: user ? 0.6 : 1,
                     }}
                   >
                     {selectedBranch ? `Chi nhánh: ${selectedBranch.name}` : 'Chọn chi nhánh'}
@@ -328,7 +303,7 @@ const Navbar = () => {
                     <Row gutter={8} align="middle">
                       <Col>
                         <Button
-                          type="default"
+                          type="text"
                           onClick={handleLoginClick}
                           style={{
                             color: '#fff',
@@ -341,7 +316,6 @@ const Navbar = () => {
                             fontWeight: 500,
                             lineHeight: '26px',
                           }}
-                          ghost
                         >
                           Đăng nhập
                         </Button>
@@ -409,8 +383,8 @@ const Navbar = () => {
         <Modal
           open={isModalVisible}
           footer={null}
-          closable={false}
-          maskClosable={false}
+          closable={selectedBranch !== null}
+          maskClosable={selectedBranch !== null}
           centered
           width="min(100vw, 600px)"
           style={{ padding: 0, margin: 0, top: 0 }}
@@ -441,7 +415,7 @@ const Navbar = () => {
             }}
           >
             <div style={{ fontWeight: 500, fontSize: '16px', color: '#333', marginBottom: '12px' }}>
-              Quý khách vui lòng chọn chi nhánh đặt hàng
+              Quý khách vui lòng chọn bệnh viện đặt hàng
             </div>
             {loading ? (
               <Spin style={{ display: 'block', textAlign: 'center', padding: '20px' }} />
@@ -452,7 +426,7 @@ const Navbar = () => {
                 showIcon
                 style={{ marginBottom: '16px', borderRadius: 0 }}
               />
-            ) : (
+            ) : branches.length > 0 ? (
               <List
                 dataSource={branches}
                 renderItem={(branch) => (
@@ -485,6 +459,13 @@ const Navbar = () => {
                     </div>
                   </List.Item>
                 )}
+              />
+            ) : (
+              <Alert
+                message="Không có chi nhánh nào để hiển thị"
+                type="info"
+                showIcon
+                style={{ marginBottom: '16px', borderRadius: 0 }}
               />
             )}
           </div>

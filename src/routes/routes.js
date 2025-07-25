@@ -24,9 +24,9 @@ import Feedbacks from '../modules/Admin/Feedback/Feedbacks.js';
 import Menu from '../modules/Admin/Menu/index.js';
 import CustomerPage from '../modules/Admin/Staff/index.js';
 
-import ContactPage from '../components/Contact.js';
-import Navbar from '../components/Navbar.js';
-import FooterComponent from '../components/Footer.js';
+import ContactPage from '../components/HomePage/Contact.js';
+import Navbar from '../components/HomePage/Navbar.js';
+import FooterComponent from '../components/HomePage/Footer.js';
 
 import FoodCategories from '../modules/Admin/FoodCategories/index.js';
 import Food from '../modules/Admin/Food/index.js'
