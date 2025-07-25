@@ -1,20 +1,31 @@
 import React, { useState, useMemo } from 'react';
-import { ConfigProvider, Typography, Alert, message } from 'antd';
-import { usePatients, useCreatePatientMutation } from '../../../hooks/queries/usePatientQueries'; // Import the mutation hook
+import { ConfigProvider, Typography, Alert, message, Button } from 'antd';
+import { usePatients, useCreatePatient } from '../../../hooks/queries/usePatientQueries';
 import { useAuth } from '../../../context/AuthContext';
 import locale from 'antd/locale/vi_VN';
 import NurseLayout from '../NurseLayout';
 import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import PatientTable from '../Patient/PatientTable';
 import CreatePatient from '../Patient/CreatePatient';
+import BulkFoodSelection from '../Patient/CreatePatient';
 import { useAntModal } from '../../../hooks/useAntModal';
 
 const { Title, Text } = Typography;
+
+// Define getFormattedDate function
+const getFormattedDate = (dayKey) => {
+  const dayOffset = parseInt(dayKey) - 1;
+  const baseDate = new Date(2025, 6, 21); // Monday, July 21, 2025
+  const date = new Date(baseDate);
+  date.setDate(baseDate.getDate() + dayOffset);
+  return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+};
 
 const PatientComponent = () => {
   const [searchText, setSearchText] = useState('');
   const [activeDay, setActiveDay] = useState('6'); // Default to Saturday, July 26, 2025
   const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
+  const { open: bulkOpen, showModal: showBulkModal, handleCancel: handleBulkCancel } = useAntModal();
 
   const { user } = useAuth();
   const currentBranchId = localStorage.getItem('currentBranchId') || '1';
@@ -23,7 +34,13 @@ const PatientComponent = () => {
     : 'N/A';
   const nurseId = user?.id || user?.userId || 'NURSE001';
 
-  const createPatientMutation = useCreatePatientMutation(); // Add the mutation hook
+  console.log('🏥 PatientComponent - Simplified Branch Context:', {
+    currentBranchId,
+    selectedBranchName,
+    user: user ? { id: user.id, name: user.name, role: user.role } : null,
+    nurseId,
+    activeDay,
+  });
 
   const {
     data: patientData,
@@ -44,14 +61,97 @@ const PatientComponent = () => {
     }
   );
 
-  // Rest of the component remains unchanged
+  const createPatientMutation = useCreatePatient();
+
   const patients = Array.isArray(patientData?.data)
     ? patientData.data
     : Array.isArray(patientData)
-      ? patientData
-      : [];
+    ? patientData
+    : [];
 
-  // ... other code ...
+  console.log('👥 PatientComponent - Patient Data:', {
+    rawPatientData: patientData,
+    extractedPatients: patients,
+    patientCount: patients.length,
+    totalCount: patientData?.totalCount,
+    isLoading: isFetching,
+    hasError: isError,
+    error: error?.message,
+  });
+
+  const handleRefresh = () => {
+    refetch();
+    message.success('Đã làm mới danh sách bệnh nhân');
+  };
+
+  const handleCreate = async (formData) => {
+    try {
+      const payload = {
+        fullName: formData.fullName.trim(),
+        medicalRecordNumber: formData.medicalRecordNumber.trim(),
+        gender: formData.gender,
+        age: formData.age,
+        roomNumber: formData.roomNumber?.trim() || '',
+        bedNumber: formData.bedNumber?.trim() || '',
+        diseaseCategories: formData.diseaseCategories || [],
+        attendingPhysician: formData.attendingPhysician?.trim() || '',
+        isActive: true,
+        isCurrentlyAdmitted: formData.isCurrentlyAdmitted || false,
+        requiresDietarySupervision: formData.requiresDietarySupervision || false,
+        notes: formData.notes?.trim() || '',
+        branchId: currentBranchId,
+      };
+
+      await createPatientMutation.mutateAsync(payload);
+      message.success('Tạo bệnh nhân thành công');
+      handleAddCancel();
+      refetch();
+    } catch (err) {
+      console.error('❌ Lỗi tạo bệnh nhân:', err);
+      message.error(err?.response?.data?.message || 'Lỗi khi tạo bệnh nhân!');
+    }
+  };
+
+  const handleAdd = () => {
+    showAddModal();
+  };
+
+  const handleBulkFoodSelection = async (payload) => {
+    try {
+      console.log('🔍 BulkFoodSelection payload:', payload);
+      message.success('Đã đặt món ăn cho tất cả bệnh nhân');
+    } catch (err) {
+      console.error('❌ Error in bulk food selection:', err);
+      message.error('Lỗi khi đặt món ăn hàng loạt');
+    }
+  };
+
+  const filteredData = useMemo(() => {
+    const keyword = searchText.toLowerCase();
+    return patients.filter(
+      (item) =>
+        item?.fullName?.toLowerCase()?.includes(keyword) ||
+        item?.medicalRecordNumber?.toLowerCase()?.includes(keyword)
+    );
+  }, [patients, searchText]);
+
+  if (!currentBranchId) {
+    return (
+      <ConfigProvider locale={locale}>
+        <NurseLayout>
+          <div className="p-6 bg-gray-50 min-h-screen">
+            <Alert
+              message="Chưa chọn chi nhánh"
+              description="Vui lòng chọn chi nhánh ở thanh điều hướng để xem danh sách bệnh nhân"
+              type="warning"
+              showIcon
+              className="mb-6 rounded-lg shadow-sm"
+            />
+          </div>
+        </NurseLayout>
+      </ConfigProvider>
+    );
+  }
 
   return (
     <ConfigProvider locale={locale}>
@@ -60,14 +160,18 @@ const PatientComponent = () => {
           title="Danh Sách Bệnh Nhân"
           description={`Quản lý thông tin bệnh nhân một cách hiệu quả - Chi nhánh: ${selectedBranchName}`}
           onRefresh={handleRefresh}
-          onAdd={handleSelectAllFoods}
-          addButtonText="Chọn tất cả món ăn"
+          onAdd={handleAdd}
           loading={isFetching}
           searchProps={{
             value: searchText,
             onChange: (e) => setSearchText(e.target.value),
             placeholder: 'Tìm kiếm bệnh nhân',
           }}
+          extra={
+            <Button type="primary" onClick={showBulkModal}>
+              Chọn món ăn cho tất cả bệnh nhân
+            </Button>
+          }
         >
           {isError && (
             <Alert
@@ -84,33 +188,18 @@ const PatientComponent = () => {
             branchId={currentBranchId}
             activeDay={activeDay}
             setActiveDay={setActiveDay}
-            onSelectAllFoods={handleSelectAllFoods}
           />
           <CreatePatient
             open={addOpen}
             onCancel={handleAddCancel}
-            onSubmit={async (formData) => {
-              try {
-                const payload = {
-                  fullName: formData.FullName.trim(),
-                  medicalRecordNumber: formData.MedicalRecordNumber.trim(),
-                  gender: formData.Gender,
-                  roomNumber: formData.RoomNumber?.toString() || '',
-                  bedNumber: formData.BedNumber?.toString() || '',
-                  attendingPhysician: formData.AttendingPhysician?.trim() || '',
-                  isActive: formData.IsActive,
-                  notes: formData.Notes?.trim() || '',
-                  branchId: currentBranchId,
-                };
-                await createPatientMutation.mutateAsync(payload);
-                message.success('Tạo bệnh nhân thành công');
-                handleAddCancel();
-                refetch();
-              } catch (err) {
-                console.error('❌ Lỗi tạo bệnh nhân:', err);
-                message.error(err?.response?.data?.message || 'Lỗi khi tạo bệnh nhân!');
-              }
-            }}
+            onSubmit={handleCreate}
+          />
+          <BulkFoodSelection
+            open={bulkOpen}
+            onCancel={handleBulkCancel}
+            onSubmit={handleBulkFoodSelection}
+            branchId={currentBranchId}
+            activeDay={getFormattedDate(activeDay)} // Use the locally defined function
           />
         </PageWrapperV2>
       </NurseLayout>

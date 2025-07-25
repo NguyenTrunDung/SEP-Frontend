@@ -36,15 +36,16 @@ const getFormattedDate = (dayKey) => {
   return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
 };
 
-const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, setActiveDay, onSelectAllFoods }) => {
+const PatientTable = ({ dataSource = [], loading, nurseId, branchId }) => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [allAvailableFoods, setAllAvailableFoods] = useState([]);
   const [filteredFoods, setFilteredFoods] = useState([]);
   const [foodCategories, setFoodCategories] = useState([]);
-  const [selectedFoods, setSelectedFoods] = useState({}); // Change to object to store per patient
+  const [selectedFoods, setSelectedFoods] = useState(new Set());
   const [patientOrders, setPatientOrders] = useState({});
   const [quantity, setQuantity] = useState({});
   const [note, setNote] = useState({});
+  const [activeDay, setActiveDay] = useState('6'); // Default to Saturday, July 26, 2025
   const [isUsingMockData, setIsUsingMockData] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
   const categoryRefs = useRef({});
@@ -145,7 +146,7 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
       setAllAvailableFoods([]);
       setFilteredFoods([]);
       setFoodCategories([]);
-      setSelectedFoods({});
+      setSelectedFoods(new Set());
       setPatientOrders({});
       setQuantity({});
       setNote({});
@@ -195,7 +196,7 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
       fullName: record.fullName,
       diseaseCategories: record.diseaseCategories || [],
     });
-    setSelectedFoods(prev => ({ ...prev, [record.id]: new Set() }));
+    setSelectedFoods(new Set());
     setPatientOrders(prev => ({ ...prev, [record.id]: [] }));
     setQuantity({});
     setNote({});
@@ -204,16 +205,14 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
     if (record.id) refetchAllowedFoods();
   };
 
-  const handleCheckboxChange = (patientId, foodId) => (e) => {
-    setSelectedFoods(prev => {
-      const patientFoods = new Set(prev[patientId] || []);
-      if (e.target.checked) {
-        patientFoods.add(foodId);
-      } else {
-        patientFoods.delete(foodId);
-      }
-      return { ...prev, [patientId]: patientFoods };
-    });
+  const handleCheckboxChange = (foodId) => (e) => {
+    const newSelectedFoods = new Set(selectedFoods);
+    if (e.target.checked) {
+      newSelectedFoods.add(foodId);
+    } else {
+      newSelectedFoods.delete(foodId);
+    }
+    setSelectedFoods(newSelectedFoods);
   };
 
   const handleQuantityChange = (foodId) => (value) => {
@@ -224,15 +223,14 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
     setNote(prev => ({ ...prev, [foodId]: e.target.value }));
   };
 
-  const handleConfirmFoodOrder = async (patientId) => {
-    if (!selectedFoods[patientId]?.size) {
+  const handleConfirmFoodOrder = async () => {
+    if (!selectedFoods.size) {
       message.warning('Vui lòng chọn ít nhất một món ăn');
       return;
     }
 
     try {
-      const patient = dataSource.find(p => p.id === patientId);
-      const orderDetails = Array.from(selectedFoods[patientId]).map(foodId => {
+      const orderDetails = Array.from(selectedFoods).map(foodId => {
         const food = filteredFoods.find(f => f.id === foodId);
         if (!food) {
           console.warn(`Food with ID ${foodId} not found in filteredFoods`);
@@ -251,9 +249,9 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
       }
 
       const orderData = {
-        patientId: patientId,
-        patientName: patient.fullName,
-        menuType: `Menu for ${getFormattedDate(activeDay)}`,
+        patientId: selectedPatient.id,
+        patientName: selectedPatient.fullName,
+        menuType: `Menu for ${getFormattedDate(activeDay)}`, // Replaced dayToMenuMap with formatted date
         branchId: currentBranchId,
         nurseId: nurseId,
         orderDetails,
@@ -262,10 +260,10 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
       console.log('🔍 Submitting orderData:', orderData);
 
       await createPatientOrderMutation.mutateAsync(orderData);
-      message.success(`Đã thêm món ăn cho bệnh nhân ${patient.fullName} vào ngày ${getFormattedDate(activeDay)}`);
+      message.success(`Đã thêm món ăn cho bệnh nhân ${selectedPatient.fullName} vào ngày ${getFormattedDate(activeDay)}`);
       setPatientOrders(prev => ({
         ...prev,
-        [patientId]: orderDetails,
+        [selectedPatient.id]: orderDetails,
       }));
     } catch (error) {
       console.error('❌ Error in handleConfirmFoodOrder:', error);
@@ -273,68 +271,15 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
     }
   };
 
-  // New function to select all foods for all patients
-  const handleSelectAllFoodsForAllPatients = async () => {
-    if (!dataSource.length) {
-      message.warning('Không có bệnh nhân nào để chọn món ăn.');
-      return;
-    }
-
-    // Iterate through all patients
-    for (const patient of dataSource) {
-      setSelectedPatient({
-        id: patient.id,
-        fullName: patient.fullName,
-        diseaseCategories: patient.diseaseCategories || [],
-      });
-      await refetchAllowedFoods();
-
-      // Wait for filteredFoods to be updated
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      if (filteredFoods.length === 0) {
-        message.warning(`Không có món ăn phù hợp cho bệnh nhân ${patient.fullName}.`);
-        continue;
-      }
-
-      // Select all filtered foods for the patient
-      const newSelectedFoods = new Set(filteredFoods.map(food => food.id));
-      setSelectedFoods(prev => ({
-        ...prev,
-        [patient.id]: newSelectedFoods,
-      }));
-
-      // Set default quantity and note for each food
-      const newQuantities = {};
-      const newNotes = {};
-      filteredFoods.forEach(food => {
-        newQuantities[food.id] = 1;
-        newNotes[food.id] = '';
-      });
-      setQuantity(prev => ({ ...prev, ...newQuantities }));
-      setNote(prev => ({ ...prev, ...newNotes }));
-
-      // Automatically confirm the order for the patient
-      await handleConfirmFoodOrder(patient.id);
-    }
-
-    message.success('Đã chọn và xác nhận tất cả món ăn cho tất cả bệnh nhân.');
-  };
-
-  useEffect(() => {
-    if (onSelectAllFoods) {
-      // Bind the select all function to the prop
-      onSelectAllFoods.current = handleSelectAllFoodsForAllPatients;
-    }
-  }, [onSelectAllFoods, filteredFoods, dataSource]);
-
   const handleDayChange = async (value) => {
     console.log('🔍 handleDayChange:', value);
     setActiveDay(value);
-    setSelectedPatient(null);
-    setFilteredFoods([]);
-    setExpandedCategories({});
-    refreshMenus();
+    if (selectedPatient) {
+      setFilteredFoods([]);
+      setExpandedCategories({});
+      refreshMenus();
+      refetchAllowedFoods();
+    }
   };
 
   useEffect(() => {
@@ -516,13 +461,14 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
                                       alignItems: 'center',
                                       padding: '6px 0',
                                       borderBottom: '1px solid #f0f0f0',
-                                      gap: 8,
+                                      gap: 8, // khoảng cách giữa các phần
                                     }}
                                   >
+                                    {/* Checkbox + Tên món (1 khối) */}
                                     <div style={{ display: 'flex', alignItems: 'center', maxWidth: 180, flex: 1 }}>
                                       <Checkbox
-                                        checked={selectedFoods[record.id]?.has(food.id) || false}
-                                        onChange={handleCheckboxChange(record.id, food.id)}
+                                        checked={selectedFoods.has(food.id)}
+                                        onChange={handleCheckboxChange(food.id)}
                                         style={{ marginRight: 6 }}
                                       />
                                       <span
@@ -535,12 +481,16 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
                                         {food.name}
                                       </span>
                                     </div>
+
+                                    {/* Số lượng */}
                                     <InputNumber
                                       min={1}
                                       value={quantity[food.id] || 1}
                                       onChange={handleQuantityChange(food.id)}
                                       style={{ width: 60 }}
                                     />
+
+                                    {/* Ghi chú */}
                                     <Input
                                       value={note[food.id] || ''}
                                       onChange={handleNoteChange(food.id)}
@@ -550,12 +500,13 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
                                   </div>
                                 ))}
                               </div>
+
                             )}
                           </div>
                         ))}
                         <Button
                           type="primary"
-                          onClick={() => handleConfirmFoodOrder(record.id)}
+                          onClick={handleConfirmFoodOrder}
                           style={{ marginTop: '16px' }}
                         >
                           Xác nhận đơn hàng
@@ -646,9 +597,9 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId, activeDay, 
                                   const newOrders = patientOrders[record.id].filter(f => f.foodId !== item.foodId);
                                   setPatientOrders(prev => ({ ...prev, [record.id]: newOrders }));
                                   setSelectedFoods(prev => {
-                                    const patientFoods = new Set(prev[record.id]);
-                                    patientFoods.delete(item.foodId);
-                                    return { ...prev, [record.id]: patientFoods };
+                                    const newSet = new Set(prev);
+                                    newSet.delete(item.foodId);
+                                    return newSet;
                                   });
                                   message.success(`Đã xóa ${filteredFoods.find(f => f.id === item.foodId)?.name || 'món ăn'} khỏi danh sách`);
                                 }}
@@ -702,9 +653,6 @@ PatientTable.propTypes = {
   loading: PropTypes.bool,
   nurseId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-  activeDay: PropTypes.string.isRequired,
-  setActiveDay: PropTypes.func.isRequired,
-  onSelectAllFoods: PropTypes.func, // New prop for select all functionality
 };
 
 export default PatientTable;
