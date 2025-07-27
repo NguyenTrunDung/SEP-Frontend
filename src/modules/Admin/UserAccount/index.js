@@ -116,7 +116,8 @@ const UserAccount = () => {
             }
         } else {
             try {
-                await createUserAccount({
+                console.log('userEmail from localStorage:', localStorage.getItem('userEmail'));
+                const userAccountPayload = {
                     firstName: values.firstName,
                     lastName: values.lastName,
                     email: values.email,
@@ -124,8 +125,11 @@ const UserAccount = () => {
                     password: values.password,
                     branchId: branchId,
                     branchRoleId: values.groupId,
-                    phoneNumber: values.phone
-                });
+                    phoneNumber: values.phone,
+                    createdBy: localStorage.getItem('userEmail')
+                };
+                console.log('Payload gửi vào createUserAccount:', userAccountPayload);
+                await createUserAccount(userAccountPayload);
                 message.success('Thêm tài khoản thành công!');
                 handleRefresh();
                 closeModal();

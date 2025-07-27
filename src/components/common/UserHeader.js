@@ -34,6 +34,10 @@ const UserHeader = ({
         loading,
         guestMode
     });
+    
+    if (user?.email) {
+        localStorage.setItem('userEmail', user.email);
+    }
 
     const handleLogout = () => {
         logout();
