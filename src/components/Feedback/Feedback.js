@@ -1,6 +1,5 @@
 import React from 'react';
-import { Modal, Typography, Button, Form, Rate, Input, Upload } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { Modal, Typography, Button, Form, Rate, Input } from 'antd';
 import { getImageUrlWithFallback } from '../../utils/imageUtils';
 
 const { Text } = Typography;
@@ -9,25 +8,27 @@ const { TextArea } = Input;
 const FeedbackModal = ({ visible, onClose, selectedOrder, onSubmit }) => {
   const [form] = Form.useForm();
 
-  const uploadProps = {
-    beforeUpload: () => false,
-    multiple: true,
-    accept: 'image/*',
-    maxCount: 5,
-  };
+  const handleSubmit = async (values) => {
+    if (!selectedOrder?.id || !selectedOrder?.branchId) {
+      console.error('Missing selectedOrder id or branchId:', selectedOrder);
+      return;
+    }
 
-  const handleSubmit = (values) => {
-    const feedback = {
-      rating: values.rating,
-      comment: values.comment,
-      images: values.images ? values.images.fileList.map(file => ({
-        url: URL.createObjectURL(file.originFileObj),
-      })) : [],
-      timestamp: new Date().toISOString(),
+    const feedbackData = {
+      star: values.rating,
+      commentLines: values.content,
+      orderId: selectedOrder.id,
+      branchId: selectedOrder.branchId,
+      userId: selectedOrder.userId || 'current-user-id', // Ensure userId is provided
+      images: [], // Add support for images if needed
     };
 
-    onSubmit(feedback);
-    form.resetFields();
+    if (typeof onSubmit === 'function') {
+      await onSubmit(feedbackData);
+      form.resetFields();
+    } else {
+      console.error('onSubmit is not a function:', onSubmit);
+    }
   };
 
   return (
@@ -77,11 +78,7 @@ const FeedbackModal = ({ visible, onClose, selectedOrder, onSubmit }) => {
               </div>
             </div>
 
-            <Form
-              form={form}
-              onFinish={handleSubmit}
-              layout="vertical"
-            >
+            <Form form={form} onFinish={handleSubmit} layout="vertical">
               <Form.Item
                 name="rating"
                 label="Đánh giá chất lượng"
@@ -91,22 +88,11 @@ const FeedbackModal = ({ visible, onClose, selectedOrder, onSubmit }) => {
               </Form.Item>
 
               <Form.Item
-                name="comment"
+                name="content"
                 label="Nhận xét"
                 rules={[{ required: true, message: 'Vui lòng nhập nhận xét!' }]}
               >
                 <TextArea rows={4} placeholder="Nhập nhận xét của bạn" />
-              </Form.Item>
-
-              <Form.Item
-                name="images"
-                label="Tải lên hình ảnh (tối đa 5)"
-                valuePropName="fileList"
-                getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
-              >
-                <Upload {...uploadProps} listType="picture">
-                  <Button icon={<UploadOutlined />}>Chọn hình ảnh</Button>
-                </Upload>
               </Form.Item>
 
               <Form.Item>

@@ -3,95 +3,125 @@ import { message } from 'antd';
 import { withPageWrapperV2 } from '../../../components/common/PageWrapperV2';
 import FeedbacksTable from './FeedbackTable';
 import ReplyFeedback from './ReplyFeedback';
-import { useFeedbacks, useDeleteFeedback } from '../../../hooks/queries/useFeedback';
+import { useFeedbacks, useDeleteFeedback, useUpdateFeedback } from '../../../hooks/queries/useFeedback';
 import { useAntModal } from '../../../hooks/useAntModal';
-import { feedbackService } from '../../../services/feedbackService';
-import { mockFeedbacks } from '../../../mocks/mockFeedbacks'; 
+import { environment } from '../../../services/api/config';
 
 const FeedbacksPageContent = ({
-    feedbacksData,
-    loading,
-    onDelete,
-    onReply,
-    replyModalProps,
-    selectedFeedback,
+  feedbacksData,
+  loading,
+  onDelete,
+  onReply,
+  replyModalProps,
+  selectedFeedback,
+  branchId,
 }) => {
-    return (
-        <>
-            <FeedbacksTable
-                dataSource={feedbacksData}
-                loading={loading}
-                onDelete={onDelete}
-                onReply={onReply}
-            />
-            <ReplyFeedback
-                open={replyModalProps.open}
-                onCancel={replyModalProps.handleCancel}
-                onSubmit={replyModalProps.onSubmit}
-                formData={selectedFeedback}
-            />
-        </>
-    );
+  if (environment.features?.enableLogging) {
+    console.log('🔍 FeedbacksPageContent props:', { feedbacksData, loading, branchId });
+  }
+
+  return (
+    <>
+      <FeedbacksTable
+        dataSource={feedbacksData}
+        loading={loading}
+        onDelete={onDelete}
+        onReply={onReply}
+        branchId={branchId}
+      />
+      <ReplyFeedback
+        open={replyModalProps.open}
+        onCancel={replyModalProps.handleCancel}
+        onSubmit={replyModalProps.onSubmit}
+        formData={selectedFeedback}
+        branchId={branchId}
+      />
+    </>
+  );
 };
 
 const FeedbacksPageWithWrapper = withPageWrapperV2(FeedbacksPageContent);
 
 const Feedbacks = () => {
-    const { feedbacks, isLoading: feedbacksLoading, refetch } = useFeedbacks();
-    const deleteFeedbackMutation = useDeleteFeedback();
-    const { open: replyOpen, showModal: showReplyModal, handleCancel: handleReplyCancel } = useAntModal();
-    const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const branchId = environment.multiTenant.getCurrentBranchId() || '1';
+  const { feedbacks, isLoading: feedbacksLoading, refetch } = useFeedbacks();
+  const deleteFeedbackMutation = useDeleteFeedback();
+  const updateFeedbackMutation = useUpdateFeedback();
+  const { open: replyOpen, showModal: showReplyModal, handleCancel: handleReplyCancel } = useAntModal();
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
 
-    const handleDelete = async (record) => {
-        try {
-            await deleteFeedbackMutation.mutateAsync(record.id);
-            message.success('Xóa đánh giá thành công');
-        } catch (error) {
-            console.error('Failed to delete feedback:', error);
-            message.error('Xóa đánh giá thất bại');
-        }
-    };
+  if (environment.features?.enableLogging) {
+    console.log('🔍 Feedbacks component state:', { feedbacks, isLoading: feedbacksLoading, branchId });
+  }
 
-    const handleReply = (record) => {
-        setSelectedFeedback(record);
-        showReplyModal();
-    };
+  const handleDelete = async (record) => {
+    try {
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Deleting feedback:', record.id);
+      }
+      await deleteFeedbackMutation.mutateAsync(record.id);
+      message.success('Xóa đánh giá thành công');
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to delete feedback:', error);
+      }
+      message.error(error.response?.data?.message || 'Xóa đánh giá thất bại');
+    }
+  };
 
-    const handleReplySubmit = async (formData) => {
-        try {
-            await feedbackService.replyFeedback(formData.id, { reply: formData.reply }, mockFeedbacks);
-            handleReplyCancel();
-            setSelectedFeedback(null);
-            refetch();
-        } catch (error) {
-            console.error('Failed to save reply:', error);
-            message.error('Gửi phản hồi thất bại');
-        }
-    };
+  const handleReply = (record) => {
+    if (environment.features?.enableLogging) {
+      console.log('🔍 Opening reply modal for feedback:', record);
+    }
+    setSelectedFeedback(record);
+    showReplyModal();
+  };
 
-    const handleRefresh = () => {
-        refetch();
-        message.success('Đã làm mới danh sách đánh giá');
-    };
+  const handleReplySubmit = async (formData) => {
+    try {
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Submitting reply:', formData);
+      }
+      await updateFeedbackMutation.mutateAsync({ id: formData.id, feedbackData: formData, branchId });
+      handleReplyCancel();
+      setSelectedFeedback(null);
+      refetch();
+      message.success('Phản hồi đã được lưu thành công!');
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to save reply:', error);
+      }
+      message.error(error.response?.data?.message || 'Gửi phản hồi thất bại');
+    }
+  };
 
-    const isLoading = feedbacksLoading || deleteFeedbackMutation.isPending;
+  const handleRefresh = () => {
+    if (environment.features?.enableLogging) {
+      console.log('🔍 Refreshing feedbacks');
+    }
+    refetch();
+    message.success('Đã làm mới danh sách đánh giá');
+  };
 
-    return (
-        <FeedbacksPageWithWrapper
-            title="Đánh Giá"
-            onRefresh={handleRefresh}
-            loading={isLoading}
-            refreshButtonText="Làm mới"
-            showAddButton={false}
-            showRefreshButton={false}
-            showSearch={false}
-            feedbacksData={feedbacks}
-            onDelete={handleDelete}
-            onReply={handleReply}
-            replyModalProps={{ open: replyOpen, handleCancel: handleReplyCancel, onSubmit: handleReplySubmit }}
-            selectedFeedback={selectedFeedback}
-        />
-    );
+  const isLoading = feedbacksLoading || deleteFeedbackMutation.isPending || updateFeedbackMutation.isPending;
+
+  return (
+    <FeedbacksPageWithWrapper
+      title="Đánh Giá"
+      onRefresh={handleRefresh}
+      loading={isLoading}
+      refreshButtonText="Làm mới"
+      showAddButton={false}
+      showRefreshButton={false}
+      showSearch={false}
+      feedbacksData={feedbacks}
+      onDelete={handleDelete}
+      onReply={handleReply}
+      replyModalProps={{ open: replyOpen, handleCancel: handleReplyCancel, onSubmit: handleReplySubmit }}
+      selectedFeedback={selectedFeedback}
+      branchId={branchId}
+    />
+  );
 };
 
 export default Feedbacks;

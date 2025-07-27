@@ -1,3 +1,4 @@
+// OrderHistoryModal.jsx
 import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Spin, Alert, Button, Input, Table, message } from 'antd';
 import { EyeOutlined, CommentOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -8,7 +9,8 @@ import ReusableTableV2 from '../../components/common/ReusableTableV2';
 import FeedbackModal from '../Feedback/Feedback';
 import ViewFeedbackModal from '../Feedback/ViewFeedbackModal';
 import EditFeedbackModal from '../Feedback/EditFeedbackModal';
-
+import { useCreateFeedback, useFeedbacksByOrder } from '../../hooks/queries/useFeedback';
+import api from '../../services/api/config'; // Import api
 import './OrderHistory.css';
 
 const { Text } = Typography;
@@ -31,6 +33,13 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const [editFeedback, setEditFeedback] = useState(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
 
+  const { mutate: createFeedback } = useCreateFeedback();
+  const { feedbacks: orderFeedbacks, refetch: refetchFeedbacks } = useFeedbacksByOrder(
+    selectedOrder?.id,
+    selectedOrder?.branchId,
+    { enabled: !!selectedOrder?.id && !!selectedOrder?.branchId }
+  );
+
   useEffect(() => {
     const fetchOrders = async () => {
       if (!visible || !user) {
@@ -50,7 +59,40 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               try {
                 const orderDetails = await orderService.getOrderDetails(order.id);
                 const items = Array.isArray(orderDetails.data) ? orderDetails.data : [];
-                console.log(`Order Details for order ${order.id}:`, JSON.stringify(items, null, 2));
+                // Fetch feedbacks for the order using api
+                const feedbackResponse = await api.get('/api/v1/Comment/By-Order', {
+                  params: { OrderId: order.id, branchId: order.branchId },
+                });
+                const feedbacks = feedbackResponse.data.status === 'success' ? feedbackResponse.data.data : [];
+                const normalizedFeedbacks = await Promise.all(
+                  feedbacks.map(async (feedback) => {
+                    let customerName = feedback.userId;
+                    let avatar = null;
+                    try {
+                      const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
+                      customerName = userResponse.data?.firstName && userResponse.data?.lastName
+                        ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
+                        : feedback.userId;
+                      avatar = userResponse.data?.avatar || null;
+                    } catch (error) {
+                      console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error);
+                    }
+                    return {
+                      id: feedback.id,
+                      orderId: feedback.orderId,
+                      userId: feedback.userId,
+                      branchId: feedback.branchId,
+                      rating: feedback.star,
+                      content: feedback.commentLines,
+                      images: feedback.images || [],
+                      reply: feedback.reply || null,
+                      customerName,
+                      avatar,
+                      timestamp: feedback.createdAt || new Date().toISOString(),
+                    };
+                  })
+                );
+
                 return {
                   ...order,
                   orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
@@ -61,6 +103,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                     quantity: item.qty ?? 0,
                     subtotal: item.total ?? (item.price ?? 0) * (item.qty ?? 0),
                   })),
+                  feedbacks: normalizedFeedbacks,
                 };
               } catch (error) {
                 console.error(`Failed to fetch details for order ${order.id}:`, error);
@@ -68,10 +111,11 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                   ...order,
                   orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
                   items: [],
+                  feedbacks: [],
                 };
               }
             }
-            return order;
+            return { ...order, feedbacks: [] };
           })
         );
 
@@ -81,14 +125,14 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           )
           .map((order) => ({
             ...order,
-            status: order.status?.toLowerCase() || 'unknown', // Chuẩn hóa status
+            status: order.status?.toLowerCase() || 'unknown',
           }));
 
         if (normalizedOrders.length === 0) {
           console.warn('No orders found for userId:', user.id);
         } else {
           console.log('Filtered orders for userId:', user.id, 'Count:', normalizedOrders.length);
-          console.log('Order details:', JSON.stringify(normalizedOrders.map((o) => ({ id: o.id, orderDate: o.orderDate, items: o.items })), null, 2));
+          console.log('Order details:', JSON.stringify(normalizedOrders.map((o) => ({ id: o.id, orderDate: o.orderDate, items: o.items, feedbacks: o.feedbacks })), null, 2));
         }
 
         setOrders(normalizedOrders);
@@ -191,36 +235,43 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       message.error('Không thể gửi đánh giá cho đơn hàng chưa hoàn thành.');
       return;
     }
-    const newFeedback = {
-      ...values,
-      user: {
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar || '/images/default-avatar.png',
-        customerName: selectedOrder.customerName || user.name || 'Ẩn danh',
-      },
-      timestamp: new Date().IPC(),
-      id: `${selectedOrder.id}-${Date.now()}`,
+
+    const jsonData = {
+      Star: values.rating,
+      CommentLines: values.content,
+      OrderId: selectedOrder.id,
+      BranchId: selectedOrder.branchId,
+      UserId: user.id || 'current-user-id',
+      Images: [],
     };
 
-    const updatedOrders = orders.map((order) => {
-      if (order.id === selectedOrder.id) {
-        const updatedFeedbacks = Array.isArray(order.feedbacks)
-          ? [...order.feedbacks, newFeedback]
-          : [newFeedback];
-        return {
-          ...order,
-          feedbacks: updatedFeedbacks,
-        };
-      }
-      return order;
-    });
+    console.log('Submitting JSON:', jsonData);
 
-    setOrders(updatedOrders);
-    setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
-    message.success('Gửi đánh giá thành công!');
-    setFeedbackModalVisible(false);
-    setSelectedOrder(null);
+    createFeedback(
+      { feedbackData: jsonData, branchId: selectedOrder.branchId },
+      {
+        onSuccess: async (newFeedback) => {
+          const updatedOrders = orders.map((order) => {
+            if (order.id === selectedOrder.id) {
+              const updatedFeedbacks = Array.isArray(order.feedbacks)
+                ? [...order.feedbacks, newFeedback]
+                : [newFeedback];
+              return { ...order, feedbacks: updatedFeedbacks };
+            }
+            return order;
+          });
+          setOrders(updatedOrders);
+          setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+          setCurrentFeedbacks([newFeedback]);
+          message.success('Gửi đánh giá thành công!');
+          setFeedbackModalVisible(false);
+          setViewFeedbackVisible(true);
+        },
+        onError: (error) => {
+          message.error(error.message || 'Không thể gửi đánh giá. Vui lòng thử lại.');
+        },
+      }
+    );
   };
 
   const handleDeleteFeedback = (feedbackId) => {
@@ -234,9 +285,12 @@ const OrderHistoryModal = ({ visible, onClose }) => {
 
     setOrders(updatedOrders);
     setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+    setCurrentFeedbacks(currentFeedbacks.filter(fb => fb.id !== feedbackId));
     message.success('Xóa đánh giá thành công!');
-    setViewFeedbackVisible(false);
-    setSelectedOrder(null);
+    if (currentFeedbacks.length === 1) {
+      setViewFeedbackVisible(false);
+      setSelectedOrder(null);
+    }
   };
 
   const getSortedOrders = () => {
@@ -268,10 +322,11 @@ const OrderHistoryModal = ({ visible, onClose }) => {
 
     setOrders(updatedOrders);
     setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+    setCurrentFeedbacks(currentFeedbacks.map(fb => fb.id === updatedFeedback.id ? updatedFeedback : fb));
     message.success('Cập nhật đánh giá thành công!');
     setEditModalVisible(false);
     setEditFeedback(null);
-    setSelectedOrder(null);
+    setViewFeedbackVisible(true);
   };
 
   const overviewColumns = [
@@ -288,6 +343,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
             onPressEnter={() => confirm()}
             style={{ width: 188, marginBottom: 8, display: 'block' }}
           />
+
           <Button
             type="primary"
             onClick={() => confirm()}
@@ -382,7 +438,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
             onClick={() => handleFeedback(record)}
             className="action-btn"
             size="small"
-            title="Đánh giá"
+            title={record.feedbacks?.length > 0 ? 'Xem đánh giá' : 'Đánh giá'}
             disabled={record.status !== 'completed'}
           />
         </div>

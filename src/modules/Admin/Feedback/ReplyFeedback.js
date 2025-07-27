@@ -4,33 +4,62 @@ import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import PropTypes from 'prop-types';
+import { environment } from '../../../services/api/config';
 
-const ReplyFeedback = ({ open, onCancel, onSubmit, formData }) => {
+const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
   const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(formData || {});
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (open && formData) {
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Setting form data for ReplyFeedback:', formData);
+      }
       form.setFieldsValue({
         id: formData.id,
         reply: formData.reply || '',
+        rating: formData.rating,
+        content: formData.content,
+        userId: formData.userId,
+        customerName: formData.customerName || 'Không xác định',
+        orderId: formData.orderId,
+        branchId: formData.branchId,
       });
     } else if (!open) {
       resetForm();
     }
   }, [open, formData, form, resetForm]);
 
-  const handleFormSubmit = async (values) => {
+  const handleFormSubmit = async () => {
     setIsLoading(true);
     try {
       await handleSubmit(async (formData) => {
+        if (environment.features?.enableLogging) {
+          console.log('🔍 Submitting reply feedback:', formData);
+        }
+        if (!formData.reply || formData.reply.trim() === '') {
+          throw new Error('Phản hồi không được để trống!');
+        }
+        const updatedFeedback = {
+          id: formData.id,
+          userId: formData.userId,
+          orderId: formData.orderId,
+          branchId: branchId,
+          rating: formData.rating,
+          content: formData.content,
+          reply: formData.reply.trim(),
+          customerName: formData.customerName,
+        };
         if (onSubmit) {
-          await onSubmit(formData);
-          message.success('Phản hồi đã được lưu thành công!'); // Thêm thông báo thành công
+          await onSubmit(updatedFeedback);
+          message.success('Phản hồi đã được lưu thành công!');
         }
       });
     } catch (error) {
-      message.error('Có lỗi xảy ra khi lưu phản hồi!');
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to submit reply:', error.response?.data?.message || error.message);
+      }
+      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu phản hồi!');
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +74,7 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData }) => {
     <ReusableModal
       title={<span style={{ fontSize: '30px' }}>Phản hồi đánh giá</span>}
       open={open}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       footer={null}
       destroyOnClose
       closable={false}
@@ -67,7 +96,7 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData }) => {
             Lưu
           </Button>
           <Button
-            onClick={onCancel}
+            onClick={handleCancel}
             style={{
               backgroundColor: '#ff4d4f',
               color: '#fff',
@@ -87,11 +116,29 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData }) => {
         layout="vertical"
         className={formLoading ? 'form-loading' : ''}
       >
+        <Form.Item name="id" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="userId" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="orderId" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="branchId" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="rating" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="content" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="customerName" hidden>
+          <Input />
+        </Form.Item>
         <div className="custom-floating">
           <label className="floating-label">Phản hồi</label>
-          <Form.Item name="id" hidden>
-            <Input />
-          </Form.Item>
           <Form.Item
             name="reply"
             rules={[{ required: true, message: 'Vui lòng nhập nội dung phản hồi!' }]}
@@ -109,7 +156,17 @@ ReplyFeedback.propTypes = {
   open: PropTypes.bool.isRequired,
   onCancel: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,
-  formData: PropTypes.object,
+  formData: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    userId: PropTypes.string,
+    customerName: PropTypes.string,
+    orderId: PropTypes.number,
+    branchId: PropTypes.number,
+    rating: PropTypes.number,
+    content: PropTypes.string,
+    reply: PropTypes.string,
+  }),
+  branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
 export default ReplyFeedback;
