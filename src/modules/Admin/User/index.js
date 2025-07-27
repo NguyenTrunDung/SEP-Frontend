@@ -207,13 +207,13 @@ const UserManagement = () => {
                             Làm mới
                         </Button>
                     </Tooltip>
-                    <Button
+                    {/* <Button
                         type="primary"
                         icon={<PlusOutlined />}
                         onClick={handleCreate}
                     >
                         Thêm người dùng
-                    </Button>
+                    </Button> */}
                 </Space>
             </div>
             <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
