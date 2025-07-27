@@ -1,4 +1,3 @@
-// OrderHistoryModal.jsx
 import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Spin, Alert, Button, Input, Table, message } from 'antd';
 import { EyeOutlined, CommentOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -9,8 +8,9 @@ import ReusableTableV2 from '../../components/common/ReusableTableV2';
 import FeedbackModal from '../Feedback/Feedback';
 import ViewFeedbackModal from '../Feedback/ViewFeedbackModal';
 import EditFeedbackModal from '../Feedback/EditFeedbackModal';
-import { useCreateFeedback, useFeedbacksByOrder } from '../../hooks/queries/useFeedback';
-import api from '../../services/api/config'; // Import api
+import { useCreateFeedback, useFeedbacksByOrder, useDeleteFeedback, useUpdateFeedback } from '../../hooks/queries/useFeedback';
+import api from '../../services/api/config';
+import { environment } from '../../services/api/config';
 import './OrderHistory.css';
 
 const { Text } = Typography;
@@ -39,19 +39,27 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     selectedOrder?.branchId,
     { enabled: !!selectedOrder?.id && !!selectedOrder?.branchId }
   );
+  const { mutateAsync: deleteFeedback } = useDeleteFeedback();
+  const { mutateAsync: updateFeedback } = useUpdateFeedback();
 
   useEffect(() => {
     const fetchOrders = async () => {
       if (!visible || !user) {
-        console.log('Không có user hoặc modal không hiển thị');
+        if (environment.features?.enableLogging) {
+          console.log('🔍 Không có user hoặc modal không hiển thị');
+        }
         return;
       }
 
       setLoading(true);
       try {
-        console.log('Fetching orders for userId:', user.id);
+        if (environment.features?.enableLogging) {
+          console.log('🔍 Fetching orders for userId:', user.id);
+        }
         const userOrders = await orderService.filterOrders({ userId: user.id });
-        console.log('API Response (filterOrders):', JSON.stringify(userOrders, null, 2));
+        if (environment.features?.enableLogging) {
+          console.log('🔍 API Response (filterOrders):', JSON.stringify(userOrders, null, 2));
+        }
 
         const detailedOrders = await Promise.all(
           (userOrders.data || []).map(async (order) => {
@@ -59,7 +67,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               try {
                 const orderDetails = await orderService.getOrderDetails(order.id);
                 const items = Array.isArray(orderDetails.data) ? orderDetails.data : [];
-                // Fetch feedbacks for the order using api
                 const feedbackResponse = await api.get('/api/v1/Comment/By-Order', {
                   params: { OrderId: order.id, branchId: order.branchId },
                 });
@@ -75,7 +82,9 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                         : feedback.userId;
                       avatar = userResponse.data?.avatar || null;
                     } catch (error) {
-                      console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error);
+                      if (environment.features?.enableLogging) {
+                        console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error);
+                      }
                     }
                     return {
                       id: feedback.id,
@@ -84,7 +93,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                       branchId: feedback.branchId,
                       rating: feedback.star,
                       content: feedback.commentLines,
-                      images: feedback.images || [],
                       reply: feedback.reply || null,
                       customerName,
                       avatar,
@@ -106,7 +114,9 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                   feedbacks: normalizedFeedbacks,
                 };
               } catch (error) {
-                console.error(`Failed to fetch details for order ${order.id}:`, error);
+                if (environment.features?.enableLogging) {
+                  console.error(`❌ Failed to fetch details for order ${order.id}:`, error);
+                }
                 return {
                   ...order,
                   orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
@@ -129,10 +139,14 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           }));
 
         if (normalizedOrders.length === 0) {
-          console.warn('No orders found for userId:', user.id);
+          if (environment.features?.enableLogging) {
+            console.warn('⚠️ No orders found for userId:', user.id);
+          }
         } else {
-          console.log('Filtered orders for userId:', user.id, 'Count:', normalizedOrders.length);
-          console.log('Order details:', JSON.stringify(normalizedOrders.map((o) => ({ id: o.id, orderDate: o.orderDate, items: o.items, feedbacks: o.feedbacks })), null, 2));
+          if (environment.features?.enableLogging) {
+            console.log('🔍 Filtered orders for userId:', user.id, 'Count:', normalizedOrders.length);
+            console.log('🔍 Order details:', JSON.stringify(normalizedOrders.map((o) => ({ id: o.id, orderDate: o.orderDate, items: o.items, feedbacks: o.feedbacks })), null, 2));
+          }
         }
 
         setOrders(normalizedOrders);
@@ -141,7 +155,9 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       } catch (err) {
         const errorMessage = err.response?.data?.message || 'Không thể tải lịch sử đơn hàng. Vui lòng thử lại.';
         setError(errorMessage);
-        console.error('Error fetching orders:', err.response?.data || err.message);
+        if (environment.features?.enableLogging) {
+          console.error('❌ Error fetching orders:', err.response?.data || err.message);
+        }
       } finally {
         setLoading(false);
       }
@@ -236,16 +252,22 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       return;
     }
 
+    if (!values.rating || !values.content) {
+      message.error('Vui lòng nhập đầy đủ số sao và nhận xét.');
+      return;
+    }
+
     const jsonData = {
       Star: values.rating,
       CommentLines: values.content,
       OrderId: selectedOrder.id,
       BranchId: selectedOrder.branchId,
       UserId: user.id || 'current-user-id',
-      Images: [],
     };
 
-    console.log('Submitting JSON:', jsonData);
+    if (environment.features?.enableLogging) {
+      console.log('🔍 Submitting feedback:', jsonData);
+    }
 
     createFeedback(
       { feedbackData: jsonData, branchId: selectedOrder.branchId },
@@ -268,28 +290,43 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           setViewFeedbackVisible(true);
         },
         onError: (error) => {
-          message.error(error.message || 'Không thể gửi đánh giá. Vui lòng thử lại.');
+          if (environment.features?.enableLogging) {
+            console.error('❌ Failed to submit feedback:', error);
+          }
+          message.error(error.response?.data?.message || 'Không thể gửi đánh giá. Vui lòng thử lại.');
         },
       }
     );
   };
 
-  const handleDeleteFeedback = (feedbackId) => {
-    const updatedOrders = orders.map((order) => {
-      if (order.id === selectedOrder.id) {
-        const updatedFeedbacks = order.feedbacks?.filter(fb => fb.id !== feedbackId) || [];
-        return { ...order, feedbacks: updatedFeedbacks };
+  const handleDeleteFeedback = async (feedbackId) => {
+    try {
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Deleting feedback:', feedbackId);
       }
-      return order;
-    });
+      await deleteFeedback(feedbackId);
+      
+      const updatedOrders = orders.map((order) => {
+        if (order.id === selectedOrder.id) {
+          const updatedFeedbacks = order.feedbacks?.filter(fb => fb.id !== feedbackId) || [];
+          return { ...order, feedbacks: updatedFeedbacks };
+        }
+        return order;
+      });
 
-    setOrders(updatedOrders);
-    setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
-    setCurrentFeedbacks(currentFeedbacks.filter(fb => fb.id !== feedbackId));
-    message.success('Xóa đánh giá thành công!');
-    if (currentFeedbacks.length === 1) {
-      setViewFeedbackVisible(false);
-      setSelectedOrder(null);
+      setOrders(updatedOrders);
+      setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+      setCurrentFeedbacks(currentFeedbacks.filter(fb => fb.id !== feedbackId));
+      message.success('Xóa đánh giá thành công!');
+      if (currentFeedbacks.length === 1) {
+        setViewFeedbackVisible(false);
+        setSelectedOrder(null);
+      }
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to delete feedback:', error);
+      }
+      message.error(error.response?.data?.message || 'Xóa đánh giá thất bại');
     }
   };
 
@@ -304,29 +341,69 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   };
 
   const handleEditFeedback = (feedback) => {
+    if (environment.features?.enableLogging) {
+      console.log('🔍 Opening edit modal for feedback:', feedback);
+    }
     setEditFeedback(feedback);
     setEditModalVisible(true);
     setViewFeedbackVisible(false);
   };
 
-  const handleUpdateFeedback = (updatedFeedback) => {
-    const updatedOrders = orders.map((order) => {
-      if (order.id === selectedOrder.id) {
-        const updatedFeedbacks = order.feedbacks.map((fb) =>
-          fb.id === updatedFeedback.id ? updatedFeedback : fb
-        );
-        return { ...order, feedbacks: updatedFeedbacks };
+  const handleUpdateFeedback = async (updatedFeedback) => {
+    try {
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Updating feedback:', updatedFeedback);
       }
-      return order;
-    });
+      if (!updatedFeedback.rating || !updatedFeedback.content) {
+        throw new Error('Vui lòng nhập đầy đủ số sao và nhận xét.');
+      }
+      if (!updatedFeedback.id) {
+        throw new Error('Thiếu ID đánh giá để cập nhật.');
+      }
 
-    setOrders(updatedOrders);
-    setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
-    setCurrentFeedbacks(currentFeedbacks.map(fb => fb.id === updatedFeedback.id ? updatedFeedback : fb));
-    message.success('Cập nhật đánh giá thành công!');
-    setEditModalVisible(false);
-    setEditFeedback(null);
-    setViewFeedbackVisible(true);
+      const feedbackData = {
+        Star: updatedFeedback.rating,
+        CommentLines: updatedFeedback.content,
+        Reply: updatedFeedback.reply || null,
+      };
+
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Feedback data to send:', feedbackData);
+      }
+
+      await updateFeedback({ id: updatedFeedback.id, feedbackData, branchId: selectedOrder.branchId });
+
+      const updatedOrders = orders.map((order) => {
+        if (order.id === selectedOrder.id) {
+          const updatedFeedbacks = order.feedbacks.map((fb) =>
+            fb.id === updatedFeedback.id
+              ? { ...fb, rating: updatedFeedback.rating, content: updatedFeedback.content, reply: updatedFeedback.reply }
+              : fb
+          );
+          return { ...order, feedbacks: updatedFeedbacks };
+        }
+        return order;
+      });
+
+      setOrders(updatedOrders);
+      setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+      setCurrentFeedbacks(
+        currentFeedbacks.map((fb) =>
+          fb.id === updatedFeedback.id
+            ? { ...fb, rating: updatedFeedback.rating, content: updatedFeedback.content, reply: updatedFeedback.reply }
+            : fb
+        )
+      );
+      message.success('Cập nhật đánh giá thành công!');
+      setEditModalVisible(false);
+      setEditFeedback(null);
+      setViewFeedbackVisible(true);
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to update feedback:', error);
+      }
+      message.error(error.message || error.response?.data?.message || 'Cập nhật đánh giá thất bại');
+    }
   };
 
   const overviewColumns = [
@@ -343,7 +420,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
             onPressEnter={() => confirm()}
             style={{ width: 188, marginBottom: 8, display: 'block' }}
           />
-
           <Button
             type="primary"
             onClick={() => confirm()}
@@ -382,7 +458,9 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           const dateB = new Date(b.orderDate);
           return dateA.valueOf() - dateB.valueOf();
         } catch (error) {
-          console.warn('Date sorting error:', error);
+          if (environment.features?.enableLogging) {
+            console.warn('⚠️ Date sorting error:', error);
+          }
           return 0;
         }
       },

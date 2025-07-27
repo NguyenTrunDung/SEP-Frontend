@@ -7,38 +7,20 @@ export const feedbackService = {
         console.log('🔍 feedbackService.createFeedback - data:', feedbackData);
       }
 
-      // Ensure feedbackData matches the expected API schema
-      const payload = {
-        star: feedbackData.Star || feedbackData.rating || 0, // Normalize to lowercase 'star'
-        commentLines: feedbackData.CommentLines || feedbackData.content || '', // Normalize to lowercase 'commentLines'
-        orderId: feedbackData.OrderId || feedbackData.orderId,
-        branchId: feedbackData.BranchId || feedbackData.branchId,
-        userId: feedbackData.UserId || feedbackData.userId,
-        images: feedbackData.Images || feedbackData.images || [],
-      };
-
-      // Validate required fields
-      if (!payload.orderId || !payload.branchId || !payload.userId) {
-        throw new Error('Missing required fields: orderId, branchId, or userId');
-      }
-      if (!payload.star || !payload.commentLines) {
-        throw new Error('Missing required fields: star or commentLines');
+      if (!feedbackData.Star || !feedbackData.CommentLines || !feedbackData.OrderId || !feedbackData.BranchId || !feedbackData.UserId) {
+        throw new Error('Thiếu các trường bắt buộc: Star, CommentLines, OrderId, BranchId, hoặc UserId');
       }
 
-      const response = await api.post('/api/v1/Comment', payload, {
+      const response = await api.post('/api/v1/Comment', feedbackData, {
         headers: { 'Content-Type': 'application/json' },
       });
-
-      if (response.data.status !== 'success') {
-        throw new Error(response.data.message || 'Failed to create feedback');
-      }
 
       let customerName = response.data.data.userId;
       let avatar = null;
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
+        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
+          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
           : response.data.data.userId;
         avatar = userResponse.data?.avatar || null;
       } catch (error) {
@@ -54,7 +36,6 @@ export const feedbackService = {
         branchId: response.data.data.branchId,
         rating: response.data.data.star,
         content: response.data.data.commentLines,
-        images: response.data.data.images || [],
         reply: response.data.data.reply || null,
         customerName,
         avatar,
@@ -68,90 +49,6 @@ export const feedbackService = {
     }
   },
 
-  async updateFeedback(id, feedbackData) {
-    try {
-      if (environment.features?.enableLogging) {
-        console.log('🔍 feedbackService.updateFeedback - ID:', id, 'data:', feedbackData);
-      }
-
-      // Normalize payload for update
-      const payload = {
-        star: feedbackData.Star || feedbackData.rating || 0,
-        commentLines: feedbackData.CommentLines || feedbackData.content || '',
-        images: feedbackData.Images || feedbackData.images || [],
-        reply: feedbackData.reply || null,
-      };
-
-      // Validate required fields
-      if (!payload.star || !payload.commentLines) {
-        throw new Error('Missing required fields: star or commentLines');
-      }
-
-      const response = await api.put(`/api/v1/Comment/${id}`, payload, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (response.data.status !== 'success') {
-        throw new Error(response.data.message || 'Failed to update feedback');
-      }
-
-      let customerName = response.data.data.userId;
-      let avatar = null;
-      try {
-        const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
-          : response.data.data.userId;
-        avatar = userResponse.data?.avatar || null;
-      } catch (error) {
-        if (environment.features?.enableLogging) {
-          console.warn(`⚠️ Failed to fetch customerName for userId ${response.data.data.userId}:`, error.response?.data?.message || error.message);
-        }
-      }
-
-      return {
-        id: response.data.data.id,
-        orderId: response.data.data.orderId,
-        userId: response.data.data.userId,
-        branchId: response.data.data.branchId,
-        rating: response.data.data.star,
-        content: response.data.data.commentLines,
-        images: response.data.data.images || [],
-        reply: response.data.data.reply || null,
-        customerName,
-        avatar,
-        timestamp: response.data.data.createdAt || new Date().toISOString(),
-      };
-    } catch (error) {
-      if (environment.features?.enableLogging) {
-        console.error('❌ Failed to update feedback:', error.response?.data?.message || error.message);
-      }
-      throw new Error(error.response?.data?.message || 'Failed to update feedback');
-    }
-  },
-
-  async deleteFeedback(id) {
-    try {
-      if (environment.features?.enableLogging) {
-        console.log('🔍 feedbackService.deleteFeedback - ID:', id);
-      }
-
-      const response = await api.delete(`/api/v1/Comment/${id}`);
-
-      if (response.data.status !== 'success') {
-        throw new Error(response.data.message || 'Failed to delete feedback');
-      }
-
-      return response.data;
-    } catch (error) {
-      if (environment.features?.enableLogging) {
-        console.error('❌ Failed to delete feedback:', error.response?.data?.message || error.message);
-      }
-      throw new Error(error.response?.data?.message || 'Failed to delete feedback');
-    }
-  },
-
-  // Other methods (getFeedbacks, getFeedback, replyFeedback) remain unchanged
   async getFeedbacks(branchId) {
     try {
       if (!branchId) throw new Error('Thiếu branchId khi gọi getFeedbacks');
@@ -183,8 +80,8 @@ export const feedbackService = {
           let avatar = null;
           try {
             const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
-            customerName = userResponse.data?.firstName && userResponse.data?.lastName
-              ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
+            customerName = userResponse.data?.firstName && userResponse.data?.lastName 
+              ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
               : feedback.userId;
             avatar = userResponse.data?.avatar || null;
             if (environment.features?.enableLogging) {
@@ -203,7 +100,6 @@ export const feedbackService = {
             branchId: feedback.branchId,
             rating: feedback.star,
             content: feedback.commentLines,
-            images: feedback.images || [],
             reply: feedback.reply || null,
             customerName,
             avatar,
@@ -238,8 +134,8 @@ export const feedbackService = {
       let avatar = null;
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
+        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
+          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
           : response.data.data.userId;
         avatar = userResponse.data?.avatar || null;
       } catch (error) {
@@ -255,7 +151,6 @@ export const feedbackService = {
         branchId: response.data.data.branchId,
         rating: response.data.data.star,
         content: response.data.data.commentLines,
-        images: response.data.data.images || [],
         reply: response.data.data.reply || null,
         customerName,
         avatar,
@@ -272,26 +167,59 @@ export const feedbackService = {
     }
   },
 
-  async replyFeedback(id, replyData) {
+  async updateFeedback(id, feedbackData) {
     try {
       if (environment.features?.enableLogging) {
-        console.log('🔍 feedbackService.replyFeedback - ID:', id, 'data:', replyData);
+        console.log('🔍 feedbackService.updateFeedback - ID:', id, 'data:', feedbackData);
       }
 
-      const response = await api.put(`/api/v1/Comment/${id}`, { reply: replyData.reply }, {
+      if (!id || !feedbackData.Star || !feedbackData.CommentLines) {
+        throw new Error('Thiếu các trường bắt buộc: ID, Star, hoặc CommentLines');
+      }
+
+      if (feedbackData.Star < 0 || feedbackData.Star > 5) {
+        throw new Error('Số sao đánh giá phải từ 0 đến 5');
+      }
+
+      if (typeof feedbackData.CommentLines !== 'string' || feedbackData.CommentLines.trim() === '') {
+        throw new Error('Nhận xét không được để trống');
+      }
+
+      // Fetch existing feedback to get OrderId, BranchId, and UserId
+      const existingFeedback = await this.getFeedback(id);
+      if (!existingFeedback) {
+        throw new Error(`Feedback with ID ${id} not found`);
+      }
+
+      // Construct payload without Id to avoid modifying the primary key
+      const payload = {
+        Star: feedbackData.Star,
+        CommentLines: feedbackData.CommentLines,
+        Reply: feedbackData.Reply || null,
+        OrderId: existingFeedback.orderId,
+        BranchId: existingFeedback.branchId,
+        UserId: existingFeedback.userId,
+      };
+
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Sending PUT payload:', payload);
+      }
+
+      const response = await api.put(`/api/v1/Comment/${id}`, payload, {
         headers: { 'Content-Type': 'application/json' },
       });
 
-      if (response.data.status !== 'success') {
-        throw new Error(response.data.message || 'Failed to save reply');
+      if (environment.features?.enableLogging) {
+        console.log('✅ API /api/v1/Comment response:', response.data);
+        console.log('🔍 Response status:', response.data.status, 'Message:', response.data.message);
       }
 
       let customerName = response.data.data.userId;
       let avatar = null;
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
+        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
+          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
           : response.data.data.userId;
         avatar = userResponse.data?.avatar || null;
       } catch (error) {
@@ -307,7 +235,85 @@ export const feedbackService = {
         branchId: response.data.data.branchId,
         rating: response.data.data.star,
         content: response.data.data.commentLines,
-        images: response.data.data.images || [],
+        reply: response.data.data.reply || null,
+        customerName,
+        avatar,
+        timestamp: response.data.data.createdAt || new Date().toISOString(),
+      };
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to update feedback:', error.response?.data?.message || error.message);
+        console.error('🔍 Full error details:', error.response?.data || error);
+      }
+      throw new Error(error.response?.data?.message || 'Failed to update feedback');
+    }
+  },
+
+  async deleteFeedback(id) {
+    try {
+      if (environment.features?.enableLogging) {
+        console.log('🔍 feedbackService.deleteFeedback - ID:', id);
+      }
+
+      const response = await api.delete(`/api/v1/Comment/${id}`);
+      if (environment.features?.enableLogging) {
+        console.log('✅ API /api/v1/Comment delete response:', response.data);
+      }
+      return response.data;
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to delete feedback:', error.response?.data?.message || error.message);
+      }
+      throw new Error(error.response?.data?.message || 'Failed to delete feedback');
+    }
+  },
+
+  async replyFeedback(id, replyData) {
+    try {
+      if (environment.features?.enableLogging) {
+        console.log('🔍 feedbackService.replyFeedback - ID:', id, 'data:', replyData);
+      }
+
+      // Fetch existing feedback to get OrderId, BranchId, and UserId
+      const existingFeedback = await this.getFeedback(id);
+      if (!existingFeedback) {
+        throw new Error(`Feedback with ID ${id} not found`);
+      }
+
+      const payload = {
+        Star: existingFeedback.rating,
+        CommentLines: existingFeedback.content,
+        Reply: replyData.reply || null,
+        OrderId: existingFeedback.orderId,
+        BranchId: existingFeedback.branchId,
+        UserId: existingFeedback.userId,
+      };
+
+      const response = await api.put(`/api/v1/Comment/${id}`, payload, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      let customerName = response.data.data.userId;
+      let avatar = null;
+      try {
+        const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
+        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
+          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
+          : response.data.data.userId;
+        avatar = userResponse.data?.avatar || null;
+      } catch (error) {
+        if (environment.features?.enableLogging) {
+          console.warn(`⚠️ Failed to fetch customerName for userId ${response.data.data.userId}:`, error.response?.data?.message || error.message);
+        }
+      }
+
+      return {
+        id: response.data.data.id,
+        orderId: response.data.data.orderId,
+        userId: replyData.userId || response.data.data.userId,
+        branchId: response.data.data.branchId,
+        rating: response.data.data.star,
+        content: response.data.data.commentLines,
         reply: response.data.data.reply || null,
         customerName,
         avatar,

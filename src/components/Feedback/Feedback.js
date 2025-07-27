@@ -1,6 +1,7 @@
 import React from 'react';
-import { Modal, Typography, Button, Form, Rate, Input } from 'antd';
+import { Modal, Typography, Button, Form, Rate, Input, message } from 'antd';
 import { getImageUrlWithFallback } from '../../utils/imageUtils';
+import { environment } from '../../services/api/config';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -9,26 +10,29 @@ const FeedbackModal = ({ visible, onClose, selectedOrder, onSubmit }) => {
   const [form] = Form.useForm();
 
   const handleSubmit = async (values) => {
-    if (!selectedOrder?.id || !selectedOrder?.branchId) {
-      console.error('Missing selectedOrder id or branchId:', selectedOrder);
+    if (!values.rating || !values.content) {
+      console.error('Missing rating or content:', values);
+      message.error('Vui lòng nhập đầy đủ số sao và nhận xét.');
       return;
     }
 
-    const feedbackData = {
-      star: values.rating,
-      commentLines: values.content,
-      orderId: selectedOrder.id,
-      branchId: selectedOrder.branchId,
-      userId: selectedOrder.userId || 'current-user-id', // Ensure userId is provided
-      images: [], // Add support for images if needed
-    };
+    if (!selectedOrder?.id || !selectedOrder?.branchId) {
+      console.error('Missing orderId or branchId:', { orderId: selectedOrder?.id, branchId: selectedOrder?.branchId });
+      message.error('Thiếu thông tin đơn hàng để gửi đánh giá.');
+      return;
+    }
+
+    if (environment.features?.enableLogging) {
+      console.log('🔍 Submitting feedback from FeedbackModal:', values);
+    }
 
     if (typeof onSubmit === 'function') {
-      await onSubmit(feedbackData);
-      form.resetFields();
+      onSubmit(values);
     } else {
       console.error('onSubmit is not a function:', onSubmit);
+      message.error('Lỗi hệ thống khi gửi đánh giá.');
     }
+    form.resetFields();
   };
 
   return (

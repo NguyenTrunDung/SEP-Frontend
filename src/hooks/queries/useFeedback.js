@@ -149,14 +149,37 @@ export const useUpdateFeedback = (options = {}) => {
   const currentBranchId = normalizeBranchId();
 
   return useMutation({
-    mutationFn: ({ id, formData, branchId }) => {
+    mutationFn: ({ id, feedbackData, branchId }) => {
       const targetBranchId = normalizeBranchId(branchId);
-      return feedbackService.updateFeedback(id, formData);
+      if (!id || !feedbackData.Star || !feedbackData.CommentLines) {
+        throw new Error('Thiếu các trường bắt buộc: ID, Star, hoặc CommentLines');
+      }
+      // Only pass mutable fields to avoid modifying key fields
+      const payload = {
+        Star: feedbackData.Star,
+        CommentLines: feedbackData.CommentLines,
+        Reply: feedbackData.Reply || null,
+      };
+      if (environment.features?.enableLogging) {
+        console.log('🔍 useUpdateFeedback - Sending payload:', { id, payload, branchId: targetBranchId });
+      }
+      return feedbackService.updateFeedback(id, payload);
     },
     onSuccess: (response, variables) => {
       message.success(response.message || 'Cập nhật đánh giá thành công!');
       const targetBranchId = normalizeBranchId(variables.branchId);
-      const updatedFeedback = response;
+      const updatedFeedback = {
+        id: response.id,
+        orderId: response.orderId,
+        userId: response.userId,
+        branchId: response.branchId,
+        rating: response.rating,
+        content: response.content,
+        reply: response.reply || null,
+        customerName: response.customerName,
+        avatar: response.avatar,
+        timestamp: response.timestamp,
+      };
       if (updatedFeedback) {
         queryClient.setQueryData(FEEDBACK_QUERY_KEYS.detail(variables.id, targetBranchId), updatedFeedback);
         queryClient.setQueryData(FEEDBACK_QUERY_KEYS.list(targetBranchId), (oldData) => {
@@ -164,14 +187,27 @@ export const useUpdateFeedback = (options = {}) => {
             ? oldData.map((feedback) => (feedback.id === variables.id ? updatedFeedback : feedback))
             : [updatedFeedback];
         });
+        queryClient.setQueryData(FEEDBACK_QUERY_KEYS.byOrder(updatedFeedback.orderId, targetBranchId), (oldData) => {
+          return oldData
+            ? oldData.map((feedback) => (feedback.id === variables.id ? updatedFeedback : feedback))
+            : [updatedFeedback];
+        });
       }
       queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.list(targetBranchId) });
+      queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.byOrder(updatedFeedback.orderId, targetBranchId) });
       queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.lists() });
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.message || 'Không thể cập nhật đánh giá!';
+      const errorMessage =
+        error.message === 'Số sao đánh giá phải từ 0 đến 5'
+          ? 'Số sao đánh giá phải từ 0 đến 5!'
+          : error.message === 'Nhận xét không được để trống'
+          ? 'Nhận xét không được để trống!'
+          : error.response?.status === 400
+          ? error.response?.data?.message || 'Dữ liệu không hợp lệ, vui lòng kiểm tra lại.'
+          : error.response?.data?.message || 'Không thể cập nhật đánh giá!';
       message.error(errorMessage);
-      console.error('❌ Failed to update feedback:', error);
+      console.error('❌ Failed to update feedback:', error.response?.data || error);
     },
     ...options,
   });
@@ -247,7 +283,6 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
               branchId: feedback.branchId,
               rating: feedback.star,
               content: feedback.commentLines,
-              images: feedback.images || [],
               reply: feedback.reply || null,
               customerName,
               avatar,

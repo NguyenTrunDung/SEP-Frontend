@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Modal, Typography, Button, Form, Rate, Input } from 'antd';
+import { Modal, Typography, Button, Form, Rate, Input, message } from 'antd';
+import { environment } from '../../services/api/config';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -10,35 +11,45 @@ const EditFeedbackModal = ({ visible, onClose, selectedOrder, feedback, onUpdate
   useEffect(() => {
     if (feedback) {
       form.setFieldsValue({
-        rating: feedback.rating,
-        content: feedback.content,
-        reply: feedback.reply || '',
+        rating: feedback.rating || 0,
+        content: feedback.content || '',
       });
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Setting form values:', { rating: feedback.rating || 0, content: feedback.content || '' });
+      }
     }
   }, [feedback, form]);
 
   const handleSubmit = async (values) => {
-    if (!feedback?.id || !selectedOrder?.branchId) {
-      console.error('Missing feedback id or branchId:', { feedback, selectedOrder });
+    if (!feedback?.id) {
+      console.error('Missing feedback ID:', feedback);
+      message.error('Thiếu ID đánh giá để cập nhật.');
+      return;
+    }
+
+    if (!values.rating || !values.content) {
+      console.error('Missing rating or content:', values);
+      message.error('Vui lòng nhập đầy đủ số sao và nhận xét.');
       return;
     }
 
     const updatedFeedback = {
       id: feedback.id,
-      star: values.rating,
-      commentLines: values.content,
-      orderId: feedback.orderId,
-      branchId: feedback.branchId,
-      userId: feedback.userId,
-      images: feedback.images || [],
-      reply: values.reply || null,
+      rating: values.rating,
+      content: values.content,
+      reply: feedback.reply || null,
     };
+
+    if (environment.features?.enableLogging) {
+      console.log('🔍 Submitting updated feedback:', updatedFeedback);
+    }
 
     if (typeof onUpdate === 'function') {
       await onUpdate(updatedFeedback);
       form.resetFields();
     } else {
       console.error('onUpdate is not a function:', onUpdate);
+      message.error('Lỗi hệ thống khi cập nhật đánh giá.');
     }
   };
 
