@@ -50,7 +50,6 @@ import UserAccount from '../modules/Admin/UserAccount/index.js';
 import KitchenView from '../modules/Admin/Kitchen/KitchenPage.js';
 import BranchesPage from '../modules/Admin/Branch/BranchesPage.js';
 import DepartmentsPage from '../modules/Admin/Department/DepartmentsPage.js';
-import BranchesPage from '../modules/Admin/Branch/BranchesPage.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
