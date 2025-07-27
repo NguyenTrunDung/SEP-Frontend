@@ -80,7 +80,7 @@ const AdminLayout = ({ children }) => {
       "/admin/user-management": ["user-management"],
       "/admin/group-user": ["group-user"],
       "/admin/user-account": ["user-account"],
-      "/branchs": ["branchs"],
+      "/branches": ["branches"],
       "/departments": ["departments"],
     };
 
@@ -207,12 +207,11 @@ const AdminLayout = ({ children }) => {
               label: "Cài đặt hệ thống",
               children: [
                 // Users Management - Admin only
-
-                {
-                  key: "users",
-                  icon: <UserOutlined style={{ fontSize: "18px" }} />,
-                  label: <Link to="/admin/users">Quản lý nhân viên</Link>,
-                },
+                // {
+                //   key: "users",
+                //   icon: <UserOutlined style={{ fontSize: "18px" }} />,
+                //   label: <Link to="/admin/users">Quản lý nhân viên</Link>,
+                // },
                 {
                   key: "user-wallet-group",
                   icon: <WalletOutlined style={{ fontSize: "18px" }} />,
@@ -239,9 +238,9 @@ const AdminLayout = ({ children }) => {
                   label: "Danh mục",
                   children: [
                     {
-                      key: "branchs",
+                      key: "branches",
                       icon: <ShopOutlined style={{ fontSize: "18px" }} />,
-                      label: <Link to="/branchs">Chi nhánh</Link>,
+                      label: <Link to="/branches">Chi nhánh</Link>,
                     },
                     {
                       key: "areas",
