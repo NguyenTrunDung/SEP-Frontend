@@ -1,0 +1,105 @@
+.create-patient {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.create-patient .ant-modal {
+  max-width: 600px;
+}
+
+.create-patient .ant-modal-body {
+  padding: 24px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #fafafa;
+}
+
+.create-patient .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.create-patient .ant-form-item-label > label {
+  font-weight: 500;
+  color: #262626;
+}
+
+.create-patient .form-loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.create-patient .custom-floating {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.create-patient .custom-floating .floating-label {
+  position: absolute;
+  left: 12px;
+  top: -8px;
+  background: white;
+  padding: 0 4px;
+  font-size: 12px;
+  color: #666;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.create-patient .input-label {
+  border-radius: 8px;
+  border: 1px solid #d9d9d9;
+  padding: 8px 12px;
+  font-size: 16px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  color: #3c3c3c;
+}
+
+.create-patient .ant-select-selector {
+  border-radius: 8px !important;
+  height: 48px !important;
+  display: flex;
+  align-items: center;
+}
+
+.create-patient .ant-input-number {
+  border-radius: 8px;
+  height: 48px;
+  width: 100%;
+}
+
+.create-patient .ant-input {
+  border-radius: 8px;
+  height: 48px;
+}
+
+.create-patient .ant-input-textarea {
+  border-radius: 8px;
+}
+
+.create-patient .form-actions {
+  margin-top: 24px;
+  margin-bottom: 0;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  background: white;
+}
+
+.create-patient .ant-btn {
+  height: 40px;
+  padding: 0 24px;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+  .create-patient .ant-modal {
+    width: 95% !important;
+    margin: 10px auto;
+  }
+
+  .create-patient .ant-modal-body {
+    padding: 16px;
+  }
+}

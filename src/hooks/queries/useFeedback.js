@@ -1,30 +1,59 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { message } from 'antd';
 import { feedbackService } from '../../services/feedbackService';
 import environment from '../../config/environment';
-import { message } from 'antd';
-import { mockFeedbacks } from '../../mocks/mockFeedbacks'; // Import mock data
+import api from '../../services/api/config';
 
-// Query Keys with branch context
 export const FEEDBACK_QUERY_KEYS = {
   all: ['feedbacks'],
   lists: () => [...FEEDBACK_QUERY_KEYS.all, 'list'],
-  list: (branchId) => [...FEEDBACK_QUERY_KEYS.lists(), { branchId }],
+  list: (branchId) => [...FEEDBACK_QUERY_KEYS.lists(), { branchId: String(branchId) }],
   details: () => [...FEEDBACK_QUERY_KEYS.all, 'detail'],
-  detail: (id, branchId) => [...FEEDBACK_QUERY_KEYS.details(), { id, branchId }],
+  detail: (id, branchId) => [...FEEDBACK_QUERY_KEYS.details(), id, { branchId: String(branchId) }],
+  byOrder: (orderId, branchId) => [...FEEDBACK_QUERY_KEYS.lists(), 'byOrder', { orderId, branchId: String(branchId) }],
 };
 
-/**
- * React Query hook for fetching feedbacks
- */
-export const useFeedbacks = () => {
-  const currentBranchId = environment.multiTenant.getCurrentBranchId();
+const normalizeBranchId = (branchId) => {
+  const id = String(branchId || environment.multiTenant.getCurrentBranchId() || '1');
+  if (environment.features?.enableLogging) {
+    console.log('🔍 Normalized branchId:', id);
+  }
+  return id;
+};
+
+export const useFeedbacks = (options = {}) => {
+  const currentBranchId = normalizeBranchId();
 
   const query = useQuery({
     queryKey: FEEDBACK_QUERY_KEYS.list(currentBranchId),
-    queryFn: () => feedbackService.getFeedbacks(mockFeedbacks), // Sử dụng mock data
-    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      if (!currentBranchId) {
+        console.warn('⚠️ branchId is missing, skipping fetch');
+        return [];
+      }
+
+      try {
+        const data = await feedbackService.getFeedbacks(currentBranchId);
+        return data || [];
+      } catch (error) {
+        console.error('❌ Error fetching feedbacks:', error.response?.data || error.message);
+        throw error;
+      }
+    },
+    staleTime: environment.performance?.queryStaleTime || 5 * 60 * 1000,
+    cacheTime: environment.performance?.queryCacheTime || 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     enabled: !!currentBranchId,
+    retry: (failureCount, error) => {
+      const status = error?.response?.status;
+      if ([404, 403, 401, 302].includes(status)) {
+        console.warn(`🚫 Request failed with status ${status}, stopping retries`);
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    ...options,
   });
 
   return {
@@ -32,20 +61,39 @@ export const useFeedbacks = () => {
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,
+    isRefetching: query.isRefetching,
+    isError: query.isError,
+    isSuccess: query.isSuccess,
+    isFetching: query.isFetching,
   };
 };
 
-/**
- * React Query hook for fetching a specific feedback by ID
- */
 export const useFeedback = (feedbackId, options = {}) => {
-  const currentBranchId = environment.multiTenant.getCurrentBranchId();
+  const currentBranchId = normalizeBranchId();
 
   const query = useQuery({
     queryKey: FEEDBACK_QUERY_KEYS.detail(feedbackId, currentBranchId),
-    queryFn: () => feedbackService.getFeedback(feedbackId, mockFeedbacks),
-    enabled: !!(feedbackId && currentBranchId),
-    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      try {
+        const response = await feedbackService.getFeedback(feedbackId);
+        return response || null;
+      } catch (error) {
+        console.error('❌ Error fetching feedback by ID:', error.response?.data || error.message);
+        throw error;
+      }
+    },
+    enabled: !!feedbackId,
+    staleTime: environment.performance?.queryStaleTime || 5 * 60 * 1000,
+    cacheTime: environment.performance?.queryCacheTime || 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      const status = error?.response?.status;
+      if ([404, 403, 401, 302].includes(status)) {
+        console.warn(`🚫 Request failed with status ${status}, stopping retries`);
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options,
   });
 
@@ -54,68 +102,130 @@ export const useFeedback = (feedbackId, options = {}) => {
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,
+    isError: query.isError,
+    isSuccess: query.isSuccess,
   };
 };
 
-/**
- * React Query mutation hook for creating a new feedback
- */
-export const useCreateFeedback = () => {
+export const useCreateFeedback = (options = {}) => {
   const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId();
+  const currentBranchId = normalizeBranchId();
 
   return useMutation({
-    mutationFn: (feedbackData) => feedbackService.createFeedback(feedbackData, mockFeedbacks),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.list(currentBranchId) });
-      message.success('Tạo đánh giá thành công!');
+    mutationFn: ({ feedbackData, branchId }) => {
+      const targetBranchId = normalizeBranchId(branchId);
+      return feedbackService.createFeedback(feedbackData);
     },
-    onError: (error) => {
-      console.error('❌ Failed to create feedback:', error);
-      message.error(error.message || 'Có lỗi xảy ra khi tạo đánh giá!');
-    },
-  });
-};
-
-/**
- * React Query mutation hook for updating an existing feedback
- */
-export const useUpdateFeedback = () => {
-  const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId();
-
-  return useMutation({
-    mutationFn: ({ id, feedbackData }) => feedbackService.updateFeedback(id, feedbackData, mockFeedbacks),
-    onSuccess: (data, variables) => {
-      if (data && variables.id) {
-        queryClient.setQueryData(FEEDBACK_QUERY_KEYS.detail(variables.id, currentBranchId), data);
+    onSuccess: (response, variables) => {
+      message.success(response.message || 'Tạo đánh giá thành công!');
+      const targetBranchId = normalizeBranchId(variables.branchId);
+      const newFeedback = response;
+      if (newFeedback) {
+        queryClient.setQueryData(FEEDBACK_QUERY_KEYS.list(targetBranchId), (oldData) => {
+          const updatedData = oldData ? [...oldData, newFeedback] : [newFeedback];
+          return updatedData;
+        });
+        queryClient.setQueryData(FEEDBACK_QUERY_KEYS.detail(newFeedback.id, targetBranchId), newFeedback);
       }
-      queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.list(currentBranchId) });
-      message.success('Cập nhật đánh giá thành công!');
+      queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.list(targetBranchId) });
+      queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.lists() });
     },
     onError: (error) => {
-      console.error('❌ Failed to update feedback:', error);
-      message.error(error.message || 'Có lỗi xảy ra khi cập nhật đánh giá!');
+      const errorMessage =
+        error.response?.status === 415
+          ? 'Server không hỗ trợ định dạng dữ liệu. Vui lòng kiểm tra cấu hình API.'
+          : error.response?.status === 400 && error.response?.data?.message === 'User already rated this order'
+          ? 'Bạn đã đánh giá đơn hàng này rồi!'
+          : error.response?.data?.message || 'Không thể tạo đánh giá!';
+      message.error(errorMessage);
+      console.error('❌ Failed to create feedback:', error.response?.data || error);
     },
+    ...options,
   });
 };
 
-/**
- * React Query mutation hook for deleting a feedback
- */
-export const useDeleteFeedback = () => {
+export const useUpdateFeedback = (options = {}) => {
   const queryClient = useQueryClient();
-  const currentBranchId = environment.multiTenant.getCurrentBranchId();
+  const currentBranchId = normalizeBranchId();
 
   return useMutation({
-    mutationFn: (feedbackId) => feedbackService.deleteFeedback(feedbackId, mockFeedbacks),
+    mutationFn: ({ id, feedbackData, branchId }) => {
+      const targetBranchId = normalizeBranchId(branchId);
+      if (!id || !feedbackData.Star || !feedbackData.CommentLines) {
+        throw new Error('Thiếu các trường bắt buộc: ID, Star, hoặc CommentLines');
+      }
+      // Only pass mutable fields to avoid modifying key fields
+      const payload = {
+        Star: feedbackData.Star,
+        CommentLines: feedbackData.CommentLines,
+        Reply: feedbackData.Reply || null,
+      };
+      if (environment.features?.enableLogging) {
+        console.log('🔍 useUpdateFeedback - Sending payload:', { id, payload, branchId: targetBranchId });
+      }
+      return feedbackService.updateFeedback(id, payload);
+    },
+    onSuccess: (response, variables) => {
+      message.success(response.message || 'Cập nhật đánh giá thành công!');
+      const targetBranchId = normalizeBranchId(variables.branchId);
+      const updatedFeedback = {
+        id: response.id,
+        orderId: response.orderId,
+        userId: response.userId,
+        branchId: response.branchId,
+        rating: response.rating,
+        content: response.content,
+        reply: response.reply || null,
+        customerName: response.customerName,
+        avatar: response.avatar,
+        timestamp: response.timestamp,
+      };
+      if (updatedFeedback) {
+        queryClient.setQueryData(FEEDBACK_QUERY_KEYS.detail(variables.id, targetBranchId), updatedFeedback);
+        queryClient.setQueryData(FEEDBACK_QUERY_KEYS.list(targetBranchId), (oldData) => {
+          return oldData
+            ? oldData.map((feedback) => (feedback.id === variables.id ? updatedFeedback : feedback))
+            : [updatedFeedback];
+        });
+        queryClient.setQueryData(FEEDBACK_QUERY_KEYS.byOrder(updatedFeedback.orderId, targetBranchId), (oldData) => {
+          return oldData
+            ? oldData.map((feedback) => (feedback.id === variables.id ? updatedFeedback : feedback))
+            : [updatedFeedback];
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.list(targetBranchId) });
+      queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.byOrder(updatedFeedback.orderId, targetBranchId) });
+      queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.lists() });
+    },
+    onError: (error) => {
+      const errorMessage =
+        error.message === 'Số sao đánh giá phải từ 0 đến 5'
+          ? 'Số sao đánh giá phải từ 0 đến 5!'
+          : error.message === 'Nhận xét không được để trống'
+          ? 'Nhận xét không được để trống!'
+          : error.response?.status === 400
+          ? error.response?.data?.message || 'Dữ liệu không hợp lệ, vui lòng kiểm tra lại.'
+          : error.response?.data?.message || 'Không thể cập nhật đánh giá!';
+      message.error(errorMessage);
+      console.error('❌ Failed to update feedback:', error.response?.data || error);
+    },
+    ...options,
+  });
+};
+
+export const useDeleteFeedback = (options = {}) => {
+  const queryClient = useQueryClient();
+  const currentBranchId = normalizeBranchId();
+
+  return useMutation({
+    mutationFn: (feedbackId) => feedbackService.deleteFeedback(feedbackId),
     onMutate: async (feedbackId) => {
       await queryClient.cancelQueries({ queryKey: FEEDBACK_QUERY_KEYS.list(currentBranchId) });
       const previousFeedbacks = queryClient.getQueryData(FEEDBACK_QUERY_KEYS.list(currentBranchId));
       if (previousFeedbacks) {
         queryClient.setQueryData(
           FEEDBACK_QUERY_KEYS.list(currentBranchId),
-          previousFeedbacks.filter(feedback => feedback.id !== feedbackId)
+          previousFeedbacks.filter((feedback) => feedback.id !== feedbackId)
         );
       }
       return { previousFeedbacks };
@@ -130,10 +240,74 @@ export const useDeleteFeedback = () => {
         queryClient.setQueryData(FEEDBACK_QUERY_KEYS.list(currentBranchId), context.previousFeedbacks);
       }
       console.error('❌ Failed to delete feedback:', error);
-      message.error(error.message || 'Không thể xóa đánh giá!');
+      message.error(error.response?.data?.message || 'Không thể xóa đánh giá!');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.list(currentBranchId) });
     },
+    ...options,
   });
+};
+
+export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
+  const targetBranchId = normalizeBranchId(branchId);
+
+  const query = useQuery({
+    queryKey: FEEDBACK_QUERY_KEYS.byOrder(orderId, targetBranchId),
+    queryFn: async () => {
+      try {
+        const response = await api.get('/api/v1/Comment/By-Order', {
+          params: { OrderId: orderId, branchId: targetBranchId },
+        });
+        if (response.data.status !== 'success') {
+          console.warn('⚠️ Response status not success:', response.data.message);
+          return [];
+        }
+        const normalizedData = await Promise.all(
+          response.data.data.map(async (feedback) => {
+            let customerName = feedback.userId;
+            let avatar = null;
+            try {
+              const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
+              customerName = userResponse.data?.firstName && userResponse.data?.lastName 
+                ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
+                : feedback.userId;
+              avatar = userResponse.data?.avatar || null;
+            } catch (error) {
+              console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error);
+            }
+            return {
+              id: feedback.id,
+              orderId: feedback.orderId,
+              userId: feedback.userId,
+              branchId: feedback.branchId,
+              rating: feedback.star,
+              content: feedback.commentLines,
+              reply: feedback.reply || null,
+              customerName,
+              avatar,
+              timestamp: feedback.createdAt || new Date().toISOString(),
+            };
+          })
+        );
+        return normalizedData;
+      } catch (error) {
+        console.error('❌ Error fetching feedbacks by order:', error.response?.data || error.message);
+        throw error;
+      }
+    },
+    enabled: !!orderId && !!targetBranchId,
+    staleTime: environment.performance?.queryStaleTime || 5 * 60 * 1000,
+    cacheTime: environment.performance?.queryCacheTime || 5 * 60 * 1000,
+    ...options,
+  });
+
+  return {
+    feedbacks: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+    isError: query.isError,
+    isSuccess: query.isSuccess,
+  };
 };

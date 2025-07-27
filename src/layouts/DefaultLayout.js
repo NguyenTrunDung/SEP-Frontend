@@ -2,11 +2,11 @@
 import React from 'react';
 import { Layout } from 'antd';
 import { Outlet, useLocation } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import Carousel from '../components/CarouselComponent';
+import Navbar from '../components/HomePage/Navbar';
+import Carousel from '../components/HomePage/CarouselComponent';
 import Menu from '../components/Dishes/Menu';
-import Desease from '../components/Desease';
-import FooterComponent from '../components/Footer';
+import Desease from '../components/HomePage/Desease';
+import FooterComponent from '../components/HomePage/Footer';
 import UserHeader from '../components/common/UserHeader';
 
 const { Content } = Layout;
