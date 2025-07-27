@@ -141,6 +141,7 @@ const OrdersTableV2 = () => {
                     <span>{new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                   </div>
                 ) : 'N/A',
+              align: 'center',
             },
             {
               dataIndex: 'receiveDate',
