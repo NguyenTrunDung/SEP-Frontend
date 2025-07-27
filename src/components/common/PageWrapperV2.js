@@ -65,7 +65,6 @@ const withPageWrapperV2 = (WrappedComponent) => {
               style={{
                 width: '100%',
                 height: 36,
-                // lineHeight: '36px',
                 fontSize: 14,
               }}
               value={filterProps.filters?.[field.name] || undefined}
@@ -206,6 +205,7 @@ const PageWrapperV2 = ({
         <DatePicker
           key={field.name}
           placeholder={field.label}
+          value={filterProps.filters?.[field.name] ? moment(filterProps.filters[field.name]) : null}
           onChange={(date, dateString) =>
             filterProps.onChange({
               ...filterProps.filters,
@@ -213,7 +213,7 @@ const PageWrapperV2 = ({
             })
           }
           style={{ width: 160 }}
-          defaultValue={moment()}
+          allowClear
         />
       );
     }
@@ -233,7 +233,6 @@ const PageWrapperV2 = ({
             style={{
               width: '100%',
               height: 36,
-              // lineHeight: '36px',
               fontSize: 14,
             }}
             value={filterProps.filters?.[field.name] || undefined}

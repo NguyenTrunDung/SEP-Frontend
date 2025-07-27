@@ -24,6 +24,63 @@ export const branchService = {
             throw error;
         }
     },
+    /**
+ * Create a new branch
+ * POST /api/v1/branches
+ */
+    async createBranch(branchData) {
+        try {
+            const response = await api.post(environment.api.endpoints.branch.create, branchData);
+            if (environment.features.enableLogging) {
+                console.log('✅ Created branch:', response.data?.data);
+            }
+            return response.data?.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to create branch:', error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Update an existing branch
+     * PUT /api/v1/branches/{branchId}
+     */
+    async updateBranch(branchId, branchData) {
+        try {
+            const response = await api.put(environment.api.endpoints.branch.update(branchId), branchData);
+            if (environment.features.enableLogging) {
+                console.log('✅ Updated branch:', branchId);
+            }
+            return response.data?.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to update branch:', error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Delete a branch
+     * DELETE /api/v1/branches/{branchId}
+     */
+    async deleteBranch(branchId) {
+        try {
+            const response = await api.delete(environment.api.endpoints.branch.delete(branchId));
+            if (environment.features.enableLogging) {
+                console.log('✅ Deleted branch:', branchId);
+            }
+            return response.data?.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to delete branch:', error.message);
+            }
+            throw error;
+        }
+    },
+
 
     /**
      * Get default branch (public endpoint)

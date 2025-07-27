@@ -42,7 +42,14 @@ import LocationsPage from '../modules/Admin/Locations/LocationPage.js';
 import DiseaseCategoriesTable from '../modules/Admin/DiseaseCategory/DiseaseCategoryPage.js';
 import FoodForPatientPage from '../modules/Admin/FoodForPatients/index.js';
 import VnPayIntegrationExample from '../components/examples/VnPayIntegrationExample.js';
+
+import UserManagement from '../modules/Admin/User/index.js';
+import GroupUser from '../modules/Admin/GroupUser/index.js';
+import UserAccount from '../modules/Admin/UserAccount/index.js';
+
 import KitchenView from '../modules/Admin/Kitchen/KitchenPage.js';
+import BranchesPage from '../modules/Admin/Branch/BranchesPage.js';
+import DepartmentsPage from '../modules/Admin/Department/DepartmentsPage.js';
 
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
@@ -175,6 +182,26 @@ const routes = [
     ),
   },
   {
+    path: '/branchs',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+        <AdminLayout>
+          <BranchesPage />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/departments',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+        <AdminLayout>
+          <DepartmentsPage />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/feedbacks',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF]}>
@@ -190,6 +217,36 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
         <AdminLayout>
           <CustomerPage />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/user-management',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
+        <AdminLayout>
+          <UserManagement />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/group-user',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
+        <AdminLayout>
+          <GroupUser />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/user-account',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
+        <AdminLayout>
+          <UserAccount />
         </AdminLayout>
       </ProtectedRoute>
     ),

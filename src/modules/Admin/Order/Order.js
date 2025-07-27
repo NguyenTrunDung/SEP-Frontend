@@ -8,13 +8,14 @@ import { useAntModal } from '../../../hooks/useAntModal';
 import { useOrders } from '../../../hooks/queries/useOrders';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
 import { environment } from '../../../services/api/config';
+import moment from 'moment';
 import './Order.css';
 
 const OrdersTableV2 = () => {
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({
-    startOrderDate: null,
-    endOrderDate: null,
+    startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
+    endOrderDate: moment().format('YYYY-MM-DD'),
     status: null,
     isPaid: null,
   });
@@ -25,6 +26,10 @@ const OrdersTableV2 = () => {
   const { open: viewOpen, showModal: showViewModal, handleCancel: handleViewCancel } = useAntModal();
   const { orders, isLoading, error, refetch } = useOrders(branchId, filters, searchText);
   const { handleNonPermissionError } = useGlobalErrorHandler();
+
+  useEffect(() => {
+    refetch();
+  }, [filters, searchText, refetch]);
 
   useEffect(() => {
     if (error) {
@@ -39,8 +44,6 @@ const OrdersTableV2 = () => {
   }, [orders, error, handleNonPermissionError, branchId]);
 
   const filteredData = useMemo(() => {
-    // Since API now handles all filtering (including search and filters),
-    // we can use the data directly without additional frontend filtering
     return ordersData;
   }, [ordersData]);
 
@@ -59,8 +62,8 @@ const OrdersTableV2 = () => {
 
   const handleClearFilters = () => {
     setFilters({
-      startOrderDate: null,
-      endOrderDate: null,
+      startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
+      endOrderDate: moment().format('YYYY-MM-DD'),
       status: null,
       isPaid: null,
     });
@@ -68,7 +71,7 @@ const OrdersTableV2 = () => {
   };
 
   const handleStatusChange = () => {
-    refetch(); // Refresh the order list after status change
+    refetch();
   };
 
   const paginationConfig = {
@@ -93,7 +96,7 @@ const OrdersTableV2 = () => {
           placeholder: 'Tìm kiếm đơn hàng',
         }}
         filterProps={{
-          filters: filters, // Pass current filter state so PageWrapperV2 can preserve existing filters
+          filters: filters,
           onChange: handleFilterChange,
           fields: [
             { name: 'startOrderDate', type: 'date', label: 'Từ ngày' },
@@ -103,13 +106,12 @@ const OrdersTableV2 = () => {
               type: 'select',
               label: 'Trạng thái đơn hàng',
               options: [
-                { value: 'Pending', label: 'Đang chờ' },
-                { value: 'Confirmed', label: 'Đã xác nhận' },
-                { value: 'Preparing', label: 'Đang chuẩn bị' },
+                { value: 'Pending', label: 'Chưa xử lý' },
+                { value: 'Confirmed', label: 'Đang xử lý' },
                 { value: 'Delivered', label: 'Đang giao hàng' },
                 { value: 'Completed', label: 'Hoàn thành' },
-                { value: 'Cancelled', label: 'Hủy' },
-                { value: 'PendingPayment', label: 'Chờ thanh toán' },
+                { value: 'Cancelled', label: 'Đã hủy' },
+
               ],
             },
             {
@@ -117,8 +119,8 @@ const OrdersTableV2 = () => {
               type: 'select',
               label: 'Trạng thái thanh toán',
               options: [
-                { value: true, label: 'Đã thanh toán' },
-                { value: false, label: 'Chưa thanh toán' },
+                { value: true, label: 'Hoàn thành' },
+                { value: false, label: 'Chưa xử lý' },
               ],
             },
           ],
@@ -127,49 +129,56 @@ const OrdersTableV2 = () => {
         <ReusableTableV2
           dataSource={filteredData.map(item => ({ ...item, key: item.id }))}
           columns={[
-            { dataIndex: 'id', title: 'ID', primary: true },
-            { dataIndex: 'customerName', title: 'Tên khách hàng', render: (text) => text || 'N/A' },
+            { dataIndex: 'id', title: 'ID', primary: true, align: 'center' },
+            { dataIndex: 'customerName', title: 'Tên khách hàng', render: (text) => text || 'N/A', align: 'center' },
             {
               dataIndex: 'orderDate',
               title: 'Thời gian đặt',
               render: (date) =>
-                date ? new Date(date).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A',
+                date ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span>{new Date(date).toLocaleTimeString('vi-VN', { timeStyle: 'short' })}</span>
+                    <span>{new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                  </div>
+                ) : 'N/A',
             },
             {
               dataIndex: 'receiveDate',
               title: 'Ngày nhận',
               render: (date) => (date ? new Date(date).toLocaleDateString('vi-VN') : 'N/A'),
+              align: 'center',
             },
             {
               dataIndex: 'receiveTime',
               title: 'Giờ nhận',
               render: (time) => (time ? time : 'N/A'),
+              align: 'center',
             },
-            { dataIndex: 'shippingAddress', title: 'Địa chỉ', render: (text) => text || 'N/A' },
+            { dataIndex: 'shippingAddress', title: 'Địa chỉ', render: (text) => text || 'N/A', align: 'center' },
             {
               dataIndex: 'status',
               title: 'Trạng thái',
               render: (status) =>
               ({
-                'Pending': 'Đang chờ',
-                'Confirmed': 'Đã xác nhận',
-                'Preparing': 'Đang chuẩn bị',
-                'Delivered': 'Đang giao hàng',
-                'Completed': 'Hoàn thành',
-                'Cancelled': 'Hủy',
-                'PendingPayment': 'Chờ thanh toán',
-                // Legacy mappings for backward compatibility
-                'pending': 'Đang chờ',
-                'confirmed': 'Đã xác nhận',
-                'delivered': 'Đang giao hàng',
-                'completed': 'Hoàn thành',
-                'cancelled': 'Hủy',
+                Pending: 'Chưa xử lý',
+                Confirmed: 'Đang xử lý',
+                Delivered: 'Đang giao hàng',
+                Completed: 'Hoàn thành',
+                Cancelled: 'Đã hủy',
+                pending: 'Chưa xử lý',
+                confirmed: 'Đang xử lý',
+                delivered: 'Đang giao hàng',
+                completed: 'Hoàn thành',
+                cancelled: 'Đã hủy',
+
               }[status] || status || 'N/A'),
+              align: 'center',
             },
             {
               dataIndex: 'isPaid',
               title: 'Thanh toán',
-              render: (isPaid) => isPaid ? 'Đã thanh toán' : 'Chưa thanh toán',
+              render: (isPaid) => (isPaid ? 'Hoàn thành' : 'Chưa xử lý'),
+
             },
             {
               title: null,
@@ -180,7 +189,6 @@ const OrdersTableV2 = () => {
                 <div>
                   <Tooltip title="Xem chi tiết">
                     <Button
-                      type="text"
                       icon={<EyeOutlined />}
                       onClick={() => handleViewDetail(record)}
                     />
@@ -203,7 +211,7 @@ const OrdersTableV2 = () => {
         onCancel={handleViewCancel}
         orderData={viewOrder}
         branchId={branchId}
-        onStatusChange={handleStatusChange} // Pass the refetch function
+        onStatusChange={handleStatusChange}
       />
     </div>
   );

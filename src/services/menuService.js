@@ -368,10 +368,32 @@ export const menuService = {
      * Uses the GET /api/v1/menudetail/dates endpoint
      * @returns {Promise<Array>} List of menu dates
      */
+    // async getMenuDates() {
+    //     const response = await api.get('/api/v1/menudetail/dates');
+    //     return response.data?.data || [];
+    // },
     async getMenuDates() {
-        const response = await api.get('/api/v1/menudetail/dates');
+    try {
+        const branchId = environment.multiTenant.getCurrentBranchId();
+        if (environment.features.enableLogging) {
+            console.log('🔍 Fetching menu dates with branchId:', branchId);
+        }
+        const response = await api.get('/api/v1/public/menus/dates');
+        if (environment.features.enableLogging) {
+            console.log('✅ Fetched menu dates:', response.data);
+        }
         return response.data?.data || [];
-    },
+    } catch (error) {
+        if (environment.features.enableLogging) {
+            console.error('❌ Failed to fetch menu dates:', {
+                message: error.response?.data?.message || error.message,
+                status: error.response?.status,
+                data: error.response?.data
+            });
+        }
+        throw error;
+    }
+},
 
     /**
      * Get available menu dates for template selection (past 2 weeks)
