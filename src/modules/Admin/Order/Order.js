@@ -9,14 +9,11 @@ import { useOrders } from '../../../hooks/queries/useOrders';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
 import { environment } from '../../../services/api/config';
 import moment from 'moment';
-import moment from 'moment';
 import './Order.css';
 
 const OrdersTableV2 = () => {
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({
-    startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
-    endOrderDate: moment().format('YYYY-MM-DD'),
     startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
     endOrderDate: moment().format('YYYY-MM-DD'),
     status: null,
@@ -110,10 +107,11 @@ const OrdersTableV2 = () => {
               label: 'Trạng thái đơn hàng',
               options: [
                 { value: 'Pending', label: 'Chưa xử lý' },
-                { value: 'Preparing', label: 'Đang chuẩn bị' },
+                { value: 'Confirmed', label: 'Đang xử lý' },
                 { value: 'Delivered', label: 'Đang giao hàng' },
                 { value: 'Completed', label: 'Hoàn thành' },
-                { value: 'Cancelled', label: 'Hủy' },
+                { value: 'Cancelled', label: 'Đã hủy' },
+
               ],
             },
             {
@@ -163,32 +161,25 @@ const OrdersTableV2 = () => {
               title: 'Trạng thái',
               render: (status) =>
               ({
-                // 'Pending': 'Đang chờ',
-                // 'Confirmed': 'Đã xác nhận',
-                // 'Preparing': 'Đang chuẩn bị',
-                // 'Delivered': 'Đang giao hàng',
-                // 'Completed': 'Hoàn thành',
-                // 'Cancelled': 'Hủy',
-                // 'PendingPayment': 'Chờ thanh toán',
-                // // Legacy mappings for backward compatibility
-                // 'pending': 'Đang chờ',
-                // 'confirmed': 'Đã xác nhận',
-                // 'delivered': 'Đang giao hàng',
-                // 'completed': 'Hoàn thành',
-                // 'cancelled': 'Hủy',
-                'Pending': 'Chưa xử lý',
-                'Preparing': 'Đang chuẩn bị',
-                'Delivered': 'Đang giao hàng',
-                'Completed': 'Hoàn thành',
-                'Cancelled': 'Đã hủy',
+                Pending: 'Chưa xử lý',
+                Confirmed: 'Đang xử lý',
+                Delivered: 'Đang giao hàng',
+                Completed: 'Hoàn thành',
+                Cancelled: 'Đã hủy',
+                pending: 'Chưa xử lý',
+                confirmed: 'Đang xử lý',
+                delivered: 'Đang giao hàng',
+                completed: 'Hoàn thành',
+                cancelled: 'Đã hủy',
+
               }[status] || status || 'N/A'),
               align: 'center',
             },
             {
               dataIndex: 'isPaid',
               title: 'Thanh toán',
-              render: (isPaid) => isPaid ? 'Đã thanh toán' : 'Chưa thanh toán',
-              align: 'center',
+              render: (isPaid) => (isPaid ? 'Hoàn thành' : 'Chưa xử lý'),
+
             },
             {
               title: null,

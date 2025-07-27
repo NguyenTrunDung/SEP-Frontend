@@ -80,6 +80,7 @@ export default function HealthCarousel() {
     setCurrentSlide((prev) => (prev - 1 + healthData.length) % healthData.length)
   }
 
+
   const goToSlide = (index) => {
     setCurrentSlide(index)
   }
