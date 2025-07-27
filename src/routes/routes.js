@@ -182,7 +182,7 @@ const routes = [
     ),
   },
   {
-    path: '/branchs',
+    path: '/branches',
     element: (
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
         <AdminLayout>
@@ -211,16 +211,16 @@ const routes = [
       </ProtectedRoute>
     ),
   },
-  {
-    path: '/admin/users',
-    element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
-        <AdminLayout>
-          <CustomerPage />
-        </AdminLayout>
-      </ProtectedRoute>
-    ),
-  },
+  // {
+  //   path: '/admin/users',
+  //   element: (
+  //     <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
+  //       <AdminLayout>
+  //         <CustomerPage />
+  //       </AdminLayout>
+  //     </ProtectedRoute>
+  //   ),
+  // },
   {
     path: '/admin/user-management',
     element: (
