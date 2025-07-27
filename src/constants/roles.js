@@ -110,6 +110,30 @@ export const hasAdminAccess = (userRole) => {
     return adminRoles.includes(userRole);
 };
 
+// Helper function to check if route is admin-only
+export const isAdminRoute = (allowedRoles) => {
+    const adminOnlyRoles = [
+        ROLES.SYSTEM_ADMIN,
+        ROLES.ADMIN,
+        ROLES.BRANCH_MANAGER,
+        ROLES.MANAGER,
+        ROLES.DOCTOR
+    ];
+    return allowedRoles && allowedRoles.every(role => adminOnlyRoles.includes(role));
+};
+
+// Helper function to check if user can access admin routes
+export const canAccessAdminRoutes = (userRole) => {
+    const adminRouteRoles = [
+        ROLES.SYSTEM_ADMIN,
+        ROLES.ADMIN,
+        ROLES.BRANCH_MANAGER,
+        ROLES.MANAGER,
+        ROLES.DOCTOR
+    ];
+    return adminRouteRoles.includes(userRole);
+};
+
 // Helper function to check if user should use guest layout
 export const shouldUseGuestLayout = (userRole) => {
     const guestLayoutRoles = [

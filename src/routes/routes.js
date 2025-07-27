@@ -57,13 +57,12 @@ const roleHomeRedirects = {
   [ROLES.BRANCH_MANAGER]: '/dashboard',
   [ROLES.MANAGER]: '/dashboard',
 
-  [ROLES.NURSE]: '/nurse/home',          // Nurses go to guest-like interface
+  [ROLES.NURSE]: '/nurse/home',          // Nurses go to nurse home interface
   [ROLES.PATIENT]: '/patient/home',
   [ROLES.STAFF]: '/orders',
   [ROLES.CASHIER]: '/orders',
   [ROLES.KITCHEN]: '/orders',
-  [ROLES.GUEST]: '/nurse/home'           // Guests also use the same interface as nurses
-
+  [ROLES.GUEST]: '/'           // Guests stay on home page
 };
 
 // Route config with layout and role protection
@@ -75,6 +74,16 @@ const routes = [
       <AuthRedirect roleHomeRedirects={roleHomeRedirects}>
         <Home />
       </AuthRedirect>
+    ),
+  },
+
+  // Nurse public home route (for NURSE role)
+  {
+    path: '/nurse/public',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+        <Home />
+      </ProtectedRoute>
     ),
   },
 
@@ -118,11 +127,18 @@ const routes = [
     path: '/redirect',
     element: (
       <ProtectedRoute>
-        {({ user }) => {
+        {({ user, loginType }) => {
           if (!user?.role) {
             // If no user or role, redirect to login
             return <Navigate to="/login" replace />;
           }
+
+          // Nếu user đăng nhập qua public login, redirect về trang chủ
+          if (loginType === 'public') {
+            return <Navigate to="/" replace />;
+          }
+
+          // Nếu user đăng nhập qua internal login, redirect theo role
           const redirectPath = roleHomeRedirects[user.role] || '/dashboard';
           return <Navigate to={redirectPath} replace />;
         }}
@@ -447,6 +463,19 @@ const routes = [
         <AdminLayout>
           <Order />
         </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+
+  // Test route for debugging admin access
+  {
+    path: '/test-admin',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR]}>
+        <div style={{ padding: '20px' }}>
+          <h1>Admin Test Page</h1>
+          <p>If you can see this, you have admin access.</p>
+        </div>
       </ProtectedRoute>
     ),
   },

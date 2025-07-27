@@ -13,7 +13,9 @@ const AuthForm = ({
     showTestAccounts = true,
     customFields = [],
     onSuccess,
-    redirectPath = '/redirect'
+    redirectPath = '/redirect',
+    customStyle = {},
+    loginType = 'internal' // Thêm prop loginType
 }) => {
     const [form] = Form.useForm();
     const { login, loading, error } = useAuth() || {};
@@ -38,13 +40,17 @@ const AuthForm = ({
                 localStorage.removeItem('rememberedEmail');
                 localStorage.removeItem('rememberedPassword');
             }
-            await login(values);
+
+            // Gọi login với loginType
+            await login(values, loginType);
+
             if (onSuccess) {
                 onSuccess(values);
             }
             navigate(from, { replace: true });
         } catch (err) {
             console.error('Login error:', err);
+            // Không cần xử lý error ở đây vì AuthContext đã xử lý
         }
     };
 
@@ -90,7 +96,7 @@ const AuthForm = ({
         {
             name: 'remember',
             valuePropName: 'checked',
-            component: <Checkbox>Ghi nhớ</Checkbox>
+            //component: <Checkbox>Ghi nhớ</Checkbox>
         }
     ];
 
@@ -142,7 +148,10 @@ const AuthForm = ({
                             loading={loading}
                             size="large"
                             block
-                            style={{ borderRadius: '6px', backgroundColor: '#17a2b8', borderColor: '#17a2b8' }}
+                            style={{
+                                borderRadius: '6px',
+                                ...(customStyle.submitButton || { backgroundColor: '#17a2b8', borderColor: '#17a2b8' })
+                            }}
                         >
                             {submitText}
                         </Button>
@@ -199,6 +208,116 @@ const AuthForm = ({
     );
 };
 
+// Component riêng cho public login
+export const AuthFormPublic = ({
+    submitText = 'Đăng Nhập',
+    showTestAccounts = false,
+    customFields = [],
+    onSuccess,
+    redirectPath = '/',
+    customStyle = {}
+}) => {
+    const [form] = Form.useForm();
+    const { login, loading, error } = useAuth() || {};
+
+    const handleSubmit = async (values) => {
+        try {
+            if (!login) {
+                console.error('Login function is not available');
+                return;
+            }
+
+            // Gọi login với loginType public
+            await login(values, 'public');
+
+            // Gọi callback onSuccess để parent component xử lý redirect
+            if (onSuccess) {
+                onSuccess(values);
+            }
+            // Không tự động navigate ở đây, để parent component xử lý
+        } catch (err) {
+            console.error('Login error:', err);
+        }
+    };
+
+    const defaultFields = [
+        {
+            name: 'email',
+            label: 'Email',
+            rules: [
+                { required: true, message: 'Vui lòng nhập email!' },
+                { type: 'email', message: 'Vui lòng nhập email hợp lệ!' }
+            ],
+            component: <Input size="large" placeholder="Email" />
+        },
+        {
+            name: 'password',
+            label: 'Mật khẩu',
+            rules: [{ required: true, message: 'Vui lòng nhập mật khẩu!' }],
+            component: <Input.Password size="large" placeholder="Mật khẩu" />
+        }
+    ];
+
+    const allFields = [...defaultFields, ...customFields];
+
+    return (
+        <div className="auth-form-container">
+            <Form
+                form={form}
+                name="auth-form-public"
+                onFinish={handleSubmit}
+                layout="vertical"
+                requiredMark={false}
+                size="large"
+            >
+                {error && (
+                    <div
+                        style={{
+                            padding: '12px 16px',
+                            marginBottom: '16px',
+                            backgroundColor: '#fff2f0',
+                            border: '1px solid #ffccc7',
+                            borderRadius: '6px',
+                            color: '#ff4d4f'
+                        }}
+                    >
+                        {error}
+                    </div>
+                )}
+
+                {allFields.map((field, index) => (
+                    <Form.Item
+                        key={index}
+                        name={field.name}
+                        label={field.label}
+                        rules={field.rules}
+                        valuePropName={field.valuePropName}
+                        style={{ marginBottom: 16 }}
+                    >
+                        {field.component}
+                    </Form.Item>
+                ))}
+
+                <Form.Item style={{ marginBottom: 16 }}>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={loading}
+                        size="large"
+                        block
+                        style={{
+                            borderRadius: '6px',
+                            ...(customStyle.submitButton || { backgroundColor: '#b4c80f', borderColor: '#b4c80f' })
+                        }}
+                    >
+                        {submitText}
+                    </Button>
+                </Form.Item>
+            </Form>
+        </div>
+    );
+};
+
 AuthForm.propTypes = {
     submitText: PropTypes.string,
     showTestAccounts: PropTypes.bool,
@@ -212,7 +331,26 @@ AuthForm.propTypes = {
         })
     ),
     onSuccess: PropTypes.func,
-    redirectPath: PropTypes.string
+    redirectPath: PropTypes.string,
+    customStyle: PropTypes.object,
+    loginType: PropTypes.oneOf(['internal', 'public'])
+};
+
+AuthFormPublic.propTypes = {
+    submitText: PropTypes.string,
+    showTestAccounts: PropTypes.bool,
+    customFields: PropTypes.arrayOf(
+        PropTypes.shape({
+            name: PropTypes.string.isRequired,
+            label: PropTypes.string,
+            rules: PropTypes.array,
+            component: PropTypes.node.isRequired,
+            valuePropName: PropTypes.string
+        })
+    ),
+    onSuccess: PropTypes.func,
+    redirectPath: PropTypes.string,
+    customStyle: PropTypes.object
 };
 
 export default AuthForm;

@@ -462,14 +462,14 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                       ))
                     ) : (
                       <Text
-                        style={{ color: 'red', textAlign: 'center', display: 'block', marginTop: 24, fontWeight: 'bold'  }}
+                        style={{ color: 'red', textAlign: 'center', display: 'block', marginTop: 24, fontWeight: 'bold' }}
                       >
                         Chưa có thực đơn.
                       </Text>
                     )}
                   </div>
                 ) : (
-                  <Text type="secondary" style={{ textAlign: 'center', display: 'block', marginTop: 24, color: 'red', fontWeight: 'bold'  }}>
+                  <Text type="secondary" style={{ textAlign: 'center', display: 'block', marginTop: 24, color: 'red', fontWeight: 'bold' }}>
                     Chưa có thực đơn.
                   </Text>
                 )}
