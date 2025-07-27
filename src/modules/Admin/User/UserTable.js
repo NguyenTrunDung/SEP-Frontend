@@ -65,7 +65,7 @@ const UserTable = ({ users, loading, ...props }) => {
                             size="small"
                         />
                     </Tooltip>
-                    <Tooltip title="Chỉnh sửa">
+                    {/* <Tooltip title="Chỉnh sửa">
                         <Button
                             type="text"
                             icon={<EditOutlined />}
@@ -73,7 +73,7 @@ const UserTable = ({ users, loading, ...props }) => {
                             className="action-btn edit-btn"
                             size="small"
                         />
-                    </Tooltip>
+                    </Tooltip> */}
                     <Tooltip title="Xóa">
                         <Popconfirm
                             title="Xóa người dùng"
