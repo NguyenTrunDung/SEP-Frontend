@@ -234,9 +234,9 @@ export const menuService = {
     },
 
     /**
-     * Get all menus with details for the current branch
-     * Uses the GET /api/v1/MenuDetail endpoint (automatic branch context resolution)
-     * @returns {Promise<Array>} List of menus with details
+     * Fetch all menus with details for the current branch
+     * Uses the GET /api/v1/MenuDetail endpoint
+     * @returns {Promise<Array>} Array of menu objects
      */
     async getMenuList() {
         try {
@@ -253,6 +253,14 @@ export const menuService = {
             // Extract array from API response
             return response.data?.data || response.data || [];
         } catch (error) {
+            // Handle 404 as a valid response (no menus found)
+            if (error.response?.status === 404) {
+                if (environment.features.enableLogging) {
+                    console.log('ℹ️ No menus found for current branch (404) - returning empty array');
+                }
+                return []; // Return empty array instead of throwing error
+            }
+
             if (environment.features.enableLogging) {
                 console.error('❌ Failed to fetch menu list:', error.response?.data?.message || error.message);
             }
@@ -373,27 +381,27 @@ export const menuService = {
     //     return response.data?.data || [];
     // },
     async getMenuDates() {
-    try {
-        const branchId = environment.multiTenant.getCurrentBranchId();
-        if (environment.features.enableLogging) {
-            console.log('🔍 Fetching menu dates with branchId:', branchId);
+        try {
+            const branchId = environment.multiTenant.getCurrentBranchId();
+            if (environment.features.enableLogging) {
+                console.log('🔍 Fetching menu dates with branchId:', branchId);
+            }
+            const response = await api.get('/api/v1/public/menus/dates');
+            if (environment.features.enableLogging) {
+                console.log('✅ Fetched menu dates:', response.data);
+            }
+            return response.data?.data || [];
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to fetch menu dates:', {
+                    message: error.response?.data?.message || error.message,
+                    status: error.response?.status,
+                    data: error.response?.data
+                });
+            }
+            throw error;
         }
-        const response = await api.get('/api/v1/public/menus/dates');
-        if (environment.features.enableLogging) {
-            console.log('✅ Fetched menu dates:', response.data);
-        }
-        return response.data?.data || [];
-    } catch (error) {
-        if (environment.features.enableLogging) {
-            console.error('❌ Failed to fetch menu dates:', {
-                message: error.response?.data?.message || error.message,
-                status: error.response?.status,
-                data: error.response?.data
-            });
-        }
-        throw error;
-    }
-},
+    },
 
     /**
      * Get available menu dates for template selection (past 2 weeks)

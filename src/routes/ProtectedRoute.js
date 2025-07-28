@@ -3,12 +3,12 @@ import { Navigate, useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { ROLE_HIERARCHY, ROLE_TO_PERMISSION_MAP } from '../constants/roles';
+import { ROLE_HIERARCHY, ROLE_TO_PERMISSION_MAP, isAdminRoute, canAccessAdminRoutes } from '../constants/roles';
 import { Spin } from 'antd';
 import environment from '../config/environment';
 
 const ProtectedRoute = ({ children, allowedRoles, requiredPermissions, redirectPath }) => {
-    const { user, token, loading, refreshToken, permissions, isSystemAdmin } = useAuth();
+    const { user, token, loading, refreshToken, permissions, isSystemAdmin, loginType } = useAuth();
     const { hasPermission, hasAnyPermission } = usePermissions();
     const location = useLocation();
 
@@ -20,7 +20,8 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermissions, redirectP
         requiredPermissions,
         userPermissions: permissions?.length || 0,
         isSystemAdmin,
-        loading
+        loading,
+        loginType
     });
 
     // Check for token expiration and attempt refresh
@@ -63,9 +64,25 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermissions, redirectP
 
     // Check if user is authenticated
     if (!token) {
-        // Redirect to login page with return url
-        console.log('🚫 No token, redirecting to login');
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        // Redirect to appropriate login page based on current route
+        const isInternalRoute = location.pathname.startsWith('/admin') ||
+            location.pathname.startsWith('/dashboard') ||
+            location.pathname.startsWith('/orders') ||
+            location.pathname.startsWith('/menus') ||
+            location.pathname.startsWith('/foods') ||
+            location.pathname.startsWith('/branches') ||
+            location.pathname.startsWith('/departments') ||
+            location.pathname.startsWith('/areas') ||
+            location.pathname.startsWith('/locations') ||
+            location.pathname.startsWith('/disease-categories') ||
+            location.pathname.startsWith('/food-for-patients') ||
+            location.pathname.startsWith('/feedbacks') ||
+            location.pathname.startsWith('/kitchens') ||
+            location.pathname.startsWith('/test');
+
+        const loginPath = isInternalRoute ? '/login' : '/';
+        console.log('🚫 No token, redirecting to:', loginPath);
+        return <Navigate to={loginPath} state={{ from: location }} replace />;
     }
 
     // If user object is not loaded yet, show loading
@@ -82,6 +99,12 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermissions, redirectP
     if (isSystemAdmin) {
         console.log('👑 System admin access granted');
         return children;
+    }
+
+    // Kiểm tra nếu user đăng nhập qua public login và cố gắng truy cập admin routes
+    if (loginType === 'public' && allowedRoles && isAdminRoute(allowedRoles)) {
+        console.log('🚫 Public login user cannot access admin routes, redirecting to unauthorized');
+        return <Navigate to={redirectPath || "/unauthorized"} replace />;
     }
 
     // If specific permissions are required, check them first (new system)
@@ -105,11 +128,35 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermissions, redirectP
 
     // If no specific permissions but roles are required, use legacy role system
     if (allowedRoles && allowedRoles.length > 0) {
-        // First, try the legacy role hierarchy check
+        console.log('🔐 Role-based access check:', {
+            userRole: user.role,
+            allowedRoles,
+            isAdminRoute: isAdminRoute(allowedRoles),
+            canAccessAdmin: canAccessAdminRoutes(user.role)
+        });
+
+        // Kiểm tra trực tiếp role có trong danh sách allowedRoles không
+        const hasDirectRoleAccess = allowedRoles.includes(user.role);
+
+        if (hasDirectRoleAccess) {
+            console.log('✅ Direct role-based access granted:', {
+                userRole: user.role,
+                allowedRoles,
+                hasDirectRoleAccess
+            });
+            return children;
+        }
+
+        // Kiểm tra nếu đây là admin route và user không có quyền truy cập admin
+        if (isAdminRoute(allowedRoles) && !canAccessAdminRoutes(user.role)) {
+            console.log('🚫 User cannot access admin routes, redirecting to unauthorized');
+            return <Navigate to={redirectPath || "/unauthorized"} replace />;
+        }
+
+        // Fallback: thử kiểm tra hierarchy cho các role khác (không phải admin routes)
         const userRoleHierarchy = ROLE_HIERARCHY[user.role] || [];
         const hasRoleAccess = allowedRoles.some(role => userRoleHierarchy.includes(role));
 
-        // If role-based access is granted, check if we can also verify with permissions
         if (hasRoleAccess) {
             console.log('✅ Legacy role-based access granted:', {
                 userRole: user.role,
@@ -161,15 +208,17 @@ ProtectedRoute.propTypes = {
 
 // Component to redirect authenticated users away from login/register pages
 export const AuthRedirect = ({ children, roleHomeRedirects }) => {
-    const { user, token, loading } = useAuth();
+    const { user, token, loading, loginType } = useAuth();
     const location = useLocation();
+
     // if (environment.features.enableLogging) {
     //     console.log('🔄 AuthRedirect Check:', {
     //         user: user?.email,
     //         userRole: user?.role,
     //         token: token ? 'Token exists' : 'No token',
     //         loading,
-    //         currentPath: location.pathname
+    //         currentPath: location.pathname,
+    //         loginType
     //     });
     // }
 
@@ -184,7 +233,20 @@ export const AuthRedirect = ({ children, roleHomeRedirects }) => {
 
     // If user is authenticated, redirect to their role-specific home
     if (token && user?.role) {
-        const redirectPath = roleHomeRedirects[user.role] || '/dashboard';
+        let redirectPath = roleHomeRedirects[user.role] || '/dashboard';
+
+        // Nếu user đăng nhập qua public login và là NURSE, redirect về /nurse/home
+        if (loginType === 'public' && user.role === 'NURSE') {
+            redirectPath = '/nurse/home';
+        } else if (loginType === 'public') {
+            redirectPath = '/';
+        }
+
+        // Tránh vòng lặp redirect - nếu đã ở trang đích thì không redirect nữa
+        if (location.pathname === redirectPath) {
+            return children;
+        }
+
         // console.log(`✅ User is authenticated, redirecting from ${location.pathname} to ${redirectPath}`);
 
         // Preserve any state from the previous navigation (like "from" location)

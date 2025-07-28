@@ -5,11 +5,13 @@ import { getFilteredMenus } from '../../mocks/menuData';
 
 // Query keys for menu-related queries
 export const MENU_KEYS = {
-  all: ['menus'],
+  all: ['menusAdmin'],
   lists: () => [...MENU_KEYS.all, 'list'],
+  list: (branchId) => [...MENU_KEYS.lists(), { branchId }], // Add branch context
   byDate: (date, branchId) => [...MENU_KEYS.all, 'byDate', date, branchId],
   categories: (date, branchId) => [...MENU_KEYS.all, 'categories', date, branchId],
   details: (id) => [...MENU_KEYS.all, 'details', id],
+  detail: (id, branchId) => [...MENU_KEYS.details(), { id, branchId }], // Add branch context for details
 };
 
 /**
@@ -184,10 +186,12 @@ export const useMenuFoods = (filters = {}, options = {}) => {
  * Hook for fetching a specific menu by ID
  */
 export const useMenu = (menuId, options = {}) => {
+  const currentBranchId = environment.multiTenant.getCurrentBranchId();
+
   return useQuery({
-    queryKey: MENU_KEYS.details(menuId),
+    queryKey: MENU_KEYS.detail(menuId, currentBranchId),
     queryFn: () => menuService.getMenu(menuId),
-    enabled: !!menuId,
+    enabled: !!(menuId && currentBranchId),
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -221,10 +225,10 @@ export const useCreateMenu = () => {
     // Optimistic update - show menu immediately while API call is in progress
     onMutate: async (newMenuData) => {
       // Cancel any outgoing refetches to avoid overwriting our optimistic update
-      await queryClient.cancelQueries({ queryKey: MENU_KEYS.lists() });
+      await queryClient.cancelQueries({ queryKey: MENU_KEYS.list(currentBranchId) });
 
       // Snapshot the previous menu list
-      const previousMenus = queryClient.getQueryData(MENU_KEYS.lists());
+      const previousMenus = queryClient.getQueryData(MENU_KEYS.list(currentBranchId));
 
       // Optimistically add the new menu to the list
       if (previousMenus) {
@@ -244,7 +248,7 @@ export const useCreateMenu = () => {
           _isOptimistic: true
         };
 
-        queryClient.setQueryData(MENU_KEYS.lists(), [optimisticMenu, ...previousMenus]);
+        queryClient.setQueryData(MENU_KEYS.list(currentBranchId), [optimisticMenu, ...previousMenus]);
 
         if (environment.features.enableLogging) {
           console.log('⚡ Optimistic update: Added menu to list immediately');
@@ -262,7 +266,7 @@ export const useCreateMenu = () => {
 
       // Immediately invalidate and refetch menu list data to get real server data
       queryClient.invalidateQueries({
-        queryKey: MENU_KEYS.lists()
+        queryKey: MENU_KEYS.list(currentBranchId)
       });
 
       // Invalidate date-specific menu queries if date is provided
@@ -296,7 +300,7 @@ export const useCreateMenu = () => {
 
       // Optional: Prefetch the updated menu list for better UX
       queryClient.prefetchQuery({
-        queryKey: MENU_KEYS.lists(),
+        queryKey: MENU_KEYS.list(currentBranchId),
         queryFn: () => menuService.getMenuList(),
         staleTime: 30 * 1000, // 30 seconds
       });
@@ -314,7 +318,7 @@ export const useCreateMenu = () => {
 
       // Rollback to the previous menu list
       if (context?.previousMenus) {
-        queryClient.setQueryData(MENU_KEYS.lists(), context.previousMenus);
+        queryClient.setQueryData(MENU_KEYS.list(currentBranchId), context.previousMenus);
 
         if (environment.features.enableLogging) {
           console.log('✅ Optimistic update rolled back');
@@ -324,7 +328,7 @@ export const useCreateMenu = () => {
     // Always refetch after error or success to ensure data consistency
     onSettled: () => {
       // Ensure we have the latest data regardless of success or failure
-      queryClient.invalidateQueries({ queryKey: MENU_KEYS.lists() });
+      queryClient.invalidateQueries({ queryKey: MENU_KEYS.list(currentBranchId) });
     }
   });
 };
@@ -361,12 +365,12 @@ export const useUpdateMenu = () => {
       // Instead of directly updating cache, invalidate to force fresh fetch
       // This prevents data structure mismatches between update response and getMenu response
       queryClient.invalidateQueries({
-        queryKey: MENU_KEYS.details(menuId)
+        queryKey: MENU_KEYS.detail(menuId, currentBranchId)
       });
 
       // Immediately invalidate and refetch menu list data
       queryClient.invalidateQueries({
-        queryKey: MENU_KEYS.lists()
+        queryKey: MENU_KEYS.list(currentBranchId)
       });
 
       // Invalidate related date-specific queries
@@ -385,14 +389,14 @@ export const useUpdateMenu = () => {
 
       // Prefetch updated menu list and specific menu for immediate availability
       queryClient.prefetchQuery({
-        queryKey: MENU_KEYS.lists(),
+        queryKey: MENU_KEYS.list(currentBranchId),
         queryFn: () => menuService.getMenuList(),
         staleTime: 30 * 1000,
       });
 
       // Prefetch the updated menu details for smooth ViewModal experience
       queryClient.prefetchQuery({
-        queryKey: MENU_KEYS.details(menuId),
+        queryKey: MENU_KEYS.detail(menuId, currentBranchId),
         queryFn: () => menuService.getMenu(menuId),
         staleTime: 30 * 1000,
       });
@@ -415,6 +419,7 @@ export const useUpdateMenu = () => {
  */
 export const useDeleteMenu = () => {
   const queryClient = useQueryClient();
+  const currentBranchId = environment.multiTenant.getCurrentBranchId();
 
   return useMutation({
     mutationFn: (menuId) => {
@@ -433,12 +438,12 @@ export const useDeleteMenu = () => {
 
       // Remove the specific menu from cache
       queryClient.removeQueries({
-        queryKey: MENU_KEYS.details(menuId)
+        queryKey: MENU_KEYS.detail(menuId, currentBranchId)
       });
 
       // Immediately invalidate and refetch menu list data
       queryClient.invalidateQueries({
-        queryKey: MENU_KEYS.lists()
+        queryKey: MENU_KEYS.list(currentBranchId)
       });
 
       // Invalidate all menu-related queries to ensure consistency
@@ -448,7 +453,7 @@ export const useDeleteMenu = () => {
 
       // Prefetch updated menu list
       queryClient.prefetchQuery({
-        queryKey: MENU_KEYS.lists(),
+        queryKey: MENU_KEYS.list(currentBranchId),
         queryFn: () => menuService.getMenuList(),
         staleTime: 30 * 1000,
       });
@@ -470,13 +475,24 @@ export const useDeleteMenu = () => {
  * Uses automatic branch context resolution (no manual branchId required)
  */
 export const useMenuList = (options = {}) => {
+  const currentBranchId = environment.multiTenant.getCurrentBranchId();
+
   return useQuery({
-    queryKey: MENU_KEYS.lists(),
+    queryKey: MENU_KEYS.list(currentBranchId),
     queryFn: () => menuService.getMenuList(),
+    enabled: !!currentBranchId, // Only run if branch ID is available
     staleTime: 2 * 60 * 1000, // 2 minutes
     cacheTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
-    retry: 2,
+    retry: (failureCount, error) => {
+      // Don't retry on 404 errors (no data is a valid response)
+      if (error?.response?.status === 404) {
+        return false;
+      }
+      // Retry other errors up to 2 times
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options,
   });
 };
