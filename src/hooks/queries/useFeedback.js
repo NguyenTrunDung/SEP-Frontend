@@ -310,4 +310,36 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
     isError: query.isError,
     isSuccess: query.isSuccess,
   };
+  
+};
+export const useFeedbacksByFood = (foodId, branchId, options = {}) => {
+  const targetBranchId = normalizeBranchId(branchId);
+
+  const query = useQuery({
+    queryKey: FEEDBACK_QUERY_KEYS.byFood(foodId, targetBranchId),
+    queryFn: () => feedbackService.getFeedbacksByFood(foodId, targetBranchId),
+    enabled: !!foodId && !!targetBranchId,
+    staleTime: environment.performance?.queryStaleTime || 5 * 60 * 1000,
+    cacheTime: environment.performance?.queryCacheTime || 5 * 60 * 1000,
+    onSuccess: (data) => {
+      console.log('✅ Fetched feedbacks for foodId:', foodId, 'Data:', data);
+      message.success('Đã tải đánh giá thành công!');
+      if (options.onSuccess) options.onSuccess(data);
+    },
+    onError: (error) => {
+      console.error('❌ Failed to fetch feedbacks:', error.response?.data || error.message);
+      message.error('Không thể tải đánh giá. Vui lòng thử lại.');
+      if (options.onError) options.onError(error);
+    },
+    ...options,
+  });
+
+  return {
+    feedbacks: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+    isError: query.isError,
+    isSuccess: query.isSuccess,
+  };
 };
