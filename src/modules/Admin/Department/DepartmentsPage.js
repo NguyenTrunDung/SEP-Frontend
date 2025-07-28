@@ -132,11 +132,12 @@ const DepartmentsPage = () => {
         return;
       }
 
-      // ✅ Cho phép chữ tiếng Việt
-      if (!/^[\p{L}0-9\s]+$/u.test(name)) {
-        message.error('Tên phòng ban chỉ được chứa chữ cái, số và khoảng trắng!');
+      if (!/^[\p{L}0-9\s\-_,()./\\&]+$/u.test(name)) {
+        message.error('Tên phòng ban chỉ được chứa chữ cái, số và các ký tự đặc biệt (- _ , . ( ) / \\ &)');
         return;
       }
+
+
 
       if (formData.id) {
         const payload = { name };

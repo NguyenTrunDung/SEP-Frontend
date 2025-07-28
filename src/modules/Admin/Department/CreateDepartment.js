@@ -10,11 +10,9 @@ const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = 
   const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(initialValues);
   const [focus, setFocus] = useState('');
 
-  // Memoize initialValues to prevent unnecessary useEffect triggers
   const memoizedInitialValues = useMemo(() => initialValues, [JSON.stringify(initialValues)]);
 
   useEffect(() => {
-    console.log('useEffect triggered', { open, initialValues: memoizedInitialValues });
     if (open) {
       form.setFieldsValue(memoizedInitialValues);
     } else {
@@ -40,6 +38,7 @@ const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = 
           await onSubmit({ name: formData.name, branchId });
         }
       });
+
       handleCancel();
     } catch (error) {
       console.error('❌ Failed to create department:', error.response?.data?.message || error.message);
@@ -54,9 +53,7 @@ const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = 
 
   const handleCancel = () => {
     resetForm();
-    if (onCancel) {
-      onCancel();
-    }
+    if (onCancel) onCancel();
   };
 
   return (
@@ -114,7 +111,14 @@ const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = 
             rules={[
               { required: true, message: 'Vui lòng nhập tên phòng ban!' },
               { whitespace: true, message: 'Tên phòng ban không được chỉ chứa khoảng trắng!' },
+              {
+                // ✅ Thêm ký tự & vào danh sách được phép
+                pattern: /^[\p{L}0-9\s\-_,()./\\&]+$/u,
+                message:
+                  'Tên phòng ban chỉ được chứa chữ cái, số và các ký tự đặc biệt (- _ , . ( ) / \\ &)',
+              },
             ]}
+
             style={{ marginBottom: 0 }}
           >
             <Input

@@ -84,7 +84,7 @@ const EditDepartment = ({ open, onCancel, onSubmit, formData, branchId }) => {
         await onSubmit(updatedDepartment);
       }
       message.success('Cập nhật phòng ban thành công!');
-      handleCancel(); // Fixed typo from handleRule to handleCancel
+      handleCancel();
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Lỗi khi cập nhật phòng ban!';
       if (environment.features.enableLogging) {
@@ -168,8 +168,9 @@ const EditDepartment = ({ open, onCancel, onSubmit, formData, branchId }) => {
               { whitespace: true, message: 'Tên phòng ban không được chỉ chứa khoảng trắng!' },
               { max: 100, message: 'Tên phòng ban không được vượt quá 100 ký tự!' },
               {
-                pattern: /^[a-zA-Z0-9\s\u00C0-\u1EF9]+$/,
-                message: 'Tên phòng ban chỉ được chứa chữ cái, số, khoảng trắng và ký tự tiếng Việt!',
+                pattern: /^[\p{L}0-9\s\-_,()./\\&]+$/u,
+                message:
+                  'Tên phòng ban chỉ được chứa chữ cái, số và các ký tự đặc biệt (- _ , . ( ) / \\ &)',
               },
             ]}
             style={{ marginBottom: 0 }}
