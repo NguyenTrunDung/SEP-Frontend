@@ -17,7 +17,8 @@ import {
   ShopOutlined,
   CommentOutlined,
   GlobalOutlined,
-  TeamOutlined
+  TeamOutlined,
+  TruckOutlined
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
@@ -81,6 +82,7 @@ const AdminLayout = ({ children }) => {
       "/admin/user-account": ["user-account"],
       "/branches": ["branches"],
       "/departments": ["departments"],
+      "/shippers": ["shippers"],
     };
 
     return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])
@@ -161,6 +163,11 @@ const AdminLayout = ({ children }) => {
               label: <Link to="/kitchens">Bếp</Link>,
             },
 
+            canAccess([ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN], ["shippers:view"]) && {
+              key: "shippers",
+              icon: <TruckOutlined style={{ fontSize: "18px" }} />,
+              label: <Link to="/shippers">Nhân viên giao hàng</Link>,
+            },
             // Menus - Accessible by Admin, Branch Manager, Manager, and Staff
             canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF], ["foods:view"]) && {
               key: "menus",

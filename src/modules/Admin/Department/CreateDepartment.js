@@ -17,7 +17,7 @@ const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = 
     } else {
       resetForm();
     }
-  }, [open, initialValues]); // Removed form and resetForm from dependencies
+  }, [open, initialValues]); 
 
   const handleFormSubmit = async (values) => {
     try {

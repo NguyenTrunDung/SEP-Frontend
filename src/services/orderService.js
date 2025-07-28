@@ -232,29 +232,86 @@ export const orderService = {
       throw new Error(errorMessage);
     }
   },
-  async updateOrder(orderId, orderData) {
-    try {
-      const currentBranchId = String(orderData.branchId || environment.multiTenant.getCurrentBranchId() || '1');
-      const payload = {
-        ...orderData,
-        branchId: currentBranchId,
-        paymentStatus: orderData.paymentStatus ? orderData.paymentStatus.toLowerCase() : 'pending',
-      };
-      if (environment.features.enableLogging) {
-        console.log('🔍 orderService.updateOrder - ID:', orderId, 'data:', JSON.stringify(payload, null, 2));
-      }
-      const response = await api.put(`/api/v1/order/UpdateOrder`, payload, { params: { id: orderId } });
-      if (environment.features.enableLogging) {
-        console.log('✅ Updated order response:', JSON.stringify(response.data, null, 2));
-      }
-      return response.data;
-    } catch (error) {
-      if (environment.features.enableLogging) {
-        console.error('❌ Failed to update order:', error.response?.data?.message || error.message);
-      }
-      throw error;
+  /**
+ * Update order
+ * PUT /api/v1/order/UpdateOrder
+ */
+async updateOrder(orderId, orderData) {
+  console.log('🔍 updateOrder - Initiating update for order:', {
+    orderId,
+    orderData: JSON.stringify(orderData, null, 2),
+    timestamp: new Date().toISOString()
+  });
+
+  try {
+    // Log input validation
+    if (!orderId) {
+      console.warn('⚠️ updateOrder - Warning: orderId is missing or invalid');
     }
-  },
+    if (!orderData) {
+      console.warn('⚠️ updateOrder - Warning: orderData is empty or undefined');
+    }
+
+    // Normalize branchId
+    console.log('🔍 updateOrder - Normalizing branchId...');
+    const currentBranchId = String(orderData.branchId || environment.multiTenant.getCurrentBranchId() || '1');
+    console.log('🔍 updateOrder - Normalized branchId:', currentBranchId);
+
+    // Prepare payload
+    console.log('🔍 updateOrder - Preparing payload...');
+    const payload = {
+      ...orderData,
+      branchId: currentBranchId,
+      paymentStatus: orderData.paymentStatus ? orderData.paymentStatus.toLowerCase() : 'pending'
+    };
+    
+    if (environment.features.enableLogging) {
+      console.log('🔍 updateOrder - Prepared payload:', JSON.stringify(payload, null, 2));
+    }
+
+    // Log API request details
+    console.log('🔍 updateOrder - Sending API request:', {
+      url: '/api/v1/order/UpdateOrder',
+      method: 'PUT',
+      params: { id: orderId },
+      payload: JSON.stringify(payload, null, 2)
+    });
+
+    // Make API call
+    const response = await api.put(`/api/v1/order/UpdateOrder`, payload, { params: { id: orderId } });
+
+    // Log successful response
+    if (environment.features.enableLogging) {
+      console.log('✅ updateOrder - Successfully updated order:', {
+        orderId,
+        responseData: JSON.stringify(response.data, null, 2),
+        status: response.status,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      console.log('✅ updateOrder - Successfully updated order:', { orderId });
+    }
+
+    return response.data;
+  } catch (error) {
+    // Detailed error logging
+    console.error('❌ updateOrder - Failed to update order:', {
+      orderId,
+      errorMessage: error.message,
+      errorStack: error.stack,
+      responseData: error.response?.data ? JSON.stringify(error.response.data, null, 2) : 'No response data',
+      status: error.response?.status,
+      timestamp: new Date().toISOString()
+    });
+
+    // Preserve existing environment-based logging
+    if (environment.features.enableLogging) {
+      console.error('❌ updateOrder - Failed with message:', error.response?.data?.message || error.message);
+    }
+
+    throw error;
+  }
+},
   /**
    * Update order status (for chef/kitchen staff)
    * PUT /api/v1/order/chef/status/{orderId}

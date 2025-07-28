@@ -51,6 +51,8 @@ import KitchenView from '../modules/Admin/Kitchen/KitchenPage.js';
 import BranchesPage from '../modules/Admin/Branch/BranchesPage.js';
 import DepartmentsPage from '../modules/Admin/Department/DepartmentsPage.js';
 
+import DeliveryStaff from '../modules/Admin/Shipper/DeliveryStaff.js'
+
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
   [ROLES.ADMIN]: '/dashboard',
@@ -187,6 +189,16 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF]}>
         <AdminLayout>
           <Feedbacks />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/shippers',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+        <AdminLayout>
+          <DeliveryStaff />
         </AdminLayout>
       </ProtectedRoute>
     ),
