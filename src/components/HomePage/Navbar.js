@@ -15,6 +15,7 @@ import WalletModal from '../Wallet/Wallet';
 import UserHeader from '../common/UserHeader';
 import OrderTrackingPopup from '../Order/OrderTrackingPopup';
 import { AuthFormPublic } from '../common/AuthForm';
+import { queryClient } from '../../lib/reactQuery';
 
 
 const { Header } = Layout;
@@ -112,14 +113,37 @@ const Navbar = () => {
 
   const handleBranchSelect = async (branch) => {
     try {
+      console.log('🔄 Switching to branch:', branch);
+
+      // Call the mutation to switch branch
       await switchBranchMutation.mutateAsync(branch.id);
+
+      // Update local state
       setSelectedBranch(branch);
       localStorage.setItem('selectedBranch', JSON.stringify(branch));
       localStorage.setItem('currentBranchId', branch.id);
+
+      // Close modal
       setIsModalVisible(false);
+
+      // Show success message
       message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
+
+      // Force refetch of menu data by invalidating all menu queries
+      // This will trigger a refetch of menu data with the new branch context
+      if (queryClient) {
+        // Invalidate all menu-related queries to force refresh
+        queryClient.invalidateQueries({ queryKey: ['menus'] });
+        queryClient.invalidateQueries({ queryKey: ['public', 'menus'] });
+
+        // Force refetch current menu data
+        queryClient.refetchQueries({ queryKey: ['menus', 'byDate'] });
+
+        console.log('🔄 Invalidated menu queries for branch switch');
+      }
+
     } catch (error) {
-      console.error('Failed to switch branch:', error);
+      console.error('❌ Failed to switch branch:', error);
       message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
     }
   };
@@ -460,7 +484,7 @@ const Navbar = () => {
                     }}
                     role="option"
                     tabIndex={0}
-                    onKeyPress={(e) => e.key === 'Enter' && handleBranchSelect(branch)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleBranchSelect(branch)}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontWeight: 480, color: '#1a1a1a', fontSize: '18px' }}>

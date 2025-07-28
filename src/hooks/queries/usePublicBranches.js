@@ -68,12 +68,38 @@ export const usePublicSwitchBranch = () => {
                 queryKey: PUBLIC_BRANCH_KEYS.current()
             });
 
+            // Invalidate ALL menu-related queries to force refresh
+            queryClient.invalidateQueries({
+                queryKey: ['menus']
+            });
+
             // Invalidate public menu queries that depend on branch
             queryClient.invalidateQueries({
                 queryKey: ['public', 'menus']
             });
 
+            // Invalidate specific menu queries by date and branch
+            queryClient.invalidateQueries({
+                queryKey: ['menus', 'byDate']
+            });
+
+            // Invalidate menu categories
+            queryClient.invalidateQueries({
+                queryKey: ['menus', 'categories']
+            });
+
+            // Invalidate menu foods
+            queryClient.invalidateQueries({
+                queryKey: ['menus', 'foods']
+            });
+
+            // Force refetch current branch data
+            queryClient.refetchQueries({
+                queryKey: PUBLIC_BRANCH_KEYS.current()
+            });
+
             console.log('✅ Public branch switched successfully:', branchId);
+            console.log('🔄 Invalidated all menu queries for branch switch');
         },
         onError: (error) => {
             console.error('❌ Failed to switch public branch:', error);
