@@ -18,7 +18,7 @@ const DepartmentsTable = ({
       dataIndex: 'name',
       key: 'name',
       align: 'left',
-      primary: true, // Đánh dấu cột chính
+      primary: true,
     },
     {
       title: '',

@@ -1,49 +1,32 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Form, Input, Button, Space, message } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Form, Input, Button, Space } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
-import { departmentService } from '../../../services/departmentService';
 import PropTypes from 'prop-types';
-import './CreateDepartment.css';
+import './Department.css';
 
 const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = {} }) => {
   const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(initialValues);
   const [focus, setFocus] = useState('');
-  const prevOpenRef = useRef(open); // Track previous open state
 
   useEffect(() => {
-    // Only run when `open` changes
-    if (open !== prevOpenRef.current) {
-      if (open) {
-        form.setFieldsValue(initialValues); // Set initial values when modal opens
-      } else {
-        resetForm(); // Reset form when modal closes
-      }
-      prevOpenRef.current = open; // Update previous open state
+    console.log('useEffect triggered', { open, initialValues });
+    if (open) {
+      form.setFieldsValue(initialValues);
+    } else {
+      resetForm();
     }
-  }, [open, form, resetForm, initialValues]);
+  }, [open, initialValues]); // Removed form and resetForm from dependencies
 
   const handleFormSubmit = async (values) => {
     try {
-      const normalizedName = values.name.trim().toLowerCase();
+      const normalizedName = values.name.trim();
       if (!normalizedName) {
         form.setFields([
           {
             name: 'name',
             errors: ['Tên phòng ban không được để trống!'],
-          },
-        ]);
-        return;
-      }
-
-      console.log('🔍 Validating department name for create:', { name: normalizedName, branchId });
-      const isUnique = await departmentService.validateDepartmentName(branchId, normalizedName);
-      if (!isUnique) {
-        form.setFields([
-          {
-            name: 'name',
-            errors: ['Tên phòng ban đã tồn tại trong chi nhánh này!'],
           },
         ]);
         return;
@@ -56,14 +39,13 @@ const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = 
       });
       handleCancel();
     } catch (error) {
-      console.error('❌ Failed to validate department name:', error.response?.data?.message || error.message);
+      console.error('❌ Failed to create department:', error.response?.data?.message || error.message);
       form.setFields([
         {
           name: 'name',
-          errors: [error.response?.data?.message || 'Lỗi khi kiểm tra tên phòng ban!'],
+          errors: [error.response?.data?.message || 'Lỗi khi tạo phòng ban!'],
         },
       ]);
-      message.error(error.response?.data?.message || 'Lỗi khi tạo phòng ban!');
     }
   };
 
@@ -78,10 +60,11 @@ const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = 
     <ReusableModal
       title={<span style={{ fontSize: '30px', color: '#000' }}>Thêm</span>}
       open={open}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       footer={null}
       destroyOnClose
       closable={false}
+      width={700}
     >
       <div style={{ position: 'absolute', top: 16, right: 24, zIndex: 1 }}>
         <Space>
@@ -89,7 +72,7 @@ const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = 
             type="primary"
             onClick={() => form.submit()}
             style={{
-              backgroundColor: '#00A99D',
+              backgroundColor: '#52c41a',
               border: 'none',
               minWidth: 64,
               height: 32,
@@ -118,35 +101,27 @@ const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = 
       <ReusableForm
         form={form}
         onFinish={handleFormSubmit}
-        initialValues={initialValues}
         layout="vertical"
         className={formLoading ? 'form-loading' : ''}
       >
-        <Form.Item name="id" hidden>
-          <Input />
-        </Form.Item>
-
-        <Form.Item
-          name="name"
-          rules={[
-            { required: true, message: 'Vui lòng nhập tên phòng ban!' },
-            { whitespace: true, message: 'Tên phòng ban không được chỉ chứa khoảng trắng!' },
-          ]}
-          style={{ marginBottom: 0 }}
-        >
-          <div className="department-floating-input-wrapper">
+        <div className="custom-floating">
+          <label className="floating-label">Tên phòng ban</label>
+          <Form.Item
+            name="name"
+            rules={[
+              { required: true, message: 'Vui lòng nhập tên phòng ban!' },
+              { whitespace: true, message: 'Tên phòng ban không được chỉ chứa khoảng trắng!' },
+            ]}
+            style={{ marginBottom: 0 }}
+          >
             <Input
-              className="department-custom-input"
+              className="input-label"
+              placeholder="Tên phòng ban"
               onFocus={() => setFocus('name')}
               onBlur={() => setFocus('')}
             />
-            <label
-              className={`department-floating-label ${focus === 'name' || form.getFieldValue('name') ? 'focused' : ''}`}
-            >
-              Tên phòng ban
-            </label>
-          </div>
-        </Form.Item>
+          </Form.Item>
+        </div>
       </ReusableForm>
     </ReusableModal>
   );

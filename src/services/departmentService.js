@@ -1,181 +1,149 @@
-import { environment } from './api/config';
-import { departments as initialDepartments } from '../mocks/departmentMockData';
-
-// Create a deep copy to avoid mutating the imported array
-let departments = JSON.parse(JSON.stringify(initialDepartments));
+import api, { environment } from './api/config';
 
 export const departmentService = {
-    async getDepartments(branchId) {
-        try {
-            if (environment.features.enableLogging) {
-                console.log('🔍 departmentService.getDepartments - requesting departments for branch:', branchId);
-            }
+  /**
+   * Get all departments for the current branch
+   * @param {string|number} branchId - The branch ID to get departments for
+   * @returns {Promise<Object>} API response containing array of department objects
+   */
+  async getDepartments(branchId) {
+    try {
+      if (environment.features.enableLogging) {
+        console.log('🔍 departmentService.getDepartments - requesting departments for branch:', branchId);
+      }
 
-            const currentBranchId = branchId || environment.multiTenant.getCurrentBranchId() || '1';
-            const filteredDepartments = departments.filter(dept => String(dept.branchId) === String(currentBranchId));
+      const currentBranchId = branchId || environment.multiTenant.getCurrentBranchId() || '1';
 
-            if (environment.features.enableLogging) {
-                console.log('✅ Mock departments response:', filteredDepartments);
-                console.log('📍 Used branchId:', currentBranchId);
-            }
+      const config = {
+        params: { branchId: currentBranchId }
+      };
 
-            return { data: filteredDepartments };
-        } catch (error) {
-            if (environment.features.enableLogging) {
-                console.error('❌ Failed to fetch departments:', error.message);
-            }
-            throw error;
-        }
-    },
+      const response = await api.get('/api/v1/Department', config);
 
-    async getDepartmentById(deptId) {
-        try {
-            if (environment.features.enableLogging) {
-                console.log('🔍 departmentService.getDepartmentById - ID:', deptId);
-            }
+      if (environment.features.enableLogging) {
+        console.log('✅ Raw API response:', response.data);
+        console.log('📍 Used branchId query param:', currentBranchId);
+      }
 
-            const department = departments.find(dept => dept.id === deptId);
-
-            if (!department) {
-                if (environment.features.enableLogging) {
-                    console.log('⚠️ Department not found:', deptId);
-                }
-                return { data: null, message: 'Department not found', status: 'error' };
-            }
-
-            if (environment.features.enableLogging) {
-                console.log('✅ Fetched department by ID:', department);
-            }
-
-            return { data: department };
-        } catch (error) {
-            if (environment.features.enableLogging) {
-                console.error('❌ Failed to fetch department:', error.message);
-            }
-            throw error;
-        }
-    },
-
-    async createDepartment(deptData) {
-        try {
-            if (environment.features.enableLogging) {
-                console.log('🔍 departmentService.createDepartment - data:', deptData);
-            }
-
-            const newId = String(departments.length + 1);
-            const newDepartment = { id: newId, ...deptData, createdAt: new Date().toISOString() };
-            departments = [...departments, newDepartment];
-
-            if (environment.features.enableLogging) {
-                console.log('✅ Created department:', newDepartment);
-            }
-
-            return { data: newDepartment, message: 'Tạo phòng ban thành công' };
-        } catch (error) {
-            if (environment.features.enableLogging) {
-                console.error('❌ Failed to create department:', error.message);
-            }
-            throw error;
-        }
-    },
-
-    async updateDepartment(deptId, deptData) {
-        try {
-            if (environment.features.enableLogging) {
-                console.log('🔍 departmentService.updateDepartment - ID:', deptId, 'data:', deptData);
-            }
-
-            const index = departments.findIndex(dept => dept.id === deptId);
-            if (index === -1) {
-                throw new Error('Department not found');
-            }
-
-            departments = [
-                ...departments.slice(0, index),
-                { ...departments[index], ...deptData, updatedAt: new Date().toISOString() },
-                ...departments.slice(index + 1)
-            ];
-
-            if (environment.features.enableLogging) {
-                console.log('✅ Updated department:', departments[index]);
-            }
-
-            return { data: departments[index], message: 'Cập nhật phòng ban thành công' };
-        } catch (error) {
-            if (environment.features.enableLogging) {
-                console.error('❌ Failed to update department:', error.message);
-            }
-            throw error;
-        }
-    },
-
-    async deleteDepartment(deptId) {
-        try {
-            if (environment.features.enableLogging) {
-                console.log('🔍 departmentService.deleteDepartment - ID:', deptId);
-            }
-
-            const index = departments.findIndex(dept => dept.id === deptId);
-            if (index === -1) {
-                throw new Error('Department not found');
-            }
-
-            const deletedDepartment = departments[index];
-            departments = [
-                ...departments.slice(0, index),
-                ...departments.slice(index + 1)
-            ];
-
-            if (environment.features.enableLogging) {
-                console.log('✅ Deleted department:', deletedDepartment);
-            }
-
-            return { data: deletedDepartment, message: 'Xóa phòng ban thành công' };
-        } catch (error) {
-            if (environment.features.enableLogging) {
-                console.error('❌ Failed to delete department:', error.message);
-            }
-            throw error;
-        }
-    },
-
-    async validateDepartmentName(branchId, name, excludeId = null) {
-        try {
-            const currentBranchId = String(branchId || environment.multiTenant.getCurrentBranchId() || '1');
-            const normalizedName = name.trim().toLowerCase();
-            if (!normalizedName) {
-                throw new Error('Tên phòng ban không hợp lệ');
-            }
-
-            if (environment.features.enableLogging) {
-                console.log('🔍 departmentService.validateDepartmentName - Checking:', {
-                    branchId: currentBranchId,
-                    name: normalizedName,
-                    excludeId,
-                });
-            }
-
-            const isDuplicate = departments.some(dept =>
-                dept.name.toLowerCase() === normalizedName &&
-                String(dept.branchId) === currentBranchId &&
-                (!excludeId || dept.id !== excludeId)
-            );
-
-            const isUnique = !isDuplicate;
-
-            if (environment.features.enableLogging) {
-                console.log('✅ Validate department name result:', isUnique);
-                if (!isUnique) {
-                    console.warn(`⚠️ Department name "${normalizedName}" is duplicate in branch ${currentBranchId}`);
-                }
-            }
-
-            return isUnique;
-        } catch (error) {
-            if (environment.features.enableLogging) {
-                console.error('❌ Failed to validate department name:', error.message);
-            }
-            throw error;
-        }
+      return response.data;
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error('❌ Failed to fetch departments:', error.response?.data?.message || error.message);
+      }
+      throw error;
     }
+  },
+
+  /**
+   * Get a specific department by ID
+   * @param {string|number} deptId - The department ID
+   * @returns {Promise<Object>} API response containing department object or null if not found
+   */
+  async getDepartmentById(deptId) {
+    try {
+      if (environment.features.enableLogging) {
+        console.log('🔍 departmentService.getDepartmentById - ID:', deptId);
+      }
+
+      const response = await api.get(`/api/v1/Department/${deptId}`);
+
+      if (environment.features.enableLogging) {
+        console.log('✅ Fetched department by ID:', response.data);
+      }
+
+      return response.data;
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error('❌ Failed to fetch department:', error.response?.data?.message || error.message);
+      }
+
+      if (error.response?.status === 404) {
+        return { data: null, message: 'Department not found', status: 'error' };
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Create a new department
+   * @param {Object} deptData - The department data to create (CreateDepartmentDto)
+   * @returns {Promise<Object>} API response containing created department data
+   */
+  async createDepartment(deptData) {
+    try {
+      if (environment.features.enableLogging) {
+        console.log('🔍 departmentService.createDepartment - data:', deptData);
+      }
+
+      const response = await api.post('/api/v1/Department', deptData);
+
+      if (environment.features.enableLogging) {
+        console.log('✅ Created department - response:', response.data);
+      }
+
+      return response.data;
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error('❌ Failed to create department:', error.response?.data?.message || error.message);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Update an existing department
+   * @param {string|number} deptId - The department ID to update
+   * @param {Object} deptData - The updated department data (UpdateDepartmentDto)
+   * @returns {Promise<Object|null>} Updated department object or null if not found
+   */
+  async updateDepartment(deptId, deptData) {
+    try {
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Updating department ID: ${deptId}`, deptData);
+      }
+
+      const response = await api.put(`/api/v1/Department/${deptId}`, deptData);
+
+      if (environment.features.enableLogging) {
+        console.log('✅ Updated department:', response.data.data);
+      }
+
+      return response.data.data;
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error(`❌ Failed to update department: ${error.response?.data?.message || error.message}`);
+      }
+
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a department
+   * @param {string|number} deptId - The department ID to delete
+   * @returns {Promise<Object>} API response containing deletion result
+   */
+  async deleteDepartment(deptId) {
+    try {
+      if (environment.features.enableLogging) {
+        console.log('🔍 departmentService.deleteDepartment - ID:', deptId);
+      }
+
+      const response = await api.delete(`/api/v1/Department/${deptId}`);
+
+      if (environment.features.enableLogging) {
+        console.log('✅ Deleted department:', response.data);
+      }
+
+      return response.data;
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error('❌ Failed to delete department:', error.response?.data?.message || error.message);
+      }
+      throw error;
+    }
+  },
 };
