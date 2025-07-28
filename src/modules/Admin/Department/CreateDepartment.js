@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Form, Input, Button, Space } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
@@ -10,18 +10,21 @@ const CreateDepartment = ({ open, onCancel, onSubmit, branchId, initialValues = 
   const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm(initialValues);
   const [focus, setFocus] = useState('');
 
+  // Memoize initialValues to prevent unnecessary useEffect triggers
+  const memoizedInitialValues = useMemo(() => initialValues, [JSON.stringify(initialValues)]);
+
   useEffect(() => {
-    console.log('useEffect triggered', { open, initialValues });
+    console.log('useEffect triggered', { open, initialValues: memoizedInitialValues });
     if (open) {
-      form.setFieldsValue(initialValues);
+      form.setFieldsValue(memoizedInitialValues);
     } else {
       resetForm();
     }
-  }, [open, initialValues]); 
+  }, [open, memoizedInitialValues, form, resetForm]);
 
   const handleFormSubmit = async (values) => {
     try {
-      const normalizedName = values.name.trim();
+      const normalizedName = values.name?.trim();
       if (!normalizedName) {
         form.setFields([
           {
@@ -132,7 +135,9 @@ CreateDepartment.propTypes = {
   onCancel: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,
   branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-  initialValues: PropTypes.object,
+  initialValues: PropTypes.shape({
+    name: PropTypes.string,
+  }),
 };
 
 export default CreateDepartment;

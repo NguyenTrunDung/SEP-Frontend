@@ -30,9 +30,11 @@ export const useDepartments = (branchId, options = {}) => {
       }
       const response = await departmentService.getDepartments(currentBranchId);
       if (environment.features.enableLogging) {
-        console.log(`✅ Received departments for branch ${currentBranchId}:`, response.data);
+        console.log(`✅ Received departments for branch ${currentBranchId}:`, response);
       }
-      return response.data || [];
+      // Ensure the response is an array
+      const departments = Array.isArray(response) ? response : response.data || [];
+      return departments;
     },
     staleTime: environment.performance.queryStaleTime || 120000,
     cacheTime: environment.performance.queryCacheTime || 120000,
@@ -52,7 +54,7 @@ export const useDepartments = (branchId, options = {}) => {
   });
 
   return {
-    departments: query.data || [],
+    departments: Array.isArray(query.data) ? query.data : [],
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,
@@ -69,14 +71,17 @@ export const useDepartment = (deptId, branchId, options = {}) => {
   const query = useQuery({
     queryKey: DEPARTMENT_QUERY_KEYS.detail(deptId, currentBranchId),
     queryFn: async () => {
+      if (!deptId) {
+        throw new Error('Department ID is required');
+      }
       if (environment.features.enableLogging) {
         console.log(`🔍 Fetching department ${deptId} for branch: ${currentBranchId}`);
       }
       const response = await departmentService.getDepartmentById(deptId);
       if (environment.features.enableLogging) {
-        console.log(`✅ Received department ${deptId} for branch ${currentBranchId}:`, response.data);
+        console.log(`✅ Received department ${deptId} for branch ${currentBranchId}:`, response);
       }
-      return response.data || null;
+      return response || null;
     },
     enabled: !!(deptId && currentBranchId),
     staleTime: environment.performance.queryStaleTime || 300000,
@@ -111,25 +116,32 @@ export const useCreateDepartment = (options = {}) => {
   return useMutation({
     mutationFn: ({ deptData, branchId }) => {
       const targetBranchId = normalizeBranchId(branchId);
+      if (!deptData?.name) {
+        throw new Error('Department name is required');
+      }
+      if (!targetBranchId) {
+        throw new Error('Branch ID is required');
+      }
       if (environment.features.enableLogging) {
         console.log(`🔍 Creating department for branch: ${targetBranchId}`, deptData);
       }
-      return departmentService.createDepartment({ ...deptData, branchId: parseInt(targetBranchId) });
+      return departmentService.createDepartment(deptData, targetBranchId);
     },
     onSuccess: (response, variables) => {
       message.success(response.message || 'Tạo phòng ban thành công!');
       const targetBranchId = normalizeBranchId(variables.branchId);
-      const newDept = response.data;
+      const newDept = response;
       if (newDept) {
         queryClient.setQueryData(DEPARTMENT_QUERY_KEYS.detail(newDept.id, targetBranchId), newDept);
         queryClient.setQueryData(DEPARTMENT_QUERY_KEYS.list(targetBranchId), (oldData) => {
-          return oldData ? [...oldData, newDept] : [newDept];
+          const departments = Array.isArray(oldData) ? oldData : [];
+          return [...departments, newDept];
         });
       }
       queryClient.invalidateQueries({ queryKey: DEPARTMENT_QUERY_KEYS.list(targetBranchId), exact: true });
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.message || 'Không thể tạo phòng ban!';
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể tạo phòng ban!';
       message.error(errorMessage);
       console.error('❌ Failed to create department:', error);
     },
@@ -144,31 +156,36 @@ export const useUpdateDepartment = (options = {}) => {
   return useMutation({
     mutationFn: ({ deptId, deptData, branchId }) => {
       const targetBranchId = normalizeBranchId(branchId);
+      if (!deptId) {
+        throw new Error('Department ID is required');
+      }
+      if (!deptData?.name) {
+        throw new Error('Department name is required');
+      }
       if (environment.features.enableLogging) {
         console.log(`🔍 Updating department ${deptId} for branch: ${targetBranchId}`, deptData);
       }
-      const payload = { name: deptData.name }; // Chỉ gửi name
+      const payload = { name: deptData.name };
       return departmentService.updateDepartment(deptId, payload);
     },
     onSuccess: (response, variables) => {
       message.success(response.message || 'Cập nhật phòng ban thành công!');
       const targetBranchId = normalizeBranchId(variables.branchId);
-      const updatedDept = response.data;
+      const updatedDept = response;
       if (updatedDept) {
         queryClient.setQueryData(DEPARTMENT_QUERY_KEYS.detail(variables.deptId, targetBranchId), updatedDept);
         queryClient.setQueryData(DEPARTMENT_QUERY_KEYS.list(targetBranchId), (oldData) => {
-          return oldData
-            ? oldData.map((dept) => (dept.id === variables.deptId ? updatedDept : dept))
-            : [updatedDept];
+          const departments = Array.isArray(oldData) ? oldData : [];
+          return departments.map((dept) => (dept.id === variables.deptId ? updatedDept : dept));
         });
       }
-      // Chỉ invalidate query cụ thể để tránh refetch không cần thiết
       queryClient.invalidateQueries({ queryKey: DEPARTMENT_QUERY_KEYS.list(targetBranchId), exact: true });
     },
     onError: (error) => {
       const errorMessage =
         error.response?.data?.message ||
         error.response?.data?.errors?.name?.[0] ||
+        error.message ||
         'Không thể cập nhật phòng ban!';
       message.error(errorMessage);
       console.error('❌ Failed to update department:', {
@@ -188,6 +205,9 @@ export const useDeleteDepartment = (options = {}) => {
   return useMutation({
     mutationFn: ({ deptId, branchId }) => {
       const targetBranchId = normalizeBranchId(branchId);
+      if (!deptId) {
+        throw new Error('Department ID is required');
+      }
       if (environment.features.enableLogging) {
         console.log(`🔍 Deleting department ${deptId} for branch: ${targetBranchId}`);
       }
@@ -198,12 +218,13 @@ export const useDeleteDepartment = (options = {}) => {
       const targetBranchId = normalizeBranchId(variables.branchId);
       queryClient.removeQueries({ queryKey: DEPARTMENT_QUERY_KEYS.detail(variables.deptId, targetBranchId), exact: true });
       queryClient.setQueryData(DEPARTMENT_QUERY_KEYS.list(targetBranchId), (oldData) => {
-        return oldData ? oldData.filter((dept) => dept.id !== variables.deptId) : [];
+        const departments = Array.isArray(oldData) ? oldData : [];
+        return departments.filter((dept) => dept.id !== variables.deptId);
       });
       queryClient.invalidateQueries({ queryKey: DEPARTMENT_QUERY_KEYS.list(targetBranchId), exact: true });
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.message || 'Không thể xóa phòng ban!';
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể xóa phòng ban!';
       message.error(errorMessage);
       console.error('❌ Failed to delete department:', error);
     },

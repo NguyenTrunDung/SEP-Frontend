@@ -12,10 +12,10 @@ export const departmentService = {
         console.log('🔍 departmentService.getDepartments - requesting departments for branch:', branchId);
       }
 
-      const currentBranchId = branchId || environment.multiTenant.getCurrentBranchId() || '1';
+      const currentBranchId = String(branchId || environment.multiTenant.getCurrentBranchId() || '1');
 
       const config = {
-        params: { branchId: currentBranchId }
+        params: { branchId: currentBranchId },
       };
 
       const response = await api.get('/api/v1/Department', config);
@@ -41,6 +41,10 @@ export const departmentService = {
    */
   async getDepartmentById(deptId) {
     try {
+      if (!deptId) {
+        throw new Error('Department ID is required');
+      }
+
       if (environment.features.enableLogging) {
         console.log('🔍 departmentService.getDepartmentById - ID:', deptId);
       }
@@ -66,16 +70,29 @@ export const departmentService = {
 
   /**
    * Create a new department
-   * @param {Object} deptData - The department data to create (CreateDepartmentDto)
+   * @param {Object} deptData - The department data (e.g., { name: string })
+   * @param {string|number} branchId - The branch ID for the department
    * @returns {Promise<Object>} API response containing created department data
    */
-  async createDepartment(deptData) {
+  async createDepartment(deptData, branchId) {
     try {
-      if (environment.features.enableLogging) {
-        console.log('🔍 departmentService.createDepartment - data:', deptData);
+      if (!deptData?.name) {
+        throw new Error('Department name is required');
+      }
+      if (!branchId) {
+        throw new Error('Branch ID is required');
       }
 
-      const response = await api.post('/api/v1/Department', deptData);
+      const payload = {
+        name: deptData.name.trim(),
+        branchId: parseInt(String(branchId)),
+      };
+
+      if (environment.features.enableLogging) {
+        console.log('🔍 departmentService.createDepartment - payload:', payload);
+      }
+
+      const response = await api.post('/api/v1/Department', payload);
 
       if (environment.features.enableLogging) {
         console.log('✅ Created department - response:', response.data);
@@ -98,6 +115,13 @@ export const departmentService = {
    */
   async updateDepartment(deptId, deptData) {
     try {
+      if (!deptId) {
+        throw new Error('Department ID is required');
+      }
+      if (!deptData?.name) {
+        throw new Error('Department name is required');
+      }
+
       if (environment.features.enableLogging) {
         console.log(`🔍 Updating department ID: ${deptId}`, deptData);
       }
@@ -105,10 +129,10 @@ export const departmentService = {
       const response = await api.put(`/api/v1/Department/${deptId}`, deptData);
 
       if (environment.features.enableLogging) {
-        console.log('✅ Updated department:', response.data.data);
+        console.log('✅ Updated department:', response.data);
       }
 
-      return response.data.data;
+      return response.data;
     } catch (error) {
       if (environment.features.enableLogging) {
         console.error(`❌ Failed to update department: ${error.response?.data?.message || error.message}`);
@@ -128,6 +152,10 @@ export const departmentService = {
    */
   async deleteDepartment(deptId) {
     try {
+      if (!deptId) {
+        throw new Error('Department ID is required');
+      }
+
       if (environment.features.enableLogging) {
         console.log('🔍 departmentService.deleteDepartment - ID:', deptId);
       }

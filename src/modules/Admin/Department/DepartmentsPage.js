@@ -5,7 +5,12 @@ import DepartmentsTable from './DepartmentsTable';
 import CreateDepartment from './CreateDepartment';
 import EditDepartment from './EditDepartment';
 import { useAntModal } from '../../../hooks/useAntModal';
-import { useDepartments, useCreateDepartment, useUpdateDepartment, useDeleteDepartment } from '../../../hooks/queries/useDepartments';
+import {
+  useDepartments,
+  useCreateDepartment,
+  useUpdateDepartment,
+  useDeleteDepartment,
+} from '../../../hooks/queries/useDepartments';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
 import { environment } from '../../../services/api/config';
 import PropTypes from 'prop-types';
@@ -83,34 +88,28 @@ const DepartmentsPage = () => {
   const { open: createOpen, showModal: showCreateModal, handleCancel: handleCreateCancel } = useAntModal();
   const { open: editOpen, showModal: showEditModal, handleCancel: handleEditCancel } = useAntModal();
   const { handleNonPermissionError } = useGlobalErrorHandler();
+
   const { departments, isLoading: departmentsLoading, error, refetch } = useDepartments(branchId);
   const createDepartmentMutation = useCreateDepartment();
   const updateDepartmentMutation = useUpdateDepartment();
   const deleteDepartmentMutation = useDeleteDepartment();
+
   const [departmentsData, setDepartmentsData] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [searchText, setSearchText] = useState('');
 
-  // Memoize selectedDepartment to prevent unnecessary prop changes
   const memoizedSelectedDepartment = useMemo(() => selectedDepartment, [selectedDepartment]);
 
   useEffect(() => {
-    console.log('🔍 DepartmentsPage useEffect triggered:', { departments, error });
     if (error) {
       handleNonPermissionError(error, 'Không thể tải dữ liệu phòng ban.');
       setDepartmentsData([]);
     } else if (departments) {
-      const filteredDepartments = departments.filter(dept => String(dept.branchId) === String(branchId));
-      if (environment.features.enableLogging) {
-        console.log(`🔍 DepartmentsPage: Filtered departments for branch ${branchId}:`, filteredDepartments);
-      }
-      // Only update state if data has changed
+      const filtered = departments.filter(dept => String(dept.branchId) === String(branchId));
       setDepartmentsData((prev) => {
         const prevIds = prev.map(d => d.id).join(',');
-        const newIds = filteredDepartments.map(d => d.id).join(',');
-        if (prevIds !== newIds) {
-          return filteredDepartments;
-        }
+        const newIds = filtered.map(d => d.id).join(',');
+        if (prevIds !== newIds) return filtered;
         return prev;
       });
     }
@@ -118,10 +117,7 @@ const DepartmentsPage = () => {
 
   const filteredData = useMemo(() => {
     const keyword = searchText.toLowerCase();
-    return departmentsData.filter(
-      (item) =>
-        item?.name?.toLowerCase()?.includes(keyword)
-    );
+    return departmentsData.filter((item) => item?.name?.toLowerCase()?.includes(keyword));
   }, [departmentsData, searchText]);
 
   const handleCreateOrUpdate = async (formData) => {
@@ -135,31 +131,32 @@ const DepartmentsPage = () => {
         message.error('Tên phòng ban không được vượt quá 100 ký tự!');
         return;
       }
-      if (!/^[a-zA-Z0-9\s]+$/.test(name)) {
+
+      // ✅ Cho phép chữ tiếng Việt
+      if (!/^[\p{L}0-9\s]+$/u.test(name)) {
         message.error('Tên phòng ban chỉ được chứa chữ cái, số và khoảng trắng!');
         return;
       }
 
       if (formData.id) {
         const payload = { name };
-        if (environment.features.enableLogging) {
-          console.log('🔍 Sending update department:', { deptId: formData.id, payload });
-        }
-        await updateDepartmentMutation.mutateAsync({ deptId: formData.id, deptData: payload, branchId });
+        await updateDepartmentMutation.mutateAsync({
+          deptId: formData.id,
+          deptData: payload,
+          branchId,
+        });
         message.success('Cập nhật phòng ban thành công');
         handleEditCancel();
       } else {
-        const payload = { name, branchId: parseInt(branchId) };
-        if (environment.features.enableLogging) {
-          console.log('🔍 Sending create department:', { payload });
-        }
+        const payload = { name, branchId: Number(branchId) };
         await createDepartmentMutation.mutateAsync({ deptData: payload, branchId });
         message.success('Tạo phòng ban thành công');
         handleCreateCancel();
       }
+
       setSelectedDepartment(null);
     } catch (error) {
-      console.error('Failed to save department:', {
+      console.error('🛑 Failed to save department:', {
         message: error.response?.data?.message || error.message,
         status: error.response?.status,
         data: error.response?.data,
@@ -234,7 +231,11 @@ const DepartmentsPage = () => {
       onEdit={handleEdit}
       onDelete={handleDelete}
       createModalProps={{ open: createOpen, handleCancel: handleCreateCancel }}
-      editModalProps={{ open: editOpen, handleCancel: handleEditCancel, formData: memoizedSelectedDepartment }}
+      editModalProps={{
+        open: editOpen,
+        handleCancel: handleEditCancel,
+        formData: memoizedSelectedDepartment,
+      }}
       onCreateOrUpdate={handleCreateOrUpdate}
       branchId={branchId}
     />
