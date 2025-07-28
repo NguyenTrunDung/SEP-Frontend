@@ -13,7 +13,11 @@ const { Title, Text } = Typography;
 const getVietnameseDays = () => {
   const formatter = new Intl.DateTimeFormat('vi-VN', { weekday: 'long' });
   const days = [];
-  const baseDate = new Date(2025, 6, 21); // Start from Monday, July 21, 2025
+  const today = new Date();
+  const currentDayOfWeek = today.getDay(); // 0 (Sunday) to 6 (Saturday)
+  const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek; // Calculate days to Monday
+  const baseDate = new Date(today);
+  baseDate.setDate(today.getDate() + mondayOffset); // Set to Monday of the current week
 
   for (let i = 0; i < 7; i++) {
     const date = new Date(baseDate);
@@ -29,11 +33,15 @@ const getVietnameseDays = () => {
 };
 
 const getFormattedDate = (dayKey) => {
-  const dayOffset = parseInt(dayKey) - 1;
-  const baseDate = new Date(2025, 6, 21); // Monday, July 21, 2025
-  const date = new Date(baseDate);
-  date.setDate(baseDate.getDate() + dayOffset);
-  return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  const today = new Date();
+  const currentDayOfWeek = today.getDay(); // 0 (Sunday) to 6 (Saturday)
+  const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek; // Calculate days to Monday
+  const baseDate = new Date(today);
+  baseDate.setDate(today.getDate() + mondayOffset); // Set to Monday of the current week
+  const dayOffset = parseInt(dayKey) - 1; // dayKey starts from 1 (Monday)
+  const targetDate = new Date(baseDate);
+  targetDate.setDate(baseDate.getDate() + dayOffset);
+  return targetDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
 };
 
 const PatientTable = ({ dataSource = [], loading, nurseId, branchId }) => {
@@ -45,7 +53,10 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId }) => {
   const [patientOrders, setPatientOrders] = useState({});
   const [quantity, setQuantity] = useState({});
   const [note, setNote] = useState({});
-  const [activeDay, setActiveDay] = useState('6'); // Default to Saturday, July 26, 2025
+  const today = new Date();
+  const currentDayOfWeek = today.getDay();
+  const defaultDay = currentDayOfWeek === 0 ? '7' : currentDayOfWeek.toString();
+  const [activeDay, setActiveDay] = useState(defaultDay); // Default to current day
   const [isUsingMockData, setIsUsingMockData] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
   const categoryRefs = useRef({});
@@ -251,7 +262,7 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId }) => {
       const orderData = {
         patientId: selectedPatient.id,
         patientName: selectedPatient.fullName,
-        menuType: `Menu for ${getFormattedDate(activeDay)}`, // Replaced dayToMenuMap with formatted date
+        menuType: `Menu for ${getFormattedDate(activeDay)}`,
         branchId: currentBranchId,
         nurseId: nurseId,
         orderDetails,
@@ -461,10 +472,9 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId }) => {
                                       alignItems: 'center',
                                       padding: '6px 0',
                                       borderBottom: '1px solid #f0f0f0',
-                                      gap: 8, // khoảng cách giữa các phần
+                                      gap: 8,
                                     }}
                                   >
-                                    {/* Checkbox + Tên món (1 khối) */}
                                     <div style={{ display: 'flex', alignItems: 'center', maxWidth: 180, flex: 1 }}>
                                       <Checkbox
                                         checked={selectedFoods.has(food.id)}
@@ -481,16 +491,12 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId }) => {
                                         {food.name}
                                       </span>
                                     </div>
-
-                                    {/* Số lượng */}
                                     <InputNumber
                                       min={1}
                                       value={quantity[food.id] || 1}
                                       onChange={handleQuantityChange(food.id)}
                                       style={{ width: 60 }}
                                     />
-
-                                    {/* Ghi chú */}
                                     <Input
                                       value={note[food.id] || ''}
                                       onChange={handleNoteChange(food.id)}
@@ -500,7 +506,6 @@ const PatientTable = ({ dataSource = [], loading, nurseId, branchId }) => {
                                   </div>
                                 ))}
                               </div>
-
                             )}
                           </div>
                         ))}
