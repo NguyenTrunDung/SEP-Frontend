@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { message } from 'antd';
-import { PlusOutlined, MenuOutlined, CalendarOutlined } from '@ant-design/icons';
 import { withPageWrapperV2 } from '../../../components/common/PageWrapperV2';
 import MenuTable from './MenuTable';
 import CreateFoodsMenu from './CreateFoodsMenu';

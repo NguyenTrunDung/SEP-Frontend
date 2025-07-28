@@ -114,7 +114,7 @@ export const useSetCurrentBranch = () => {
             // Invalidate queries that depend on branch context
             queryClient.invalidateQueries({ queryKey: ['foods'] });
             queryClient.invalidateQueries({ queryKey: ['foodCategories'] });
-            queryClient.invalidateQueries({ queryKey: ['menus'] });
+            queryClient.invalidateQueries({ queryKey: ['menusAdmin'] });
             queryClient.invalidateQueries({ queryKey: ['orders'] });
         },
         onError: () => {
@@ -158,8 +158,17 @@ export const useSwitchBranch = () => {
 
             // Invalidate menu queries (these already include branch context)
             queryClient.invalidateQueries({
-                queryKey: ['menus'],
-                predicate: (query) => query.queryKey[0] === 'menus'
+                queryKey: ['menusAdmin'],
+                predicate: (query) => query.queryKey[0] === 'menusAdmin'
+            });
+
+            // Invalidate menu list queries with branch context
+            queryClient.invalidateQueries({
+                queryKey: ['menusAdmin', 'list'],
+                predicate: (query) => {
+                    // Invalidate all menu list queries regardless of branch
+                    return query.queryKey[0] === 'menusAdmin' && query.queryKey[1] === 'list';
+                }
             });
 
             // Invalidate order queries with branch context
@@ -230,43 +239,43 @@ export const useSecureAction = () => {
  * Hook tạo chi nhánh
  */
 export const useCreateBranch = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ branchData }) => branchService.createBranch(branchData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BRANCH_KEYS.lists() });
-    },
-  });
+    return useMutation({
+        mutationFn: ({ branchData }) => branchService.createBranch(branchData),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: BRANCH_KEYS.lists() });
+        },
+    });
 };
 
 /**
  * Hook cập nhật chi nhánh
  */
 export const useUpdateBranch = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ branchId, branchData }) =>
-      branchService.updateBranch(branchId, branchData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BRANCH_KEYS.lists() });
-    },
-  });
+    return useMutation({
+        mutationFn: ({ branchId, branchData }) =>
+            branchService.updateBranch(branchId, branchData),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: BRANCH_KEYS.lists() });
+        },
+    });
 };
 
 /**
  * Hook xoá chi nhánh
  */
 export const useDeleteBranch = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ branchId }) => branchService.deleteBranch(branchId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BRANCH_KEYS.lists() });
-    },
-  });
+    return useMutation({
+        mutationFn: ({ branchId }) => branchService.deleteBranch(branchId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: BRANCH_KEYS.lists() });
+        },
+    });
 };
 
 // Re-export for backward compatibility with existing components
