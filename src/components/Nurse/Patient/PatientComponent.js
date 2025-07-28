@@ -14,16 +14,23 @@ const { Title, Text } = Typography;
 
 // Define getFormattedDate function
 const getFormattedDate = (dayKey) => {
-  const dayOffset = parseInt(dayKey) - 1;
-  const baseDate = new Date(2025, 6, 21); // Monday, July 21, 2025
-  const date = new Date(baseDate);
-  date.setDate(baseDate.getDate() + dayOffset);
-  return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  const today = new Date();
+  const currentDayOfWeek = today.getDay(); // 0 (Sunday) to 6 (Saturday)
+  const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek; // Calculate days to Monday
+  const baseDate = new Date(today);
+  baseDate.setDate(today.getDate() + mondayOffset); // Set to Monday of the current week
+  const dayOffset = parseInt(dayKey) - 1; // dayKey starts from 1 (Monday)
+  const targetDate = new Date(baseDate);
+  targetDate.setDate(baseDate.getDate() + dayOffset);
+  return targetDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
 };
 
 const PatientComponent = () => {
   const [searchText, setSearchText] = useState('');
-  const [activeDay, setActiveDay] = useState('6'); // Default to Saturday, July 26, 2025
+  const today = new Date();
+  const currentDayOfWeek = today.getDay();
+  const defaultDay = currentDayOfWeek === 0 ? '7' : currentDayOfWeek.toString();
+  const [activeDay, setActiveDay] = useState(defaultDay); // Default to current day
   const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
   const { open: bulkOpen, showModal: showBulkModal, handleCancel: handleBulkCancel } = useAntModal();
 
@@ -199,7 +206,7 @@ const PatientComponent = () => {
             onCancel={handleBulkCancel}
             onSubmit={handleBulkFoodSelection}
             branchId={currentBranchId}
-            activeDay={getFormattedDate(activeDay)} // Use the locally defined function
+            activeDay={getFormattedDate(activeDay)}
           />
         </PageWrapperV2>
       </NurseLayout>
