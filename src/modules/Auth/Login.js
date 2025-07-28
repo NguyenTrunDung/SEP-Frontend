@@ -61,10 +61,11 @@ const Login = () => {
                             submitText="Đăng Nhập"
                             showTestAccounts={false}
                             customFields={[]}
+                            loginType="internal"
                         />
-                        <Text style={{ display: 'block', textAlign: 'center', marginTop: 16 }}>
+                        {/* <Text style={{ display: 'block', textAlign: 'center', marginTop: 16 }}>
                             Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
-                        </Text>
+                        </Text> */}
                     </Col>
                 </Row>
             </Card>

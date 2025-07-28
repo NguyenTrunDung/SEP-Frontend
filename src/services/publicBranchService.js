@@ -62,23 +62,34 @@ export const publicBranchService = {
     },
 
     /**
-     * Set current branch for public context (localStorage only)
-     * This doesn't make an API call, just updates local storage
+     * Set current branch for public context
+     * Calls API to set current branch and updates localStorage
      */
     async setCurrentBranch(branchId) {
         try {
-            // For public context, just update localStorage
+            // Call API to set current branch
+            const response = await api.post(environment.api.endpoints.branch.setCurrent(branchId), null, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            // Update localStorage as well
             environment.multiTenant.setCurrentBranchId(branchId);
 
             if (environment.features.enableLogging) {
-                console.log('✅ Set public current branch (localStorage):', branchId);
+                console.log('✅ Set public current branch via API:', branchId);
+                console.log('✅ API response:', response.data);
             }
 
-            // Return the branch ID as confirmation
-            return { id: branchId, success: true };
+            // Return the response data
+            return response.data?.data || {
+                id: branchId,
+                success: true
+            };
         } catch (error) {
             if (environment.features.enableLogging) {
-                console.error('❌ Failed to set public current branch:', error.message);
+                console.error('❌ Failed to set public current branch via API:', error.message);
             }
             throw error;
         }

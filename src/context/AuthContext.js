@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authService } from '../services/authService';
-import { mapBackendRoleToFrontend, hasAdminAccess, shouldUseGuestLayout } from '../constants/roles';
+import { mapBackendRoleToFrontend, hasAdminAccess, shouldUseGuestLayout, ROLES, BRANCH_ROLE_NAMES } from '../constants/roles';
 import environment from '../config/environment';
 
 const AuthContext = createContext();
@@ -19,6 +19,8 @@ const initialState = {
     selectedBranch: authService.getSelectedBranch(),
     branchRole: authService.getBranchRole(),
     isSystemAdmin: authService.getIsSystemAdmin(),
+    // Thêm trạng thái để theo dõi loại đăng nhập
+    loginType: localStorage.getItem('loginType'), // 'internal' hoặc 'public'
 };
 
 const authReducer = (state, action) => {
@@ -42,6 +44,9 @@ const authReducer = (state, action) => {
                 )
             };
 
+            // Xác định loại đăng nhập dựa trên role
+            const loginType = determineLoginType(mappedUser.role, branchRoleName);
+
             return {
                 ...state,
                 user: mappedUser,
@@ -55,6 +60,7 @@ const authReducer = (state, action) => {
                 isSystemAdmin: action.payload.isSystemAdmin || false,
                 loading: false,
                 error: null,
+                loginType: loginType,
             };
         case 'UPDATE_USER':
             // Map backend roles if they exist in the update
@@ -110,7 +116,8 @@ const authReducer = (state, action) => {
                 selectedBranch: null,
                 branchRole: null,
                 isSystemAdmin: false,
-                loading: false
+                loading: false,
+                loginType: null,
             };
         case 'SET_LOADING':
             return { ...state, loading: action.payload };
@@ -119,6 +126,34 @@ const authReducer = (state, action) => {
         default:
             return state;
     }
+};
+
+// Hàm xác định loại đăng nhập
+const determineLoginType = (userRole, branchRoleName) => {
+    // Nếu là NURSE hoặc có branchRoleName là "Y tá" thì là public login
+    if (userRole === ROLES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.NURSE) {
+        return 'public';
+    }
+
+    // Các role khác là internal login
+    return 'internal';
+};
+
+// Hàm kiểm tra xem user có thể đăng nhập qua internal login không
+const canUseInternalLogin = (userRole, branchRoleName) => {
+    // NURSE không thể đăng nhập qua internal login
+    if (userRole === ROLES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.NURSE) {
+        return false;
+    }
+
+    // Các role khác có thể đăng nhập qua internal login
+    return true;
+};
+
+// Hàm kiểm tra xem user có thể đăng nhập qua public login không
+const canUsePublicLogin = (userRole, branchRoleName) => {
+    // Chỉ NURSE mới có thể đăng nhập qua public login
+    return userRole === ROLES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.NURSE;
 };
 
 export const AuthProvider = ({ children }) => {
@@ -408,24 +443,41 @@ export const AuthProvider = ({ children }) => {
         loadUser();
     }, []);
 
-    const login = async (credentials) => {
+    const login = async (credentials, loginType = 'internal') => {
         dispatch({ type: 'LOGIN_START' });
         try {
-            console.log('🔐 Attempting login with:', credentials.email);
+            console.log('🔐 Attempting login with:', credentials.email, 'Type:', loginType);
 
             const authData = await authService.login(credentials);
 
             const branchRoleName = authData.defaultBranch?.branchRoleName ||
                 (authData.userBranches && authData.userBranches.length > 0 ? authData.userBranches[0].branchRoleName : null);
 
+            // Map user role
+            const mappedRole = mapBackendRoleToFrontend(authData.user?.roles, branchRoleName, authData.userBranches);
+
+            // Kiểm tra xem user có thể đăng nhập qua loại login này không
+            const canUseThisLoginType = loginType === 'internal'
+                ? canUseInternalLogin(mappedRole, branchRoleName)
+                : canUsePublicLogin(mappedRole, branchRoleName);
+
+            if (!canUseThisLoginType) {
+                const errorMessage = loginType === 'internal'
+                    ? 'Tài khoản này không thể đăng nhập qua trang nội bộ. Vui lòng sử dụng trang chủ.'
+                    : 'Tài khoản này chỉ có thể đăng nhập qua trang nội bộ.';
+
+                throw new Error(errorMessage);
+            }
+
             console.log('✅ Login successful:', {
                 user: authData.user?.email,
-                frontendRole: mapBackendRoleToFrontend(authData.user?.roles, branchRoleName, authData.userBranches),
+                frontendRole: mappedRole,
                 backendRoles: authData.user?.roles,
                 branchRoleName: branchRoleName,
                 permissions: authData.permissions?.length || 0,
                 branches: authData.userBranches?.length || 0,
-                isSystemAdmin: authData.isSystemAdmin
+                isSystemAdmin: authData.isSystemAdmin,
+                loginType: loginType
             });
 
             dispatch({
@@ -435,6 +487,7 @@ export const AuthProvider = ({ children }) => {
 
             // Set initial timestamp to prevent immediate refresh after login
             localStorage.setItem('lastTokenRefresh', Date.now().toString());
+            localStorage.setItem('loginType', loginType);
         } catch (error) {
             console.error('❌ Login failed:', error);
             const errorMessage = error.response?.data?.message || error.message || 'Login failed';
@@ -442,6 +495,7 @@ export const AuthProvider = ({ children }) => {
                 type: 'LOGIN_FAILURE',
                 payload: errorMessage,
             });
+            throw error;
         }
     };
 
@@ -526,6 +580,7 @@ export const AuthProvider = ({ children }) => {
         } finally {
             // Clear refresh timestamp on logout
             localStorage.removeItem('lastTokenRefresh');
+            localStorage.removeItem('loginType');
             dispatch({ type: 'LOGOUT' });
             console.log('✅ Logout completed');
         }
@@ -623,6 +678,9 @@ export const AuthProvider = ({ children }) => {
         selectedBranch: state.selectedBranch,
         branchRole: state.branchRole,
         isSystemAdmin: state.isSystemAdmin,
+
+        // Login type
+        loginType: state.loginType,
 
         // Role helper functions
         hasAdminAccess: () => hasAdminAccess(state.user?.role),

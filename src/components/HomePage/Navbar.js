@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar } from 'antd';
-import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined } from '@ant-design/icons';
+import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar, Card, Image } from 'antd';
+import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined, CloseOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePublicBranchesOnly, usePublicSwitchBranchOnly } from '../../hooks/queries/useBranchSelector';
 import { useCart } from '../../context/CartContext';
@@ -14,9 +14,12 @@ import OrderHistoryModal from '../OrderHistory/OrderHistory';
 import WalletModal from '../Wallet/Wallet';
 import UserHeader from '../common/UserHeader';
 import OrderTrackingPopup from '../Order/OrderTrackingPopup';
+import { AuthFormPublic } from '../common/AuthForm';
+import { queryClient } from '../../lib/reactQuery';
+
 
 const { Header } = Layout;
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 const Navbar = () => {
   const { data: branchesData, isLoading: loading, isError, error } = usePublicBranchesOnly();
@@ -31,6 +34,7 @@ const Navbar = () => {
     return savedBranch ? JSON.parse(savedBranch) : null;
   });
   const [isOrderTrackingVisible, setIsOrderTrackingVisible] = useState(false);
+  const [isLoginModalVisible, setIsLoginModalVisible] = useState(false);
 
   const branches = branchesData && Array.isArray(branchesData) ? branchesData : [];
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
@@ -109,14 +113,37 @@ const Navbar = () => {
 
   const handleBranchSelect = async (branch) => {
     try {
+      console.log('🔄 Switching to branch:', branch);
+
+      // Call the mutation to switch branch
       await switchBranchMutation.mutateAsync(branch.id);
+
+      // Update local state
       setSelectedBranch(branch);
       localStorage.setItem('selectedBranch', JSON.stringify(branch));
       localStorage.setItem('currentBranchId', branch.id);
+
+      // Close modal
       setIsModalVisible(false);
+
+      // Show success message
       message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
+
+      // Force refetch of menu data by invalidating all menu queries
+      // This will trigger a refetch of menu data with the new branch context
+      if (queryClient) {
+        // Invalidate all menu-related queries to force refresh
+        queryClient.invalidateQueries({ queryKey: ['menus'] });
+        queryClient.invalidateQueries({ queryKey: ['public', 'menus'] });
+
+        // Force refetch current menu data
+        queryClient.refetchQueries({ queryKey: ['menus', 'byDate'] });
+
+        console.log('🔄 Invalidated menu queries for branch switch');
+      }
+
     } catch (error) {
-      console.error('Failed to switch branch:', error);
+      console.error('❌ Failed to switch branch:', error);
       message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
     }
   };
@@ -180,7 +207,7 @@ const Navbar = () => {
   const handleLogout = () => {
     console.log('Logging out user:', user);
     logout();
-    navigate('/login');
+    navigate('/');
     setIsUserMenuVisible(false);
   };
 
@@ -197,8 +224,17 @@ const Navbar = () => {
   };
 
   const handleLoginClick = () => {
-    console.log('Navigating to login');
-    navigate('/login');
+    console.log('open modal login for user');
+    setIsLoginModalVisible(true);
+  };
+
+  const handleLoginSuccess = () => {
+    setIsLoginModalVisible(false);
+    message.success('Đăng nhập thành công!');
+    // Redirect về trang chủ sau khi login thành công
+    // Nếu user là NURSE, redirect về /nurse/home
+    const redirectPath = user?.role === 'NURSE' ? '/nurse/home' : '/';
+    navigate(redirectPath, { replace: true });
   };
 
 
@@ -208,8 +244,8 @@ const Navbar = () => {
     { key: 'cart', label: 'GIỎ HÀNG' },
     ...(user?.role === ROLES.NURSE
       ? [
-          { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
-        ]
+        { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
+      ]
       : user?.role === ROLES.GUEST
         ? []
         : []
@@ -296,7 +332,8 @@ const Navbar = () => {
                       }}
                       greetingStyle={{ color: '#fff', fontSize: '14px' }}
                       onLogout={() => {
-                        handleLogout();
+                        logout();
+                        navigate('/');
                       }}
                     />
                   ) : (
@@ -447,7 +484,7 @@ const Navbar = () => {
                     }}
                     role="option"
                     tabIndex={0}
-                    onKeyPress={(e) => e.key === 'Enter' && handleBranchSelect(branch)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleBranchSelect(branch)}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontWeight: 480, color: '#1a1a1a', fontSize: '18px' }}>
@@ -618,6 +655,76 @@ const Navbar = () => {
           visible={isOrderTrackingVisible}
           onClose={() => setIsOrderTrackingVisible(false)}
         />
+
+        <Modal
+          open={isLoginModalVisible}
+          onCancel={() => setIsLoginModalVisible(false)}
+          footer={null}
+          centered
+          width={500}
+          destroyOnClose
+          closeIcon={<CloseOutlined style={{ color: '#000', fontSize: '20px' }} />}
+          styles={{
+            content: { padding: 0, borderRadius: 8, overflow: 'hidden' },
+            body: { padding: 0 },
+          }}
+        >
+          <Card variant="outlined" style={{ borderRadius: 8 }}>
+            <div style={{ padding: '40px 32px' }}>
+              <div style={{
+                textAlign: 'center'
+              }}>
+                <Image
+                  src="/images/lg.png"
+                  alt="Dussmann Logo"
+                  preview={false}
+                  width={120}
+                  style={{}}
+                />
+                <Title level={3} style={{ margin: '16px 0 8px' }}>
+                  Welcome to Hệ thống đặt suất ăn bệnh viện!
+                </Title>
+                <Text type="secondary" style={{ display: 'block', marginBottom: '4px', fontSize: '16px' }}>
+                  Vui lòng đăng nhập để tiếp tục
+                </Text>
+              </div>
+
+              <ConfigProvider
+                theme={{
+                  components: {
+                    Input: {
+                      activeBorderColor: '#b4c80f',
+                      hoverBorderColor: '#b4c80f',
+                      activeShadow: '0 0 0 2px rgba(180, 200, 15, 0.2)'
+                    },
+                    Checkbox: {
+                      colorPrimary: '#b4c80f'
+                    }
+                  }
+                }}
+              >
+                <AuthFormPublic
+                  onSuccess={handleLoginSuccess}
+                  redirectPath="/"
+                  showTestAccounts={false}
+                  submitText="Đăng Nhập"
+                  customStyle={{
+                    submitButton: {
+                      backgroundColor: '#b4c80f',
+                      borderColor: '#b4c80f',
+                      color: '#000',
+                      '&:hover': {
+                        backgroundColor: '#a3b60e',
+                        borderColor: '#a3b60e',
+                        color: '#000'
+                      }
+                    }
+                  }}
+                />
+              </ConfigProvider>
+            </div>
+          </Card>
+        </Modal>
       </Header>
     </ConfigProvider>
   );
