@@ -1,131 +1,45 @@
-import React, { useState } from 'react';
-import { ConfigProvider, Typography, Spin, Alert, message, Modal, Descriptions, Button } from 'antd';
-import { EyeOutlined } from '@ant-design/icons';
-import { usePatients } from '../../../hooks/queries/usePatientQueries';
+import React, { useState, useMemo } from 'react';
+import { ConfigProvider, Typography, Alert, message, Button } from 'antd';
+import { usePatients, useCreatePatient } from '../../../hooks/queries/usePatientQueries';
 import { useAuth } from '../../../context/AuthContext';
 import locale from 'antd/locale/vi_VN';
 import NurseLayout from '../NurseLayout';
-import withPageWrapper from '../../../components/common/PageWrapper';
+import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import PatientTable from '../Patient/PatientTable';
+import CreatePatient from '../Patient/CreatePatient';
+import BulkFoodSelection from '../Patient/CreatePatient';
 import { useAntModal } from '../../../hooks/useAntModal';
 
 const { Title, Text } = Typography;
 
-const PatientPageContent = ({
-  patientData,
-  loading,
-  onView,
-  modalProps,
-  isError,
-  error,
-  nurseId,
-  branchId, // Add branchId prop
-}) => {
-  return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {isError && (
-        <Alert
-          message={error?.message || 'Lỗi khi tải danh sách bệnh nhân'}
-          type="error"
-          showIcon
-          className="mb-6 rounded-lg shadow-sm"
-        />
-      )}
-      {loading && !patientData.length ? (
-        <div className="flex justify-center items-center h-64">
-          <Spin size="large" />
-        </div>
-      ) : patientData.length > 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <PatientTable
-            dataSource={patientData}
-            loading={loading}
-            onView={onView}
-            nurseId={nurseId}
-            branchId={branchId} // Pass branchId to PatientTable
-            className="rounded-lg overflow-hidden"
-          />
-        </div>
-      ) : (
-        <div className="text-center mt-12">
-          <Text type="secondary" className="text-lg">
-            Không tìm thấy bệnh nhân phù hợp.
-          </Text>
-        </div>
-      )}
-      <Modal
-        title={
-          <div className="flex items-center gap-2">
-            <EyeOutlined className="text-blue-500" />
-            <span className="text-xl font-semibold">Chi Tiết Bệnh Nhân</span>
-          </div>
-        }
-        open={modalProps.open}
-        onCancel={modalProps.handleCancel}
-        footer={[
-          <Button key="close" onClick={modalProps.handleCancel}>
-            Đóng
-          </Button>,
-        ]}
-        width={600}
-        centered
-        destroyOnClose
-        className="rounded-xl"
-      >
-        {modalProps.selectedPatient ? (
-          <Descriptions bordered column={1} labelStyle={{ width: 150 }}>
-            <Descriptions.Item label="Mã Hồ Sơ">{modalProps.selectedPatient.medicalRecordNumber || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Họ Tên">{modalProps.selectedPatient.fullName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Giới Tính">{modalProps.selectedPatient.gender || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Tuổi">{modalProps.selectedPatient.age || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Phòng">{modalProps.selectedPatient.roomNumber || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Giường">{modalProps.selectedPatient.bedNumber || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Vị Trí">{modalProps.selectedPatient.displayLocation || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Nhóm Bệnh">
-              {modalProps.selectedPatient.diseaseCategories?.length ?
-                modalProps.selectedPatient.diseaseCategories.map(dc => dc.diseaseCategoryName).join(', ') :
-                'Chưa xác định'
-              }
-            </Descriptions.Item>
-            <Descriptions.Item label="Bác Sĩ Điều Trị">{modalProps.selectedPatient.attendingPhysician || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Trạng Thái">{modalProps.selectedPatient.isActive ? 'Đang điều trị' : 'Đã xuất viện'}</Descriptions.Item>
-            <Descriptions.Item label="Đang Nhập Viện">{modalProps.selectedPatient.isCurrentlyAdmitted ? 'Có' : 'Không'}</Descriptions.Item>
-            <Descriptions.Item label="Cần Giám Sát Dinh Dưỡng">{modalProps.selectedPatient.requiresDietarySupervision ? 'Có' : 'Không'}</Descriptions.Item>
-            <Descriptions.Item label="Ghi Chú">{modalProps.selectedPatient.notes || 'Không có'}</Descriptions.Item>
-            <Descriptions.Item label="Mã Hệ Thống Ngoài">{modalProps.selectedPatient.externalSystemId || 'Không có'}</Descriptions.Item>
-          </Descriptions>
-        ) : (
-          <p>Không có dữ liệu bệnh nhân.</p>
-        )}
-      </Modal>
-    </div>
-  );
+// Define getFormattedDate function
+const getFormattedDate = (dayKey) => {
+  const dayOffset = parseInt(dayKey) - 1;
+  const baseDate = new Date(2025, 6, 21); // Monday, July 21, 2025
+  const date = new Date(baseDate);
+  date.setDate(baseDate.getDate() + dayOffset);
+  return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
 };
 
-const PatientPageWithWrapper = withPageWrapper(PatientPageContent);
-
 const PatientComponent = () => {
-  const { open, showModal, handleCancel } = useAntModal();
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [searchText, setSearchText] = useState('');
+  const [activeDay, setActiveDay] = useState('6'); // Default to Saturday, July 26, 2025
+  const { open: addOpen, showModal: showAddModal, handleCancel: handleAddCancel } = useAntModal();
+  const { open: bulkOpen, showModal: showBulkModal, handleCancel: handleBulkCancel } = useAntModal();
 
-  // Get current user for nurse ID
   const { user } = useAuth();
-
-  // Use single source of truth - branch selected in Navbar
   const currentBranchId = localStorage.getItem('currentBranchId') || '1';
   const selectedBranchName = localStorage.getItem('selectedBranch')
     ? JSON.parse(localStorage.getItem('selectedBranch'))?.name
     : 'N/A';
+  const nurseId = user?.id || user?.userId || 'NURSE001';
 
-  // Get nurse ID from current user
-  const nurseId = user?.id || user?.userId || 'NURSE001'; // fallback for development
-
-  // Debug logging for development
   console.log('🏥 PatientComponent - Simplified Branch Context:', {
     currentBranchId,
     selectedBranchName,
     user: user ? { id: user.id, name: user.name, role: user.role } : null,
-    nurseId
+    nurseId,
+    activeDay,
   });
 
   const {
@@ -135,10 +49,10 @@ const PatientComponent = () => {
     isFetching,
     refetch,
   } = usePatients(
-    { branchId: currentBranchId }, // Pass branch ID to the query
+    { branchId: currentBranchId },
     {
       keepPreviousData: true,
-      enabled: !!currentBranchId, // Only fetch when we have a branch ID
+      enabled: !!currentBranchId,
       onError: (err) => {
         console.error('❌ Error fetching patients:', err);
         const errorMessage = err?.response?.data?.message || err?.message || 'Không thể tải danh sách bệnh nhân';
@@ -147,14 +61,14 @@ const PatientComponent = () => {
     }
   );
 
-  // Extract patients from API response - handle the new response structure
+  const createPatientMutation = useCreatePatient();
+
   const patients = Array.isArray(patientData?.data)
     ? patientData.data
     : Array.isArray(patientData)
-      ? patientData
-      : [];
+    ? patientData
+    : [];
 
-  // Debug logging for patient data
   console.log('👥 PatientComponent - Patient Data:', {
     rawPatientData: patientData,
     extractedPatients: patients,
@@ -162,20 +76,65 @@ const PatientComponent = () => {
     totalCount: patientData?.totalCount,
     isLoading: isFetching,
     hasError: isError,
-    error: error?.message
+    error: error?.message,
   });
-
-  const handleViewDetails = (patient) => {
-    setSelectedPatient(patient);
-    showModal();
-  };
 
   const handleRefresh = () => {
     refetch();
     message.success('Đã làm mới danh sách bệnh nhân');
   };
 
-  // Show branch selection message if no branch is available
+  const handleCreate = async (formData) => {
+    try {
+      const payload = {
+        fullName: formData.fullName.trim(),
+        medicalRecordNumber: formData.medicalRecordNumber.trim(),
+        gender: formData.gender,
+        age: formData.age,
+        roomNumber: formData.roomNumber?.trim() || '',
+        bedNumber: formData.bedNumber?.trim() || '',
+        diseaseCategories: formData.diseaseCategories || [],
+        attendingPhysician: formData.attendingPhysician?.trim() || '',
+        isActive: true,
+        isCurrentlyAdmitted: formData.isCurrentlyAdmitted || false,
+        requiresDietarySupervision: formData.requiresDietarySupervision || false,
+        notes: formData.notes?.trim() || '',
+        branchId: currentBranchId,
+      };
+
+      await createPatientMutation.mutateAsync(payload);
+      message.success('Tạo bệnh nhân thành công');
+      handleAddCancel();
+      refetch();
+    } catch (err) {
+      console.error('❌ Lỗi tạo bệnh nhân:', err);
+      message.error(err?.response?.data?.message || 'Lỗi khi tạo bệnh nhân!');
+    }
+  };
+
+  const handleAdd = () => {
+    showAddModal();
+  };
+
+  const handleBulkFoodSelection = async (payload) => {
+    try {
+      console.log('🔍 BulkFoodSelection payload:', payload);
+      message.success('Đã đặt món ăn cho tất cả bệnh nhân');
+    } catch (err) {
+      console.error('❌ Error in bulk food selection:', err);
+      message.error('Lỗi khi đặt món ăn hàng loạt');
+    }
+  };
+
+  const filteredData = useMemo(() => {
+    const keyword = searchText.toLowerCase();
+    return patients.filter(
+      (item) =>
+        item?.fullName?.toLowerCase()?.includes(keyword) ||
+        item?.medicalRecordNumber?.toLowerCase()?.includes(keyword)
+    );
+  }, [patients, searchText]);
+
   if (!currentBranchId) {
     return (
       <ConfigProvider locale={locale}>
@@ -197,21 +156,52 @@ const PatientComponent = () => {
   return (
     <ConfigProvider locale={locale}>
       <NurseLayout>
-        <PatientPageWithWrapper
-          pageTitle={<Title level={2} className="text-blue-600 mb-2">Danh Sách Bệnh Nhân</Title>}
-          pageDescription={<Text className="text-gray-500">Quản lý thông tin bệnh nhân một cách hiệu quả - Chi nhánh: {selectedBranchName}</Text>}
-          pageIcon="🏥"
-          loading={isFetching}
+        <PageWrapperV2
+          title="Danh Sách Bệnh Nhân"
+          description={`Quản lý thông tin bệnh nhân một cách hiệu quả - Chi nhánh: ${selectedBranchName}`}
           onRefresh={handleRefresh}
-          refreshText="Làm mới"
-          patientData={patients}
-          onView={handleViewDetails}
-          modalProps={{ open, handleCancel, selectedPatient }}
-          isError={isError}
-          error={error}
-          nurseId={nurseId}
-          branchId={currentBranchId}
-        />
+          onAdd={handleAdd}
+          loading={isFetching}
+          searchProps={{
+            value: searchText,
+            onChange: (e) => setSearchText(e.target.value),
+            placeholder: 'Tìm kiếm bệnh nhân',
+          }}
+          extra={
+            <Button type="primary" onClick={showBulkModal}>
+              Chọn món ăn cho tất cả bệnh nhân
+            </Button>
+          }
+        >
+          {isError && (
+            <Alert
+              message={error?.message || 'Lỗi khi tải danh sách bệnh nhân'}
+              type="error"
+              showIcon
+              className="mb-6 rounded-lg shadow-sm"
+            />
+          )}
+          <PatientTable
+            dataSource={filteredData}
+            loading={isFetching}
+            nurseId={nurseId}
+            branchId={currentBranchId}
+            activeDay={activeDay}
+            setActiveDay={setActiveDay}
+          />
+          <CreatePatient
+            open={addOpen}
+            onCancel={handleAddCancel}
+            onSubmit={handleCreate}
+          />
+          <BulkFoodSelection
+            open={bulkOpen}
+            onCancel={handleBulkCancel}
+            onSubmit={handleBulkFoodSelection}
+            branchId={currentBranchId}
+            activeDay={getFormattedDate(activeDay)} // Use the locally defined function
+          />
+        </PageWrapperV2>
       </NurseLayout>
     </ConfigProvider>
   );

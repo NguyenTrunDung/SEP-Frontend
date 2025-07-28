@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, BackTop } from 'antd';
-import Navbar from '../../components/Navbar';
-import CarouselComponent from '../../components/CarouselComponent';
+import Navbar from '../../components/HomePage/Navbar';
+import CarouselComponent from '../../components/HomePage/CarouselComponent';
 import MenuComponent from '../../components/Dishes/Menu';
-import DeseaseComponent from '../../components/Desease';
-import FooterComponent from '../../components/Footer';
+import DeseaseComponent from '../../components/HomePage/Desease';
+import FooterComponent from '../../components/HomePage/Footer';
 
 const { Content } = Layout;
 

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { Modal, Typography, Button, Form, Rate, Input, Upload } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { Modal, Typography, Button, Form, Rate, Input, message } from 'antd';
+import { environment } from '../../services/api/config';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -8,42 +8,49 @@ const { TextArea } = Input;
 const EditFeedbackModal = ({ visible, onClose, selectedOrder, feedback, onUpdate }) => {
   const [form] = Form.useForm();
 
-  const uploadProps = {
-    beforeUpload: () => false,
-    multiple: true,
-    accept: 'image/*',
-    maxCount: 5,
-    listType: 'picture',
-  };
-
   useEffect(() => {
     if (feedback) {
       form.setFieldsValue({
-        rating: feedback.rating,
-        comment: feedback.comment,
-        images: (feedback.images || []).map((img, idx) => ({
-          uid: `${idx}`,
-          name: `image-${idx}`,
-          status: 'done',
-          url: img.url,
-        })),
+        rating: feedback.rating || 0,
+        content: feedback.content || '',
       });
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Setting form values:', { rating: feedback.rating || 0, content: feedback.content || '' });
+      }
     }
   }, [feedback, form]);
 
-  const handleSubmit = (values) => {
-    const updated = {
-      ...feedback,
+  const handleSubmit = async (values) => {
+    if (!feedback?.id) {
+      console.error('Missing feedback ID:', feedback);
+      message.error('Thiếu ID đánh giá để cập nhật.');
+      return;
+    }
+
+    if (!values.rating || !values.content) {
+      console.error('Missing rating or content:', values);
+      message.error('Vui lòng nhập đầy đủ số sao và nhận xét.');
+      return;
+    }
+
+    const updatedFeedback = {
+      id: feedback.id,
       rating: values.rating,
-      comment: values.comment,
-      images: values.images.map(file => ({
-        url: file.url || URL.createObjectURL(file.originFileObj),
-      })),
-      timestamp: feedback.timestamp,
+      content: values.content,
+      reply: feedback.reply || null,
     };
 
-    onUpdate(updated);
-    form.resetFields();
+    if (environment.features?.enableLogging) {
+      console.log('🔍 Submitting updated feedback:', updatedFeedback);
+    }
+
+    if (typeof onUpdate === 'function') {
+      await onUpdate(updatedFeedback);
+      form.resetFields();
+    } else {
+      console.error('onUpdate is not a function:', onUpdate);
+      message.error('Lỗi hệ thống khi cập nhật đánh giá.');
+    }
   };
 
   return (
@@ -84,22 +91,11 @@ const EditFeedbackModal = ({ visible, onClose, selectedOrder, feedback, onUpdate
               </Form.Item>
 
               <Form.Item
-                name="comment"
+                name="content"
                 label="Nhận xét"
                 rules={[{ required: true, message: 'Vui lòng nhập nhận xét!' }]}
               >
                 <TextArea rows={4} placeholder="Nhập nhận xét của bạn" />
-              </Form.Item>
-
-              <Form.Item
-                name="images"
-                label="Tải lên hình ảnh (tối đa 5)"
-                valuePropName="fileList"
-                getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
-              >
-                <Upload {...uploadProps}>
-                  <Button icon={<UploadOutlined />}>Chọn hình ảnh</Button>
-                </Upload>
               </Form.Item>
 
               <Form.Item>

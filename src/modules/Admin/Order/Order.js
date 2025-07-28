@@ -179,7 +179,7 @@ const OrdersTableV2 = () => {
               dataIndex: 'isPaid',
               title: 'Thanh toán',
               render: (isPaid) => (isPaid ? 'Hoàn thành' : 'Chưa xử lý'),
-
+              align: 'center',
             },
             {
               title: null,

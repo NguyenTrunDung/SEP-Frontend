@@ -8,8 +8,9 @@ import ReusableTableV2 from '../../components/common/ReusableTableV2';
 import FeedbackModal from '../Feedback/Feedback';
 import ViewFeedbackModal from '../Feedback/ViewFeedbackModal';
 import EditFeedbackModal from '../Feedback/EditFeedbackModal';
-
-
+import { useCreateFeedback, useFeedbacksByOrder, useDeleteFeedback, useUpdateFeedback } from '../../hooks/queries/useFeedback';
+import api from '../../services/api/config';
+import { environment } from '../../services/api/config';
 import './OrderHistory.css';
 
 const { Text } = Typography;
@@ -32,20 +33,33 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const [editFeedback, setEditFeedback] = useState(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
 
-
+  const { mutate: createFeedback } = useCreateFeedback();
+  const { feedbacks: orderFeedbacks, refetch: refetchFeedbacks } = useFeedbacksByOrder(
+    selectedOrder?.id,
+    selectedOrder?.branchId,
+    { enabled: !!selectedOrder?.id && !!selectedOrder?.branchId }
+  );
+  const { mutateAsync: deleteFeedback } = useDeleteFeedback();
+  const { mutateAsync: updateFeedback } = useUpdateFeedback();
 
   useEffect(() => {
     const fetchOrders = async () => {
       if (!visible || !user) {
-        console.log('Không có user hoặc modal không hiển thị');
+        if (environment.features?.enableLogging) {
+          console.log('🔍 Không có user hoặc modal không hiển thị');
+        }
         return;
       }
 
       setLoading(true);
       try {
-        console.log('Fetching orders for userId:', user.id);
+        if (environment.features?.enableLogging) {
+          console.log('🔍 Fetching orders for userId:', user.id);
+        }
         const userOrders = await orderService.filterOrders({ userId: user.id });
-        console.log('API Response (filterOrders):', JSON.stringify(userOrders, null, 2));
+        if (environment.features?.enableLogging) {
+          console.log('🔍 API Response (filterOrders):', JSON.stringify(userOrders, null, 2));
+        }
 
         const detailedOrders = await Promise.all(
           (userOrders.data || []).map(async (order) => {
@@ -53,7 +67,40 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               try {
                 const orderDetails = await orderService.getOrderDetails(order.id);
                 const items = Array.isArray(orderDetails.data) ? orderDetails.data : [];
-                console.log(`Order Details for order ${order.id}:`, JSON.stringify(items, null, 2));
+                const feedbackResponse = await api.get('/api/v1/Comment/By-Order', {
+                  params: { OrderId: order.id, branchId: order.branchId },
+                });
+                const feedbacks = feedbackResponse.data.status === 'success' ? feedbackResponse.data.data : [];
+                const normalizedFeedbacks = await Promise.all(
+                  feedbacks.map(async (feedback) => {
+                    let customerName = feedback.userId;
+                    let avatar = null;
+                    try {
+                      const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
+                      customerName = userResponse.data?.firstName && userResponse.data?.lastName
+                        ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
+                        : feedback.userId;
+                      avatar = userResponse.data?.avatar || null;
+                    } catch (error) {
+                      if (environment.features?.enableLogging) {
+                        console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error);
+                      }
+                    }
+                    return {
+                      id: feedback.id,
+                      orderId: feedback.orderId,
+                      userId: feedback.userId,
+                      branchId: feedback.branchId,
+                      rating: feedback.star,
+                      content: feedback.commentLines,
+                      reply: feedback.reply || null,
+                      customerName,
+                      avatar,
+                      timestamp: feedback.createdAt || new Date().toISOString(),
+                    };
+                  })
+                );
+
                 return {
                   ...order,
                   orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
@@ -64,37 +111,53 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                     quantity: item.qty ?? 0,
                     subtotal: item.total ?? (item.price ?? 0) * (item.qty ?? 0),
                   })),
+                  feedbacks: normalizedFeedbacks,
                 };
               } catch (error) {
-                console.error(`Failed to fetch details for order ${order.id}:`, error);
+                if (environment.features?.enableLogging) {
+                  console.error(`❌ Failed to fetch details for order ${order.id}:`, error);
+                }
                 return {
                   ...order,
                   orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
                   items: [],
+                  feedbacks: [],
                 };
               }
             }
-            return order;
+            return { ...order, feedbacks: [] };
           })
         );
 
-        const normalizedOrders = detailedOrders.filter(
-          (order) => order.userId === user.id || order.userId === String(user.id)
-        );
+        const normalizedOrders = detailedOrders
+          .filter(
+            (order) => order.userId === user.id || order.userId === String(user.id)
+          )
+          .map((order) => ({
+            ...order,
+            status: order.status?.toLowerCase() || 'unknown',
+          }));
 
         if (normalizedOrders.length === 0) {
-          console.warn('No orders found for userId:', user.id);
+          if (environment.features?.enableLogging) {
+            console.warn('⚠️ No orders found for userId:', user.id);
+          }
         } else {
-          console.log('Filtered orders for userId:', user.id, 'Count:', normalizedOrders.length);
-          console.log('Order details:', JSON.stringify(normalizedOrders.map((o) => ({ id: o.id, orderDate: o.orderDate, items: o.items })), null, 2));
+          if (environment.features?.enableLogging) {
+            console.log('🔍 Filtered orders for userId:', user.id, 'Count:', normalizedOrders.length);
+            console.log('🔍 Order details:', JSON.stringify(normalizedOrders.map((o) => ({ id: o.id, orderDate: o.orderDate, items: o.items, feedbacks: o.feedbacks })), null, 2));
+          }
         }
 
         setOrders(normalizedOrders);
         setFilteredOrders(normalizedOrders);
         setError(null);
       } catch (err) {
-        setError('Không thể tải lịch sử đơn hàng. Vui lòng thử lại.');
-        console.error('Error fetching orders:', err.response?.data || err.message);
+        const errorMessage = err.response?.data?.message || 'Không thể tải lịch sử đơn hàng. Vui lòng thử lại.';
+        setError(errorMessage);
+        if (environment.features?.enableLogging) {
+          console.error('❌ Error fetching orders:', err.response?.data || err.message);
+        }
       } finally {
         setLoading(false);
       }
@@ -112,7 +175,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         (Array.isArray(order.items) && order.items.some(item =>
           (item.foodName || item.name || '').toLowerCase().includes(search.toLowerCase())
         )) ||
-        (order.status === 'DELIVERED' ? 'Đã hoàn tất' : order.status === 'PENDING' ? 'Đang giao hàng' : order.status || '').toLowerCase().includes(search.toLowerCase())
+        (order.status === 'completed' ? 'Hoàn thành' : order.status === 'pending' ? 'Đang chờ' : order.status || '').toLowerCase().includes(search.toLowerCase())
       );
     } else {
       if (idFilter) {
@@ -163,6 +226,10 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   };
 
   const handleFeedback = (order) => {
+    if (order.status !== 'completed') {
+      message.error('Chỉ có thể đánh giá các đơn hàng đã hoàn thành.');
+      return;
+    }
     setSelectedOrder(order);
     const hasFeedback = Array.isArray(order.feedbacks) && order.feedbacks.length > 0;
 
@@ -180,58 +247,88 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   };
 
   const handleFeedbackSubmit = (values) => {
-    const newFeedback = {
-      ...values,
-      user: {
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar || '/images/default-avatar.png',
-        customerName: selectedOrder.customerName || user.name || 'Ẩn danh', // ✅ Thêm dòng này
-      },
-      timestamp: new Date().toISOString(),
-      id: `${selectedOrder.id}-${Date.now()}`,
+    if (selectedOrder.status !== 'completed') {
+      message.error('Không thể gửi đánh giá cho đơn hàng chưa hoàn thành.');
+      return;
+    }
+
+    if (!values.rating || !values.content) {
+      message.error('Vui lòng nhập đầy đủ số sao và nhận xét.');
+      return;
+    }
+
+    const jsonData = {
+      Star: values.rating,
+      CommentLines: values.content,
+      OrderId: selectedOrder.id,
+      BranchId: selectedOrder.branchId,
+      UserId: user.id || 'current-user-id',
     };
 
+    if (environment.features?.enableLogging) {
+      console.log('🔍 Submitting feedback:', jsonData);
+    }
 
-    const updatedOrders = orders.map((order) => {
-      if (order.id === selectedOrder.id) {
-        const updatedFeedbacks = Array.isArray(order.feedbacks)
-          ? [...order.feedbacks, newFeedback]
-          : [newFeedback];
-
-        return {
-          ...order,
-          feedbacks: updatedFeedbacks,
-        };
+    createFeedback(
+      { feedbackData: jsonData, branchId: selectedOrder.branchId },
+      {
+        onSuccess: async (newFeedback) => {
+          const updatedOrders = orders.map((order) => {
+            if (order.id === selectedOrder.id) {
+              const updatedFeedbacks = Array.isArray(order.feedbacks)
+                ? [...order.feedbacks, newFeedback]
+                : [newFeedback];
+              return { ...order, feedbacks: updatedFeedbacks };
+            }
+            return order;
+          });
+          setOrders(updatedOrders);
+          setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+          setCurrentFeedbacks([newFeedback]);
+          message.success('Gửi đánh giá thành công!');
+          setFeedbackModalVisible(false);
+          setViewFeedbackVisible(true);
+        },
+        onError: (error) => {
+          if (environment.features?.enableLogging) {
+            console.error('❌ Failed to submit feedback:', error);
+          }
+          message.error(error.response?.data?.message || 'Không thể gửi đánh giá. Vui lòng thử lại.');
+        },
       }
-      return order;
-    });
-
-    setOrders(updatedOrders);
-    setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
-    message.success('Gửi đánh giá thành công!');
-    setFeedbackModalVisible(false);
-    setSelectedOrder(null);
-  };
-  const handleDeleteFeedback = (feedbackId) => {
-    const updatedOrders = orders.map((order) => {
-      if (order.id === selectedOrder.id) {
-        const updatedFeedbacks = order.feedbacks?.filter(fb => fb.id !== feedbackId) || [];
-        return { ...order, feedbacks: updatedFeedbacks };
-      }
-      return order;
-    });
-
-    setOrders(updatedOrders);
-    setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
-    message.success('Xóa đánh giá thành công!');
-
-
-    setViewFeedbackVisible(false);
-    setSelectedOrder(null);
+    );
   };
 
+  const handleDeleteFeedback = async (feedbackId) => {
+    try {
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Deleting feedback:', feedbackId);
+      }
+      await deleteFeedback(feedbackId);
+      
+      const updatedOrders = orders.map((order) => {
+        if (order.id === selectedOrder.id) {
+          const updatedFeedbacks = order.feedbacks?.filter(fb => fb.id !== feedbackId) || [];
+          return { ...order, feedbacks: updatedFeedbacks };
+        }
+        return order;
+      });
 
+      setOrders(updatedOrders);
+      setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+      setCurrentFeedbacks(currentFeedbacks.filter(fb => fb.id !== feedbackId));
+      message.success('Xóa đánh giá thành công!');
+      if (currentFeedbacks.length === 1) {
+        setViewFeedbackVisible(false);
+        setSelectedOrder(null);
+      }
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to delete feedback:', error);
+      }
+      message.error(error.response?.data?.message || 'Xóa đánh giá thất bại');
+    }
+  };
 
   const getSortedOrders = () => {
     return [...filteredOrders].sort((a, b) => {
@@ -244,30 +341,70 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   };
 
   const handleEditFeedback = (feedback) => {
+    if (environment.features?.enableLogging) {
+      console.log('🔍 Opening edit modal for feedback:', feedback);
+    }
     setEditFeedback(feedback);
     setEditModalVisible(true);
     setViewFeedbackVisible(false);
   };
-  const handleUpdateFeedback = (updatedFeedback) => {
-    const updatedOrders = orders.map((order) => {
-      if (order.id === selectedOrder.id) {
-        const updatedFeedbacks = order.feedbacks.map((fb) =>
-          fb.id === updatedFeedback.id ? updatedFeedback : fb
-        );
-        return { ...order, feedbacks: updatedFeedbacks };
+
+  const handleUpdateFeedback = async (updatedFeedback) => {
+    try {
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Updating feedback:', updatedFeedback);
       }
-      return order;
-    });
+      if (!updatedFeedback.rating || !updatedFeedback.content) {
+        throw new Error('Vui lòng nhập đầy đủ số sao và nhận xét.');
+      }
+      if (!updatedFeedback.id) {
+        throw new Error('Thiếu ID đánh giá để cập nhật.');
+      }
 
-    setOrders(updatedOrders);
-    setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
-    message.success('Cập nhật đánh giá thành công!');
-    setEditModalVisible(false);
-    setEditFeedback(null);
-    setSelectedOrder(null);
+      const feedbackData = {
+        Star: updatedFeedback.rating,
+        CommentLines: updatedFeedback.content,
+        Reply: updatedFeedback.reply || null,
+      };
+
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Feedback data to send:', feedbackData);
+      }
+
+      await updateFeedback({ id: updatedFeedback.id, feedbackData, branchId: selectedOrder.branchId });
+
+      const updatedOrders = orders.map((order) => {
+        if (order.id === selectedOrder.id) {
+          const updatedFeedbacks = order.feedbacks.map((fb) =>
+            fb.id === updatedFeedback.id
+              ? { ...fb, rating: updatedFeedback.rating, content: updatedFeedback.content, reply: updatedFeedback.reply }
+              : fb
+          );
+          return { ...order, feedbacks: updatedFeedbacks };
+        }
+        return order;
+      });
+
+      setOrders(updatedOrders);
+      setFilteredOrders(applyFilters(updatedOrders, searchText, filterId, filterStatus));
+      setCurrentFeedbacks(
+        currentFeedbacks.map((fb) =>
+          fb.id === updatedFeedback.id
+            ? { ...fb, rating: updatedFeedback.rating, content: updatedFeedback.content, reply: updatedFeedback.reply }
+            : fb
+        )
+      );
+      message.success('Cập nhật đánh giá thành công!');
+      setEditModalVisible(false);
+      setEditFeedback(null);
+      setViewFeedbackVisible(true);
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to update feedback:', error);
+      }
+      message.error(error.message || error.response?.data?.message || 'Cập nhật đánh giá thất bại');
+    }
   };
-
-
 
   const overviewColumns = [
     {
@@ -321,7 +458,9 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           const dateB = new Date(b.orderDate);
           return dateA.valueOf() - dateB.valueOf();
         } catch (error) {
-          console.warn('Date sorting error:', error);
+          if (environment.features?.enableLogging) {
+            console.warn('⚠️ Date sorting error:', error);
+          }
           return 0;
         }
       },
@@ -345,7 +484,8 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           delivered: 'Đang giao hàng',
           completed: 'Hoàn thành',
           cancelled: 'Hủy',
-        }[status?.toLowerCase()] || status || 'N/A'
+          unknown: 'Không xác định',
+        }[status?.toLowerCase() || 'unknown']
       ),
       filters: [
         { text: 'Đang chờ', value: 'pending' },
@@ -376,7 +516,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
             onClick={() => handleFeedback(record)}
             className="action-btn"
             size="small"
-            title="Đánh giá"
+            title={record.feedbacks?.length > 0 ? 'Xem đánh giá' : 'Đánh giá'}
             disabled={record.status !== 'completed'}
           />
         </div>
@@ -537,7 +677,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
                 <Text style={{ fontWeight: 400 }}>Người đặt: </Text>
                 <Text style={{ fontWeight: 500 }}>{selectedOrder.customerName || 'Không xác định'}</Text>
-
               </div>
               <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
                 <Text style={{ fontWeight: 400 }}>Thời gian đặt: </Text>
@@ -551,7 +690,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                 <Text style={{ fontWeight: 400 }}>Thời gian cập nhật: </Text>
                 <Text style={{ fontWeight: 500 }}>
                   {selectedOrder.updatedAt
-                    ? new Date(selectedOrder.updatedAt).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+                    ? new Date(selectedOrder.updatedAt).toLocaleString('vi-VN', { timeStyle: 'short' })
                     : 'N/A'}
                 </Text>
               </div>
@@ -571,7 +710,8 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                       delivered: 'Đang giao hàng',
                       completed: 'Hoàn thành',
                       cancelled: 'Hủy',
-                    }[selectedOrder.status?.toLowerCase()] || selectedOrder.status || 'Không xác định'
+                      unknown: 'Không xác định',
+                    }[selectedOrder.status?.toLowerCase() || 'unknown']
                   }
                 </Text>
               </div>
@@ -601,7 +741,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         selectedOrder={selectedOrder}
         onSubmit={handleFeedbackSubmit}
       />
-
       <ViewFeedbackModal
         visible={viewFeedbackVisible}
         onClose={() => {
@@ -624,8 +763,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         feedback={editFeedback}
         onUpdate={handleUpdateFeedback}
       />
-
-
     </>
   );
 };
