@@ -1,225 +1,200 @@
+// src/services/patientService.js
 import api from './api/config';
+import environment from '../config/environment';
 
-// Patient Service for Disease-Based Food Ordering
 export const patientService = {
-    // Get all patients with disease categories for a branch
-    async getPatientsByBranch(branchId) {
-        const response = await api.get('/api/v1/Patient/with-disease-categories-by-branch', {
-            params: { branchId }
-        });
-        return response.data;
-    },
+  async getPatientsByBranch(branchId) {
+    const response = await api.get('/api/v1/Patient/with-disease-categories-by-branch', {
+      params: { branchId: parseInt(branchId, 10) },
+    });
+    return response.data;
+  },
 
-    // Get patient with disease categories
-    async getPatientWithDiseaseCategories(patientId) {
-        const response = await api.get(`/api/v1/patients/${patientId}/with-disease-categories`);
-        return response.data;
-    },
+  async searchPatients(searchTerm, branchId) {
+    const response = await api.get('/api/v1/Patient/search', {
+      params: {
+        searchTerm,
+        branchId: parseInt(branchId, 10),
+      },
+    });
+    return response.data;
+  },
 
-    // Get allowed foods for a patient based on their disease categories
-    async getAllowedFoodsForPatient(patientId, diseaseCategoryId = null) {
-        const params = {};
-        if (diseaseCategoryId) {
-            params.diseaseCategoryId = diseaseCategoryId;
-        }
+  async getPatientsByRoom(roomNumber, branchId) {
+    const response = await api.get('/api/v1/Patient/by-room', {
+      params: {
+        roomNumber,
+        branchId: parseInt(branchId, 10),
+      },
+    });
+    return response.data;
+  },
 
-        // Debug logging
-        console.log('🍽️ patientService.getAllowedFoodsForPatient:', {
-            patientId,
-            diseaseCategoryId,
-            params
-        });
+  async getPatientWithDiseaseCategories(patientId) {
+    const response = await api.get(`/api/v1/Patient/with-disease-categories`, {
+      params: { patientId },
+    });
+    return response.data;
+  },
 
-        const response = await api.get(`/api/v1/DiseaseCategoryFoodRestrictions/patient/${patientId}/allowed-foods`, {
-            params
-        });
-        return response.data;
-    },
+  async createPatient(patientData, branchId) {
+    const payload = {
+      ...patientData,
+      branchId: parseInt(branchId, 10),
+    };
 
-    // Validate single food for a patient
-    async validateFoodForPatient(patientId, foodId) {
-        const response = await api.get(`/api/v1/DiseaseCategoryFoodRestrictions/patient/${patientId}/validate-food/${foodId}`);
-        return response.data;
-    },
-
-    // Bulk validate foods for a patient
-    async bulkValidateFoodsForPatient(patientId, foodIds) {
-        const response = await api.post(`/api/v1/DiseaseCategoryFoodRestrictions/patient/${patientId}/validate-foods`, {
-            foodIds
-        });
-        return response.data;
-    },
-
-    // Create order for patient with food validation
-    async createPatientOrder(orderData) {
-        const response = await api.post('/api/v1/orders/patient-order', orderData);
-        return response.data;
-    },
-
-    // Get patient order history
-    async getPatientOrderHistory(patientId) {
-        const response = await api.get(`/api/v1/orders/patient/${patientId}/history`);
-        return response.data;
-    },
-
-    // CRUD operations for disease category food restrictions
-    async createDiseaseCategoryFoodRestriction(restrictionData) {
-        const response = await api.post('/api/v1/DiseaseCategoryFoodRestrictions', restrictionData);
-        return response.data;
-    },
-
-    async updateDiseaseCategoryFoodRestriction(id, restrictionData) {
-        const response = await api.put(`/api/v1/DiseaseCategoryFoodRestrictions/${id}`, restrictionData);
-        return response.data;
-    },
-
-    async deleteDiseaseCategoryFoodRestriction(id) {
-        const response = await api.delete(`/api/v1/DiseaseCategoryFoodRestrictions/${id}`);
-        return response.data;
-    },
-
-    async getDiseaseCategoryFoodRestriction(id) {
-        const response = await api.get(`/api/v1/DiseaseCategoryFoodRestrictions/${id}`);
-        return response.data;
-    },
-
-    async getAllDiseaseCategoryFoodRestrictions() {
-        const response = await api.get('/api/v1/DiseaseCategoryFoodRestrictions');
-        return response.data;
-    },
-
-    // Bulk operations for disease category food restrictions
-    async bulkCreateDiseaseCategoryFoodRestrictions(restrictionsData) {
-        const response = await api.post('/api/v1/DiseaseCategoryFoodRestrictions/bulk-create', restrictionsData);
-        return response.data;
-    },
-
-    async bulkUpdateDiseaseCategoryFoodRestrictions(restrictionsData) {
-        const response = await api.put('/api/v1/DiseaseCategoryFoodRestrictions/bulk-update', restrictionsData);
-        return response.data;
-    },
-
-    async bulkDeleteDiseaseCategoryFoodRestrictions(ids) {
-        const response = await api.delete('/api/v1/DiseaseCategoryFoodRestrictions/bulk-delete', {
-            data: { ids }
-        });
-        return response.data;
+    if (!payload.diseaseCategoryIds?.length) {
+      delete payload.diseaseCategoryIds;
     }
+
+    const response = await api.post('/api/v1/Patient', payload);
+    return response.data;
+  },
+
+  async updatePatient(patientId, patientData, branchId) {
+    try {
+      const payload = {
+        ...patientData,
+        branchId: parseInt(branchId, 10),
+      };
+
+      if (!payload.diseaseCategoryIds?.length) {
+        delete payload.diseaseCategoryIds;
+      }
+
+      const response = await api.put(`/api/v1/Patient/${patientId}`, payload);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân');
+    }
+  },
+
+  async deletePatient(patientId, branchId) {
+    try {
+      const response = await api.delete(`/api/v1/Patient/${patientId}`, {
+        params: { branchId: parseInt(branchId, 10) },
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi xóa bệnh nhân');
+    }
+  },
+
+  async assignDiseaseCategories(patientId, diseaseCategoryIds, branchId) {
+    const response = await api.post(`/api/v1/Patient/${patientId}/disease-categories`, {
+      diseaseCategoryIds,
+      branchId: parseInt(branchId, 10),
+    });
+    return response.data;
+  },
+
+  async getPatientOrderHistory(patientId) {
+    const response = await api.get(`/api/v1/orders/patient/${patientId}/history`);
+    return response.data;
+  },
 };
 
-// Disease Category Service
 export const diseaseCategoryService = {
-    // Get all disease categories for a branch
-    async getDiseaseCategories(branchId) {
-        const response = await api.get('/api/v1/diseasecategories', {
-            params: { branchId }
-        });
-        return response.data;
-    },
+  async getDiseaseCategories(branchId) {
+    const response = await api.get('/api/v1/diseasecategories', {
+      params: { branchId: parseInt(branchId, 10) },
+    });
+    return response.data;
+  },
 
-    // Get active disease categories
-    async getActiveDiseaseCategories(branchId) {
-        const response = await api.get('/api/v1/diseasecategories/active', {
-            params: { branchId }
-        });
-        return response.data;
-    },
+  async getActiveDiseaseCategories(branchId) {
+    const response = await api.get('/api/v1/diseasecategories/active', {
+      params: { branchId: parseInt(branchId, 10) },
+    });
+    return response.data;
+  },
 
-    // Get disease categories with food restriction counts
-    async getDiseaseCategoriesWithFoodRestrictionCounts(branchId) {
-        const response = await api.get('/api/v1/diseasecategories/with-food-restriction-counts', {
-            params: { branchId }
-        });
-        return response.data;
-    }
+  async getDiseaseCategoriesWithFoodRestrictionCounts(branchId) {
+    const response = await api.get('/api/v1/diseasecategories/with-food-restriction-counts', {
+      params: { branchId: parseInt(branchId, 10) },
+    });
+    return response.data;
+  },
 };
 
-// Food Restriction Service
-export const foodRestrictionService = {
-    // Get all food restrictions for a branch
-    async getFoodRestrictions(branchId) {
-        const response = await api.get('/api/v1/diseasecategoryfoodrestrictions', {
-            params: { branchId }
-        });
-        return response.data;
-    },
-
-    // Get active food restrictions
-    async getActiveFoodRestrictions(branchId) {
-        const response = await api.get('/api/v1/diseasecategoryfoodrestrictions/active', {
-            params: { branchId }
-        });
-        return response.data;
-    },
-
-    // Create a food restriction
-    async createFoodRestriction(restrictionData) {
-        const response = await api.post('/api/v1/diseasecategoryfoodrestrictions', restrictionData);
-        return response.data;
-    },
-
-    // Update a food restriction
-    async updateFoodRestriction(restrictionId, restrictionData) {
-        const response = await api.put(`/api/v1/diseasecategoryfoodrestrictions/${restrictionId}`, restrictionData);
-        return response.data;
-    },
-
-    // Delete a food restriction
-    async deleteFoodRestriction(restrictionId) {
-        const response = await api.delete(`/api/v1/diseasecategoryfoodrestrictions/${restrictionId}`);
-        return response.data;
-    }
-};
-
-// Order Service for Nurse Food Ordering
 export const nurseOrderService = {
-    // Create an order for a patient (with food validation)
-    async createOrderForPatient(orderData, branchId) {
-        // First validate foods for the patient
-        const validationResults = await patientService.validateFoodsForPatient(
-            orderData.patientId,
-            orderData.foodIds,
-            branchId
-        );
+  async createOrderForPatient(orderData, branchId) {
+    try {
+      const normalizedBranchId = parseInt(branchId, 10);
+      console.log(`🔍 nurseOrderService.createOrderForPatient - Sending to /api/v1/order/AddOrderV2`, JSON.stringify(orderData, null, 2));
 
-        // Check if any food is not allowed
-        const restrictedFoods = validationResults.data?.filter(result => !result.isAllowed) || [];
+      // Map orderData to OrderDtoV2 structure
+      const orderDto = {
+        branchId: normalizedBranchId,
+        userId: orderData.userId || 'NURSE_DEFAULT',
+        patientId: orderData.patientId,
+        isPatientOrder: true,
+        orderDate: orderData.orderDate || new Date().toISOString(),
+        receiveDate: orderData.receiveDate ? new Date(orderData.receiveDate).toISOString() : null,
+        receiveTime: orderData.receiveTime || '12:00',
+        receiveType: orderData.receiveType || 'Giao tận nơi',
+        type: orderData.type || 'Patient',
+        status: orderData.status || 'Confirmed',
+        customerName: orderData.customerName,
+        customerPhone: orderData.customerPhone || '0000000000',
+        customerAddress: orderData.customerAddress || 'Phòng bệnh nhân',
+        total: orderData.total || 0,
+        shippingFee: orderData.shippingFee || 0,
+        foodToolFee: orderData.foodToolFee || 0,
+        paymentMethod: orderData.paymentMethod || 3,
+        isPaid: orderData.isPaid !== undefined ? orderData.isPaid : true,
+        walletAmountUsed: orderData.walletAmountUsed || 0,
+        code: orderData.code || `ORD${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+        note: orderData.note || '',
+        locationId: orderData.locationId || null,
+        orderDetails: orderData.orderDetails.map(item => ({
+          foodId: Number(item.foodId),
+          orderId: 0,
+          qty: Number(item.quantity),
+          price: Number(item.price || 0),
+          total: Number(item.total || 0),
+          note: item.note || null,
+          foodName: item.foodName || '',
+          createdAt: item.createdAt || new Date().toISOString(),
+          updatedAt: item.updatedAt || new Date().toISOString(),
+        })),
+      };
 
-        if (restrictedFoods.length > 0) {
-            const restrictedFoodNames = restrictedFoods.map(f => f.foodName).join(', ');
-            throw new Error(`The following foods are restricted for this patient: ${restrictedFoodNames}`);
-        }
+      const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
+        headers: normalizedBranchId ? { 'X-Branch-Id': normalizedBranchId } : {},
+      });
 
-        // If all foods are allowed, create the order
-        const response = await api.post('/api/v1/orders', {
-            ...orderData,
-            orderType: 'NURSE_ORDER', // Mark as nurse-assisted order
-            validationResults: validationResults.data // Include validation results for audit
-        });
-
-        return response.data;
-    },
-
-    // Get order history for a patient
-    async getOrderHistoryForPatient(patientId, branchId) {
-        const response = await api.get(`/api/v1/orders/patient/${patientId}`, {
-            params: { branchId }
-        });
-        return response.data;
-    },
-
-    // Get orders by nurse
-    async getOrdersByNurse(nurseId, branchId) {
-        const response = await api.get('/api/v1/orders/by-nurse', {
-            params: { nurseId, branchId }
-        });
-        return response.data;
+      console.log('✅ nurseOrderService.createOrderForPatient - Success:', JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error) {
+      console.error('❌ nurseOrderService.createOrderForPatient - Error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create patient order';
+      throw new Error(errorMessage);
     }
+  },
+
+  // Other methods remain unchanged
+  async getOrderHistoryForPatient(patientId, branchId) {
+    const response = await api.get(`/api/v1/orders/patient/${patientId}`, {
+      params: { branchId: parseInt(branchId, 10) },
+    });
+    return response.data;
+  },
+
+  async getOrdersByNurse(nurseId, branchId) {
+    const response = await api.get('/api/v1/orders/by-nurse', {
+      params: { nurseId, branchId: parseInt(branchId, 10) },
+    });
+    return response.data;
+  },
 };
 
 export default {
-    patientService,
-    diseaseCategoryService,
-    foodRestrictionService,
-    nurseOrderService
-}; 
+  patientService,
+  diseaseCategoryService,
+  nurseOrderService,
+};

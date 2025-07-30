@@ -34,33 +34,18 @@ const ViewOrderDetail = ({
     if (orderData) {
       setFormData(orderData);
     }
-  }, [orderData]);
-
-  const handleConfirmOrder = async () => {
-    try {
-      await updateOrder({
-        orderId: orderData.id,
-        orderData: { status: 'Confirmed' }, // Updated to match API format
-        branchId,
-      });
-      setFormData((prev) => ({ ...prev, status: 'Confirmed' }));
-      message.success('Đơn hàng đã được xác nhận!');
-      onStatusChange?.();
-    } catch (error) {
-      console.error('Lỗi xác nhận đơn:', error);
-      message.error('Chuyển trạng thái đơn hàng thất bại!');
-    }
-  };
+    console.log('🔍 Order details received:', orderDetails);
+  }, [orderData, orderDetails]);
 
   const handleDeliverOrder = async () => {
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: { status: 'Delivered' }, // Updated to match API format
         branchId,
+        newStatus: 'Delivered',
       });
       setFormData((prev) => ({ ...prev, status: 'Delivered' }));
-      message.success('Đơn hàng đã được chuyển sang trạng thái Đang giao hàng!');
+      message.success('Đơn hàng đã được chuyển sang trạng thái Shipper nhận đơn và đi giao!');
       onStatusChange?.();
     } catch (error) {
       console.error('Lỗi giao hàng:', error);
@@ -72,8 +57,8 @@ const ViewOrderDetail = ({
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: { status: 'Completed' }, // Updated to match API format
         branchId,
+        newStatus: 'Completed',
       });
       setFormData((prev) => ({ ...prev, status: 'Completed' }));
       message.success('Đơn hàng đã được hoàn thành!');
@@ -84,12 +69,29 @@ const ViewOrderDetail = ({
     }
   };
 
+  const handleConfirmOrder = async () => {
+    try {
+      await updateOrder({
+        orderId: orderData.id,
+        orderData: {},
+        branchId,
+        newStatus: 'Confirmed',
+      });
+      setFormData((prev) => ({ ...prev, status: 'Confirmed' }));
+      message.success('Đơn hàng đã được xác nhận!');
+      onStatusChange?.();
+    } catch (error) {
+      console.error('Lỗi xác nhận đơn:', error);
+      message.error('Chuyển trạng thái đơn hàng thất bại!');
+    }
+  };
+
   const handleCancelOrder = async () => {
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: { status: 'Cancelled' }, // Updated to match API format
         branchId,
+        newStatus: 'Cancelled',
       });
       setFormData((prev) => ({ ...prev, status: 'Cancelled' }));
       message.success('Đã hủy đơn hàng!');
@@ -102,11 +104,31 @@ const ViewOrderDetail = ({
 
   const columns = [
     { title: '#', dataIndex: 'index', key: 'index', render: (_, __, idx) => idx + 1 },
-    { title: 'TÊN MÓN', dataIndex: 'foodName', key: 'foodName' },
-    { title: 'GIÁ TIỀN', dataIndex: 'price', key: 'price', render: (val) => val?.toLocaleString() },
-    { title: 'SỐ LƯỢNG', dataIndex: 'qty', key: 'qty' },
-    { title: 'GHI CHÚ', dataIndex: 'note', key: 'note' },
-    { title: 'TIỀN', dataIndex: 'total', key: 'total', render: (val) => val?.toLocaleString() },
+    { 
+      title: 'TÊN MÓN', 
+      dataIndex: 'foodName', 
+      key: 'foodName',
+      render: (foodName, record) => foodName || record.name || `Món ăn ID ${record.foodId || 'Unknown'}`,
+    },
+    { 
+      title: 'GIÁ TIỀN', 
+      dataIndex: 'price', 
+      key: 'price', 
+      render: (val) => val?.toLocaleString() || '0' 
+    },
+    { 
+      title: 'SỐ LƯỢNG', 
+      dataIndex: 'Qty', 
+      key: 'qty', 
+      render: (Qty) => Qty ?? 1,
+    },
+    { title: 'GHI CHÚ', dataIndex: 'note', key: 'note', render: (note) => note || '' },
+    { 
+      title: 'TIỀN', 
+      dataIndex: 'total', 
+      key: 'total', 
+      render: (val) => val?.toLocaleString() || '0' 
+    },
   ];
 
   return (
@@ -200,7 +222,6 @@ const ViewOrderDetail = ({
             <Select value={formData.status} disabled style={{ width: '100%' }}>
               <Option value="Pending">Đang chờ</Option>
               <Option value="Confirmed">Đã xác nhận</Option>
-              <Option value="Preparing">Đang chuẩn bị</Option>
               <Option value="Delivered">Đang giao hàng</Option>
               <Option value="Completed">Hoàn thành</Option>
               <Option value="Cancelled">Hủy</Option>
@@ -226,7 +247,7 @@ const ViewOrderDetail = ({
           </Col>
 
           <Col span={3}>
-            {(formData.status === 'pending' || formData.status === 'Pending') ? (
+            {(formData.status?.toLowerCase() === 'pending') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#00B8A9', border: 'none' }}
@@ -235,7 +256,7 @@ const ViewOrderDetail = ({
               >
                 Xác Nhận
               </Button>
-            ) : (formData.status === 'confirmed' || formData.status === 'Confirmed') ? (
+            ) : (formData.status?.toLowerCase() === 'confirmed') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#0d8ce0', border: 'none' }}
@@ -244,7 +265,7 @@ const ViewOrderDetail = ({
               >
                 Đang giao hàng
               </Button>
-            ) : (formData.status === 'delivered' || formData.status === 'Delivered') ? (
+            ) : formData.status?.toLowerCase() === 'delivered' ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#52c41a', border: 'none' }}
@@ -256,7 +277,7 @@ const ViewOrderDetail = ({
             ) : null}
           </Col>
 
-          {['pending', 'Pending', 'confirmed', 'Confirmed'].includes(formData.status) && (
+          {['pending', 'confirmed'].includes(formData.status?.toLowerCase()) && (
             <Col span={3}>
               <Popconfirm
                 title="Bạn có chắc muốn hủy đơn hàng này?"

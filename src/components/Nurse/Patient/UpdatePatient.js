@@ -9,7 +9,7 @@ import {
   DatePicker,
   message,
 } from 'antd';
-import { useCreatePatient } from '../../../hooks/queries/usePatientQueries';
+import { useUpdatePatient } from '../../../hooks/queries/usePatientQueries';
 import { useDiseaseCategories } from '../../../hooks/queries/useDiseaseCategories';
 import ReusableModal from '../../../components/common/ReusableModal';
 import PropTypes from 'prop-types';
@@ -19,21 +19,30 @@ import { patientService } from '../../../services/patientService';
 
 const { Option } = Select;
 
-const CreatePatient = ({
+const UpdatePatient = ({
   open,
   onCancel,
   onSubmit: externalSubmit,
+  initialValues,
   form: externalForm,
   branchId,
 }) => {
   const [form] = Form.useForm(externalForm);
   const currentBranchId = branchId || localStorage.getItem('currentBranchId') || '1';
-  const createPatientMutation = useCreatePatient();
+  const updatePatientMutation = useUpdatePatient();
   const { diseaseCategories, isLoading: categoriesLoading } = useDiseaseCategories(currentBranchId);
 
   useEffect(() => {
-    form.resetFields();
-  }, [form]);
+    if (initialValues) {
+      const birthYear = new Date().getFullYear() - initialValues.age;
+      form.setFieldsValue({
+        ...initialValues,
+        dateOfBirth: moment(`${birthYear}-01-01`),
+        dischargeDate: initialValues.dischargeDate ? moment(initialValues.dischargeDate) : null,
+        diseaseCategories: initialValues.diseaseCategories?.map(dc => dc.diseaseCategoryId) || [],
+      });
+    }
+  }, [initialValues, form]);
 
   const handleSubmit = async () => {
     try {
@@ -50,28 +59,28 @@ const CreatePatient = ({
         bedNumber: values.bedNumber?.trim() || '',
         attendingPhysician: values.attendingPhysician?.trim() || '',
         notes: values.notes?.trim() || '',
-        admissionDate: values.admissionDate?.format('YYYY-MM-DD') || '',
+        dischargeDate: values.dischargeDate?.format('YYYY-MM-DD') || '',
         dateOfBirth,
         requiresDietarySupervision: false,
         externalSystemId: '',
         diseaseCategoryIds: values.diseaseCategories || [],
       };
 
-      createPatientMutation.mutate({ patientData: payload, branchId: currentBranchId }, {
+      updatePatientMutation.mutate({ patientId: initialValues.id, patientData: payload, branchId: currentBranchId }, {
         onSuccess: async (response) => {
-          message.success('Tạo bệnh nhân thành công');
+          message.success('Cập nhật bệnh nhân thành công');
 
           if (values.diseaseCategories?.length > 0) {
             try {
               await patientService.assignDiseaseCategories(
-                response.data.id,
+                initialValues.id,
                 values.diseaseCategories,
                 currentBranchId
               );
               message.success('Gán nhóm bệnh thành công');
             } catch (error) {
               console.error('Gán nhóm bệnh lỗi:', error);
-              message.warning('Tạo thành công nhưng không gán được nhóm bệnh');
+              message.warning('Cập nhật thành công nhưng không gán được nhóm bệnh');
             }
           }
 
@@ -81,19 +90,19 @@ const CreatePatient = ({
         },
         onError: (error) => {
           message.error(
-            error?.response?.data?.message || 'Lỗi khi tạo bệnh nhân'
+            error?.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân'
           );
         },
       });
     } catch (error) {
       console.error('Validation or mutation failed:', error);
-      message.error(`Lỗi khi tạo bệnh nhân: ${error.message || 'Không xác định'}`);
+      message.error(`Lỗi khi cập nhật bệnh nhân: ${error.message || 'Không xác định'}`);
     }
   };
 
   return (
     <ReusableModal
-      title="Thêm bệnh nhân mới"
+      title="Sửa thông tin bệnh nhân"
       open={open}
       onCancel={onCancel}
       footer={null}
@@ -103,6 +112,7 @@ const CreatePatient = ({
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
+        initialValues={initialValues}
       >
         <Form.Item
           name="fullName"
@@ -149,9 +159,9 @@ const CreatePatient = ({
         </Form.Item>
 
         <Form.Item
-          name="admissionDate"
-          label="Ngày vào viện"
-          rules={[{ required: true, message: 'Vui lòng chọn ngày vào viện!' }]}
+          name="dischargeDate"
+          label="Ngày xuất viện"
+          rules={[{ required: true, message: 'Vui lòng chọn ngày xuất viện!' }]}
         >
           <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} locale={locale.DatePicker} />
         </Form.Item>
@@ -187,7 +197,7 @@ const CreatePatient = ({
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
             <Button onClick={onCancel}>Hủy</Button>
             <Button type="primary" htmlType="submit">
-              Tạo
+              Cập nhật
             </Button>
           </Space>
         </Form.Item>
@@ -196,12 +206,13 @@ const CreatePatient = ({
   );
 };
 
-CreatePatient.propTypes = {
+UpdatePatient.propTypes = {
   open: PropTypes.bool,
   onCancel: PropTypes.func,
   onSubmit: PropTypes.func,
+  initialValues: PropTypes.object,
   form: PropTypes.object,
   branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
-export default CreatePatient;
+export default UpdatePatient;

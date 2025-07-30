@@ -1,43 +1,51 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, Button } from 'antd';
+import React, { useState } from 'react';
+import { Modal, Button, message } from 'antd';
 import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
-import { kitchenOrders } from '../../../mocks/kitchenMockData';
+import { useChefOrders, useUpdateOrder } from '../../../hooks/queries/useOrders';
+import { orderService } from '../../../services/orderService';
 import './Kitchen.css';
 
-const KitchenView = () => {
-  const [data, setData] = useState([]);
+const KitchenView = ({ branchId = 1 }) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
-  useEffect(() => {
-    const grouped = {};
+  const { orders, isLoading, error, refetch } = useChefOrders(branchId, {
+    onSuccess: (data) => {
+      console.log('✅ Chef orders fetched successfully:', data);
+    },
+    onError: (err) => {
+      console.error('❌ Error fetching chef orders:', err);
+      message.error('Không thể tải dữ liệu đơn hàng bếp.');
+    },
+  });
 
-    kitchenOrders.forEach((order) => {
-      order.items.forEach((item, index) => {
-        const key = `${order.id}-${index}`;
-        if (!grouped[order.id]) grouped[order.id] = [];
-        grouped[order.id].push({
-          key,
-          id: order.id,
-          name: item.name,
-          quantity: item.quantity,
-          note: item.note,
-          createdAt: order.createdAt,
-        });
-      });
-    });
+  const { mutate: updateOrderStatus, isLoading: isUpdating } = useUpdateOrder({
+    onSuccess: () => {
+      message.success('Cập nhật trạng thái món ăn thành công!');
+      refetch();
+    },
+    onError: (error) => {
+      message.error(error.response?.data?.message || error.message || 'Không thể cập nhật trạng thái món ăn!');
+      console.error('❌ Update order status error:', error.response?.data || error);
+    },
+  });
 
-    const rows = [];
-    for (const id in grouped) {
-      const group = grouped[id];
-      group.forEach((item, index) => {
-        rows.push({ ...item, rowSpan: index === 0 ? group.length : 0 });
-      });
-    }
-
-    setData(rows);
-  }, []);
+  const tableData = orders.flatMap((order) =>
+    order.orderDetails?.map((item, index) => {
+      console.log(`🔍 Processing order ${order.id}, item ${index}:`, item);
+      const key = `${order.id}-${index}`;
+      return {
+        key,
+        id: order.id,
+        name: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+        quantity: item.Qty ?? 1,
+        note: item.note || '',
+        createdAt: order.orderDate,
+        rowSpan: index === 0 ? order.orderDetails.length : 0,
+      };
+    }) || []
+  );
 
   const handleConfirmClick = (record) => {
     setSelectedItem(record);
@@ -45,9 +53,20 @@ const KitchenView = () => {
   };
 
   const handleConfirmDone = () => {
-    setData((prev) => prev.filter((item) => item.key !== selectedItem.key));
-    setIsModalVisible(false);
-    setSelectedItem(null);
+    if (selectedItem) {
+      console.log('🚀 Sending status update for order:', {
+        orderId: selectedItem.id,
+        branchId,
+        newStatus: 'Delivered',
+      });
+      updateOrderStatus({
+        orderId: selectedItem.id,
+        branchId,
+        newStatus: 'Delivered',
+      });
+      setIsModalVisible(false);
+      setSelectedItem(null);
+    }
   };
 
   const handleCancel = () => {
@@ -113,6 +132,7 @@ const KitchenView = () => {
           className="check-button-hover"
           icon={<span style={{ fontSize: 16 }}>✓</span>}
           onClick={() => handleConfirmClick(record)}
+          disabled={isUpdating}
         />
       ),
     },
@@ -122,7 +142,7 @@ const KitchenView = () => {
     show: true,
     pageSizeOptions: [5, 10, 20],
     showSizeChanger: true,
-    total: data.length,
+    total: tableData.length,
     showTotal: (total, range) =>
       `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} món`,
   };
@@ -132,20 +152,19 @@ const KitchenView = () => {
       <PageWrapperV2
         title="Nhà bếp"
         showAddButton={false}
-        showRefreshButton={false}
-        searchProps={{
-          value: '',
-          onChange: () => {},
-          placeholder: '',
-        }}
+        showRefreshButton={true}
+        onRefresh={refetch}
+        loading={isLoading}
       >
+        {error && <div style={{ color: 'red', marginBottom: 16 }}>Lỗi: {error.message}</div>}
         <ReusableTableV2
-          dataSource={data}
+          dataSource={tableData}
           columns={columns}
           rowKey="key"
           listHeader="DANH SÁCH MÓN ĂN"
           pagination={paginationConfig}
           emptyMessage="Không có món ăn nào."
+          loading={isLoading}
         />
       </PageWrapperV2>
 
@@ -186,6 +205,7 @@ const KitchenView = () => {
               border: 'none',
             }}
             onClick={handleConfirmDone}
+            loading={isUpdating}
           >
             Xác Nhận
           </Button>
@@ -201,6 +221,7 @@ const KitchenView = () => {
               border: 'none',
             }}
             onClick={handleCancel}
+            disabled={isUpdating}
           >
             Huỷ
           </Button>

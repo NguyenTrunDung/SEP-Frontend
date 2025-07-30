@@ -1,4 +1,3 @@
-// src/services/orderService.js
 import api, { environment } from './api/config';
 
 const normalizeBranchId = (branchId) => {
@@ -20,11 +19,6 @@ const normalizeBranchId = (branchId) => {
 };
 
 export const orderService = {
-  /**
-   * Get orders by branch ID with optional filters, search, and date ranges
-   * This replaces the previous separate methods: getOrdersByBranch, searchOrders, filterOrders
-   * GET /api/v1/order/branch/{branchId}
-   */
   async getOrdersByBranchWithFilters(branchId, filters = {}, options = {}) {
     try {
       const normalizedBranchId = normalizeBranchId(branchId);
@@ -33,10 +27,8 @@ export const orderService = {
         console.log(`🔍 Fetching orders for branch: ${normalizedBranchId}`, { filters });
       }
 
-      // Build query parameters from filters
       const queryParams = {};
 
-      // Date filters
       if (filters.startOrderDate) {
         queryParams.startOrderDate = filters.startOrderDate;
       }
@@ -49,13 +41,11 @@ export const orderService = {
       if (filters.endReceiveDate) {
         queryParams.endReceiveDate = filters.endReceiveDate;
       }
-
-      // Other filters
       if (filters.receiveTime) {
         queryParams.receiveTime = filters.receiveTime;
       }
       if (filters.status) {
-        queryParams.status = filters.status;
+        queryParams.status = Array.isArray(filters.status) ? filters.status.join(',') : filters.status;
       }
       if (filters.customerName) {
         queryParams.customerName = filters.customerName;
@@ -75,7 +65,6 @@ export const orderService = {
       if (filters.keyword) {
         queryParams.keyword = filters.keyword;
       }
-      // Payment status filter - Added for isPaid support
       if (filters.isPaid !== undefined && filters.isPaid !== null) {
         queryParams.isPaid = filters.isPaid;
       }
@@ -101,56 +90,47 @@ export const orderService = {
     }
   },
 
-  /**
-   * Legacy method for backward compatibility - now uses the unified endpoint
-   * @deprecated Use getOrdersByBranchWithFilters instead
-   */
   async getOrdersByBranch(branchId, options = {}) {
     return this.getOrdersByBranchWithFilters(branchId, {}, options);
   },
 
-  /**
-   * Legacy method for backward compatibility - now uses the unified endpoint
-   * @deprecated Use getOrdersByBranchWithFilters instead
-   */
   async searchOrders(keyword, branchId, options = {}) {
     return this.getOrdersByBranchWithFilters(branchId, { keyword }, options);
   },
 
-  /**
-   * Legacy method for backward compatibility - now uses the unified endpoint
-   * @deprecated Use getOrdersByBranchWithFilters instead
-   */
   async filterOrders(filters = {}, options = {}) {
     const { branchId, ...otherFilters } = filters;
     return this.getOrdersByBranchWithFilters(branchId, otherFilters, options);
   },
 
-  /**
-   * Get order details by order ID
-   * GET /api/v1/orderdetails/order/{orderId}
-   */
   async getOrderDetails(orderId, options = {}) {
     try {
       const response = await api.get(`/api/v1/orderdetails/order/${orderId}`, options);
-      return response.data;
+      console.log(`🔍 Raw order details for order ${orderId}:`, response.data);
+      const normalizedData = response.data.data.map(item => {
+        const qty = item.Qty ?? item.quantity ?? item.qty ?? 1;
+        console.log(`🔍 Normalizing item for order ${orderId}:`, { item, qty });
+        return {
+          ...item,
+          Qty: qty,
+          foodName: item.foodName || item.FoodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+          total: item.total ?? (item.price ?? 0) * qty,
+        };
+      });
+      console.log(`🔍 Normalized order details for order ${orderId}:`, normalizedData);
+      return { ...response.data, data: normalizedData };
     } catch (error) {
       console.error('Failed to fetch order details:', error);
       throw error;
     }
   },
 
-  /**
-   * Create a new order with customer details and cart items
-   * POST /api/v1/order/AddOrderV2
-   */
   async createOrder(orderData, branchId, options = {}) {
     try {
-      // Map frontend cart data to backend DTO structure
       const orderDto = {
         branchId: branchId,
         userId: orderData.userId,
-        isPatientOrder: false, // Regular customer order
+        isPatientOrder: false,
         orderDate: new Date().toISOString(),
         receiveDate: orderData.receiveDate ? new Date(orderData.receiveDate).toISOString() : null,
         receiveTime: orderData.receiveTime,
@@ -187,7 +167,6 @@ export const orderService = {
       return response.data;
     } catch (error) {
       console.error('Failed to create order:', error);
-      // Extract meaningful error message
       const errorMessage = error.response?.data?.message ||
         error.response?.data?.errors ||
         error.message ||
@@ -196,35 +175,66 @@ export const orderService = {
     }
   },
 
-  /**
-   * Create patient order (for nurse/medical staff)
-   * POST /api/v1/order/AddDishesforPatient
-   */
   async createPatientOrder(orderData, branchId, options = {}) {
     try {
-      const patientOrderDto = {
+      const normalizedBranchId = normalizeBranchId(branchId);
+      const orderDto = {
+        branchId: normalizedBranchId,
+        userId: orderData.userId || 'NURSE_DEFAULT',
         patientId: orderData.patientId,
+        isPatientOrder: true,
+        orderDate: orderData.orderDate || new Date().toISOString(),
         receiveDate: orderData.receiveDate ? new Date(orderData.receiveDate).toISOString() : null,
-        receiveTime: orderData.receiveTime,
+        receiveTime: orderData.receiveTime || '12:00',
         receiveType: orderData.receiveMethod || 'Giao tận nơi',
-        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod),
-        walletAmountUsed: orderData.walletAmountUsed || null,
-        note: orderData.note,
+        type: orderData.type || 'Patient',
+        status: orderData.status || 'Confirmed',
+        customerName: orderData.customerName || 'Unknown Patient',
+        customerPhone: orderData.customerPhone || '0000000000',
+        customerAddress: orderData.customerAddress || 'Phòng bệnh nhân',
+        total: orderData.total || 0,
+        shippingFee: orderData.shippingFee || 0,
+        foodToolFee: orderData.foodToolFee || 0,
+        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod) || 3,
+        isPaid: orderData.isPaid !== undefined ? orderData.isPaid : true,
+        walletAmountUsed: orderData.walletAmountUsed || 0,
+        code: orderData.code || this._generateOrderCode(),
+        note: orderData.note || '',
+        locationId: orderData.locationId || null,
         orderDetails: orderData.cartItems.map(item => ({
-          foodId: item.FoodId || item.ID,
-          quantity: item.quantity,
-          note: item.note || null
-        }))
+          foodId: Number(item.FoodId || item.ID),
+          menuId: Number(item.menuId || 0),
+          qty: Number(item.quantity),
+          price: Number(item.price || 0),
+          total: Number(item.price || 0) * Number(item.quantity),
+          note: item.note || null,
+          foodName: item.dishName || item.foodName || 'Unknown Food',
+          menuName: item.menuName || 'Thực đơn ngày',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })),
       };
 
-      const response = await api.post('/api/v1/order/AddDishesforPatient', patientOrderDto, {
-        headers: branchId ? { 'X-Branch-Id': branchId } : {},
-        ...options
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Creating patient order for branch: ${normalizedBranchId}`, JSON.stringify(orderDto, null, 2));
+      }
+
+      const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
+        headers: normalizedBranchId ? { 'X-Branch-Id': normalizedBranchId } : {},
+        ...options,
       });
+
+      if (environment.features.enableLogging) {
+        console.log('✅ Patient order created successfully:', JSON.stringify(response.data, null, 2));
+      }
 
       return response.data;
     } catch (error) {
-      console.error('Failed to create patient order:', error);
+      console.error('❌ Failed to create patient order:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
       const errorMessage = error.response?.data?.message ||
         error.response?.data?.errors ||
         error.message ||
@@ -232,90 +242,32 @@ export const orderService = {
       throw new Error(errorMessage);
     }
   },
-  /**
- * Update order
- * PUT /api/v1/order/UpdateOrder
- */
-async updateOrder(orderId, orderData) {
-  console.log('🔍 updateOrder - Initiating update for order:', {
-    orderId,
-    orderData: JSON.stringify(orderData, null, 2),
-    timestamp: new Date().toISOString()
-  });
 
-  try {
-    // Log input validation
-    if (!orderId) {
-      console.warn('⚠️ updateOrder - Warning: orderId is missing or invalid');
+  async updateOrder(orderId, orderData) {
+    try {
+      const currentBranchId = String(orderData.branchId || environment.multiTenant.getCurrentBranchId() || '1');
+      const payload = {
+        ...orderData,
+        branchId: currentBranchId,
+        status: orderData.status,
+        paymentStatus: orderData.paymentStatus ? orderData.paymentStatus.toLowerCase() : 'pending',
+      };
+      if (environment.features.enableLogging) {
+        console.log('🔍 orderService.updateOrder - ID:', orderId, 'data:', JSON.stringify(payload, null, 2));
+      }
+      const response = await api.put(`/api/v1/order/UpdateOrder`, payload, { params: { id: orderId } });
+      if (environment.features.enableLogging) {
+        console.log('✅ Updated order response:', JSON.stringify(response.data, null, 2));
+      }
+      return response.data;
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error('❌ Failed to update order:', error.response?.data?.message || error.message);
+      }
+      throw error;
     }
-    if (!orderData) {
-      console.warn('⚠️ updateOrder - Warning: orderData is empty or undefined');
-    }
+  },
 
-    // Normalize branchId
-    console.log('🔍 updateOrder - Normalizing branchId...');
-    const currentBranchId = String(orderData.branchId || environment.multiTenant.getCurrentBranchId() || '1');
-    console.log('🔍 updateOrder - Normalized branchId:', currentBranchId);
-
-    // Prepare payload
-    console.log('🔍 updateOrder - Preparing payload...');
-    const payload = {
-      ...orderData,
-      branchId: currentBranchId,
-      paymentStatus: orderData.paymentStatus ? orderData.paymentStatus.toLowerCase() : 'pending'
-    };
-    
-    if (environment.features.enableLogging) {
-      console.log('🔍 updateOrder - Prepared payload:', JSON.stringify(payload, null, 2));
-    }
-
-    // Log API request details
-    console.log('🔍 updateOrder - Sending API request:', {
-      url: '/api/v1/order/UpdateOrder',
-      method: 'PUT',
-      params: { id: orderId },
-      payload: JSON.stringify(payload, null, 2)
-    });
-
-    // Make API call
-    const response = await api.put(`/api/v1/order/UpdateOrder`, payload, { params: { id: orderId } });
-
-    // Log successful response
-    if (environment.features.enableLogging) {
-      console.log('✅ updateOrder - Successfully updated order:', {
-        orderId,
-        responseData: JSON.stringify(response.data, null, 2),
-        status: response.status,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      console.log('✅ updateOrder - Successfully updated order:', { orderId });
-    }
-
-    return response.data;
-  } catch (error) {
-    // Detailed error logging
-    console.error('❌ updateOrder - Failed to update order:', {
-      orderId,
-      errorMessage: error.message,
-      errorStack: error.stack,
-      responseData: error.response?.data ? JSON.stringify(error.response.data, null, 2) : 'No response data',
-      status: error.response?.status,
-      timestamp: new Date().toISOString()
-    });
-
-    // Preserve existing environment-based logging
-    if (environment.features.enableLogging) {
-      console.error('❌ updateOrder - Failed with message:', error.response?.data?.message || error.message);
-    }
-
-    throw error;
-  }
-},
-  /**
-   * Update order status (for chef/kitchen staff)
-   * PUT /api/v1/order/chef/status/{orderId}
-   */
   async updateOrderStatus(orderId, options = {}) {
     try {
       const response = await api.put(`/api/v1/order/chef/status/${orderId}`, {}, options);
@@ -326,30 +278,62 @@ async updateOrder(orderId, orderData) {
     }
   },
 
-  /**
-   * Get orders for chef (kitchen view)
-   * GET /api/v1/order/chef/{branchId}
-   */
+  async updateDeliveryOrderStatus(orderId, options = {}) {
+    try {
+      const { data, ...restOptions } = options;
+      if (data?.status !== 'Completed') {
+        throw new Error('Delivery can only update status to Completed');
+      }
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Updating delivery order status for order: ${orderId}`, { status: data?.status });
+      }
+      const response = await api.put(`/api/v1/order/delivery/status/${orderId}`, { status: 'Completed' }, restOptions);
+      if (environment.features.enableLogging) {
+        console.log(`✅ Delivery order status updated for order ${orderId}:`, response.data);
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Failed to update delivery order status:', error);
+      throw error;
+    }
+  },
+
   async getOrdersForChef(branchId, options = {}) {
     try {
-      const response = await api.get(`/api/v1/order/chef/${branchId}`, {
-        headers: branchId ? { 'X-Branch-Id': branchId } : {},
-        ...options
+      const normalizedBranchId = normalizeBranchId(branchId);
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Fetching chef orders for branch: ${normalizedBranchId}`);
+      }
+      const response = await api.get(`/api/v1/order/chef/${normalizedBranchId}`, {
+        headers: normalizedBranchId ? { 'X-Branch-Id': normalizedBranchId } : {},
+        ...options,
       });
-      return response.data;
+      const orders = response.data.data || [];
+      const detailedOrders = await Promise.all(
+        orders.map(async (order) => {
+          const orderDetails = await this.getOrderDetails(order.id);
+          return {
+            ...order,
+            orderDetails: orderDetails.data.map((item) => ({
+              ...item,
+              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+              Qty: item.Qty ?? item.quantity ?? 1,
+            })),
+          };
+        })
+      );
+      if (environment.features.enableLogging) {
+        console.log(`✅ Received chef orders for branch ${normalizedBranchId}:`, detailedOrders);
+      }
+      return detailedOrders;
     } catch (error) {
       console.error('Failed to fetch chef orders:', error);
       throw error;
     }
   },
 
-  /**
-   * Create order for VNPay payment (with pending payment status)
-   * POST /api/v1/order/AddOrderV2
-   */
   async createOrderForVnPay(orderData, branchId, options = {}) {
     try {
-      // Map frontend cart data to backend DTO structure for VNPay
       const orderDto = {
         branchId: branchId,
         userId: orderData.userId,
@@ -358,15 +342,15 @@ async updateOrder(orderId, orderData) {
         receiveDate: orderData.receiveDate ? new Date(orderData.receiveDate).toISOString() : null,
         receiveTime: orderData.receiveTime,
         receiveType: orderData.receiveMethod || 'Giao tận nơi',
-        status: 'PendingPayment', // Special status for VNPay orders
+        status: 'PendingPayment',
         customerName: orderData.customerName,
         customerPhone: orderData.customerPhone,
         customerAddress: orderData.customerAddress,
         total: orderData.total,
         shippingFee: orderData.shippingFee || 0,
         foodToolFee: orderData.includeUtensils ? 5000 : 0,
-        paymentMethod: 2, // VNPay enum value
-        isPaid: false, // Will be updated after successful payment
+        paymentMethod: 2,
+        isPaid: false,
         note: orderData.note,
         locationId: orderData.locationId || null,
         orderDetails: orderData.cartItems.map(item => ({
@@ -398,10 +382,6 @@ async updateOrder(orderId, orderData) {
     }
   },
 
-  /**
-   * Update order payment status after successful VNPay payment
-   * PUT /api/v1/order/{orderId}/payment-status
-   */
   async updateOrderPaymentStatus(orderId, isPaid, options = {}) {
     try {
       const response = await api.put(`/api/v1/order/${orderId}/payment-status`, {
@@ -417,10 +397,6 @@ async updateOrder(orderId, orderData) {
     }
   },
 
-  /**
-   * Get order by ID
-   * GET /api/v1/order/{orderId}
-   */
   async getOrderById(orderId, options = {}) {
     try {
       const response = await api.get(`/api/v1/order/${orderId}`, options);
@@ -431,24 +407,16 @@ async updateOrder(orderId, orderData) {
     }
   },
 
-  /**
-   * Map frontend payment method to backend enum
-   * @private
-   */
   _mapPaymentMethod(paymentMethod) {
     const paymentMap = {
-      'Tiền mặt': 1,    // Cash
-      'Wallet': 2,      // Wallet
-      'Miễn phí': 3,    // Free
-      'VNPay': 4        // Vnpay
+      'Tiền mặt': 1,
+      'Wallet': 2,
+      'Miễn phí': 3,
+      'VNPay': 4
     };
-    return paymentMap[paymentMethod] || 1; // Default to Cash
+    return paymentMap[paymentMethod] || 1;
   },
 
-  /**
-   * Generate unique order code
-   * @private
-   */
   _generateOrderCode() {
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.random().toString(36).substr(2, 4).toUpperCase();

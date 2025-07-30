@@ -3,7 +3,9 @@ import { Modal, Card, Avatar, Typography, Button, Input, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ROLES } from '../../constants/roles';
+import { authService } from '../../services/authService';
+import { departmentService } from '../../services/departmentService';
+import { useDepartments } from '../../hooks/queries/useDepartments';
 
 const { Title, Text } = Typography;
 
@@ -13,10 +15,10 @@ const ProfilePopup = ({ visible, onClose }) => {
   const [isEditProfileModalVisible, setIsEditProfileModalVisible] = useState(false);
   const [isChangePasswordModalVisible, setIsChangePasswordModalVisible] = useState(false);
   const [editProfileData, setEditProfileData] = useState({
-    name: user?.name || '',
-    role: user?.role || '',
-    department: user?.department || '',
-    avatar: user?.avatar || null,
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    profilePictureUrl: user?.profilePictureUrl || null,
+    departmentId: user?.departmentId || '',
   });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -24,13 +26,15 @@ const ProfilePopup = ({ visible, onClose }) => {
     confirmPassword: '',
   });
 
+  const { departments, isLoading: isDepartmentsLoading } = useDepartments();
+
   useEffect(() => {
     if (user) {
       setEditProfileData({
-        name: user.name || '',
-        role: user.role || '',
-        department: user.department || '',
-        avatar: user.avatar || null,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        profilePictureUrl: user.profilePictureUrl || null,
+        departmentId: user.departmentId || '',
       });
     }
   }, [user]);
@@ -53,10 +57,16 @@ const ProfilePopup = ({ visible, onClose }) => {
     setIsChangePasswordModalVisible(true);
   };
 
-  const handleLogout = () => {
-    onClose();
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      onClose();
+      logout();
+      navigate('/login');
+      message.success('Đăng xuất thành công!');
+    } catch (error) {
+      message.error('Đăng xuất thất bại.');
+    }
   };
 
   const handleAvatarChange = useCallback((e) => {
@@ -64,21 +74,54 @@ const ProfilePopup = ({ visible, onClose }) => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setEditProfileData((prev) => ({ ...prev, avatar: reader.result }));
+        setEditProfileData((prev) => ({ ...prev, profilePictureUrl: reader.result }));
       };
       reader.readAsDataURL(file);
     }
   }, []);
 
-  const handleSaveEditProfile = () => {
+  const handleSaveEditProfile = async () => {
     if (!user) {
       message.error('Không có thông tin người dùng.');
       return;
     }
-    const updatedUser = { ...user, ...editProfileData };
-    updateUser(updatedUser);
-    message.success('Cập nhật hồ sơ thành công!');
-    setIsEditProfileModalVisible(false);
+    try {
+      const updatedUser = {
+        firstName: editProfileData.firstName,
+        lastName: editProfileData.lastName,
+        profilePictureUrl: editProfileData.profilePictureUrl,
+      };
+
+      // Update user profile via API
+      await authService.editProfile(updatedUser);
+
+      // If departmentId has changed, update department assignment
+      if (editProfileData.departmentId && editProfileData.departmentId !== user.departmentId) {
+        await departmentService.updateUserDepartment(user.id, editProfileData.departmentId);
+      }
+
+      // Fetch updated user data from the server
+      const updatedUserData = await authService.getProfile();
+
+      // Update local user context with the latest data
+      updateUser({ 
+        ...user, 
+        ...updatedUserData, 
+        departmentId: editProfileData.departmentId,
+        firstName: editProfileData.firstName,
+        lastName: editProfileData.lastName,
+        profilePictureUrl: editProfileData.profilePictureUrl
+      });
+
+      // Show success message
+      message.success('Cập nhật hồ sơ thành công!');
+
+      // Close both edit profile modal and main profile popup
+      setIsEditProfileModalVisible(false);
+      onClose();
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Cập nhật hồ sơ thất bại.');
+    }
   };
 
   const isValidPassword = useCallback((password) => {
@@ -122,7 +165,7 @@ const ProfilePopup = ({ visible, onClose }) => {
         confirmPassword: '',
       });
     } catch (error) {
-      message.error(error.message || 'Đổi mật khẩu thất bại.');
+      message.error(error.response?.data?.message || 'Đổi mật khẩu thất bại.');
     }
   }, [passwordData, changePassword, isValidPassword]);
 
@@ -159,9 +202,9 @@ const ProfilePopup = ({ visible, onClose }) => {
           ) : user ? (
             <Card bordered={false}>
               <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                <Avatar size={64} src={user.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+                <Avatar size={64} src={user.profilePictureUrl} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
                 <Title level={4} style={{ marginTop: '8px', color: '#262626' }}>
-                  {user.name || 'N/A'}
+                  {`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A'}
                 </Title>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -175,7 +218,11 @@ const ProfilePopup = ({ visible, onClose }) => {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text strong>Phòng ban:</Text>
-                  <Input value={user.department || 'N/A'} readOnly style={{ width: '70%', borderRadius: '4px' }} />
+                  <Input
+                    value={departments.find((dept) => dept.id === user.departmentId)?.name || 'N/A'}
+                    readOnly
+                    style={{ width: '70%', borderRadius: '4px' }}
+                  />
                 </div>
               </div>
               <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '16px' }}>
@@ -244,17 +291,25 @@ const ProfilePopup = ({ visible, onClose }) => {
         <div style={{ padding: '16px' }}>
           <Card bordered={false}>
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <Avatar size={64} src={editProfileData.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+              <Avatar size={64} src={editProfileData.profilePictureUrl} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
               <Title level={4} style={{ marginTop: '8px', color: '#262626' }}>
                 Chỉnh sửa hồ sơ
               </Title>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
+                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Họ:</Text>
+                <Input
+                  value={editProfileData.firstName}
+                  onChange={(e) => setEditProfileData((prev) => ({ ...prev, firstName: e.target.value }))}
+                  style={{ borderRadius: '4px' }}
+                />
+              </div>
+              <div>
                 <Text strong style={{ display: 'block', marginBottom: '4px' }}>Tên:</Text>
                 <Input
-                  value={editProfileData.name}
-                  onChange={(e) => setEditProfileData((prev) => ({ ...prev, name: e.target.value }))}
+                  value={editProfileData.lastName}
+                  onChange={(e) => setEditProfileData((prev) => ({ ...prev, lastName: e.target.value }))}
                   style={{ borderRadius: '4px' }}
                 />
               </div>
@@ -267,20 +322,20 @@ const ProfilePopup = ({ visible, onClose }) => {
                 />
               </div>
               <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Vai trò:</Text>
-                <Input
-                  value={editProfileData.role}
-                  onChange={(e) => setEditProfileData((prev) => ({ ...prev, role: e.target.value }))}
-                  style={{ borderRadius: '4px' }}
-                />
-              </div>
-              <div>
                 <Text strong style={{ display: 'block', marginBottom: '4px' }}>Phòng ban:</Text>
-                <Input
-                  value={editProfileData.department}
-                  onChange={(e) => setEditProfileData((prev) => ({ ...prev, department: e.target.value }))}
-                  style={{ borderRadius: '4px' }}
-                />
+                <select
+                  value={editProfileData.departmentId}
+                  onChange={(e) => setEditProfileData((prev) => ({ ...prev, departmentId: e.target.value }))}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px' }}
+                  disabled={isDepartmentsLoading}
+                >
+                  <option value="">Chọn phòng ban</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Text strong style={{ display: 'block', marginBottom: '4px' }}>Avatar:</Text>
@@ -302,6 +357,7 @@ const ProfilePopup = ({ visible, onClose }) => {
                   borderRadius: '4px',
                   padding: '8px 16px',
                 }}
+                loading={isDepartmentsLoading}
               >
                 Lưu thay đổi
               </Button>
@@ -338,7 +394,7 @@ const ProfilePopup = ({ visible, onClose }) => {
         <div style={{ padding: '16px' }}>
           <Card bordered={false}>
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <Avatar size={64} src={user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+              <Avatar size={64} src={user?.profilePictureUrl} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
               <Title level={4} style={{ marginTop: '8px', color: '#262626' }}>
                 Đổi mật khẩu
               </Title>

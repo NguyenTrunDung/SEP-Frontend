@@ -256,7 +256,54 @@ export const authService = {
             throw error;
         }
     },
+/**
+     * Get current user profile
+     * GET /api/v1/profile
+     */
+    async getProfile() {
+        try {
+            const response = await api.get('/api/v1/auth/profile');
+            const userData = response.data?.data || response.data;
 
+            if (environment.features.enableLogging) {
+                console.log('✅ Fetched user profile:', userData);
+            }
+
+            return userData;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to fetch user profile:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Edit user profile
+     * POST /api/v1/edit-profile
+     */
+    async editProfile(profileData) {
+        try {
+            const response = await api.post('/api/v1/auth/edit-profile', {
+                firstName: profileData.firstName,
+                lastName: profileData.lastName,
+                address: profileData.address,
+                phoneNumber: profileData.phoneNumber,
+                profilePictureUrl: profileData.profilePictureUrl
+            });
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Profile updated successfully:', response.data);
+            }
+
+            return response.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to update profile:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
     async register(userData) {
         try {
             const response = await api.post(environment.api.getVersionedPath('/auth/register'), {
@@ -279,6 +326,7 @@ export const authService = {
             throw error;
         }
     },
+    
 
     // Permission management helpers
     getPermissions() {

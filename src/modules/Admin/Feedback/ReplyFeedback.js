@@ -25,6 +25,18 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
         orderId: formData.orderId,
         branchId: formData.branchId,
       });
+  
+
+      form.setFieldsValue({
+        id: formData.id,
+        reply: formData.reply || '',
+        rating: formData.rating,
+        content: formData.content,
+        userId: formData.userId,
+        customerName: formData.customerName || 'Không xác định',
+        orderId: formData.orderId,
+        branchId: formData.branchId,
+      });
     } else if (!open) {
       resetForm();
     }
@@ -42,30 +54,23 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
         }
         const updatedFeedback = {
           id: formData.id,
-          userId: formData.userId,
-          orderId: formData.orderId,
-          branchId: branchId,
-          rating: formData.rating,
-          content: formData.content,
           reply: formData.reply.trim(),
-          customerName: formData.customerName,
         };
         if (onSubmit) {
           await onSubmit(updatedFeedback);
-          message.success('Phản hồi đã được lưu thành công!');
         }
       });
     } catch (error) {
       if (environment.features?.enableLogging) {
-        console.error('❌ Failed to submit reply:', error.response?.data?.message || error.message);
+        console.error('❌ Failed to submit reply:', error.message);
       }
-      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu phản hồi!');
+      message.error(error.message || 'Có lỗi xảy ra khi lưu phản hồi!');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCancel = () => {
+ const handleCancel = () => {
     resetForm();
     if (onCancel) onCancel();
   };
@@ -92,7 +97,8 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
               height: 32,
               fontSize: 14,
             }}
-          >
+         intre
+            >
             Lưu
           </Button>
           <Button
@@ -118,7 +124,7 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
       >
         <Form.Item name="id" hidden>
           <Input />
-        </Form.Item>
+last_name: </Form.Item>
         <Form.Item name="userId" hidden>
           <Input />
         </Form.Item>

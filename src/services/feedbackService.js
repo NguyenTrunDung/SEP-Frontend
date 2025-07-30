@@ -185,6 +185,8 @@ export const feedbackService = {
         throw new Error('Nhận xét không được để trống');
       }
 
+      // Fetch existingила
+
       // Fetch existing feedback to get OrderId, BranchId, and UserId
       const existingFeedback = await this.getFeedback(id);
       if (!existingFeedback) {
@@ -274,24 +276,37 @@ export const feedbackService = {
         console.log('🔍 feedbackService.replyFeedback - ID:', id, 'data:', replyData);
       }
 
-      // Fetch existing feedback to get OrderId, BranchId, and UserId
+      if (!id || !replyData.reply || replyData.reply.trim() === '') {
+        throw new Error('Thiếu ID hoặc nội dung phản hồi trống');
+      }
+
+      // Fetch existing feedback to get required fields
       const existingFeedback = await this.getFeedback(id);
       if (!existingFeedback) {
         throw new Error(`Feedback with ID ${id} not found`);
       }
 
+      // Construct payload for reply
       const payload = {
         Star: existingFeedback.rating,
         CommentLines: existingFeedback.content,
-        Reply: replyData.reply || null,
+        Reply: replyData.reply.trim(),
         OrderId: existingFeedback.orderId,
         BranchId: existingFeedback.branchId,
         UserId: existingFeedback.userId,
       };
 
+      if (environment.features?.enableLogging) {
+        console.log('🔍 Sending reply payload:', payload);
+      }
+
       const response = await api.put(`/api/v1/Comment/${id}`, payload, {
         headers: { 'Content-Type': 'application/json' },
       });
+
+      if (environment.features?.enableLogging) {
+        console.log('✅ API /api/v1/Comment reply response:', response.data);
+      }
 
       let customerName = response.data.data.userId;
       let avatar = null;
@@ -310,7 +325,7 @@ export const feedbackService = {
       return {
         id: response.data.data.id,
         orderId: response.data.data.orderId,
-        userId: replyData.userId || response.data.data.userId,
+        userId: response.data.data.userId,
         branchId: response.data.data.branchId,
         rating: response.data.data.star,
         content: response.data.data.commentLines,
@@ -321,10 +336,9 @@ export const feedbackService = {
       };
     } catch (error) {
       if (environment.features?.enableLogging) {
-        console.error('❌ Failed to save reply:', error.response?.data?.message || error.message);
+        console.error('❌ Failed to reply to feedback:', error.response?.data?.message || error.message);
       }
-      throw new Error(error.response?.data?.message || 'Failed to save reply');
+      throw new Error(error.response?.data?.message || 'Failed to reply to feedback');
     }
   },
-  
 };
