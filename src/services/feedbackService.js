@@ -19,8 +19,8 @@ export const feedbackService = {
       let avatar = null;
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
+        customerName = userResponse.data?.firstName && userResponse.data?.lastName
+          ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
           : response.data.data.userId;
         avatar = userResponse.data?.avatar || null;
       } catch (error) {
@@ -80,8 +80,8 @@ export const feedbackService = {
           let avatar = null;
           try {
             const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
-            customerName = userResponse.data?.firstName && userResponse.data?.lastName 
-              ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
+            customerName = userResponse.data?.firstName && userResponse.data?.lastName
+              ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
               : feedback.userId;
             avatar = userResponse.data?.avatar || null;
             if (environment.features?.enableLogging) {
@@ -134,8 +134,8 @@ export const feedbackService = {
       let avatar = null;
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
+        customerName = userResponse.data?.firstName && userResponse.data?.lastName
+          ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
           : response.data.data.userId;
         avatar = userResponse.data?.avatar || null;
       } catch (error) {
@@ -185,15 +185,11 @@ export const feedbackService = {
         throw new Error('Nhận xét không được để trống');
       }
 
-      // Fetch existingила
-
-      // Fetch existing feedback to get OrderId, BranchId, and UserId
       const existingFeedback = await this.getFeedback(id);
       if (!existingFeedback) {
         throw new Error(`Feedback with ID ${id} not found`);
       }
 
-      // Construct payload without Id to avoid modifying the primary key
       const payload = {
         Star: feedbackData.Star,
         CommentLines: feedbackData.CommentLines,
@@ -220,8 +216,8 @@ export const feedbackService = {
       let avatar = null;
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
+        customerName = userResponse.data?.firstName && userResponse.data?.lastName
+          ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
           : response.data.data.userId;
         avatar = userResponse.data?.avatar || null;
       } catch (error) {
@@ -270,75 +266,10 @@ export const feedbackService = {
     }
   },
 
-  async replyFeedback(id, replyData) {
-    try {
-      if (environment.features?.enableLogging) {
-        console.log('🔍 feedbackService.replyFeedback - ID:', id, 'data:', replyData);
-      }
-
-      if (!id || !replyData.reply || replyData.reply.trim() === '') {
-        throw new Error('Thiếu ID hoặc nội dung phản hồi trống');
-      }
-
-      // Fetch existing feedback to get required fields
-      const existingFeedback = await this.getFeedback(id);
-      if (!existingFeedback) {
-        throw new Error(`Feedback with ID ${id} not found`);
-      }
-
-      // Construct payload for reply
-      const payload = {
-        Star: existingFeedback.rating,
-        CommentLines: existingFeedback.content,
-        Reply: replyData.reply.trim(),
-        OrderId: existingFeedback.orderId,
-        BranchId: existingFeedback.branchId,
-        UserId: existingFeedback.userId,
-      };
-
-      if (environment.features?.enableLogging) {
-        console.log('🔍 Sending reply payload:', payload);
-      }
-
-      const response = await api.put(`/api/v1/Comment/${id}`, payload, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (environment.features?.enableLogging) {
-        console.log('✅ API /api/v1/Comment reply response:', response.data);
-      }
-
-      let customerName = response.data.data.userId;
-      let avatar = null;
-      try {
-        const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
-          : response.data.data.userId;
-        avatar = userResponse.data?.avatar || null;
-      } catch (error) {
-        if (environment.features?.enableLogging) {
-          console.warn(`⚠️ Failed to fetch customerName for userId ${response.data.data.userId}:`, error.response?.data?.message || error.message);
-        }
-      }
-
-      return {
-        id: response.data.data.id,
-        orderId: response.data.data.orderId,
-        userId: response.data.data.userId,
-        branchId: response.data.data.branchId,
-        rating: response.data.data.star,
-        content: response.data.data.commentLines,
-        reply: response.data.data.reply || null,
-        customerName,
-        avatar,
-        timestamp: response.data.data.createdAt || new Date().toISOString(),
-      };
-    } catch (error) {
-      if (environment.features?.enableLogging) {
-        console.error('❌ Failed to reply to feedback:', error.response?.data?.message || error.message);
-      }
-      throw new Error(error.response?.data?.message || 'Failed to reply to feedback');
+  async addReply(feedbackId, replyData) {
+    if (environment.features?.enableLogging) {
+      console.log('🔍 feedbackService.addReply - Feedback ID:', feedbackId, 'Reply data:', replyData);
     }
-  },
+    throw new Error('Tính năng này đang phát triển!');
+  }
 };

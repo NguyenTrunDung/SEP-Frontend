@@ -10,20 +10,14 @@ import { useDepartments } from '../../hooks/queries/useDepartments';
 const { Title, Text } = Typography;
 
 const ProfilePopup = ({ visible, onClose }) => {
-  const { user, logout, updateUser, changePassword, loading } = useAuth();
+  const { user, logout, updateUser, loading } = useAuth();
   const navigate = useNavigate();
   const [isEditProfileModalVisible, setIsEditProfileModalVisible] = useState(false);
-  const [isChangePasswordModalVisible, setIsChangePasswordModalVisible] = useState(false);
   const [editProfileData, setEditProfileData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     profilePictureUrl: user?.profilePictureUrl || null,
     departmentId: user?.departmentId || '',
-  });
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
   });
 
   const { departments, isLoading: isDepartmentsLoading } = useDepartments();
@@ -46,15 +40,6 @@ const ProfilePopup = ({ visible, onClose }) => {
       return;
     }
     setIsEditProfileModalVisible(true);
-  };
-
-  const handleChangePassword = () => {
-    if (!user) {
-      message.error('Thông tin người dùng không hợp lệ.');
-      navigate('/login');
-      return;
-    }
-    setIsChangePasswordModalVisible(true);
   };
 
   const handleLogout = async () => {
@@ -124,60 +109,6 @@ const ProfilePopup = ({ visible, onClose }) => {
     }
   };
 
-  const isValidPassword = useCallback((password) => {
-    const regex = /^[a-zA-Z0-9@]{8,}$/;
-    return regex.test(password);
-  }, []);
-
-  const handlePasswordChange = useCallback((field, value) => {
-    setPasswordData((prev) => ({ ...prev, [field]: value }));
-  }, []);
-
-  const handleSaveChangePassword = useCallback(async () => {
-    const { currentPassword, newPassword, confirmPassword } = passwordData;
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      message.error('Vui lòng điền đầy đủ các trường.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      message.error('Mật khẩu mới và xác nhận mật khẩu không khớp.');
-      return;
-    }
-
-    if (!isValidPassword(newPassword)) {
-      message.error('Mật khẩu mới phải dài ít nhất 8 ký tự và chỉ chứa chữ cái, số, và ký tự "@".');
-      return;
-    }
-
-    if (!window.confirm('Bạn có chắc muốn đổi mật khẩu không?')) {
-      return;
-    }
-
-    try {
-      await changePassword(currentPassword, newPassword);
-      message.success('Đổi mật khẩu thành công!');
-      setIsChangePasswordModalVisible(false);
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
-    } catch (error) {
-      message.error(error.response?.data?.message || 'Đổi mật khẩu thất bại.');
-    }
-  }, [passwordData, changePassword, isValidPassword]);
-
-  const handleCloseChangePasswordModal = useCallback(() => {
-    setIsChangePasswordModalVisible(false);
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
-  }, []);
-
   return (
     <>
       {/* Profile Modal */}
@@ -237,18 +168,6 @@ const ProfilePopup = ({ visible, onClose }) => {
                   }}
                 >
                   Chỉnh sửa hồ sơ
-                </Button>
-                <Button
-                  onClick={handleChangePassword}
-                  style={{
-                    backgroundColor: '#1890ff',
-                    borderColor: '#1890ff',
-                    color: '#fff',
-                    borderRadius: '4px',
-                    padding: '8px 16px',
-                  }}
-                >
-                  Đổi mật khẩu
                 </Button>
                 <Button
                   onClick={handleLogout}
@@ -363,83 +282,6 @@ const ProfilePopup = ({ visible, onClose }) => {
               </Button>
               <Button
                 onClick={() => setIsEditProfileModalVisible(false)}
-                style={{
-                  borderRadius: '4px',
-                  padding: '8px 16px',
-                }}
-              >
-                Hủy
-              </Button>
-            </div>
-          </Card>
-        </div>
-      </Modal>
-
-      {/* Change Password Modal */}
-      <Modal
-        open={isChangePasswordModalVisible}
-        onCancel={handleCloseChangePasswordModal}
-        footer={null}
-        centered
-        width="min(100vw, 600px)"
-        styles={{
-          mask: { background: 'rgba(0, 0, 0, 0.6)' },
-          content: { padding: 0, borderRadius: 8 },
-          body: { padding: 0, background: '#fff' },
-        }}
-      >
-        <div style={{ backgroundColor: '#b4c80f', padding: '12px 16px', color: '#000', fontSize: '18px', fontWeight: 600 }}>
-          Đổi mật khẩu
-        </div>
-        <div style={{ padding: '16px' }}>
-          <Card bordered={false}>
-            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <Avatar size={64} src={user?.profilePictureUrl} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
-              <Title level={4} style={{ marginTop: '8px', color: '#262626' }}>
-                Đổi mật khẩu
-              </Title>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Mật khẩu hiện tại:</Text>
-                <Input.Password
-                  value={passwordData.currentPassword}
-                  onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
-                  style={{ borderRadius: '4px' }}
-                />
-              </div>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Mật khẩu mới:</Text>
-                <Input.Password
-                  value={passwordData.newPassword}
-                  onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
-                  style={{ borderRadius: '4px' }}
-                />
-              </div>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Xác nhận mật khẩu mới:</Text>
-                <Input.Password
-                  value={passwordData.confirmPassword}
-                  onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-                  style={{ borderRadius: '4px' }}
-                />
-              </div>
-            </div>
-            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '16px' }}>
-              <Button
-                onClick={handleSaveChangePassword}
-                style={{
-                  backgroundColor: '#b4c80f',
-                  borderColor: '#b4c80f',
-                  color: '#000',
-                  borderRadius: '4px',
-                  padding: '8px 16px',
-                }}
-              >
-                Lưu thay đổi
-              </Button>
-              <Button
-                onClick={handleCloseChangePasswordModal}
                 style={{
                   borderRadius: '4px',
                   padding: '8px 16px',

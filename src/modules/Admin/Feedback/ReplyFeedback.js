@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Space, message } from 'antd';
+import { Form, Input, Button, Space } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
@@ -15,18 +15,6 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
       if (environment.features?.enableLogging) {
         console.log('🔍 Setting form data for ReplyFeedback:', formData);
       }
-      form.setFieldsValue({
-        id: formData.id,
-        reply: formData.reply || '',
-        rating: formData.rating,
-        content: formData.content,
-        userId: formData.userId,
-        customerName: formData.customerName || 'Không xác định',
-        orderId: formData.orderId,
-        branchId: formData.branchId,
-      });
-  
-
       form.setFieldsValue({
         id: formData.id,
         reply: formData.reply || '',
@@ -54,7 +42,7 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
         }
         const updatedFeedback = {
           id: formData.id,
-          reply: formData.reply.trim(),
+          replyContent: formData.reply.trim(),
         };
         if (onSubmit) {
           await onSubmit(updatedFeedback);
@@ -64,13 +52,13 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
       if (environment.features?.enableLogging) {
         console.error('❌ Failed to submit reply:', error.message);
       }
-      message.error(error.message || 'Có lỗi xảy ra khi lưu phản hồi!');
+      window.alert(error.message || 'Có lỗi xảy ra khi lưu phản hồi!');
     } finally {
       setIsLoading(false);
     }
   };
 
- const handleCancel = () => {
+  const handleCancel = () => {
     resetForm();
     if (onCancel) onCancel();
   };
@@ -97,8 +85,7 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
               height: 32,
               fontSize: 14,
             }}
-         intre
-            >
+          >
             Lưu
           </Button>
           <Button
@@ -124,7 +111,7 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
       >
         <Form.Item name="id" hidden>
           <Input />
-last_name: </Form.Item>
+        </Form.Item>
         <Form.Item name="userId" hidden>
           <Input />
         </Form.Item>
