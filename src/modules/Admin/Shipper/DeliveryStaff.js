@@ -1,34 +1,54 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, message } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
 import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import { useDeliveryOrders, useUpdateOrder } from '../../../hooks/queries/useOrders';
 import { environment } from '../../../services/api/config';
-import { orderService } from '../../../services/orderService';
 import moment from 'moment';
 import './DeliveryStaff.css';
 
 const DeliveryStaffView = () => {
+  const queryClient = useQueryClient();
   const branchId = environment.multiTenant.getCurrentBranchId() || '1';
   const [filters, setFilters] = useState({
     startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
     endOrderDate: moment().format('YYYY-MM-DD'),
-    status: 'Delivered', // Chỉ lấy các đơn hàng đang giao
+    status: 'Delivered', // Match database casing
   });
   const [searchText, setSearchText] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const { orders: data, isLoading, error, refetch } = useDeliveryOrders(branchId, filters, searchText);
-  const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
+  const { orders: data, isLoading, error, refetch } = useDeliveryOrders(branchId, filters, searchText, {
+    onSuccess: (data) => {
+      console.log('✅ Delivery orders fetched successfully:', data);
+    },
+    onError: (err) => {
+      console.error('❌ Error fetching delivery orders:', err);
+      message.error('Không thể tải dữ liệu đơn hàng giao hàng.');
+    },
+  });
+
+  const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder({
+    onSuccess: () => {
+      message.success('Xác nhận giao hàng thành công!');
+      refetch();
+    },
+    onError: (error) => {
+      message.error(error.response?.data?.message || error.message || 'Xác nhận giao hàng thất bại!');
+      console.error('❌ Update delivery order error:', error.response?.data || error);
+    },
+  });
 
   useEffect(() => {
-    console.log('🔍 DeliveryStaffView data:', data);
-    if (error) {
-      console.error('❌ Error fetching delivery orders:', error);
-      message.error('Không thể tải dữ liệu đơn hàng giao hàng.');
-    }
-  }, [error, data]);
+    console.log('🔍 DeliveryStaffView - Branch ID:', branchId);
+    console.log('🔍 DeliveryStaffView - Filters:', filters);
+    console.log('🔍 DeliveryStaffView - Data:', data);
+    console.log('🔍 DeliveryStaffView - Error:', error);
+    queryClient.invalidateQueries({ queryKey: ['orders', 'list', { branchId }] });
+    refetch();
+  }, [filters, searchText, queryClient, refetch, data, error]);
 
   const handleConfirmClick = (record) => {
     setSelectedItem(record);
@@ -39,9 +59,16 @@ const DeliveryStaffView = () => {
     try {
       await updateOrder({
         orderId: selectedItem.id,
+        orderData: {
+          status: 'Completed',
+          branchId,
+          customerName: selectedItem.customerName,
+          customerPhone: selectedItem.customerPhone,
+          customerAddress: selectedItem.customerAddress,
+          receiveDate: selectedItem.receiveDate,
+        },
         branchId,
         newStatus: 'Completed',
-        updateFn: orderService.updateDeliveryOrderStatus,
       });
       setIsModalVisible(false);
       setSelectedItem(null);
@@ -109,7 +136,7 @@ const DeliveryStaffView = () => {
     show: true,
     pageSizeOptions: [5, 10, 20],
     showSizeChanger: true,
-    total: data.length,
+    total: data?.length || 0,
     showTotal: (total, range) =>
       `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} đơn`,
   };
@@ -127,6 +154,7 @@ const DeliveryStaffView = () => {
           placeholder: 'Tìm kiếm đơn hàng',
         }}
       >
+        {error && <div style={{ color: 'red', marginBottom: 16 }}>Lỗi: {error.message}</div>}
         <ReusableTableV2
           dataSource={data.map(item => ({ ...item, key: item.id }))}
           columns={columns}

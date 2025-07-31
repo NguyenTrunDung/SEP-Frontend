@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Input, Button, Typography, Select, Checkbox, message } from 'antd';
 import { useCreateOrder, useCreateVnPayOrder } from '../../hooks/queries/userOrderQueries';
 import { useCreateVnPayPayment } from '../../hooks/queries/paymentQueries';
 import { useAuth } from '../../context/AuthContext';
+import { ROLES } from '../../constants/roles';
+import { useAreas } from '../../hooks/queries/useAreas';
+import { useDepartments } from '../../hooks/queries/useDepartments';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -23,6 +26,37 @@ const PaymentModal = ({
   const createVnPayOrderMutation = useCreateVnPayOrder();
   const createVnPayPaymentMutation = useCreateVnPayPayment();
   const [isProcessingVnPay, setIsProcessingVnPay] = useState(false);
+
+  // Fetch areas and departments for the selected branch
+  const { areas, isLoading: isAreasLoading, error: areasError } = useAreas(selectedBranch?.id);
+  const { departments, isLoading: isDepartmentsLoading, error: departmentsError } = useDepartments(selectedBranch?.id);
+
+  // Set fullName for NURSE or DOCTOR when modal opens or user changes
+  useEffect(() => {
+    if (isPaymentModalVisible && user && (user.role === ROLES.NURSE || user.role === ROLES.DOCTOR)) {
+      setPaymentDetails((prev) => ({
+        ...prev,
+        fullName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '',
+      }));
+    }
+  }, [isPaymentModalVisible, user, setPaymentDetails]);
+
+  // Debug user data
+  useEffect(() => {
+    console.log('User data:', { user, role: user?.role, firstName: user?.firstName, lastName: user?.lastName, isUserNull: !user });
+    console.log('Areas data:', { areas, isAreasLoading, areasError });
+    console.log('Departments data:', { departments, isDepartmentsLoading, departmentsError });
+  }, [user, areas, isAreasLoading, areasError, departments, isDepartmentsLoading, departmentsError]);
+
+  // Handle API errors
+  useEffect(() => {
+    if (areasError) {
+      message.error('Không thể tải danh sách khu vực. Vui lòng thử lại.');
+    }
+    if (departmentsError) {
+      message.error('Không thể tải danh sách phòng ban. Vui lòng thử lại.');
+    }
+  }, [areasError, departmentsError]);
 
   const validatePhoneNumber = (phone) => {
     const phoneRegex = /^[0-9]{10,11}$/;
@@ -90,7 +124,7 @@ const PaymentModal = ({
         shippingFee: shippingFee,
         cartItems: cartItems.map(item => ({
           ...item,
-          FoodId: item.FoodId || item.ID, // Ensure we have the correct food ID
+          FoodId: item.FoodId || item.ID,
           dishName: item.dishName || item.name,
           price: item.price,
           quantity: item.quantity,
@@ -182,10 +216,11 @@ const PaymentModal = ({
     localStorage.removeItem('cartItems');
     setIsPaymentModalVisible(false);
 
-    // Reset payment details
+    // Reset payment details, preserving fullName for NURSE or DOCTOR
+    const preservedFullName = (user?.role === ROLES.NURSE || user?.role === ROLES.DOCTOR) ? `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '' : '';
     setPaymentDetails({
       deliveryAddress: '',
-      fullName: '',
+      fullName: preservedFullName,
       phoneNumber: '',
       paymentMethod: '',
       area: '',
@@ -200,6 +235,19 @@ const PaymentModal = ({
       orderDetails: '',
     });
   };
+
+  // Define payment options based on user role
+  const paymentOptions = user?.role === ROLES.GUEST
+    ? [{ value: 'VNPay', label: 'VNPay (Thanh toán trực tuyến)' }]
+    : user?.role === ROLES.NURSE || user?.role === ROLES.DOCTOR
+      ? [
+          { value: 'VNPay', label: 'VNPay (Thanh toán trực tuyến)' },
+          { value: 'Ví', label: 'Thanh toán ví' }
+        ]
+      : [{ value: 'VNPay', label: 'VNPay (Thanh toán trực tuyến)' }]; // Fallback for undefined role
+
+  // Log payment options for debugging
+  console.log('Payment options:', paymentOptions);
 
   return (
     <Modal
@@ -242,6 +290,11 @@ const PaymentModal = ({
           <Text strong style={{ fontSize: '16px' }}>Thông tin đặt hàng</Text>
           <div>
             <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+              Người đặt: <strong style={{ color: '#262626' }}>{`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Khách'}</strong>
+            </Text>
+          </div>
+          <div>
+            <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
               Chi nhánh
             </Text>
             <Select
@@ -258,9 +311,14 @@ const PaymentModal = ({
             </Text>
             <Input
               value={paymentDetails.fullName}
-              onChange={(e) => setPaymentDetails({ ...paymentDetails, fullName: e.target.value })}
+              onChange={(e) => {
+                if (user?.role !== ROLES.NURSE && user?.role !== ROLES.DOCTOR) {
+                  setPaymentDetails({ ...paymentDetails, fullName: e.target.value });
+                }
+              }}
               placeholder="Nhập họ và tên"
               style={{ borderRadius: '4px' }}
+              disabled={user?.role === ROLES.NURSE || user?.role === ROLES.DOCTOR}
             />
           </div>
           <div>
@@ -293,12 +351,17 @@ const PaymentModal = ({
             </Text>
             <Select
               value={paymentDetails.area}
-              onChange={(value) => setPaymentDetails({ ...paymentDetails, area: value })}
+              onChange={(value) => setPaymentDetails({ ...paymentDetails, area: value, room: '' })} // Reset room when area changes
               placeholder="Chọn khu"
               style={{ width: '100%', borderRadius: '4px' }}
+              loading={isAreasLoading}
+              disabled={isAreasLoading || !selectedBranch?.id}
             >
-              <Option value="Khoa Nội">Khoa Nội</Option>
-              <Option value="Khu hành chính">Khu hành chính</Option>
+              {areas.map((area) => (
+                <Option key={area.id} value={area.name}>
+                  {area.name}
+                </Option>
+              ))}
             </Select>
           </div>
           <div>
@@ -310,9 +373,14 @@ const PaymentModal = ({
               onChange={(value) => setPaymentDetails({ ...paymentDetails, room: value })}
               placeholder="Chọn phòng"
               style={{ width: '100%', borderRadius: '4px' }}
+              loading={isDepartmentsLoading}
+              disabled={isDepartmentsLoading || !selectedBranch?.id}
             >
-              <Option value="Phòng hành chính">Phòng hành chính</Option>
-              <Option value="Phòng B24">Phòng B24</Option>
+              {departments.map((dept) => (
+                <Option key={dept.id} value={dept.name}>
+                  {dept.name}
+                </Option>
+              ))}
             </Select>
           </div>
           <div>
@@ -356,10 +424,11 @@ const PaymentModal = ({
               placeholder="Chọn phương thức thanh toán"
               style={{ width: '100%', borderRadius: '4px' }}
             >
-              <Option value="Tiền mặt">Tiền mặt</Option>
-              <Option value="Thẻ ngân hàng">Thẻ ngân hàng</Option>
-              <Option value="Chuyển khoản">Chuyển khoản</Option>
-              <Option value="VNPay">VNPay (Thanh toán trực tuyến)</Option>
+              {paymentOptions.map((option) => (
+                <Option key={option.value} value={option.value}>
+                  {option.label}
+                </Option>
+              ))}
             </Select>
           </div>
           <div style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}>

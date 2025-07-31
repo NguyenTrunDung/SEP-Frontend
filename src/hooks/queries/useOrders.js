@@ -53,7 +53,7 @@ export const useOrders = (branchId, filters = {}, searchText = '', options = {})
         const apiFilters = {
           startOrderDate: filters.startOrderDate,
           endOrderDate: filters.endOrderDate,
-          status: filters.status ? filters.status.toLowerCase() : undefined,
+          status: filters.status,
           isPaid: filters.isPaid,
           ...(searchText && { keyword: searchText }),
         };
@@ -167,9 +167,6 @@ export const useUpdateOrder = (options = {}) => {
       if (environment.features.enableLogging) {
         console.log(`🔍 Updating order ${orderId} for branch: ${targetBranchId}`, JSON.stringify({ ...orderData, status: newStatus }, null, 2));
       }
-      if (updateFn) {
-        return await updateFn(orderId, { data: { status: newStatus }, headers: { 'X-Branch-Id': targetBranchId } });
-      }
       return await orderService.updateOrder(orderId, { ...orderData, branchId: targetBranchId, status: newStatus });
     },
     onSuccess: (response, variables) => {
@@ -214,7 +211,7 @@ export const useDeliveryOrders = (branchId, filters = {}, searchText = '', optio
     queryKey: stableQueryKey,
     queryFn: async () => {
       if (!currentBranchId) throw new Error('Branch ID is required');
-      console.log('🚚 useDeliveryOrders queryFn executing with:', { filters, searchText });
+      console.log('🚚 useDeliveryOrders queryFn executing with:', { branchId: currentBranchId, filters, searchText });
       try {
         const apiFilters = {
           startOrderDate: filters.startOrderDate,

@@ -268,36 +268,6 @@ export const orderService = {
     }
   },
 
-  async updateOrderStatus(orderId, options = {}) {
-    try {
-      const response = await api.put(`/api/v1/order/chef/status/${orderId}`, {}, options);
-      return response.data;
-    } catch (error) {
-      console.error('Failed to update order status:', error);
-      throw error;
-    }
-  },
-
-  async updateDeliveryOrderStatus(orderId, options = {}) {
-    try {
-      const { data, ...restOptions } = options;
-      if (data?.status !== 'Completed') {
-        throw new Error('Delivery can only update status to Completed');
-      }
-      if (environment.features.enableLogging) {
-        console.log(`🔍 Updating delivery order status for order: ${orderId}`, { status: data?.status });
-      }
-      const response = await api.put(`/api/v1/order/delivery/status/${orderId}`, { status: 'Completed' }, restOptions);
-      if (environment.features.enableLogging) {
-        console.log(`✅ Delivery order status updated for order ${orderId}:`, response.data);
-      }
-      return response.data;
-    } catch (error) {
-      console.error('Failed to update delivery order status:', error);
-      throw error;
-    }
-  },
-
   async getOrdersForChef(branchId, options = {}) {
     try {
       const normalizedBranchId = normalizeBranchId(branchId);

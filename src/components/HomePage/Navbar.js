@@ -147,7 +147,47 @@ const Navbar = () => {
       message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
     }
   };
+  useEffect(() => {
+    // Đồng bộ activeKey với route hiện tại
+    const currentPath = location.pathname;
+    console.log('Current path:', currentPath);
 
+    // Xác định key dựa trên route
+    let newActiveKey = 'home';
+    if (currentPath === '/' || currentPath === '/nurse/home') {
+      newActiveKey = 'home';
+    } else if (currentPath === '/contact') {
+      newActiveKey = 'contact';
+    } else if (currentPath.includes('/nurse/patient')) {
+      newActiveKey = 'staff';
+    } else if (currentPath.includes('/menu') || location.hash === '#menu') {
+      newActiveKey = 'menu';
+    }
+
+    // Nếu có hash trong URL (ví dụ: #menu, #contact), ưu tiên hash
+    const hash = location.hash.replace('#', '');
+    if (hash && ['home', 'menu', 'contact'].includes(hash)) {
+      newActiveKey = hash;
+    }
+
+    console.log('Setting activeKey to:', newActiveKey);
+    setActiveKey(newActiveKey);
+
+    // Cuộn đến section nếu có hash
+    if (hash) {
+      setTimeout(() => {
+        const section = document.getElementById(hash);
+        if (section) {
+          const headerHeight = 139;
+          const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
+          window.scrollTo({
+            top: sectionPosition - headerHeight,
+            behavior: 'smooth',
+          });
+        }
+      }, 100);
+    }
+  }, [location.pathname, location.hash]);
   const handleOpenBranchModal = () => {
     if (!user) {
       setIsModalVisible(true);
@@ -169,17 +209,36 @@ const Navbar = () => {
     console.log('Menu clicked:', { key, userRole: user?.role });
     setActiveKey(key);
     const menuItem = menuItems.find((item) => item.key === key);
+
+    // Nếu menu item có route, điều hướng đến route đó
     if (menuItem?.route) {
       console.log(`Navigating to: ${menuItem.route}`);
       navigate(menuItem.route);
+      // Nếu route là trang chủ ('/') hoặc '/nurse/home', thử cuộn đến section
+      if (menuItem.route === '/' || menuItem.route === '/nurse/home') {
+        setTimeout(() => {
+          const section = document.getElementById(key);
+          if (section) {
+            const headerHeight = 139; // Chiều cao header cố định
+            const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
+            window.scrollTo({
+              top: sectionPosition - headerHeight,
+              behavior: 'smooth',
+            });
+          } else {
+            console.warn(`No section found for key: ${key}`);
+          }
+        }, 100); // Delay nhỏ để đảm bảo trang đã render
+      }
     } else if (key === 'cart') {
       console.log('Handling cart click');
       handleCartClick();
     } else {
+      // Thử cuộn đến section nếu không có route
       console.log(`Checking for section with ID: ${key}`);
       const section = document.getElementById(key);
       if (section) {
-        const headerHeight = 139;
+        const headerHeight = 139; // Chiều cao header cố định
         const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
         window.scrollTo({
           top: sectionPosition - headerHeight,
@@ -191,7 +250,6 @@ const Navbar = () => {
       }
     }
   };
-
   const handleProfileClick = () => {
     if (!user || !user.role) {
       console.error('User or user.role is undefined, redirecting to login');
