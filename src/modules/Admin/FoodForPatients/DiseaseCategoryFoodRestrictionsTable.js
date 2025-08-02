@@ -17,7 +17,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
     const [searchText, setSearchText] = useState('');
     const [debouncedSearchText, setDebouncedSearchText] = useState('');
     const [selectedDiseaseCategory, setSelectedDiseaseCategory] = useState(null);
-    const [selectedRestrictionLevel, setSelectedRestrictionLevel] = useState(null);
+    // const [selectedRestrictionLevel, setSelectedRestrictionLevel] = useState(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedRestriction, setSelectedRestriction] = useState(null);
     const [modalLoading, setModalLoading] = useState(false);
@@ -47,15 +47,15 @@ const DiseaseCategoryFoodRestrictionsTable = ({
     }, [searchText]);
 
     // Extract unique restriction levels for filter dropdown
-    const restrictionLevelOptions = useMemo(() => {
-        const levels = [
-            { value: null, label: 'Tất cả mức độ' },
-            { value: 1, label: 'Cảnh báo (Warning)', color: '#faad14' },
-            { value: 2, label: 'Hạn chế (Restricted)', color: '#ff4d4f' },
-            { value: 3, label: 'Cấm (Forbidden)', color: '#d32f2f' },
-        ];
-        return levels;
-    }, []);
+    // const restrictionLevelOptions = useMemo(() => {
+    //     const levels = [
+    //         { value: null, label: 'Tất cả mức độ' },
+    //         { value: 1, label: 'Cảnh báo (Warning)', color: '#faad14' },
+    //         { value: 2, label: 'Hạn chế (Restricted)', color: '#ff4d4f' },
+    //         { value: 3, label: 'Cấm (Forbidden)', color: '#d32f2f' },
+    //     ];
+    //     return levels;
+    // }, []);
 
     // Create disease category options for filter
     const diseaseCategoryOptions = useMemo(() => {
@@ -88,12 +88,12 @@ const DiseaseCategoryFoodRestrictionsTable = ({
         }
 
         // Filter by restriction level
-        if (selectedRestrictionLevel !== null) {
-            filtered = filtered.filter(item => item.restrictionLevel === selectedRestrictionLevel);
-        }
+        // if (selectedRestrictionLevel !== null) {
+        //     filtered = filtered.filter(item => item.restrictionLevel === selectedRestrictionLevel);
+        // }
 
         return filtered;
-    }, [dataSource, searchText, selectedDiseaseCategory, selectedRestrictionLevel]);
+    }, [dataSource, searchText, selectedDiseaseCategory]);
 
     // Handle debounced search notifications
     useEffect(() => {
@@ -106,13 +106,13 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                 if (selectedDiseaseCategory !== null) {
                     matches = matches && item.diseaseCategoryId === selectedDiseaseCategory;
                 }
-                if (selectedRestrictionLevel !== null) {
-                    matches = matches && item.restrictionLevel === selectedRestrictionLevel;
-                }
+                // if (selectedRestrictionLevel !== null) {
+                //     matches = matches && item.restrictionLevel === selectedRestrictionLevel;
+                // }
                 return matches;
             });
         }
-    }, [debouncedSearchText, dataSource, selectedDiseaseCategory, selectedRestrictionLevel]);
+    }, [debouncedSearchText, dataSource, selectedDiseaseCategory]);
 
     const handleEdit = (record) => {
         console.log('✏️ Editing restriction:', record);
@@ -162,37 +162,37 @@ const DiseaseCategoryFoodRestrictionsTable = ({
         }
     };
 
-    const handleRestrictionLevelFilter = (value) => {
-        setSelectedRestrictionLevel(value);
-        if (value !== null) {
-            const levelName = restrictionLevelOptions.find(option => option.value === value)?.label;
-            message.info(`Lọc theo mức độ: ${levelName}`);
-        } else {
-            message.info('Đã xóa bộ lọc mức độ');
-        }
-    };
+    // const handleRestrictionLevelFilter = (value) => {
+    //     setSelectedRestrictionLevel(value);
+    //     if (value !== null) {
+    //         const levelName = restrictionLevelOptions.find(option => option.value === value)?.label;
+    //         message.info(`Lọc theo mức độ: ${levelName}`);
+    //     } else {
+    //         message.info('Đã xóa bộ lọc mức độ');
+    //     }
+    // };
 
     const clearAllFilters = () => {
         setSearchText('');
         setDebouncedSearchText('');
         setSelectedDiseaseCategory(null);
-        setSelectedRestrictionLevel(null);
+        // setSelectedRestrictionLevel(null);
         message.success('Đã xóa tất cả bộ lọc');
     };
 
     // Helper function to get restriction level display
-    const getRestrictionLevelDisplay = (level) => {
-        switch (level) {
-            case 1:
-                return { text: 'Cảnh báo', color: '#faad14' };
-            case 2:
-                return { text: 'Hạn chế', color: '#ff4d4f' };
-            case 3:
-                return { text: 'Cấm', color: '#d32f2f' };
-            default:
-                return { text: 'Không xác định', color: '#999' };
-        }
-    };
+    // const getRestrictionLevelDisplay = (level) => {
+    //     switch (level) {
+    //         case 1:
+    //             return { text: 'Cảnh báo', color: '#faad14' };
+    //         case 2:
+    //             return { text: 'Hạn chế', color: '#ff4d4f' };
+    //         case 3:
+    //             return { text: 'Cấm', color: '#d32f2f' };
+    //         default:
+    //             return { text: 'Không xác định', color: '#999' };
+    //     }
+    // };
 
     const columns = [
         {
@@ -220,20 +220,20 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                 );
             },
         },
-        {
-            title: 'MỨC ĐỘ HẠN CHẾ',
-            dataIndex: 'restrictionLevel',
-            key: 'restrictionLevel',
-            sorter: (a, b) => a.restrictionLevel - b.restrictionLevel,
-            render: (restrictionLevel) => {
-                const levelInfo = getRestrictionLevelDisplay(restrictionLevel);
-                return (
-                    <Tag color={levelInfo.color}>
-                        {levelInfo.text}
-                    </Tag>
-                );
-            },
-        },
+        // {
+        //     title: 'MỨC ĐỘ HẠN CHẾ',
+        //     dataIndex: 'restrictionLevel',
+        //     key: 'restrictionLevel',
+        //     sorter: (a, b) => a.restrictionLevel - b.restrictionLevel,
+        //     render: (restrictionLevel) => {
+        //         const levelInfo = getRestrictionLevelDisplay(restrictionLevel);
+        //         return (
+        //             <Tag color={levelInfo.color}>
+        //                 {levelInfo.text}
+        //             </Tag>
+        //         );
+        //     },
+        // },
         {
             title: 'LÝ DO',
             dataIndex: 'reason',
@@ -337,7 +337,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                     </div>
 
                     {/* Restriction Level Filter */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <FilterOutlined style={{ fontSize: '16px', color: '#faad14' }} />
                         <Select
                             placeholder="Lọc theo mức độ"
@@ -347,10 +347,10 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                             allowClear
                             options={restrictionLevelOptions}
                         />
-                    </div>
+                    </div> */}
 
                     {/* Clear All Filters Button */}
-                    {(searchText || selectedDiseaseCategory !== null || selectedRestrictionLevel !== null) && (
+                    {(searchText || selectedDiseaseCategory !== null) && (
                         <Button
                             size="small"
                             onClick={clearAllFilters}
@@ -402,11 +402,11 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                             <Descriptions.Item label="Danh mục bệnh">
                                 {selectedRestriction.diseaseCategoryName || '-'}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Mức độ hạn chế">
+                            {/* <Descriptions.Item label="Mức độ hạn chế">
                                 <Tag color={selectedRestriction.restrictionLevelColorCode}>
                                     {selectedRestriction.restrictionLevelDisplay}
                                 </Tag>
-                            </Descriptions.Item>
+                            </Descriptions.Item> */}
                             <Descriptions.Item label="Lý do">
                                 {selectedRestriction.reason || 'Không có'}
                             </Descriptions.Item>
@@ -441,7 +441,7 @@ DiseaseCategoryFoodRestrictionsTable.propTypes = {
             branchId: PropTypes.number.isRequired,
             diseaseCategoryId: PropTypes.number.isRequired,
             foodId: PropTypes.number.isRequired,
-            restrictionLevel: PropTypes.number.isRequired,
+            // restrictionLevel: PropTypes.number.isRequired,
             reason: PropTypes.string,
             alternativeRecommendations: PropTypes.string,
             isActive: PropTypes.bool.isRequired,
@@ -455,10 +455,10 @@ DiseaseCategoryFoodRestrictionsTable.propTypes = {
             diseaseCategoryCode: PropTypes.string,
             foodName: PropTypes.string,
             foodPrice: PropTypes.number,
-            restrictionLevelName: PropTypes.string,
-            restrictionLevelColor: PropTypes.string,
-            restrictionLevelDisplay: PropTypes.string,
-            restrictionLevelColorCode: PropTypes.string,
+            // restrictionLevelName: PropTypes.string,
+            // restrictionLevelColor: PropTypes.string,
+            // restrictionLevelDisplay: PropTypes.string,
+            // restrictionLevelColorCode: PropTypes.string,
         })
     ),
     loading: PropTypes.bool,
