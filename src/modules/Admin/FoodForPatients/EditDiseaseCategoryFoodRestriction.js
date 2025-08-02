@@ -32,7 +32,7 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                 id: formData.id,
                 diseaseCategoryId: formData.diseaseCategoryId,
                 foodId: formData.foodId,
-                restrictionLevel: formData.restrictionLevel,
+                // restrictionLevel: formData.restrictionLevel,
                 reason: formData.reason,
                 alternativeRecommendations: formData.alternativeRecommendations,
                 requiresPhysicianOverride: formData.requiresPhysicianOverride || false,
@@ -63,18 +63,18 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
     };
 
     // Helper function to get restriction level display
-    const getRestrictionLevelDisplay = (level) => {
-        switch (level) {
-            case 1:
-                return { text: 'Cảnh báo (Warning)', color: '#faad14' };
-            case 2:
-                return { text: 'Hạn chế (Restricted)', color: '#ff4d4f' };
-            case 3:
-                return { text: 'Cấm (Forbidden)', color: '#d32f2f' };
-            default:
-                return { text: 'Chọn mức độ', color: '#999' };
-        }
-    };
+    // const getRestrictionLevelDisplay = (level) => {
+    //     switch (level) {
+    //         case 1:
+    //             return { text: 'Cảnh báo (Warning)', color: '#faad14' };
+    //         case 2:
+    //             return { text: 'Hạn chế (Restricted)', color: '#ff4d4f' };
+    //         case 3:
+    //             return { text: 'Cấm (Forbidden)', color: '#d32f2f' };
+    //         default:
+    //             return { text: 'Chọn mức độ', color: '#999' };
+    //     }
+    // };
 
     return (
         <ReusableModal
@@ -123,7 +123,7 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                     />
                 </Form.Item>
 
-                <Form.Item
+                {/* <Form.Item
                     name="restrictionLevel"
                     label="Mức độ hạn chế"
                     rules={[{ required: true, message: 'Vui lòng chọn mức độ hạn chế!' }]}
@@ -136,7 +136,7 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                             { value: 3, label: 'Cấm (Forbidden)', color: '#d32f2f' },
                         ]}
                     />
-                </Form.Item>
+                </Form.Item> */}
 
                 <Form.Item
                     name="reason"

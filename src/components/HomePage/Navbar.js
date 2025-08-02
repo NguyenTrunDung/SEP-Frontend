@@ -721,6 +721,7 @@ const Navbar = () => {
           centered
           width={500}
           destroyOnClose
+
           closeIcon={<CloseOutlined style={{ color: '#000', fontSize: '20px' }} />}
           styles={{
             content: { padding: 0, borderRadius: 8, overflow: 'hidden' },

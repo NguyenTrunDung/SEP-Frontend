@@ -74,7 +74,7 @@ export const diseaseCategoryFoodRestrictionService = {
 
     /**
      * Create a new disease category food restriction
-     * @param {Object} restrictionData - The restriction data
+     * @param {Object} restrictionData - The restriction data (note: restrictionLevel field is no longer used)
      * @returns {Promise<Object>} API response
      */
     async createDiseaseCategoryFoodRestriction(restrictionData) {
@@ -101,7 +101,7 @@ export const diseaseCategoryFoodRestrictionService = {
     /**
      * Update an existing disease category food restriction
      * @param {number} id - The restriction ID
-     * @param {Object} restrictionData - The updated restriction data
+     * @param {Object} restrictionData - The updated restriction data (note: restrictionLevel field is no longer used)
      * @returns {Promise<Object>} API response
      */
     async updateDiseaseCategoryFoodRestriction(id, restrictionData) {

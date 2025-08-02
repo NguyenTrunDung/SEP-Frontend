@@ -18,7 +18,7 @@ The FoodForPatients management system allows administrators to manage food restr
 
 - **Search**: Search by food name, disease category name, or reason
 - **Disease Category Filter**: Filter by specific disease categories
-- **Restriction Level Filter**: Filter by restriction level (Warning, Restricted, Forbidden)
+- **Restriction Level Filter**: Filter by restriction level (Warning, Restricted, Forbidden) - _Currently disabled_
 - **Clear Filters**: Reset all filters with one click
 
 ### 3. Restriction Levels
@@ -26,6 +26,8 @@ The FoodForPatients management system allows administrators to manage food restr
 - **Warning (Level 1)**: Yellow - Caution advised
 - **Restricted (Level 2)**: Red - Should be limited
 - **Forbidden (Level 3)**: Dark Red - Completely prohibited
+
+_Note: Restriction levels are currently disabled in the UI_
 
 ## Components
 
@@ -65,7 +67,7 @@ The FoodForPatients management system allows administrators to manage food restr
   branchId: number,
   diseaseCategoryId: number,
   foodId: number,
-  restrictionLevel: number, // 1=Warning, 2=Restricted, 3=Forbidden
+  // restrictionLevel: number, // 1=Warning, 2=Restricted, 3=Forbidden - Currently disabled
   reason: string,
   alternativeRecommendations: string,
   isActive: boolean,
@@ -79,10 +81,10 @@ The FoodForPatients management system allows administrators to manage food restr
   diseaseCategoryCode: string,
   foodName: string,
   foodPrice: number,
-  restrictionLevelName: string,
-  restrictionLevelColor: string,
-  restrictionLevelDisplay: string,
-  restrictionLevelColorCode: string
+  // restrictionLevelName: string,
+  // restrictionLevelColor: string,
+  // restrictionLevelDisplay: string,
+  // restrictionLevelColorCode: string
 }
 ```
 
@@ -123,7 +125,7 @@ Navigate to `/food-for-patients` in the admin interface.
 1. Click "Thêm Hạn Chế Mới" button
 2. Select disease category from dropdown
 3. Select food from dropdown
-4. Choose restriction level
+4. ~~Choose restriction level~~ (Currently disabled)
 5. Enter reason for restriction
 6. Add alternative recommendations (optional)
 7. Set physician override requirement
