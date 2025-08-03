@@ -1,4 +1,3 @@
-// src/components/PatientTable.js
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { message, Button, Select, Typography, Checkbox, InputNumber, Input, Space, Modal, Form, Tooltip, Popconfirm, Descriptions, Alert } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
@@ -168,6 +167,7 @@ const PatientTable = ({
       phone: record.phone || '0000000000',
       roomNumber: record.roomNumber || '',
       bedNumber: record.bedNumber || '',
+      departmentName: record.departmentName || 'Chưa xác định',
     });
 
     setPatientOrders(prev => ({ ...prev, [record.id]: [] }));
@@ -352,6 +352,7 @@ const PatientTable = ({
       dischargeDate: record.dischargeDate ? moment(record.dischargeDate) : null,
       dateOfBirth: record.dateOfBirth ? moment(record.dateOfBirth) : null,
       diseaseCategories: record.diseaseCategories?.map(dc => dc.diseaseCategoryId) || [],
+      departmentId: record.departmentId || null,
     });
   };
 
@@ -426,6 +427,13 @@ const PatientTable = ({
       title: 'Giường',
       sorter: (a, b) => (a.bedNumber || '').localeCompare(b.bedNumber || ''),
       render: (text) => <span className="text-gray-700">{text || '-'}</span>,
+    },
+    {
+      dataIndex: 'departmentName',
+      align: 'left',
+      title: 'Phòng Ban',
+      sorter: (a, b) => (a.departmentName || '').localeCompare(b.departmentName || ''),
+      render: (text) => text || '-',
     },
     {
       dataIndex: 'diseaseCategories',
@@ -777,6 +785,7 @@ const PatientTable = ({
               <Descriptions.Item label="Họ Tên">{selectedPatient.fullName || '-'}</Descriptions.Item>
               <Descriptions.Item label="Giới Tính">{selectedPatient.gender || '-'}</Descriptions.Item>
               <Descriptions.Item label="Tuổi">{selectedPatient.age || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Phòng Ban">{selectedPatient.departmentName || 'Chưa xác định'}</Descriptions.Item>
               <Descriptions.Item label="Phòng">{selectedPatient.roomNumber || '-'}</Descriptions.Item>
               <Descriptions.Item label="Giường">{selectedPatient.bedNumber || '-'}</Descriptions.Item>
               <Descriptions.Item label="Vị Trí">{selectedPatient.displayLocation || '-'}</Descriptions.Item>
@@ -826,6 +835,8 @@ PatientTable.propTypes = {
       attendingPhysician: PropTypes.string,
       notes: PropTypes.string,
       branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      departmentId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      departmentName: PropTypes.string,
     })
   ),
   loading: PropTypes.bool,

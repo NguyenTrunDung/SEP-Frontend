@@ -1,4 +1,5 @@
 import api, { environment } from './api/config';
+import { orderService } from './orderService';
 
 export const feedbackService = {
   async createFeedback(feedbackData) {
@@ -117,6 +118,94 @@ export const feedbackService = {
     }
   },
 
+  async getFeedbacksByFood(foodId, branchId) {
+    try {
+      if (!foodId || !branchId) throw new Error('Thiếu foodId hoặc branchId khi gọi getFeedbacksByFood');
+
+      if (environment.features?.enableLogging) {
+        console.log('🔍 feedbackService.getFeedbacksByFood for foodId:', foodId, 'branchId:', branchId);
+      }
+
+      const config = { params: { branchId } };
+      const response = await api.get('/api/v1/Comment/AllByBranch', config);
+
+      if (environment.features?.enableLogging) {
+        console.log('✅ API /api/v1/Comment/AllByBranch response:', response.data);
+      }
+
+      if (response.data.status !== 'success') {
+        console.warn('⚠️ Response status not success:', response.data.message);
+        return [];
+      }
+
+      if (!Array.isArray(response.data.data)) {
+        console.warn('⚠️ Invalid data format. Expected an array:', response.data.data);
+        return [];
+      }
+
+      const normalizedData = await Promise.all(
+        response.data.data.map(async (feedback) => {
+          // Kiểm tra xem orderId của feedback có chứa foodId không
+          let isRelevant = false;
+          try {
+            const orderResponse = await orderService.getOrderDetails(feedback.orderId);
+            if (environment.features?.enableLogging) {
+              console.log(`🔍 Order details for orderId ${feedback.orderId}:`, orderResponse.data);
+            }
+            const foodIds = orderResponse.data.map(item => item.foodId);
+            isRelevant = foodIds.includes(foodId);
+          } catch (error) {
+            if (environment.features?.enableLogging) {
+              console.warn(`⚠️ Failed to fetch order details for orderId ${feedback.orderId}:`, error.response?.data?.message || error.message);
+            }
+            return null; // Bỏ qua feedback nếu không lấy được chi tiết đơn hàng
+          }
+
+          if (!isRelevant) return null;
+
+          let customerName = feedback.userId;
+          let avatar = null;
+          try {
+            const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
+            customerName = userResponse.data?.firstName && userResponse.data?.lastName
+              ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
+              : feedback.userId;
+            avatar = userResponse.data?.avatar || null;
+            if (environment.features?.enableLogging) {
+              console.log(`🔍 Fetched customerName for userId ${feedback.userId}:`, customerName);
+            }
+          } catch (error) {
+            if (environment.features?.enableLogging) {
+              console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error.response?.data?.message || error.message);
+            }
+          }
+
+          return {
+            id: feedback.id,
+            orderId: feedback.orderId,
+            userId: feedback.userId,
+            branchId: feedback.branchId,
+            rating: feedback.star,
+            content: feedback.commentLines,
+            reply: feedback.reply || null,
+            customerName,
+            avatar,
+            timestamp: feedback.createdAt || new Date().toISOString(),
+            images: [], // Thêm trường images mặc định vì CommentDto không hỗ trợ
+          };
+        })
+      );
+
+      // Lọc bỏ các giá trị null (feedback không liên quan)
+      return normalizedData.filter(feedback => feedback !== null);
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to fetch feedbacks by food:', error.response?.data?.message || error.message);
+      }
+      throw new Error(error.response?.data?.message || 'Failed to fetch feedbacks by food');
+    }
+  },
+
   async getFeedback(id) {
     try {
       if (environment.features?.enableLogging) {
@@ -155,6 +244,7 @@ export const feedbackService = {
         customerName,
         avatar,
         timestamp: response.data.data.createdAt || new Date().toISOString(),
+        images: [], // Thêm trường images mặc định
       };
     } catch (error) {
       if (environment.features?.enableLogging) {
@@ -237,6 +327,7 @@ export const feedbackService = {
         customerName,
         avatar,
         timestamp: response.data.data.createdAt || new Date().toISOString(),
+        images: [], // Thêm trường images mặc định
       };
     } catch (error) {
       if (environment.features?.enableLogging) {

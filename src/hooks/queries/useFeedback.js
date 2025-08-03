@@ -9,10 +9,10 @@ export const FEEDBACK_QUERY_KEYS = {
   lists: () => [...FEEDBACK_QUERY_KEYS.all, 'list'],
   list: (branchId) => [...FEEDBACK_QUERY_KEYS.lists(), { branchId: String(branchId) }],
   details: () => [...FEEDBACK_QUERY_KEYS.all, 'detail'],
+  byFood: (foodId, branchId) => [...FEEDBACK_QUERY_KEYS.lists(), 'byFood', { foodId, branchId }],
   detail: (id, branchId) => [...FEEDBACK_QUERY_KEYS.details(), id, { branchId: String(branchId) }],
   byOrder: (orderId, branchId) => [...FEEDBACK_QUERY_KEYS.lists(), 'byOrder', { orderId, branchId: String(branchId) }],
 };
-
 const normalizeBranchId = (branchId) => {
   const id = String(branchId || environment.multiTenant.getCurrentBranchId() || '1');
   if (environment.features?.enableLogging) {
@@ -313,33 +313,27 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
   
 };
 export const useFeedbacksByFood = (foodId, branchId, options = {}) => {
-  const targetBranchId = normalizeBranchId(branchId);
+  const currentBranchId = branchId || environment.multiTenant.getCurrentBranchId() || '1';
 
-  const query = useQuery({
-    queryKey: FEEDBACK_QUERY_KEYS.byFood(foodId, targetBranchId),
-    queryFn: () => feedbackService.getFeedbacksByFood(foodId, targetBranchId),
-    enabled: !!foodId && !!targetBranchId,
-    staleTime: environment.performance?.queryStaleTime || 5 * 60 * 1000,
-    cacheTime: environment.performance?.queryCacheTime || 5 * 60 * 1000,
-    onSuccess: (data) => {
-      console.log('✅ Fetched feedbacks for foodId:', foodId, 'Data:', data);
-      message.success('Đã tải đánh giá thành công!');
-      if (options.onSuccess) options.onSuccess(data);
+  return useQuery({
+    queryKey: FEEDBACK_QUERY_KEYS.byFood(foodId, currentBranchId),
+    queryFn: async () => {
+      if (!foodId || !currentBranchId) throw new Error('Food ID and Branch ID are required');
+      console.log('🔍 useFeedbacksByFood queryFn executing for foodId:', foodId, 'branchId:', currentBranchId);
+      return await feedbackService.getFeedbacksByFood(foodId, currentBranchId);
     },
-    onError: (error) => {
-      console.error('❌ Failed to fetch feedbacks:', error.response?.data || error.message);
-      message.error('Không thể tải đánh giá. Vui lòng thử lại.');
-      if (options.onError) options.onError(error);
+    staleTime: environment.performance.queryStaleTime || 120000,
+    cacheTime: environment.performance.queryCacheTime || 120000,
+    refetchOnWindowFocus: false,
+    enabled: !!foodId && !!currentBranchId,
+    retry: (failureCount, error) => {
+      const status = error?.response?.status;
+      if ([404, 403, 401].includes(status)) {
+        console.warn(`🚫 Feedback by food request failed with status ${status}, stopping retries`);
+        return false;
+      }
+      return failureCount < 2;
     },
     ...options,
   });
-
-  return {
-    feedbacks: query.data || [],
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
-    isError: query.isError,
-    isSuccess: query.isSuccess,
-  };
 };

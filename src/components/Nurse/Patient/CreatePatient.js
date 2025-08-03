@@ -11,6 +11,7 @@ import {
 } from 'antd';
 import { useCreatePatient } from '../../../hooks/queries/usePatientQueries';
 import { useDiseaseCategories } from '../../../hooks/queries/useDiseaseCategories';
+import { useDepartments } from '../../../hooks/queries/useDepartments';
 import ReusableModal from '../../../components/common/ReusableModal';
 import PropTypes from 'prop-types';
 import moment from 'moment';
@@ -30,6 +31,7 @@ const CreatePatient = ({
   const currentBranchId = branchId || localStorage.getItem('currentBranchId') || '1';
   const createPatientMutation = useCreatePatient();
   const { diseaseCategories, isLoading: categoriesLoading } = useDiseaseCategories(currentBranchId);
+  const { departments, isLoading: departmentsLoading } = useDepartments(currentBranchId);
 
   useEffect(() => {
     form.resetFields();
@@ -55,6 +57,7 @@ const CreatePatient = ({
         requiresDietarySupervision: false,
         externalSystemId: '',
         diseaseCategoryIds: values.diseaseCategories || [],
+        departmentId: values.departmentId ? parseInt(values.departmentId, 10) : null,
       };
 
       createPatientMutation.mutate({ patientData: payload, branchId: currentBranchId }, {
@@ -138,6 +141,24 @@ const CreatePatient = ({
           rules={[{ required: true, message: 'Vui lòng nhập tuổi!' }]}
         >
           <Input type="number" placeholder="Nhập tuổi" />
+        </Form.Item>
+
+        <Form.Item
+          name="departmentId"
+          label="Phòng ban"
+          rules={[{ required: true, message: 'Vui lòng chọn phòng ban!' }]}
+        >
+          <Select
+            placeholder="Chọn phòng ban"
+            loading={departmentsLoading}
+            allowClear
+          >
+            {departments.map(dept => (
+              <Option key={dept.id} value={dept.id}>
+                {dept.name}
+              </Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item name="roomNumber" label="Số phòng">

@@ -11,6 +11,7 @@ import {
 } from 'antd';
 import { useUpdatePatient } from '../../../hooks/queries/usePatientQueries';
 import { useDiseaseCategories } from '../../../hooks/queries/useDiseaseCategories';
+import { useDepartments } from '../../../hooks/queries/useDepartments';
 import ReusableModal from '../../../components/common/ReusableModal';
 import PropTypes from 'prop-types';
 import moment from 'moment';
@@ -31,6 +32,7 @@ const UpdatePatient = ({
   const currentBranchId = branchId || localStorage.getItem('currentBranchId') || '1';
   const updatePatientMutation = useUpdatePatient();
   const { diseaseCategories, isLoading: categoriesLoading } = useDiseaseCategories(currentBranchId);
+  const { departments, isLoading: departmentsLoading } = useDepartments(currentBranchId);
 
   useEffect(() => {
     if (initialValues) {
@@ -40,6 +42,7 @@ const UpdatePatient = ({
         dateOfBirth: moment(`${birthYear}-01-01`),
         dischargeDate: initialValues.dischargeDate ? moment(initialValues.dischargeDate) : null,
         diseaseCategories: initialValues.diseaseCategories?.map(dc => dc.diseaseCategoryId) || [],
+        departmentId: initialValues.departmentId || null,
       });
     }
   }, [initialValues, form]);
@@ -64,6 +67,7 @@ const UpdatePatient = ({
         requiresDietarySupervision: false,
         externalSystemId: '',
         diseaseCategoryIds: values.diseaseCategories || [],
+        departmentId: values.departmentId ? parseInt(values.departmentId, 10) : null,
       };
 
       updatePatientMutation.mutate({ patientId: initialValues.id, patientData: payload, branchId: currentBranchId }, {
@@ -148,6 +152,24 @@ const UpdatePatient = ({
           rules={[{ required: true, message: 'Vui lòng nhập tuổi!' }]}
         >
           <Input type="number" placeholder="Nhập tuổi" />
+        </Form.Item>
+
+        <Form.Item
+          name="departmentId"
+          label="Phòng ban"
+          rules={[{ required: true, message: 'Vui lòng chọn phòng ban!' }]}
+        >
+          <Select
+            placeholder="Chọn phòng ban"
+            loading={departmentsLoading}
+            allowClear
+          >
+            {departments.map(dept => (
+              <Option key={dept.id} value={dept.id}>
+                {dept.name}
+              </Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item name="roomNumber" label="Số phòng">

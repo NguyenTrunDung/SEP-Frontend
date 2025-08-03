@@ -1,4 +1,3 @@
-// src/layouts/AdminLayout.js
 import React, { useMemo } from "react";
 import { Layout, Menu, Typography } from "antd";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -75,7 +74,6 @@ const AdminLayout = ({ children }) => {
       "/areas": ["areas"],
       "/locations": ["locations"],
       "/disease-categories": ["disease-categories"],
-
       "/feedbacks": ["feedbacks"],
       "/admin/user-management": ["user-management"],
       "/admin/group-user": ["group-user"],
@@ -89,10 +87,10 @@ const AdminLayout = ({ children }) => {
       ? ["dashboard"]
       : hasRequiredRole([ROLES.CASHIER])
         ? ["cashier"]
-        : hasRequiredRole([ROLES.KITCHEN])
-          ? ["kitchen"]
-          : hasRequiredRole([ROLES.STAFF, ROLES.NURSE])
-            ? ["orders"]
+        : hasRequiredRole([ROLES.STAFF, ROLES.NURSE])
+          ? ["orders"]
+          : hasRequiredRole([ROLES.KITCHEN])
+            ? ["kitchen"]
             : []);
   }, [location.pathname, user]);
 
@@ -115,6 +113,176 @@ const AdminLayout = ({ children }) => {
     fontWeight: "500",
   };
 
+  // Menu items for KITCHEN role
+  const kitchenMenuItems = [
+    {
+      key: "kitchen",
+      icon: <FireFilled style={{ fontSize: "18px" }} />,
+      label: <Link to="/kitchens">Bếp</Link>,
+    },
+  ];
+
+  // Menu items for CASHIER role
+  const cashierMenuItems = [
+    {
+      key: "orders",
+      icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
+      label: <Link to="/orders">Đơn hàng</Link>,
+    },
+    {
+      key: "kitchen",
+      icon: <FireFilled style={{ fontSize: "18px" }} />,
+      label: <Link to="/kitchens">Nhà bếp</Link>,
+    },
+    {
+      key: "shippers",
+      icon: <TruckOutlined style={{ fontSize: "18px" }} />,
+      label: <Link to="/shippers">Nhân viên giao hàng</Link>,
+    },
+    {
+      key: "menus",
+      icon: <MenuOutlined style={{ fontSize: "18px" }} />,
+      label: <Link to="/menus">Thực đơn</Link>,
+    },
+  ];
+
+  // Menu items for other roles
+  const defaultMenuItems = [
+    // Dashboard - Accessible by Admin, Branch Manager, Manager, and Doctor
+    canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR], ["overview:view"]) && {
+      key: "dashboard",
+      icon: <DashboardOutlined style={{ fontSize: "18px" }} />,
+      label: <Link to="/dashboard">Thống kê</Link>,
+    },
+
+    // Orders - Accessible by Admin, Branch Manager, Manager, Staff, and Nurse
+    canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.NURSE], ["orders:view"]) && {
+      key: "orders",
+      icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
+      label: <Link to="/orders">Đơn hàng</Link>,
+    },
+
+    // Cashier - Accessible by Cashier, Admin, and Branch Manager
+    canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.CASHIER], ["wallet:view", "orders:edit"]) && {
+      key: "cashier",
+      icon: <WalletOutlined style={{ fontSize: "18px" }} />,
+      label: <Link to="/cashier">Thu ngân</Link>,
+    },
+
+    // Shippers - Accessible by multiple roles
+    canAccess([ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER], ["shippers:view"]) && {
+      key: "shippers",
+      icon: <TruckOutlined style={{ fontSize: "18px" }} />,
+      label: <Link to="/shippers">Nhân viên giao hàng</Link>,
+    },
+
+    // Menus - Accessible by Admin, Branch Manager, Manager, and Staff
+    canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF], ["foods:view"]) && {
+      key: "menus",
+      icon: <MenuOutlined style={{ fontSize: "18px" }} />,
+      label: <Link to="/menus">Thực đơn</Link>,
+    },
+
+    // Feedbacks - Accessible by multiple roles
+    canAccess([ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF], ["feedbacks:view"]) && {
+      key: "feedbacks",
+      icon: <CommentOutlined style={{ fontSize: "18px" }} />,
+      label: <Link to="/feedbacks">Đánh giá</Link>,
+    },
+
+    // Food Management - Admin, Branch Manager, Manager, Staff, Doctor
+    canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR], ["foods:view"]) && {
+      key: "food-management",
+      icon: <CoffeeOutlined style={{ fontSize: "18px" }} />,
+      label: "Món ăn",
+      children: [
+        {
+          key: "food-categories",
+          icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/food-categories">Nhóm món ăn</Link>,
+        },
+        {
+          key: "foods",
+          icon: <ShopOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/foods">Món ăn</Link>,
+        },
+        {
+          key: "food-for-patients",
+          icon: <ShopOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/food-for-patients">Món ăn cho bệnh nhân</Link>,
+        },
+      ],
+    },
+
+    // Settings - Admin only
+    canAccess([ROLES.ADMIN], ["system:settings"]) && {
+      key: "settings",
+      icon: <SettingOutlined style={{ fontSize: "18px" }} />,
+      label: "Cài đặt hệ thống",
+      children: [
+        {
+          key: "user-wallet-group",
+          icon: <WalletOutlined style={{ fontSize: "18px" }} />,
+          label: "Quản lý ví người dùng",
+          children: [
+            {
+              key: "user-management",
+              label: <Link to="/admin/user-management">Quản lý ví người dùng (Mới)</Link>,
+            },
+            {
+              key: "group-user",
+              label: <Link to="/admin/group-user">Nhóm người dùng</Link>,
+            },
+            {
+              key: "user-account",
+              label: <Link to="/admin/user-account">Người dùng</Link>,
+            },
+          ],
+        },
+        // Categories - Admin only
+        {
+          key: "categories",
+          icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
+          label: "Danh mục",
+          children: [
+            {
+              key: "branches",
+              icon: <ShopOutlined style={{ fontSize: "18px" }} />,
+              label: <Link to="/branches">Chi nhánh</Link>,
+            },
+            {
+              key: "areas",
+              icon: <GlobalOutlined style={{ fontSize: "18px" }} />,
+              label: <Link to="/areas">Khu vực</Link>,
+            },
+            {
+              key: "locations",
+              icon: <AimOutlined style={{ fontSize: "18px" }} />,
+              label: <Link to="/locations">Vị trí</Link>,
+            },
+            {
+              key: "departments",
+              icon: <TeamOutlined style={{ fontSize: "18px" }} />,
+              label: <Link to="/departments">Phòng ban</Link>,
+            },
+            {
+              key: "disease-categories",
+              icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
+              label: <Link to="/disease-categories">Nhóm bệnh</Link>,
+            },
+          ],
+        },
+      ],
+    },
+  ].filter(Boolean);
+
+  // Determine which menu items to display based on user role
+  const menuItems = hasRequiredRole([ROLES.KITCHEN])
+    ? kitchenMenuItems
+    : hasRequiredRole([ROLES.CASHIER])
+      ? cashierMenuItems
+      : defaultMenuItems;
+
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <Sider width={280} theme="light" style={siderStyle}>
@@ -134,146 +302,7 @@ const AdminLayout = ({ children }) => {
           mode="inline"
           selectedKeys={getSelectedMenuKey}
           style={menuStyle}
-          items={[
-            // Dashboard - Accessible by Admin, Branch Manager, Manager, and Doctor
-            canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR], ["overview:view"]) && {
-              key: "dashboard",
-              icon: <DashboardOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/dashboard">Thống kê</Link>,
-            },
-
-            // Orders - Accessible by Admin, Branch Manager, Manager, Staff, and Nurse
-            canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.NURSE], ["orders:view"]) && {
-              key: "orders",
-              icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/orders">Đơn hàng</Link>,
-            },
-
-            // Cashier - Accessible by Cashier, Admin, and Branch Manager
-            canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.CASHIER], ["wallet:view", "orders:edit"]) && {
-              key: "cashier",
-              icon: <WalletOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/cashier">Thu ngân</Link>,
-            },
-
-            // Kitchen - Accessible by Kitchen Staff, Admin, and Branch Manager
-            canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.KITCHEN], ["kitchen:view"]) && {
-              key: "kitchen",
-              icon: <FireFilled style={{ fontSize: "18px" }} />,
-              label: <Link to="/kitchens">Bếp</Link>,
-            },
-
-            canAccess([ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN], ["shippers:view"]) && {
-              key: "shippers",
-              icon: <TruckOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/shippers">Nhân viên giao hàng</Link>,
-            },
-            // Menus - Accessible by Admin, Branch Manager, Manager, and Staff
-            canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF], ["foods:view"]) && {
-              key: "menus",
-              icon: <MenuOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/menus">Thực đơn</Link>,
-            },
-
-            canAccess([ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF], ["feedbacks:view"]) && {
-              key: "feedbacks",
-              icon: <CommentOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/feedbacks">Đánh giá</Link>,
-            },
-
-
-            // Food Management - Admin, Branch Manager, Manager, Staff, Doctor
-            canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR], ["foods:view"]) && {
-              key: "food-management",
-              icon: <CoffeeOutlined style={{ fontSize: "18px" }} />,
-              label: "Món ăn",
-              children: [
-                {
-                  key: "food-categories",
-                  icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
-                  label: <Link to="/food-categories">Nhóm món ăn</Link>,
-                },
-                {
-                  key: "foods",
-                  icon: <ShopOutlined style={{ fontSize: "18px" }} />,
-                  label: <Link to="/foods">Món ăn</Link>,
-                },
-                {
-                  key: "food-for-patients",
-                  icon: <ShopOutlined style={{ fontSize: "18px" }} />,
-                  label: <Link to="/food-for-patients">Món ăn cho bệnh nhân</Link>,
-                },
-              ],
-            },
-
-            // Settings - Admin only
-            canAccess([ROLES.ADMIN], ["system:settings"]) && {
-              key: "settings",
-              icon: <SettingOutlined style={{ fontSize: "18px" }} />,
-              label: "Cài đặt hệ thống",
-              children: [
-                // Users Management - Admin only
-                // {
-                //   key: "users",
-                //   icon: <UserOutlined style={{ fontSize: "18px" }} />,
-                //   label: <Link to="/admin/users">Quản lý nhân viên</Link>,
-                // },
-                {
-                  key: "user-wallet-group",
-                  icon: <WalletOutlined style={{ fontSize: "18px" }} />,
-                  label: "Quản lý ví người dùng",
-                  children: [
-                    {
-                      key: "user-management",
-                      label: <Link to="/admin/user-management">Quản lý ví người dùng (Mới)</Link>,
-                    },
-                    {
-                      key: "group-user",
-                      label: <Link to="/admin/group-user">Nhóm người dùng</Link>,
-                    },
-                    {
-                      key: "user-account",
-                      label: <Link to="/admin/user-account">Người dùng</Link>,
-                    },
-                  ],
-                },
-                // Categories - Admin only
-                {
-                  key: "categories",
-                  icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
-                  label: "Danh mục",
-                  children: [
-                    {
-                      key: "branches",
-                      icon: <ShopOutlined style={{ fontSize: "18px" }} />,
-                      label: <Link to="/branches">Chi nhánh</Link>,
-                    },
-                    {
-                      key: "areas",
-                      icon: <GlobalOutlined style={{ fontSize: "18px" }} />,
-                      label: <Link to="/areas">Khu vực</Link>,
-                    },
-
-                    {
-                      key: "locations",
-                      icon: <AimOutlined style={{ fontSize: "18px" }} />,
-                      label: <Link to="/locations">Vị trí</Link>,
-                    },
-                    {
-                      key: "departments",
-                      icon: <TeamOutlined style={{ fontSize: "18px" }} />,
-                      label: <Link to="/departments">Phòng ban</Link>,
-                    },
-                    {
-                      key: "disease-categories",
-                      icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
-                      label: <Link to="/disease-categories">Nhóm bệnh</Link>,
-                    },
-                  ],
-                },
-              ],
-            },
-          ].filter(Boolean)}
+          items={menuItems}
         />
       </Sider>
 

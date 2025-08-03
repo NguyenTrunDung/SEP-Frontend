@@ -3,13 +3,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ConfigProvider, Typography, Tabs, Spin, Alert, Layout, Button, message, Modal, Image, Input, Select, Rate, Avatar, Popconfirm } from 'antd';
 import PropTypes from 'prop-types';
 import { UserOutlined } from '@ant-design/icons';
-import { mockFeedbacks } from '../../mocks/mockFeedbacks';
 import { mockFoodCategories, getMenuById } from '../../mocks/menuData';
 import { useMenus, useMenuCategories } from '../../hooks/queries/useMenuQueries';
+import { useFeedbacksByFood } from '../../hooks/queries/useFeedback';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useCart } from '../../context/CartContext';
 import { getImageUrl, getImageUrlWithFallback } from '../../utils/imageUtils';
+import environment from '../../config/environment';
 import './Menu.css';
 
 const { Content } = Layout;
@@ -27,7 +28,7 @@ const getVietnameseDays = () => {
     const date = new Date(baseDate);
     date.setDate(baseDate.getDate() + i);
     const dayName = formatter.format(date);
-    days.push(dayName.charAt(0).toUpperCase() + dayName.slice(1)); // Viết hoa chữ cái đầu
+    days.push(dayName.charAt(0).toUpperCase() + dayName.slice(1));
   }
 
   return days;
@@ -111,7 +112,6 @@ const CategoryCircles = ({ categories, selectedCategory, onCategorySelect, dateL
                   alt={category.Name}
                   style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: '50%' }}
                   onError={(e) => {
-                    // Fallback to placeholder image if server image fails
                     e.target.src = '/images/placeholder-food.png';
                   }}
                 />
@@ -149,7 +149,6 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
 
   const currentDate = new Date();
   const [activeDay, setActiveDay] = useState(currentDate.getDay() === 0 ? '7' : currentDate.getDay().toString());
-  // Thêm biến xác định ngày hôm nay
   const todayKey = currentDate.getDay() === 0 ? '7' : currentDate.getDay().toString();
   const isToday = activeDay === todayKey;
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -166,6 +165,16 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
     error,
     refetch: refreshMenus
   } = useMenus({ date: getFormattedDate(activeDay) });
+
+  // Fetch feedbacks for the selected food
+  const branchId = environment.multiTenant.getCurrentBranchId() || '1';
+  const {
+    data: feedbacks,
+    isLoading: isFeedbackLoading,
+    error: feedbackError
+  } = useFeedbacksByFood(selectedMenuItem?.id, branchId, {
+    enabled: !!selectedMenuItem?.id
+  });
 
   // Extract data from the response
   const foods = menuData?.foods || [];
@@ -218,7 +227,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
       const date = new Date(dateStr);
       const weekdayFormatter = new Intl.DateTimeFormat('vi-VN', { weekday: 'long' });
       const dateFormatter = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const weekday = weekdayFormatter.format(date).toUpperCase(); // Chuyển toàn bộ ngày trong tuần thành chữ in hoa
+      const weekday = weekdayFormatter.format(date).toUpperCase();
       const formattedDate = dateFormatter.format(date);
       return `Thực đơn ${weekday} - ${formattedDate}`;
     } catch (error) {
@@ -228,26 +237,22 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   };
 
   const getFilteredCategories = () => {
-    // Use categories from API response first, fallback to mock if needed
     if (categories.length > 0) {
       return categories.map(cat => ({
         ID: cat.id,
         Name: cat.name,
-        Image: cat.imageUrl // Will be processed by getImageUrlWithFallback in the component
+        Image: cat.imageUrl
       }));
     }
 
-    // Fallback: extract categories from foods or use mock data
     const foodCategories = [...new Set(foods.map((food) => food.categoryId))];
     if (foodCategories.length === 0 && isUsingMockData) {
-      // For mock data, ensure images are processed correctly
       return mockFoodCategories.map(cat => ({
         ...cat,
-        Image: cat.Image // Keep original for mock data
+        Image: cat.Image
       }));
     }
 
-    // Create category objects from food data using the same categoryMap logic
     const uniqueCategories = [];
     foods.forEach(food => {
       if (!uniqueCategories.find(cat => cat.ID === food.categoryId)) {
@@ -255,7 +260,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
         uniqueCategories.push({
           ID: food.categoryId,
           Name: categoryName,
-          Image: null // No specific category image from food data
+          Image: null
         });
       }
     });
@@ -263,14 +268,12 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
     return uniqueCategories;
   };
 
-  // Create a map of categoryId to category name for easy lookup
   const categoryMap = categories.reduce((map, cat) => {
     map[cat.id] = cat.name;
     return map;
   }, {});
 
   const groupedFoods = foods.length > 0 ? foods.reduce((acc, item) => {
-    // Use category name from the categories array, fallback to item.category or generic name
     const categoryKey = categoryMap[item.categoryId] || item.category || `Category ${item.categoryId}`;
     if (!acc[categoryKey]) acc[categoryKey] = [];
     acc[categoryKey].push(item);
@@ -297,11 +300,10 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
         quantity,
         cartId: uuidv4(),
         FoodId: menuItem.id,
-        // Map API properties to cart format
         dishName: menuItem.name,
         price: menuItem.priceForGuest,
         image: getImageUrlWithFallback(menuItem.imageUrl, '/images/placeholder-food.png'),
-        imageUrl: getImageUrlWithFallback(menuItem.imageUrl, '/images/placeholder-food.png'), // Keep both for compatibility
+        imageUrl: getImageUrlWithFallback(menuItem.imageUrl, '/images/placeholder-food.png'),
         ID: menuItem.id,
         note,
       };
@@ -317,14 +319,10 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
 
   const handleShowDetails = async (menuItem) => {
     try {
-      // For API data, use the item directly (it already has all details)
-      // For mock data, fetch detailed information
       let detailedMenu = menuItem;
-
       if (isUsingMockData) {
         detailedMenu = await getMenuById(menuItem.id);
       }
-
       setSelectedMenuItem(detailedMenu);
       const existingItem = cartItems.find((item) => item.FoodId === menuItem.id);
       if (existingItem) {
@@ -365,7 +363,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                 categories={getFilteredCategories()}
                 selectedCategory={selectedCategory}
                 onCategorySelect={(categoryName) => {
-                  console.log('Category selected:', categoryName); // Debug log
+                  console.log('Category selected:', categoryName);
                   setSelectedCategory(categoryName);
                 }}
                 dateLabel=""
@@ -382,19 +380,19 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
               <div>
                 {Object.keys(groupedFoods).length > 0 ? (
                   Object.keys(groupedFoods).map((category) => {
-                    console.log('Rendering category section:', category); // Debug log
+                    console.log('Rendering category section:', category);
                     return (
                       <div
                         key={category}
                         style={{
                           marginBottom: '32px',
-                          paddingTop: '20px', // Add some padding for better scroll positioning
-                          scrollMarginTop: '140px' // Account for fixed header
+                          paddingTop: '20px',
+                          scrollMarginTop: '140px'
                         }}
                         ref={(el) => {
                           if (el) {
                             categoryRefs.current[category] = el;
-                            console.log('Set ref for category:', category); // Debug log
+                            console.log('Set ref for category:', category);
                           }
                         }}
                       >
@@ -436,7 +434,6 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                                   style={{ objectFit: 'cover', borderRadius: 4, marginBottom: 8 }}
                                   fallback="/images/placeholder-food.png"
                                   onError={(e) => {
-                                    // Additional fallback handling
                                     console.warn('Failed to load image:', item.imageUrl);
                                   }}
                                 />
@@ -460,24 +457,21 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                                     {item.priceForGuest.toLocaleString('vi-VN')}đ
                                   </Text>
                                 </div>
-                                {/* Chỉ hiển thị nút Thêm/Cập nhật khi là ngày hôm nay */}
-                                {isToday && (
-                                  <Button
-                                    style={{
-                                      backgroundColor: '#b4c80f',
-                                      borderColor: '#b4c80f',
-                                      color: '#000',
-                                      float: 'left',
-                                      padding: '14px 12px',
-                                      fontSize: '15px',
-                                    }}
-                                    type="primary"
-                                    size="small"
-                                    onClick={() => handleShowDetails(item)}
-                                  >
-                                    {isInCart ? 'Cập nhật giỏ hàng' : 'Thêm'}
-                                  </Button>
-                                )}
+                                <Button
+                                  style={{
+                                    backgroundColor: '#b4c80f',
+                                    borderColor: '#b4c80f',
+                                    color: '#000',
+                                    float: 'left',
+                                    padding: '14px 12px',
+                                    fontSize: '15px',
+                                  }}
+                                  type="primary"
+                                  size="small"
+                                  onClick={() => handleShowDetails(item)}
+                                >
+                                  {isToday && isInCart ? 'Cập nhật giỏ hàng' : isToday ? 'Thêm' : 'Xem chi tiết'}
+                                </Button>
                               </div>
                             );
                           })}
@@ -517,7 +511,6 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-                {/* Header */}
                 <div
                   style={{
                     backgroundColor: '#b4c80f',
@@ -527,14 +520,11 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                     borderRadius: '8px 8px 0 0',
                   }}
                 >
-                  {cartItems.some(item => item.FoodId === selectedMenuItem?.id)
+                  {isToday && cartItems.some(item => item.FoodId === selectedMenuItem?.id)
                     ? 'Cập nhật giỏ hàng'
-                    : 'Thêm vào giỏ hàng'}
+                    : isToday ? 'Thêm vào giỏ hàng' : 'Chi tiết món ăn'}
                 </div>
-
-                {/* Nội dung chính có thể cuộn */}
                 <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                  {/* Image */}
                   <img
                     src={getImageUrlWithFallback(
                       selectedMenuItem?.imageUrl || selectedMenuItem?.image,
@@ -552,8 +542,6 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                       console.warn('Failed to load modal image:', selectedMenuItem?.imageUrl);
                     }}
                   />
-
-                  {/* Dish Info */}
                   <div style={{ padding: '6px 6px 0' }}>
                     <Text
                       style={{
@@ -588,8 +576,66 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                       {(selectedMenuItem?.priceForGuest || selectedMenuItem?.price)?.toLocaleString('vi-VN') || '0'}đ
                     </Text>
                   </div>
-
-                  {/* Note */}
+                  {isToday && (
+                    <>
+                      <div style={{ padding: '0 6px' }}>
+                        <Text
+                          style={{
+                            display: 'block',
+                            fontSize: '13px',
+                            fontWeight: 'bold',
+                            color: '#333',
+                            marginBottom: '0px',
+                          }}
+                        >
+                          Ghi chú:
+                        </Text>
+                        <Input.TextArea
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          style={{
+                            marginBottom: '20px',
+                            height: '115px',
+                            resize: 'none',
+                          }}
+                          placeholder="Ghi chú..."
+                        />
+                      </div>
+                      <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                        <Button
+                          style={{
+                            backgroundColor: '#b4c80f',
+                            borderColor: '#b4c80f',
+                            color: '#000',
+                            borderRadius: '50%',
+                            width: '36px',
+                            height: '36px',
+                            fontSize: '18px',
+                            fontWeight: 'bold',
+                          }}
+                          onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        >
+                          -
+                        </Button>
+                        <span style={{ margin: '0 16px', fontSize: '16px' }}>{quantity}</span>
+                        <Button
+                          style={{
+                            backgroundColor: '#b4c80f',
+                            borderColor: '#b4c80f',
+                            color: '#000',
+                            borderRadius: '50%',
+                            width: '36px',
+                            height: '36px',
+                            fontSize: '18px',
+                            fontWeight: 'bold',
+                          }}
+                          onClick={() => setQuantity(quantity + 1)}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </>
+                  )}
                   <div style={{ padding: '0 6px' }}>
                     <Text
                       style={{
@@ -600,135 +646,97 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                         marginBottom: '0px',
                       }}
                     >
-                      Ghi chú:
+                      Đánh giá món ăn
                     </Text>
-                    <Input.TextArea
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      style={{
-                        marginBottom: '20px',
-                        height: '115px',
-                        resize: 'none',
-                      }}
-                      placeholder="Ghi chú..."
-                    />
                   </div>
-
-                  {/* Quantity Controls */}
-                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                    <Button
-                      style={{
-                        backgroundColor: '#b4c80f',
-                        borderColor: '#b4c80f',
-                        color: '#000',
-                        borderRadius: '50%',
-                        width: '36px',
-                        height: '36px',
-                        fontSize: '18px',
-                        fontWeight: 'bold',
-                      }}
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    >
-                      -
-                    </Button>
-                    <span style={{ margin: '0 16px', fontSize: '16px' }}>{quantity}</span>
-                    <Button
-                      style={{
-                        backgroundColor: '#b4c80f',
-                        borderColor: '#b4c80f',
-                        color: '#000',
-                        borderRadius: '50%',
-                        width: '36px',
-                        height: '36px',
-                        fontSize: '18px',
-                        fontWeight: 'bold',
-                      }}
-                      onClick={() => setQuantity(quantity + 1)}
-                    >
-                      +
-                    </Button>
-                  </div>
-
-                  {/* Feedback Section */}
                   <div style={{ padding: '16px', background: '#fff' }}>
-                    {mockFeedbacks.map((feedback) => (
-                      <div
-                        key={feedback.id}
-                        style={{
-                          borderBottom: '1px solid #f0f0f0',
-                          padding: '16px 0',
-                          position: 'relative',
-                        }}
-                      >
-                        {/* Avatar + Customer Name */}
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-                          <Avatar
-                            size={48}
-                            src={feedback.user?.avatar}
-                            icon={!feedback.user?.avatar && <UserOutlined />}
-                            style={{ marginRight: 12 }}
-                          />
-                          <Text strong>{feedback.customerName || 'Ẩn danh'}</Text>
-                        </div>
-
-                        {/* Nội dung đánh giá */}
-                        <div style={{ paddingLeft: 60 }}>
-                          <div style={{ marginBottom: 8 }}>
-                            <Rate
-                              value={feedback.rating}
-                              disabled
-                              style={{ fontSize: 16, color: '#fadb14' }}
+                    {isFeedbackLoading ? (
+                      <Spin size="large" style={{ display: 'block', margin: 'auto' }} />
+                    ) : feedbackError ? (
+                      <Alert
+                        message="Không thể tải đánh giá"
+                        description={feedbackError.message || 'Vui lòng thử lại sau.'}
+                        type="error"
+                        showIcon
+                      />
+                    ) : feedbacks && feedbacks.length > 0 ? (
+                      feedbacks.map((feedback) => (
+                        <div
+                          key={feedback.id}
+                          style={{
+                            borderBottom: '1px solid #f0f0f0',
+                            padding: '16px 0',
+                            position: 'relative',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                            <Avatar
+                              size={48}
+                              src={feedback.avatar}
+                              icon={!feedback.avatar && <UserOutlined />}
+                              style={{ marginRight: 12 }}
                             />
+                            <Text strong>{feedback.customerName || 'Ẩn danh'}</Text>
                           </div>
-                          <div style={{ marginBottom: 8 }}>
-                            <Text>{feedback.content}</Text>
-                          </div>
-                          {Array.isArray(feedback.images) && feedback.images.length > 0 && (
+                          <div style={{ paddingLeft: 60 }}>
                             <div style={{ marginBottom: 8 }}>
-                              <img
-                                src={feedback.images[0].url}
-                                alt="Feedback"
-                                style={{
-                                  width: 160,
-                                  height: 160,
-                                  objectFit: 'cover',
-                                  border: '1px solid #ddd',
-                                  borderRadius: 4,
-                                }}
+                              <Rate
+                                value={feedback.rating}
+                                disabled
+                                style={{ fontSize: 16, color: '#fadb14' }}
                               />
                             </div>
-                          )}
-                          <Text type="secondary" style={{ fontSize: 13 }}>
-                            {feedback.createdAt}
-                          </Text>
+                            <div style={{ marginBottom: 8 }}>
+                              <Text>{feedback.content}</Text>
+                            </div>
+                            {Array.isArray(feedback.images) && feedback.images.length > 0 && (
+                              <div style={{ marginBottom: 8 }}>
+                                <img
+                                  src={feedback.images[0].url}
+                                  alt="Feedback"
+                                  style={{
+                                    width: 160,
+                                    height: 160,
+                                    objectFit: 'cover',
+                                    border: '1px solid #ddd',
+                                    borderRadius: 4,
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <Text type="secondary" style={{ fontSize: 13 }}>
+                              {new Date(feedback.timestamp).toLocaleString('vi-VN')}
+                            </Text>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <Text type="secondary">Chưa có đánh giá nào cho món ăn này.</Text>
+                    )}
                   </div>
                 </div>
-
-                {/* Button ở dưới cố định */}
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '0 10px 16px' }}>
-                  <Button
-                    style={{
-                      backgroundColor: '#b4c80f',
-                      borderColor: '#b4c80f',
-                      color: '#000',
-                      width: '100%',
-                      padding: '18px',
-                      fontSize: '16px',
-                      borderRadius: '6px',
-                    }}
-                    onClick={() => handleAddOrUpdateCart(selectedMenuItem)}
-                  >
-                    {cartItems.some(item => item.FoodId === selectedMenuItem?.id)
-                      ? 'Cập nhật giỏ hàng'
-                      : 'Thêm vào giỏ hàng'}
-                  </Button>
-                </div>
+                {isToday && (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '0 10px 16px' }}>
+                    <Button
+                      style={{
+                        backgroundColor: '#b4c80f',
+                        borderColor: '#b4c80f',
+                        color: '#000',
+                        width: '100%',
+                        padding: '18px',
+                        fontSize: '16px',
+                        borderRadius: '6px',
+                      }}
+                      onClick={() => handleAddOrUpdateCart(selectedMenuItem)}
+                    >
+                      {cartItems.some(item => item.FoodId === selectedMenuItem?.id)
+                        ? 'Cập nhật giỏ hàng'
+                        : 'Thêm vào giỏ hàng'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </Modal>
-
           </div>
         </Content>
       </Layout>

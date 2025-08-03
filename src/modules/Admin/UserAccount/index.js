@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { Table, Button, Space, Tooltip, Switch, message, Popconfirm, Input, Select } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, FileExcelOutlined } from '@ant-design/icons';
 import UserAccountModal from './UserAccountModal';
 import { fetchUserAccountsByBranch, updateUserAccountStatus, createUserAccount, updateUserAccount, deleteUserAccount } from '../../../services/userAccountService';
 import { fetchGroupUsersByBranch } from '../../../services/groupUserService';
-import { extractErrorMessage } from '../../../utils/errorHandler';
-
+import * as XLSX from 'xlsx';
 
 // Đổi tên hàm extractErrorMessage thành extractApiErrorMessage
 function extractApiErrorMessage(err) {
@@ -195,10 +194,52 @@ const UserAccount = () => {
         }
     };
 
+    const handleExportExcel = () => {
+        try {
+            // Chuẩn bị dữ liệu cho Excel
+            const exportData = filteredUsers.map(user => ({
+                'Tên nhóm người dùng': user.username || '',
+                'Tên người dùng': user.name || '',
+                'Email (Tài khoản)': user.email || '',
+                'Trạng thái': user.status ? 'Hoạt động' : 'Không hoạt động',
+                'Số điện thoại': user.phone || '',
+            }));
+
+            // Tạo worksheet
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            // Tùy chỉnh độ rộng cột
+            ws['!cols'] = [
+                { wch: 20 }, // Tên nhóm người dùng
+                { wch: 25 }, // Tên người dùng
+                { wch: 30 }, // Email
+                { wch: 15 }, // Trạng thái
+                { wch: 15 }, // Số điện thoại
+            ];
+            // Tạo workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'UserAccounts');
+            // Tạo tên file với timestamp
+            const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+            const fileName = `UserAccounts_${timestamp}.xlsx`;
+            // Xuất file
+            XLSX.writeFile(wb, fileName);
+            message.success('Xuất file Excel thành công!');
+        } catch (err) {
+            console.error('Error exporting Excel:', err);
+            message.error('Không thể xuất file Excel. Vui lòng thử lại.');
+        }
+    };
+
     const columns = [
         { title: 'Tên nhóm người dùng', dataIndex: 'username', key: 'username', sorter: (a, b) => (a.username || '').localeCompare(b.username || '') },
         { title: 'Tên người dùng', dataIndex: 'name', key: 'name', sorter: (a, b) => (a.name || '').localeCompare(b.name || '') },
         { title: 'Email (Tài khoản)', dataIndex: 'email', key: 'email', sorter: (a, b) => (a.email || '').localeCompare(b.email || '') },
+        { 
+            title: 'Số điện thoại', 
+            dataIndex: 'phone', 
+            key: 'phone', 
+            sorter: (a, b) => (a.phone || '').localeCompare(b.phone || '') 
+        },
         {
             title: 'Trạng thái',
             dataIndex: 'status',
@@ -254,6 +295,9 @@ const UserAccount = () => {
                     <Tooltip title="Làm mới danh sách">
                         <Button icon={<ReloadOutlined />} onClick={handleRefresh}>Làm mới</Button>
                     </Tooltip>
+                    <Tooltip title="Xuất danh sách ra Excel">
+                        <Button icon={<FileExcelOutlined />} onClick={handleExportExcel}>Xuất File</Button>
+                    </Tooltip>
                     <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal(null)}>
                         Thêm tài khoản
                     </Button>
@@ -305,4 +349,4 @@ const UserAccount = () => {
     );
 };
 
-export default UserAccount; 
+export default UserAccount;

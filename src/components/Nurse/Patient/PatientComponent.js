@@ -1,4 +1,3 @@
-// src/components/nurse/PatientComponent.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ConfigProvider, Typography, Alert, message, Button, Modal } from 'antd';
 import { usePatients, useCreatePatient, useUpdatePatient, useDeletePatient } from '../../../hooks/queries/usePatientQueries';
@@ -86,6 +85,7 @@ const PatientComponent = () => {
         notes: formData.notes?.trim() || '',
         branchId: parseInt(currentBranchId, 10),
         diseaseCategoryIds: formData.diseaseCategories || [],
+        departmentId: formData.departmentId ? parseInt(formData.departmentId, 10) : null, // Include departmentId
       };
 
       await createPatientMutation.mutateAsync({ patientData: payload, branchId: parseInt(currentBranchId, 10) });
@@ -100,6 +100,7 @@ const PatientComponent = () => {
   const handleUpdate = async (patientId, formData) => {
     try {
       const payload = {
+        id: formData.medicalRecordNumber.trim(),
         fullName: formData.fullName.trim(),
         medicalRecordNumber: formData.medicalRecordNumber.trim(),
         gender: formData.gender,
@@ -107,11 +108,13 @@ const PatientComponent = () => {
         roomNumber: formData.roomNumber?.trim() || '',
         bedNumber: formData.bedNumber?.trim() || '',
         admissionDate: formData.admissionDate?.format('YYYY-MM-DD') || null,
+        dischargeDate: formData.dischargeDate?.format('YYYY-MM-DD') || null,
         attendingPhysician: formData.attendingPhysician?.trim() || '',
         requiresDietarySupervision: formData.requiresDietarySupervision || false,
         isActive: true,
         notes: formData.notes?.trim() || '',
         diseaseCategoryIds: formData.diseaseCategories || [],
+        departmentId: formData.departmentId ? parseInt(formData.departmentId, 10) : null, // Include departmentId
       };
 
       await updatePatientMutation.mutateAsync({ patientId, patientData: payload, branchId: parseInt(currentBranchId, 10) });
@@ -145,6 +148,7 @@ const PatientComponent = () => {
           <p><strong>Họ tên:</strong> {patient.fullName}</p>
           <p><strong>Giới tính:</strong> {patient.gender}</p>
           <p><strong>Tuổi:</strong> {patient.age}</p>
+          <p><strong>Phòng ban:</strong> {patient.departmentName || 'Chưa xác định'}</p>
           <p><strong>Phòng:</strong> {patient.roomNumber}</p>
           <p><strong>Giường:</strong> {patient.bedNumber}</p>
           <p><strong>Ngày vào viện:</strong> {patient.admissionDate}</p>

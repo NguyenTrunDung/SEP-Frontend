@@ -1,6 +1,7 @@
 import React from 'react';
-import { Modal, Descriptions, Image, Button } from 'antd';
+import { Modal, Descriptions, Button } from 'antd';
 import PropTypes from 'prop-types';
+import { FoodImage } from '../../../components/common/ImageDisplay';
 
 const FoodCategoryDetails = ({ open, onCancel, category }) => {
   return (
@@ -14,6 +15,7 @@ const FoodCategoryDetails = ({ open, onCancel, category }) => {
         </Button>,
       ]}
       width={600}
+      className="food-category-detail-modal"
     >
       {category ? (
         <Descriptions bordered column={1} labelStyle={{ width: 150 }}>
@@ -26,11 +28,11 @@ const FoodCategoryDetails = ({ open, onCancel, category }) => {
           </Descriptions.Item>
           <Descriptions.Item label="Hình ảnh">
             {category.imageUrl ? (
-              <Image
+              <FoodImage
                 src={category.imageUrl}
-                alt="category"
-                style={{ width: 100, height: 100, objectFit: 'cover' }}
-                preview
+                alt={category.name || 'Danh mục'}
+                size="small"
+                preview={true}
               />
             ) : (
               <span>Không có</span>
