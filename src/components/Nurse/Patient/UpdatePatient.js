@@ -27,6 +27,7 @@ const UpdatePatient = ({
   initialValues,
   form: externalForm,
   branchId,
+  refetch,
 }) => {
   const [form] = Form.useForm(externalForm);
   const currentBranchId = branchId || localStorage.getItem('currentBranchId') || '1';
@@ -36,13 +37,15 @@ const UpdatePatient = ({
 
   useEffect(() => {
     if (initialValues) {
-      const birthYear = new Date().getFullYear() - initialValues.age;
+      const birthYear = new Date().getFullYear() - (initialValues.age || 0);
       form.setFieldsValue({
         ...initialValues,
-        dateOfBirth: moment(`${birthYear}-01-01`),
+        dateOfBirth: initialValues.dateOfBirth ? moment(initialValues.dateOfBirth) : moment(`${birthYear}-01-01`),
+        admissionDate: initialValues.admissionDate ? moment(initialValues.admissionDate) : null,
         dischargeDate: initialValues.dischargeDate ? moment(initialValues.dischargeDate) : null,
         diseaseCategories: initialValues.diseaseCategories?.map(dc => dc.diseaseCategoryId) || [],
-        departmentId: initialValues.departmentId || null,
+        departmentId: initialValues.departmentId ? String(initialValues.departmentId) : null,
+        isCurrentlyAdmitted: initialValues.isCurrentlyAdmitted || false,
       });
     }
   }, [initialValues, form]);
@@ -50,7 +53,7 @@ const UpdatePatient = ({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const birthYear = new Date().getFullYear() - parseInt(values.age, 10);
+      const birthYear = new Date().getFullYear() - parseInt(values.age || 0, 10);
       const dateOfBirth = moment(`${birthYear}-01-01`).format('YYYY-MM-DD');
 
       const payload = {
@@ -58,46 +61,52 @@ const UpdatePatient = ({
         fullName: values.fullName.trim(),
         medicalRecordNumber: values.medicalRecordNumber.trim(),
         gender: values.gender,
+        dateOfBirth,
+        admissionDate: values.admissionDate?.format('YYYY-MM-DD') || null,
+        dischargeDate: values.dischargeDate?.format('YYYY-MM-DD') || null,
         roomNumber: values.roomNumber?.trim() || '',
         bedNumber: values.bedNumber?.trim() || '',
         attendingPhysician: values.attendingPhysician?.trim() || '',
         notes: values.notes?.trim() || '',
-        dischargeDate: values.dischargeDate?.format('YYYY-MM-DD') || '',
-        dateOfBirth,
-        requiresDietarySupervision: false,
+        requiresDietarySupervision: values.isCurrentlyAdmitted || false,
         externalSystemId: '',
         diseaseCategoryIds: values.diseaseCategories || [],
         departmentId: values.departmentId ? parseInt(values.departmentId, 10) : null,
+        isActive: true,
       };
 
-      updatePatientMutation.mutate({ patientId: initialValues.id, patientData: payload, branchId: currentBranchId }, {
-        onSuccess: async (response) => {
-          message.success('Cập nhật bệnh nhân thành công');
+      console.log('🔍 Update patient payload:', payload);
 
-          if (values.diseaseCategories?.length > 0) {
-            try {
-              await patientService.assignDiseaseCategories(
-                initialValues.id,
-                values.diseaseCategories,
-                currentBranchId
-              );
-              message.success('Gán nhóm bệnh thành công');
-            } catch (error) {
-              console.error('Gán nhóm bệnh lỗi:', error);
-              message.warning('Cập nhật thành công nhưng không gán được nhóm bệnh');
+      updatePatientMutation.mutate(
+        { patientId: initialValues.id, patientData: payload, branchId: currentBranchId },
+        {
+          onSuccess: async (response) => {
+            message.success('Cập nhật bệnh nhân thành công');
+
+            if (values.diseaseCategories?.length > 0) {
+              try {
+                await patientService.assignDiseaseCategories(
+                  initialValues.id,
+                  values.diseaseCategories,
+                  currentBranchId
+                );
+                message.success('Gán nhóm bệnh thành công');
+              } catch (error) {
+                console.error('Gán nhóm bệnh lỗi:', error);
+                message.warning('Cập nhật thành công nhưng không gán được nhóm bệnh');
+              }
             }
-          }
 
-          form.resetFields();
-          if (externalSubmit) externalSubmit(response.data);
-          onCancel();
-        },
-        onError: (error) => {
-          message.error(
-            error?.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân'
-          );
-        },
-      });
+            form.resetFields();
+            if (externalSubmit) externalSubmit(response.data);
+            onCancel();
+            refetch();
+          },
+          onError: (error) => {
+            message.error(error?.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân');
+          },
+        }
+      );
     } catch (error) {
       console.error('Validation or mutation failed:', error);
       message.error(`Lỗi khi cập nhật bệnh nhân: ${error.message || 'Không xác định'}`);
@@ -116,12 +125,16 @@ const UpdatePatient = ({
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
-        initialValues={initialValues}
       >
         <Form.Item
           name="fullName"
           label="Họ và tên"
-          rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
+          rules={[
+            { required: true, message: 'Vui lòng nhập họ và tên!' },
+            { pattern: /^[a-zA-ZÀ-ỹ\s]+$/, message: 'Họ và tên chỉ được chứa chữ cái và khoảng trắng!' },
+            { min: 2, message: 'Họ và tên phải có ít nhất 2 ký tự!' },
+            { max: 50, message: 'Họ và tên không được vượt quá 50 ký tự!' }
+          ]}
         >
           <Input placeholder="Nhập họ và tên" />
         </Form.Item>
@@ -149,7 +162,18 @@ const UpdatePatient = ({
         <Form.Item
           name="age"
           label="Tuổi"
-          rules={[{ required: true, message: 'Vui lòng nhập tuổi!' }]}
+          rules={[
+            { required: true, message: 'Vui lòng nhập tuổi!' },
+            {
+              validator: (_, value) => {
+                const age = parseInt(value, 10);
+                if (isNaN(age) || age < 0 || age > 150) {
+                  return Promise.reject('Tuổi phải từ 0 đến 150!');
+                }
+                return Promise.resolve();
+              }
+            }
+          ]}
         >
           <Input type="number" placeholder="Nhập tuổi" />
         </Form.Item>
@@ -165,7 +189,7 @@ const UpdatePatient = ({
             allowClear
           >
             {departments.map(dept => (
-              <Option key={dept.id} value={dept.id}>
+              <Option key={dept.id} value={String(dept.id)}>
                 {dept.name}
               </Option>
             ))}
@@ -181,9 +205,29 @@ const UpdatePatient = ({
         </Form.Item>
 
         <Form.Item
+          name="admissionDate"
+          label="Ngày vào viện"
+          rules={[{ required: true, message: 'Vui lòng chọn ngày vào viện!' }]}
+        >
+          <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} locale={locale.DatePicker} />
+        </Form.Item>
+
+        <Form.Item
           name="dischargeDate"
           label="Ngày xuất viện"
-          rules={[{ required: true, message: 'Vui lòng chọn ngày xuất viện!' }]}
+          dependencies={['admissionDate']}
+          rules={[
+            {
+              validator: (_, value) => {
+                if (!value) return Promise.resolve();
+                const admissionDate = form.getFieldValue('admissionDate');
+                if (admissionDate && value.isBefore(admissionDate)) {
+                  return Promise.reject('Ngày xuất viện không được trước ngày vào viện!');
+                }
+                return Promise.resolve();
+              }
+            }
+          ]}
         >
           <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} locale={locale.DatePicker} />
         </Form.Item>
@@ -235,6 +279,7 @@ UpdatePatient.propTypes = {
   initialValues: PropTypes.object,
   form: PropTypes.object,
   branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  refetch: PropTypes.func,
 };
 
 export default UpdatePatient;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { ConfigProvider, Typography, Alert, message, Button, Modal } from 'antd';
 import { usePatients, useCreatePatient, useUpdatePatient, useDeletePatient } from '../../../hooks/queries/usePatientQueries';
 import { useAuth } from '../../../context/AuthContext';
@@ -43,15 +43,30 @@ const PatientComponent = () => {
   const [note, setNote] = useState({});
 
   const { data: patientData, isError, error, isFetching, refetch } = usePatients(
-    { branchId: parseInt(currentBranchId, 10) },
+    { branchId: parseInt(currentBranchId, 10), search: searchText },
     {
       keepPreviousData: true,
       enabled: !!currentBranchId,
       onError: (err) => {
+        console.error('❌ Patient fetch error:', err);
         message.error(err?.response?.data?.message || 'Không thể tải danh sách bệnh nhân');
       },
     }
   );
+
+  const patients = useMemo(() => {
+    if (!patientData) {
+      console.warn('⚠️ patientData is undefined');
+      return [];
+    }
+    if (!Array.isArray(patientData)) {
+      console.warn('⚠️ patientData is not an array:', patientData);
+      return [];
+    }
+    return patientData;
+  }, [patientData]);
+
+  console.log('🔍 patients:', patients);
 
   const createPatientMutation = useCreatePatient();
   const updatePatientMutation = useUpdatePatient();
@@ -61,8 +76,6 @@ const PatientComponent = () => {
     date: getFormattedDate(activeDay),
     branchId: parseInt(currentBranchId, 10),
   });
-
-  const patients = Array.isArray(patientData?.data) ? patientData.data : [];
 
   const handleRefresh = () => {
     refetch();
@@ -85,13 +98,13 @@ const PatientComponent = () => {
         notes: formData.notes?.trim() || '',
         branchId: parseInt(currentBranchId, 10),
         diseaseCategoryIds: formData.diseaseCategories || [],
-        departmentId: formData.departmentId ? parseInt(formData.departmentId, 10) : null, // Include departmentId
+        departmentId: formData.departmentId ? parseInt(formData.departmentId, 10) : null,
       };
 
       await createPatientMutation.mutateAsync({ patientData: payload, branchId: parseInt(currentBranchId, 10) });
       message.success('Tạo bệnh nhân thành công');
       setIsCreateModalVisible(false);
-      refetch();
+      refetch(); // Ensure refetch is called to reload the patient list
     } catch (err) {
       message.error(err?.response?.data?.message || 'Lỗi khi tạo bệnh nhân!');
     }
@@ -114,12 +127,12 @@ const PatientComponent = () => {
         isActive: true,
         notes: formData.notes?.trim() || '',
         diseaseCategoryIds: formData.diseaseCategories || [],
-        departmentId: formData.departmentId ? parseInt(formData.departmentId, 10) : null, // Include departmentId
+        departmentId: formData.departmentId ? parseInt(formData.departmentId, 10) : null,
       };
 
       await updatePatientMutation.mutateAsync({ patientId, patientData: payload, branchId: parseInt(currentBranchId, 10) });
       message.success('Cập nhật bệnh nhân thành công');
-      refetch();
+      refetch(); // Ensure refetch is called to reload the patient list
     } catch (err) {
       message.error(err?.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân!');
     }
@@ -339,6 +352,10 @@ const PatientComponent = () => {
   };
 
   const filteredData = useMemo(() => {
+    if (!Array.isArray(patients)) {
+      console.warn('⚠️ patients is not an array:', patients);
+      return [];
+    }
     const keyword = searchText.toLowerCase();
     return patients.filter(
       (item) =>
@@ -359,6 +376,37 @@ const PatientComponent = () => {
               showIcon
               className="mb-6 rounded-lg shadow-sm"
             />
+          </div>
+        </NurseLayout>
+      </ConfigProvider>
+    );
+  }
+
+  if (isError) {
+    console.error('❌ Patient fetch error:', error);
+    return (
+      <ConfigProvider locale={locale}>
+        <NurseLayout>
+          <div className="p-6 bg-gray-50 min-h-screen">
+            <Alert
+              message="Lỗi tải danh sách bệnh nhân"
+              description={error?.message || 'Không thể tải danh sách bệnh nhân.'}
+              type="error"
+              showIcon
+              className="mb-6 rounded-lg shadow-sm"
+            />
+          </div>
+        </NurseLayout>
+      </ConfigProvider>
+    );
+  }
+
+  if (isFetching && !patients.length) {
+    return (
+      <ConfigProvider locale={locale}>
+        <NurseLayout>
+          <div className="p-6 bg-gray-50 min-h-screen">
+            <Text>Đang tải danh sách bệnh nhân...</Text>
           </div>
         </NurseLayout>
       </ConfigProvider>
@@ -411,17 +459,9 @@ const PatientComponent = () => {
               Đặt món
             </Button>
           </div>
-          {isError && (
-            <Alert
-              message={error?.message || 'Lỗi khi tải danh sách bệnh nhân'}
-              type="error"
-              showIcon
-              className="mb-6 rounded-lg shadow-sm"
-            />
-          )}
           <PatientTable
             dataSource={filteredData}
-            loading={isFetching}
+            loading={isFetching && !patients.length}
             nurseId={nurseId}
             branchId={parseInt(currentBranchId, 10)}
             activeDay={activeDay}
@@ -430,12 +470,14 @@ const PatientComponent = () => {
             onDelete={handleDelete}
             onViewDetail={handleViewDetail}
             onSelectPatient={handleSelectPatient}
+            refetch={refetch} // Pass refetch to PatientTable
           />
           <CreatePatient
             open={isCreateModalVisible}
             onCancel={() => setIsCreateModalVisible(false)}
             onSubmit={handleCreate}
             branchId={parseInt(currentBranchId, 10)}
+            refetch={refetch} // Pass refetch to CreatePatient
           />
         </PageWrapperV2>
       </NurseLayout>

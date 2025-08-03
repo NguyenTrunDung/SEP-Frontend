@@ -5,6 +5,7 @@ import environment from '../../config/environment';
 import { ORDER_QUERY_KEYS } from './useOrders';
 import { getFilteredPatients } from '../../mocks/patientData';
 import { patientService } from '../../services/patientService';
+import { useDepartments } from './useDepartments';
 
 const normalizeBranchId = (branchId) => {
   const resolvedBranchId =
@@ -34,56 +35,97 @@ export const PATIENT_KEYS = {
   detail: (patientId) => [...PATIENT_KEYS.all, 'detail', patientId],
 };
 
-const fetchPatients = async (filters = {}) => {
+const normalizePatientData = (data) => {
+  if (!data) {
+    console.warn('⚠️ Patient data is undefined or null');
+    return [];
+  }
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.patients)) return data.patients;
+  console.warn('⚠️ Unexpected patient data structure:', data);
+  return [];
+};
+
+const fetchPatients = async (filters = {}, departments = []) => {
   const USE_REAL_API = !environment.features.enableMockData;
 
-  if (USE_REAL_API) {
-    console.log('🌐 Using real API for patient data', { filters });
-
-    if (filters.search) {
-      return await patientService.searchPatients(filters.search, filters.branchId);
+  try {
+    let patients;
+    if (USE_REAL_API) {
+      console.log('🌐 Sử dụng API thật để lấy dữ liệu bệnh nhân', { filters });
+      if (filters.search) {
+        const response = await patientService.searchPatients(filters.search, filters.branchId);
+        patients = normalizePatientData(response.data);
+      } else {
+        const response = await patientService.getPatientsByBranch(filters.branchId);
+        patients = normalizePatientData(response.data);
+      }
     } else {
-      return await patientService.getPatientsByBranch(filters.branchId);
+      console.log('🔧 Sử dụng dữ liệu giả lập cho bệnh nhân', { filters });
+      patients = await getFilteredPatients(filters);
     }
-  } else {
-    console.log('🔧 Using mock patient data', { filters });
-    return await getFilteredPatients(filters);
+
+    if (!Array.isArray(patients)) {
+      console.error('❌ Patients is not an array after normalization:', patients);
+      return [];
+    }
+
+    console.log('🔍 Patients fetched:', patients);
+
+    // Ánh xạ departmentId sang departmentName
+    return patients.map(patient => ({
+      ...patient,
+      departmentName: departments.find(dept => dept.id === patient.departmentId)?.name || 'Chưa xác định',
+    }));
+  } catch (error) {
+    console.error('❌ Error fetching patients:', error);
+    throw error;
   }
 };
 
 export const usePatients = (filters = {}, options = {}) => {
   const queryFilters = {
     search: filters.search || '',
-    branchId: filters.branchId || 1,
+    branchId: normalizeBranchId(filters.branchId || 1),
   };
+  const { departments } = useDepartments(queryFilters.branchId);
 
   return useQuery({
     queryKey: queryFilters.search
       ? PATIENT_KEYS.search(queryFilters.branchId, queryFilters.search)
       : PATIENT_KEYS.byBranch(queryFilters.branchId),
-    queryFn: () => fetchPatients(queryFilters),
+    queryFn: () => fetchPatients(queryFilters, departments),
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     keepPreviousData: true,
+    enabled: !!queryFilters.branchId && departments.length > 0,
     ...options,
   });
 };
 
 export const useCreatePatient = () => {
   const queryClient = useQueryClient();
+  const { departments } = useDepartments();
 
   return useMutation({
     mutationFn: ({ patientData, branchId }) =>
       patientService.createPatient(patientData, branchId),
     onSuccess: (data, { branchId }) => {
+      const newPatient = {
+        ...data.data,
+        departmentName: departments.find(dept => dept.id === data.data.departmentId)?.name || 'Chưa xác định',
+      };
+      queryClient.setQueryData(PATIENT_KEYS.byBranch(branchId), (oldData) => {
+        return oldData ? [...oldData, newPatient] : [newPatient];
+      });
       queryClient.invalidateQueries({
         queryKey: PATIENT_KEYS.byBranch(branchId),
       });
-      message.success('Patient created successfully');
+      message.success('Tạo bệnh nhân thành công');
     },
     onError: (error) => {
-      message.error('Failed to create patient: ' + error.message);
+      message.error('Lỗi khi tạo bệnh nhân: ' + error.message);
     },
   });
 };
@@ -122,7 +164,7 @@ export const usePatientDetail = (patientId, options = {}) => {
   });
 };
 
-export const useCreatePatientOrder = (options = {}) => {
+export const useCreatePatientOrder = () => {
   const queryClient = useQueryClient();
   const currentBranchId = normalizeBranchId();
 
@@ -164,7 +206,6 @@ export const useCreatePatientOrder = (options = {}) => {
         errorMessage,
       });
     },
-    ...options,
   });
 };
 
@@ -179,10 +220,10 @@ export const useUpdatePatient = () => {
       queryClient.invalidateQueries({
         queryKey: PATIENT_KEYS.byBranch(branchId),
       });
-      message.success('Patient updated successfully');
+      message.success('Cập nhật bệnh nhân thành công');
     },
     onError: (error) => {
-      message.error('Failed to update patient: ' + error.message);
+      message.error('Lỗi khi cập nhật bệnh nhân: ' + error.message);
     },
   });
 };

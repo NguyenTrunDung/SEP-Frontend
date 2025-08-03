@@ -1,4 +1,3 @@
-// src/services/patientService.js
 import api from './api/config';
 import environment from '../config/environment';
 
@@ -41,14 +40,32 @@ export const patientService = {
     const payload = {
       ...patientData,
       branchId: parseInt(branchId, 10),
+      departmentId: patientData.departmentId ? parseInt(patientData.departmentId, 10) : null, // Explicitly include departmentId
     };
 
     if (!payload.diseaseCategoryIds?.length) {
       delete payload.diseaseCategoryIds;
     }
 
-    const response = await api.post('/api/v1/Patient', payload);
-    return response.data;
+    try {
+      if (environment.features.enableLogging) {
+        console.log('🔍 patientService.createPatient - Sending payload:', JSON.stringify(payload, null, 2));
+      }
+      const response = await api.post('/api/v1/Patient', payload);
+      if (environment.features.enableLogging) {
+        console.log('✅ patientService.createPatient - Success:', JSON.stringify(response.data, null, 2));
+      }
+      return response.data;
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error('❌ patientService.createPatient - Error:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+        });
+      }
+      throw new Error(error.response?.data?.message || 'Lỗi khi tạo bệnh nhân');
+    }
   },
 
   async updatePatient(patientId, patientData, branchId) {
@@ -56,15 +73,25 @@ export const patientService = {
       const payload = {
         ...patientData,
         branchId: parseInt(branchId, 10),
+        departmentId: patientData.departmentId ? parseInt(patientData.departmentId, 10) : null,
       };
 
       if (!payload.diseaseCategoryIds?.length) {
         delete payload.diseaseCategoryIds;
       }
 
+      console.log('🔍 Sending update patient payload:', JSON.stringify(payload, null, 2));
+
       const response = await api.put(`/api/v1/Patient/${patientId}`, payload);
+      console.log('✅ Update patient response:', JSON.stringify(response.data, null, 2));
+
       return response.data;
     } catch (error) {
+      console.error('❌ Update patient error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
       throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân');
     }
   },
@@ -177,7 +204,6 @@ export const nurseOrderService = {
     }
   },
 
-  // Other methods remain unchanged
   async getOrderHistoryForPatient(patientId, branchId) {
     const response = await api.get(`/api/v1/orders/patient/${patientId}`, {
       params: { branchId: parseInt(branchId, 10) },

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Form,
   Input,
@@ -26,8 +26,10 @@ const CreatePatient = ({
   onSubmit: externalSubmit,
   form: externalForm,
   branchId,
+  refetch,
 }) => {
   const [form] = Form.useForm(externalForm);
+  const [isCheckingMedicalRecord, setIsCheckingMedicalRecord] = useState(false);
   const currentBranchId = branchId || localStorage.getItem('currentBranchId') || '1';
   const createPatientMutation = useCreatePatient();
   const { diseaseCategories, isLoading: categoriesLoading } = useDiseaseCategories(currentBranchId);
@@ -81,6 +83,7 @@ const CreatePatient = ({
           form.resetFields();
           if (externalSubmit) externalSubmit(response.data);
           onCancel();
+          refetch();
         },
         onError: (error) => {
           message.error(
@@ -92,6 +95,31 @@ const CreatePatient = ({
       console.error('Validation or mutation failed:', error);
       message.error(`Lỗi khi tạo bệnh nhân: ${error.message || 'Không xác định'}`);
     }
+  };
+
+  const validateFullName = (_, value) => {
+    if (!value || value.trim().split(/\s+/).length < 2) {
+      return Promise.reject(new Error('Họ và tên phải chứa ít nhất họ và tên!'));
+    }
+    return Promise.resolve();
+  };
+
+  const validateAge = (_, value) => {
+    const age = parseInt(value, 10);
+    if (isNaN(age) || age < 0 || age > 150) {
+      return Promise.reject(new Error('Tuổi phải từ 0 đến 150!'));
+    }
+    return Promise.resolve();
+  };
+
+  const validateAdmissionDate = (_, value) => {
+    if (!value) {
+      return Promise.reject(new Error('Vui lòng chọn ngày vào viện!'));
+    }
+    if (value.isAfter(moment(), 'day')) {
+      return Promise.reject(new Error('Ngày vào viện không được sau ngày hiện tại!'));
+    }
+    return Promise.resolve();
   };
 
   return (
@@ -110,7 +138,10 @@ const CreatePatient = ({
         <Form.Item
           name="fullName"
           label="Họ và tên"
-          rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
+          rules={[
+            { required: true, message: 'Vui lòng nhập họ và tên!' },
+            { validator: validateFullName },
+          ]}
         >
           <Input placeholder="Nhập họ và tên" />
         </Form.Item>
@@ -120,7 +151,7 @@ const CreatePatient = ({
           label="Mã hồ sơ bệnh án"
           rules={[{ required: true, message: 'Vui lòng nhập mã hồ sơ!' }]}
         >
-          <Input placeholder="Nhập mã hồ sơ" />
+          <Input placeholder="Nhập mã hồ sơ" loading={isCheckingMedicalRecord} />
         </Form.Item>
 
         <Form.Item
@@ -138,7 +169,10 @@ const CreatePatient = ({
         <Form.Item
           name="age"
           label="Tuổi"
-          rules={[{ required: true, message: 'Vui lòng nhập tuổi!' }]}
+          rules={[
+            { required: true, message: 'Vui lòng nhập tuổi!' },
+            { validator: validateAge },
+          ]}
         >
           <Input type="number" placeholder="Nhập tuổi" />
         </Form.Item>
@@ -172,7 +206,7 @@ const CreatePatient = ({
         <Form.Item
           name="admissionDate"
           label="Ngày vào viện"
-          rules={[{ required: true, message: 'Vui lòng chọn ngày vào viện!' }]}
+          rules={[{ validator: validateAdmissionDate }]}
         >
           <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} locale={locale.DatePicker} />
         </Form.Item>
@@ -223,6 +257,7 @@ CreatePatient.propTypes = {
   onSubmit: PropTypes.func,
   form: PropTypes.object,
   branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  refetch: PropTypes.func,
 };
 
 export default CreatePatient;

@@ -10,7 +10,7 @@ import locale from 'antd/locale/vi_VN';
 import { ConfigProvider } from 'antd';
 import moment from 'moment';
 import UpdatePatient from './UpdatePatient';
-import patientService from '../../../services/patientService';
+import { useDepartments } from '../../../hooks/queries/useDepartments';
 
 const { Title, Text } = Typography;
 
@@ -59,6 +59,7 @@ const PatientTable = ({
   onDelete,
   onViewDetail,
   onSelectPatient,
+  refetch, // Add refetch prop
 }) => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [allAvailableFoods, setAllAvailableFoods] = useState([]);
@@ -75,6 +76,7 @@ const PatientTable = ({
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [form] = Form.useForm();
   const categoryRefs = useRef({});
+  const { departments } = useDepartments(branchId);
 
   const currentBranchId = parseInt(branchId || localStorage.getItem('currentBranchId') || '1', 10);
   const createPatientOrderMutation = useCreatePatientOrder();
@@ -82,6 +84,18 @@ const PatientTable = ({
     date: getFormattedDate(activeDay),
     branchId: currentBranchId,
   });
+
+  // Ánh xạ departmentName cho dataSource
+  const enrichedDataSource = useMemo(() => {
+    if (!Array.isArray(dataSource)) {
+      console.warn('⚠️ dataSource is not an array:', dataSource);
+      return [];
+    }
+    return dataSource.map(patient => ({
+      ...patient,
+      departmentName: departments.find(dept => dept.id === patient.departmentId)?.name || 'Chưa xác định',
+    }));
+  }, [dataSource, departments]);
 
   useEffect(() => {
     const fetchMenuAndCategories = async () => {
@@ -297,7 +311,7 @@ const PatientTable = ({
       setSelectedFoods(new Set());
       setQuantity({});
       setNote({});
-      onSelectPatient(record.id, new Set()); // Clear selection in parent after successful order
+      onSelectPatient(record.id, new Set());
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Lỗi không xác định';
       message.error(`Lỗi khi tạo đơn hàng cho ${record.fullName}: ${errorMessage}`);
@@ -320,7 +334,7 @@ const PatientTable = ({
     setSelectedFoods(newSelectedFoods);
     console.log(`🔍 Checkbox changed for food ${foodId}, selectedFoods:`, Array.from(newSelectedFoods));
     if (selectedPatient) {
-      onSelectPatient(selectedPatient.id, newSelectedFoods); // Sync with parent
+      onSelectPatient(selectedPatient.id, newSelectedFoods);
     }
   };
 
@@ -361,6 +375,7 @@ const PatientTable = ({
       await onUpdate(editingPatient.id, values);
       setEditModalVisible(false);
       form.resetFields();
+      refetch(); // Call refetch after successful update
     } catch (error) {
       message.error(`Lỗi khi cập nhật bệnh nhân: ${error.response?.data?.message || error.message}`);
     }
@@ -389,7 +404,7 @@ const PatientTable = ({
         priceForPatient: Number(food.priceForPatient || 0),
       });
       return acc;
-    }, {});
+    }, {}, {});
   }, [filteredFoods, foodCategories]);
 
   const columns = [
@@ -433,7 +448,7 @@ const PatientTable = ({
       align: 'left',
       title: 'Phòng Ban',
       sorter: (a, b) => (a.departmentName || '').localeCompare(b.departmentName || ''),
-      render: (text) => text || '-',
+      render: (text) => text || 'Chưa xác định',
     },
     {
       dataIndex: 'diseaseCategories',
@@ -495,7 +510,7 @@ const PatientTable = ({
     pageSizeOptions: [5, 10, 20, 50],
     showTotal: true,
     showSizeChanger: true,
-    total: dataSource.length,
+    total: enrichedDataSource.length,
     showTotal: (total, range) => `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} mục`,
   };
 
@@ -534,7 +549,7 @@ const PatientTable = ({
           </Select>
         </div>
         <ReusableTableV2
-          dataSource={dataSource}
+          dataSource={enrichedDataSource}
           columns={columns}
           loading={loading}
           listHeader="HỌ TÊN"
@@ -549,7 +564,7 @@ const PatientTable = ({
                     handleAddToMenu(record);
                   } else {
                     setSelectedPatient(null);
-                    onSelectPatient(record.id, new Set()); // Clear selection when collapsing
+                    onSelectPatient(record.id, new Set());
                   }
                 }}
                 loading={createPatientOrderMutation.isLoading}
@@ -751,6 +766,7 @@ const PatientTable = ({
           initialValues={editingPatient}
           form={form}
           branchId={currentBranchId}
+          refetch={refetch} // Pass refetch to UpdatePatient
         />
         <Modal
           title={
@@ -848,6 +864,7 @@ PatientTable.propTypes = {
   onDelete: PropTypes.func.isRequired,
   onViewDetail: PropTypes.func.isRequired,
   onSelectPatient: PropTypes.func.isRequired,
+  refetch: PropTypes.func, // Add refetch to propTypes
 };
 
 export default PatientTable;
