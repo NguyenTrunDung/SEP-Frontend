@@ -332,25 +332,6 @@ const UpdatePatient = ({
           </Form.Item>
         </div>
 
-        <div className="custom-floating">
-          <label className={`floating-label ${focus === 'admissionDate' ? 'focused' : ''}`}>
-            Ngày vào viện
-          </label>
-          <Form.Item
-            name="admissionDate"
-            rules={[{ validator: validateAdmissionDate }]}
-            style={{ marginBottom: 16 }}
-          >
-            <DatePicker
-              className="custom-input"
-              format="YYYY-MM-DD"
-              style={{ width: '100%' }}
-              locale={locale.DatePicker}
-              onFocus={() => setFocus('admissionDate')}
-              onBlur={() => setFocus('')}
-            />
-          </Form.Item>
-        </div>
 
         <div className="custom-floating">
           <label className={`floating-label ${focus === 'dischargeDate' ? 'focused' : ''}`}>
