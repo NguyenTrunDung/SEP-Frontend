@@ -17,6 +17,7 @@ import PropTypes from 'prop-types';
 import moment from 'moment';
 import locale from 'antd/locale/vi_VN';
 import { patientService } from '../../../services/patientService';
+import './CreatePatient.css';
 
 const { Option } = Select;
 
@@ -29,6 +30,7 @@ const CreatePatient = ({
   refetch,
 }) => {
   const [form] = Form.useForm(externalForm);
+  const [focus, setFocus] = useState('');
   const [isCheckingMedicalRecord, setIsCheckingMedicalRecord] = useState(false);
   const currentBranchId = branchId || localStorage.getItem('currentBranchId') || '1';
   const createPatientMutation = useCreatePatient();
@@ -37,7 +39,7 @@ const CreatePatient = ({
 
   useEffect(() => {
     form.resetFields();
-  }, [form]);
+  }, [form, open]);
 
   const handleSubmit = async () => {
     try {
@@ -124,128 +126,265 @@ const CreatePatient = ({
 
   return (
     <ReusableModal
-      title="Thêm bệnh nhân mới"
+      title={<span style={{ fontSize: '24px', color: '#000' }}>Thêm bệnh nhân</span>}
       open={open}
       onCancel={onCancel}
       footer={null}
-      width={600}
+      destroyOnClose
+      closable={false}
+      width={500}
     >
+      <div style={{ position: 'absolute', top: 12, right: 16, zIndex: 1 }}>
+        <Space>
+          <Button
+            type="primary"
+            onClick={() => form.submit()}
+            style={{
+              backgroundColor: '#b4c80f',
+              border: 'none',
+              minWidth: 60,
+              height: 28,
+              fontSize: 12,
+            }}
+            loading={createPatientMutation.isLoading}
+          >
+            Lưu
+          </Button>
+          <Button
+            onClick={onCancel}
+            style={{
+              backgroundColor: '#ff4d4f',
+              color: '#fff',
+              border: 'none',
+              minWidth: 60,
+              height: 28,
+              fontSize: 12,
+            }}
+          >
+            X
+          </Button>
+        </Space>
+      </div>
+
       <Form
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
+        className={createPatientMutation.isLoading ? 'form-loading' : ''}
       >
-        <Form.Item
-          name="fullName"
-          label="Họ và tên"
-          rules={[
-            { required: true, message: 'Vui lòng nhập họ và tên!' },
-            { validator: validateFullName },
-          ]}
-        >
-          <Input placeholder="Nhập họ và tên" />
-        </Form.Item>
-
-        <Form.Item
-          name="medicalRecordNumber"
-          label="Mã hồ sơ bệnh án"
-          rules={[{ required: true, message: 'Vui lòng nhập mã hồ sơ!' }]}
-        >
-          <Input placeholder="Nhập mã hồ sơ" loading={isCheckingMedicalRecord} />
-        </Form.Item>
-
-        <Form.Item
-          name="gender"
-          label="Giới tính"
-          rules={[{ required: true, message: 'Vui lòng chọn giới tính!' }]}
-        >
-          <Select placeholder="Chọn giới tính">
-            <Option value="Nam">Nam</Option>
-            <Option value="Nữ">Nữ</Option>
-            <Option value="Khác">Khác</Option>
-          </Select>
-        </Form.Item>
-
-        <Form.Item
-          name="age"
-          label="Tuổi"
-          rules={[
-            { required: true, message: 'Vui lòng nhập tuổi!' },
-            { validator: validateAge },
-          ]}
-        >
-          <Input type="number" placeholder="Nhập tuổi" />
-        </Form.Item>
-
-        <Form.Item
-          name="departmentId"
-          label="Phòng ban"
-          rules={[{ required: true, message: 'Vui lòng chọn phòng ban!' }]}
-        >
-          <Select
-            placeholder="Chọn phòng ban"
-            loading={departmentsLoading}
-            allowClear
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'fullName' ? 'focused' : ''}`}>
+            Họ và tên
+          </label>
+          <Form.Item
+            name="fullName"
+            rules={[
+              { required: true, message: 'Vui lòng nhập họ và tên!' },
+              { validator: validateFullName },
+            ]}
+            style={{ marginBottom: 16 }}
           >
-            {departments.map(dept => (
-              <Option key={dept.id} value={dept.id}>
-                {dept.name}
-              </Option>
-            ))}
-          </Select>
-        </Form.Item>
+            <Input
+              className="custom-input"
+              placeholder="Họ và tên"
+              onFocus={() => setFocus('fullName')}
+              onBlur={() => setFocus('')}
+            />
+          </Form.Item>
+        </div>
 
-        <Form.Item name="roomNumber" label="Số phòng">
-          <Input placeholder="Nhập số phòng" />
-        </Form.Item>
-
-        <Form.Item name="bedNumber" label="Số giường">
-          <Input placeholder="Nhập số giường" />
-        </Form.Item>
-
-        <Form.Item
-          name="admissionDate"
-          label="Ngày vào viện"
-          rules={[{ validator: validateAdmissionDate }]}
-        >
-          <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} locale={locale.DatePicker} />
-        </Form.Item>
-
-        <Form.Item name="diseaseCategories" label="Nhóm bệnh">
-          <Select
-            mode="multiple"
-            placeholder="Chọn nhóm bệnh"
-            loading={categoriesLoading}
-            allowClear
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'medicalRecordNumber' ? 'focused' : ''}`}>
+            Mã hồ sơ bệnh án
+          </label>
+          <Form.Item
+            name="medicalRecordNumber"
+            rules={[{ required: true, message: 'Vui lòng nhập mã hồ sơ!' }]}
+            style={{ marginBottom: 16 }}
           >
-            {diseaseCategories.map(category => (
-              <Option key={category.id} value={category.id}>
-                {category.name}
-              </Option>
-            ))}
-          </Select>
-        </Form.Item>
+            <Input
+              className="custom-input"
+              placeholder="Mã hồ sơ bệnh án"
+              onFocus={() => setFocus('medicalRecordNumber')}
+              onBlur={() => setFocus('')}
+              loading={isCheckingMedicalRecord}
+            />
+          </Form.Item>
+        </div>
 
-        <Form.Item name="attendingPhysician" label="Bác sĩ điều trị">
-          <Input placeholder="Nhập tên bác sĩ" />
-        </Form.Item>
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'gender' ? 'focused' : ''}`}>
+            Giới tính
+          </label>
+          <Form.Item
+            name="gender"
+            rules={[{ required: true, message: 'Vui lòng chọn giới tính!' }]}
+            style={{ marginBottom: 16 }}
+          >
+            <Select
+              className="custom-input"
+              placeholder="Chọn giới tính"
+              onFocus={() => setFocus('gender')}
+              onBlur={() => setFocus('')}
+            >
+              <Option value="Nam">Nam</Option>
+              <Option value="Nữ">Nữ</Option>
+              <Option value="Khác">Khác</Option>
+            </Select>
+          </Form.Item>
+        </div>
 
-        <Form.Item name="isCurrentlyAdmitted" valuePropName="checked">
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'age' ? 'focused' : ''}`}>
+            Tuổi
+          </label>
+          <Form.Item
+            name="age"
+            rules={[
+              { required: true, message: 'Vui lòng nhập tuổi!' },
+              { validator: validateAge },
+            ]}
+            style={{ marginBottom: 16 }}
+          >
+            <Input
+              type="number"
+              className="custom-input"
+              placeholder="Tuổi"
+              onFocus={() => setFocus('age')}
+              onBlur={() => setFocus('')}
+            />
+          </Form.Item>
+        </div>
+
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'departmentId' ? 'focused' : ''}`}>
+            Phòng ban
+          </label>
+          <Form.Item
+            name="departmentId"
+            rules={[{ required: true, message: 'Vui lòng chọn phòng ban!' }]}
+            style={{ marginBottom: 16 }}
+          >
+            <Select
+              className="custom-input"
+              placeholder="Chọn phòng ban"
+              loading={departmentsLoading}
+              allowClear
+              onFocus={() => setFocus('departmentId')}
+              onBlur={() => setFocus('')}
+            >
+              {departments.map(dept => (
+                <Option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </div>
+
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'roomNumber' ? 'focused' : ''}`}>
+            Số phòng
+          </label>
+          <Form.Item name="roomNumber" style={{ marginBottom: 16 }}>
+            <Input
+              className="custom-input"
+              placeholder="Số phòng"
+              onFocus={() => setFocus('roomNumber')}
+              onBlur={() => setFocus('')}
+            />
+          </Form.Item>
+        </div>
+
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'bedNumber' ? 'focused' : ''}`}>
+            Số giường
+          </label>
+          <Form.Item name="bedNumber" style={{ marginBottom: 16 }}>
+            <Input
+              className="custom-input"
+              placeholder="Số giường"
+              onFocus={() => setFocus('bedNumber')}
+              onBlur={() => setFocus('')}
+            />
+          </Form.Item>
+        </div>
+
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'admissionDate' ? 'focused' : ''}`}>
+            Ngày vào viện
+          </label>
+          <Form.Item
+            name="admissionDate"
+            rules={[{ validator: validateAdmissionDate }]}
+            style={{ marginBottom: 16 }}
+          >
+            <DatePicker
+              className="custom-input"
+              format="YYYY-MM-DD"
+              style={{ width: '100%' }}
+              locale={locale.DatePicker}
+              onFocus={() => setFocus('admissionDate')}
+              onBlur={() => setFocus('')}
+            />
+          </Form.Item>
+        </div>
+
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'diseaseCategories' ? 'focused' : ''}`}>
+            Nhóm bệnh
+          </label>
+          <Form.Item name="diseaseCategories" style={{ marginBottom: 16 }}>
+            <Select
+              mode="multiple"
+              className="custom-input"
+              placeholder="Chọn nhóm bệnh"
+              loading={categoriesLoading}
+              allowClear
+              onFocus={() => setFocus('diseaseCategories')}
+              onBlur={() => setFocus('')}
+            >
+              {diseaseCategories.map(category => (
+                <Option key={category.id} value={category.id}>
+                  {category.name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </div>
+
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'attendingPhysician' ? 'focused' : ''}`}>
+            Bác sĩ điều trị
+          </label>
+          <Form.Item name="attendingPhysician" style={{ marginBottom: 16 }}>
+            <Input
+              className="custom-input"
+              placeholder="Bác sĩ điều trị"
+              onFocus={() => setFocus('attendingPhysician')}
+              onBlur={() => setFocus('')}
+            />
+          </Form.Item>
+        </div>
+
+        <Form.Item name="isCurrentlyAdmitted" valuePropName="checked" style={{ marginBottom: 16 }}>
           <Checkbox>Đang nhập viện</Checkbox>
         </Form.Item>
 
-        <Form.Item name="notes" label="Ghi chú">
-          <Input.TextArea rows={4} placeholder="Nhập ghi chú" />
-        </Form.Item>
-
-        <Form.Item>
-          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-            <Button onClick={onCancel}>Hủy</Button>
-            <Button type="primary" htmlType="submit">
-              Tạo
-            </Button>
-          </Space>
-        </Form.Item>
+        <div className="custom-floating">
+          <label className={`floating-label ${focus === 'notes' ? 'focused' : ''}`}>
+            Ghi chú
+          </label>
+          <Form.Item name="notes" style={{ marginBottom: 16 }}>
+            <Input.TextArea
+              className="custom-input"
+              rows={4}
+              placeholder="Ghi chú"
+              onFocus={() => setFocus('notes')}
+              onBlur={() => setFocus('')}
+            />
+          </Form.Item>
+        </div>
       </Form>
     </ReusableModal>
   );

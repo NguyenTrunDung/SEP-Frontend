@@ -171,7 +171,7 @@ const PatientComponent = () => {
         </div>
       ),
       width: 600,
-      onOk() {},
+      onOk() { },
     });
   };
 
@@ -447,7 +447,11 @@ const PatientComponent = () => {
           }}
         >
           <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <Button type="primary" onClick={handleAdd}>
+            <Button
+              type="primary"
+              onClick={handleAdd}
+              // style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f' }}
+            >
               Thêm bệnh nhân
             </Button>
             <Button
@@ -455,6 +459,7 @@ const PatientComponent = () => {
               onClick={handleSelectAllAndOrder}
               loading={createPatientOrderMutation.isLoading}
               disabled={menuLoading || !menuData?.foods?.length || !selectedPatients.size}
+              // style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f' }}
             >
               Đặt món
             </Button>
