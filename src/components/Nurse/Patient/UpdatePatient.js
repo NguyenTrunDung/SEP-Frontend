@@ -163,7 +163,7 @@ const UpdatePatient = ({
             type="primary"
             onClick={() => form.submit()}
             style={{
-              backgroundColor: '#52c41a',
+              backgroundColor: '#b4c80f',
               border: 'none',
               minWidth: 60,
               height: 28,
