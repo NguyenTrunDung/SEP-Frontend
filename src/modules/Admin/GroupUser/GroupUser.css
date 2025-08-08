@@ -1,0 +1,124 @@
+.group-user-wrapper {
+  padding: 16px;
+}
+
+.group-user-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.group-user-title {
+  font-size: 24px;
+  font-weight: 500;
+  color: #333;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.group-user-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.group-user-row span {
+  flex: 1;
+  text-align: left;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pagination-footer {
+  margin-top: 16px;
+}
+
+.page-size {
+  padding: 4px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+}
+
+.pagination button {
+  margin: 0 2px;
+}
+
+.custom-floating {
+    position: relative;
+    width: 100%;
+    margin-bottom: 16px;
+}
+
+.input-label {
+    border-radius: 8px;
+    border: 1px solid #d9d9d9;
+    padding: 8px 12px;
+    font-size: 16px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    color: #3c3c3c;
+    background-color: #fff;
+}
+
+.textarea-label {
+    height: auto !important;
+    line-height: 1.4;
+    padding: 8px 12px;
+    resize: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: inherit;
+    background-color: #fff;
+}
+
+.floating-label {
+    position: absolute;
+    top: -8px;
+    left: 12px;
+    background: white;
+    padding: 0 4px;
+    font-size: 12px;
+    color: #8c8c8c;
+    pointer-events: none;
+    font-weight: 400;
+    z-index: 1;
+}
+
+.detail-group {
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.detail-input {
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    padding: 8px 12px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    color: #3c3c3c;
+}
+
+.detail-textarea {
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    padding: 8px 12px;
+    min-height: 96px;
+    font-size: 16px;
+    color: #3c3c3c;
+    white-space: pre-line;
+}

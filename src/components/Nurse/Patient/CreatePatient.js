@@ -58,9 +58,8 @@ const CreatePatient = ({
         notes: values.notes?.trim() || '',
         admissionDate: values.admissionDate?.format('YYYY-MM-DD') || '',
         dateOfBirth,
-        requiresDietarySupervision: false,
+        requiresDietarySupervision: values.isCurrentlyAdmitted || false,
         externalSystemId: '',
-        diseaseCategoryIds: values.diseaseCategories || [],
         departmentId: values.departmentId ? parseInt(values.departmentId, 10) : null,
       };
 
@@ -72,13 +71,13 @@ const CreatePatient = ({
             try {
               await patientService.assignDiseaseCategories(
                 response.data.id,
-                values.diseaseCategories,
+                values.diseaseCategories.map(id => parseInt(id, 10)),
                 currentBranchId
               );
               message.success('Gán nhóm bệnh thành công');
             } catch (error) {
               console.error('Gán nhóm bệnh lỗi:', error);
-              message.warning('Tạo thành công nhưng không gán được nhóm bệnh');
+              message.warning('Tạo bệnh nhân thành công nhưng gán nhóm bệnh thất bại');
             }
           }
 
@@ -97,31 +96,6 @@ const CreatePatient = ({
       console.error('Validation or mutation failed:', error);
       message.error(`Lỗi khi tạo bệnh nhân: ${error.message || 'Không xác định'}`);
     }
-  };
-
-  const validateFullName = (_, value) => {
-    if (!value || value.trim().split(/\s+/).length < 2) {
-      return Promise.reject(new Error('Họ và tên phải chứa ít nhất họ và tên!'));
-    }
-    return Promise.resolve();
-  };
-
-  const validateAge = (_, value) => {
-    const age = parseInt(value, 10);
-    if (isNaN(age) || age < 0 || age > 150) {
-      return Promise.reject(new Error('Tuổi phải từ 0 đến 150!'));
-    }
-    return Promise.resolve();
-  };
-
-  const validateAdmissionDate = (_, value) => {
-    if (!value) {
-      return Promise.reject(new Error('Vui lòng chọn ngày vào viện!'));
-    }
-    if (value.isAfter(moment(), 'day')) {
-      return Promise.reject(new Error('Ngày vào viện không được sau ngày hiện tại!'));
-    }
-    return Promise.resolve();
   };
 
   return (
@@ -178,10 +152,6 @@ const CreatePatient = ({
           </label>
           <Form.Item
             name="fullName"
-            rules={[
-              { required: true, message: 'Vui lòng nhập họ và tên!' },
-              { validator: validateFullName },
-            ]}
             style={{ marginBottom: 16 }}
           >
             <Input
@@ -199,7 +169,6 @@ const CreatePatient = ({
           </label>
           <Form.Item
             name="medicalRecordNumber"
-            rules={[{ required: true, message: 'Vui lòng nhập mã hồ sơ!' }]}
             style={{ marginBottom: 16 }}
           >
             <Input
@@ -218,7 +187,6 @@ const CreatePatient = ({
           </label>
           <Form.Item
             name="gender"
-            rules={[{ required: true, message: 'Vui lòng chọn giới tính!' }]}
             style={{ marginBottom: 16 }}
           >
             <Select
@@ -240,10 +208,6 @@ const CreatePatient = ({
           </label>
           <Form.Item
             name="age"
-            rules={[
-              { required: true, message: 'Vui lòng nhập tuổi!' },
-              { validator: validateAge },
-            ]}
             style={{ marginBottom: 16 }}
           >
             <Input
@@ -262,7 +226,6 @@ const CreatePatient = ({
           </label>
           <Form.Item
             name="departmentId"
-            rules={[{ required: true, message: 'Vui lòng chọn phòng ban!' }]}
             style={{ marginBottom: 16 }}
           >
             <Select
@@ -274,7 +237,7 @@ const CreatePatient = ({
               onBlur={() => setFocus('')}
             >
               {departments.map(dept => (
-                <Option key={dept.id} value={dept.id}>
+                <Option key={dept.id} value={String(dept.id)}>
                   {dept.name}
                 </Option>
               ))}
@@ -316,7 +279,6 @@ const CreatePatient = ({
           </label>
           <Form.Item
             name="admissionDate"
-            rules={[{ validator: validateAdmissionDate }]}
             style={{ marginBottom: 16 }}
           >
             <DatePicker
@@ -345,7 +307,7 @@ const CreatePatient = ({
               onBlur={() => setFocus('')}
             >
               {diseaseCategories.map(category => (
-                <Option key={category.id} value={category.id}>
+                <Option key={category.id} value={String(category.id)}>
                   {category.name}
                 </Option>
               ))}

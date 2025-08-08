@@ -6,6 +6,7 @@ import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { validateImageFile, createImagePreview, cleanupImagePreview, getImageUrlWithFallback } from '../../../utils/imageUtils';
 import PropTypes from 'prop-types';
+import '../Branch/Branch.css'; // Reuse Branch.css for consistent styling
 
 const { Text } = Typography;
 const { Dragger } = Upload;
@@ -24,10 +25,9 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
         id: formData.id,
         name: formData.name,
         imageUrl: formData.imageUrl || '',
-        sort: formData.sort, // Include sort field for edit operations
+        sort: formData.sort,
       });
       setExistingImageUrl(formData.imageUrl || '');
-      // Reset file-related state when editing
       setImageFile(null);
       setImageRemoved(false);
       if (previewUrl) {
@@ -46,16 +46,14 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
     }
   }, [formData, open, form, resetForm]);
 
-  // Cleanup effect when component unmounts
   useEffect(() => {
     return () => {
-      // Clean up any remaining preview URLs when component unmounts
       if (previewUrl && previewUrl.startsWith('blob:')) {
         console.log('🧹 EditFoodCategory - Component unmounting - cleaning up preview URL:', previewUrl);
         cleanupImagePreview(previewUrl);
       }
     };
-  }, [previewUrl]); // This effect only cares about previewUrl changes
+  }, [previewUrl]);
 
   const handleFormSubmit = async (values) => {
     console.log('🚀 EditFoodCategory - Form submit with values:', values);
@@ -64,18 +62,26 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
       imageFileName: imageFile?.name,
       existingImageUrl,
       imageRemoved,
-      previewUrl: !!previewUrl
+      previewUrl: !!previewUrl,
     });
+
+    const normalizedName = values.name.trim().toLowerCase();
+    if (!normalizedName) {
+      form.setFields([
+        {
+          name: 'name',
+          errors: ['Tên danh mục không được để trống!'],
+        },
+      ]);
+      return;
+    }
 
     const result = await handleSubmit(async (formData) => {
       if (onSubmit) {
-        // If image was explicitly removed, clear it
         if (imageRemoved) {
           console.log('🗑️ Image was removed, clearing image data');
           formData.imageUrl = '';
         }
-
-        // Call parent with form data and image file
         await onSubmit(formData, imageFile);
       }
     });
@@ -108,51 +114,41 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
 
     console.log('📁 EditFoodCategory - New image file selected:', file.name);
 
-    // Clean up existing preview BEFORE creating new one
     if (previewUrl) {
       console.log('🧹 EditFoodCategory - Cleaning up existing preview URL:', previewUrl);
       cleanupImagePreview(previewUrl);
     }
 
-    // Set the new file and reset removal flag
     setImageFile(file);
-    setImageRemoved(false); // Reset removed flag when new file is selected
+    setImageRemoved(false);
 
-    // Create new preview URL
     const preview = createImagePreview(file);
     console.log('🖼️ EditFoodCategory - Created new preview URL:', preview);
     setPreviewUrl(preview);
 
     message.success('Hình ảnh đã được chọn để tải lên server!');
-    return false; // Prevent auto upload
+    return false;
   };
 
   const handleRemoveImage = () => {
     console.log('🗑️ EditFoodCategory - Removing image');
 
-    // Clean up preview URL if it exists
     if (previewUrl) {
       console.log('🧹 EditFoodCategory - Cleaning up preview URL on removal:', previewUrl);
       cleanupImagePreview(previewUrl);
       setPreviewUrl('');
     }
 
-    // Reset state
     setImageFile(null);
-    setImageRemoved(true); // Mark as explicitly removed
-
-    // Don't clear existingImageUrl immediately - let it show as removed state
+    setImageRemoved(true);
     message.info('Hình ảnh đã được xóa!');
   };
 
-  // Determine current image source for display
   const getCurrentImageSrc = () => {
-    // If image was explicitly removed, show nothing
     if (imageRemoved) {
       return null;
     }
 
-    // Priority: New file preview > Existing image
     if (previewUrl) {
       return previewUrl;
     }
@@ -164,18 +160,52 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
     return null;
   };
 
-  const hasImage = (!!imageFile || (!!existingImageUrl && !imageRemoved));
+  const hasImage = !!imageFile || (!!existingImageUrl && !imageRemoved);
   const currentImageSrc = getCurrentImageSrc();
 
   return (
     <ReusableModal
-      title="Sửa Danh Mục"
+      title={<span style={{ fontSize: '30px' }}>Sửa Danh Mục</span>}
       open={open}
       onCancel={handleCancel}
       footer={null}
       width={700}
       destroyOnClose
+      closable={false}
     >
+      <div style={{ position: 'absolute', top: 16, right: 24, zIndex: 1 }}>
+        <Space>
+          <Button
+            type="primary"
+            onClick={() => form.submit()}
+            loading={formLoading}
+            disabled={formLoading}
+            style={{
+              backgroundColor: '#52c41a',
+              border: 'none',
+              minWidth: 64,
+              height: 32,
+              fontSize: 14,
+            }}
+          >
+            Lưu
+          </Button>
+          <Button
+            onClick={handleCancel}
+            style={{
+              backgroundColor: '#ff4d4f',
+              color: '#fff',
+              border: 'none',
+              minWidth: 64,
+              height: 32,
+              fontSize: 14,
+            }}
+          >
+            X
+          </Button>
+        </Space>
+      </div>
+
       <ReusableForm
         form={form}
         onFinish={handleFormSubmit}
@@ -190,15 +220,19 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
           <Input />
         </Form.Item>
 
-        <Form.Item
-          name="name"
-          label="Tên danh mục"
-          rules={[{ required: true, message: 'Vui lòng nhập tên danh mục!' }]}
-        >
-          <Input placeholder="Nhập tên danh mục" />
-        </Form.Item>
-
-
+        <div className="custom-floating">
+          <label className="floating-label">Tên danh mục</label>
+          <Form.Item
+            name="name"
+            rules={[
+              { required: true, message: 'Vui lòng nhập tên danh mục!' },
+              { whitespace: true, message: 'Tên danh mục không được chỉ chứa khoảng trắng!' },
+            ]}
+            style={{ marginBottom: 0 }}
+          >
+            <Input className="input-label" placeholder="Nhập tên danh mục" />
+          </Form.Item>
+        </div>
 
         <Form.Item label="Hình ảnh danh mục">
           <Space direction="vertical" style={{ width: '100%' }}>
@@ -285,21 +319,6 @@ const EditFoodCategory = ({ open, onCancel, onSubmit, formData }) => {
           </Space>
         </Form.Item>
 
-        <Form.Item style={{ marginTop: 24, textAlign: 'right' }}>
-          <Space>
-            <Button onClick={handleCancel}>
-              Hủy
-            </Button>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={formLoading}
-              disabled={formLoading}
-            >
-              Cập nhật danh mục
-            </Button>
-          </Space>
-        </Form.Item>
       </ReusableForm>
     </ReusableModal>
   );

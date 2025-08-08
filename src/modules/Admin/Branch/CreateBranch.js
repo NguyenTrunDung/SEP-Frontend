@@ -70,7 +70,7 @@ const CreateBranch = ({ open, onCancel, onSubmit }) => {
                         type="primary"
                         onClick={() => form.submit()}
                         style={{
-                            backgroundColor: '#00A99D',
+                            backgroundColor: '#52c41a',
                             border: 'none',
                             minWidth: 64,
                             height: 32,

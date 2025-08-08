@@ -162,13 +162,6 @@ const AdminLayout = ({ children }) => {
       label: <Link to="/orders">Đơn hàng</Link>,
     },
 
-    // Cashier - Accessible by Cashier, Admin, and Branch Manager
-    canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.CASHIER], ["wallet:view", "orders:edit"]) && {
-      key: "cashier",
-      icon: <WalletOutlined style={{ fontSize: "18px" }} />,
-      label: <Link to="/cashier">Thu ngân</Link>,
-    },
-
     // Shippers - Accessible by multiple roles
     canAccess([ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER], ["shippers:view"]) && {
       key: "shippers",
@@ -222,19 +215,22 @@ const AdminLayout = ({ children }) => {
       children: [
         {
           key: "user-wallet-group",
-          icon: <WalletOutlined style={{ fontSize: "18px" }} />,
-          label: "Quản lý ví người dùng",
+          icon: <UserOutlined style={{ fontSize: "18px" }} />,
+          label: "Quản lý người dùng",
           children: [
             {
               key: "user-management",
+              icon: <WalletOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/admin/user-management">Quản lý ví người dùng (Mới)</Link>,
             },
             {
               key: "group-user",
+              icon: <TeamOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/admin/group-user">Nhóm người dùng</Link>,
             },
             {
               key: "user-account",
+              icon: <UserOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/admin/user-account">Người dùng</Link>,
             },
           ],

@@ -77,10 +77,12 @@ const PatientComponent = () => {
     branchId: parseInt(currentBranchId, 10),
   });
 
-  const handleRefresh = () => {
-    refetch();
-    message.success('Đã làm mới danh sách bệnh nhân');
-  };
+  const handleResetTable = useCallback(() => {
+    setSelectedPatients(new Set());
+    setSelectedFoodsByPatient({});
+    setQuantity({});
+    setNote({});
+  }, []);
 
   const handleCreate = async (formData) => {
     try {
@@ -104,7 +106,7 @@ const PatientComponent = () => {
       await createPatientMutation.mutateAsync({ patientData: payload, branchId: parseInt(currentBranchId, 10) });
       message.success('Tạo bệnh nhân thành công');
       setIsCreateModalVisible(false);
-      refetch(); // Ensure refetch is called to reload the patient list
+      refetch();
     } catch (err) {
       message.error(err?.response?.data?.message || 'Lỗi khi tạo bệnh nhân!');
     }
@@ -132,7 +134,7 @@ const PatientComponent = () => {
 
       await updatePatientMutation.mutateAsync({ patientId, patientData: payload, branchId: parseInt(currentBranchId, 10) });
       message.success('Cập nhật bệnh nhân thành công');
-      refetch(); // Ensure refetch is called to reload the patient list
+      refetch();
     } catch (err) {
       message.error(err?.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân!');
     }
@@ -171,7 +173,7 @@ const PatientComponent = () => {
         </div>
       ),
       width: 600,
-      onOk() { },
+      onOk() {},
     });
   };
 
@@ -196,8 +198,8 @@ const PatientComponent = () => {
         ...prev,
         [patientId]: Array.from(selectedFoods).map(foodId => ({
           foodId,
-          quantity: quantity[foodId] || 1,
-          note: note[foodId] || '',
+          quantity: quantity[`${patientId}-${foodId}`] || 1,
+          note: note[`${patientId}-${foodId}`] || '',
         })),
       };
       console.log(`🔍 Updated selectedFoodsByPatient:`, newFoodsByPatient);
@@ -336,10 +338,8 @@ const PatientComponent = () => {
         message.error(`Lỗi khi đặt món cho ${failedOrders.length} bệnh nhân. Vui lòng kiểm tra log.`);
       } else {
         message.success('Đặt món thành công cho các bệnh nhân đã chọn!');
-        setSelectedPatients(new Set());
-        setSelectedFoodsByPatient({});
-        setQuantity({});
-        setNote({});
+        handleResetTable(); // Reset table states
+        refetch(); // Refresh patient data
       }
     } catch (error) {
       console.error('❌ Failed to place patient orders:', {
@@ -450,7 +450,6 @@ const PatientComponent = () => {
             <Button
               type="primary"
               onClick={handleAdd}
-              // style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f' }}
             >
               Thêm bệnh nhân
             </Button>
@@ -459,7 +458,6 @@ const PatientComponent = () => {
               onClick={handleSelectAllAndOrder}
               loading={createPatientOrderMutation.isLoading}
               disabled={menuLoading || !menuData?.foods?.length || !selectedPatients.size}
-              // style={{ backgroundColor: '#b4c80f', borderColor: '#b4c80f' }}
             >
               Đặt món
             </Button>
@@ -475,14 +473,16 @@ const PatientComponent = () => {
             onDelete={handleDelete}
             onViewDetail={handleViewDetail}
             onSelectPatient={handleSelectPatient}
-            refetch={refetch} // Pass refetch to PatientTable
+            refetch={refetch}
+            resetTable={handleResetTable} // Pass reset function to PatientTable
+            foods={menuData?.foods || []}
           />
           <CreatePatient
             open={isCreateModalVisible}
             onCancel={() => setIsCreateModalVisible(false)}
             onSubmit={handleCreate}
             branchId={parseInt(currentBranchId, 10)}
-            refetch={refetch} // Pass refetch to CreatePatient
+            refetch={refetch}
           />
         </PageWrapperV2>
       </NurseLayout>

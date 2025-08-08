@@ -1,60 +1,132 @@
 import React from 'react';
-import { Modal, Form, InputNumber, Input, Button } from 'antd';
+import { Form, InputNumber, Input, Button, Space } from 'antd';
+import ReusableModal from '../../../components/common/ReusableModal';
+import ReusableForm from '../../../components/common/ReusableForm';
+import { useAntForm } from '../../../hooks/useAntForm';
+import '../Branch/Branch.css'; // Reuse the same CSS file for consistent styling
 
 const DepositModal = ({ visible, onClose, onSubmit, user }) => {
-    const [form] = Form.useForm();
+  const { form, handleSubmit, resetForm } = useAntForm();
 
-    const handleFinish = (values) => {
-        // Thêm userId, createdBy, branchId vào values trước khi submit
-        const createdBy = localStorage.getItem('rememberedEmail') || '';
-        const branchId = Number(localStorage.getItem('currentBranchId'));
-        const submitValues = {
-            ...values,
-            userId: user && user.userId,
-            createdBy,
-            branchId
-        };
-        console.log('Values gửi đi:', submitValues);
-        onSubmit(submitValues);
-        form.resetFields();
-    };
+  const handleFormSubmit = async (values) => {
+    try {
+      const normalizedDescription = values.description?.trim() || '';
+      if (values.amount <= 0) {
+        form.setFields([
+          {
+            name: 'amount',
+            errors: ['Số tiền phải lớn hơn 0!'],
+          },
+        ]);
+        return;
+      }
 
-    // Chặn nhập chữ vào ô số tiền
-    const handleKeyPress = (e) => {
-        // Chỉ cho phép số và phím điều hướng
-        if (!/[0-9]/.test(e.key)) {
-            e.preventDefault();
-        }
-    };
-    const handlePaste = (e) => {
-        const paste = (e.clipboardData || window.clipboardData).getData('text');
-        if (!/^\d+$/.test(paste)) {
-            e.preventDefault();
-        }
-    };
+      const createdBy = localStorage.getItem('rememberedEmail') || '';
+      const branchId = Number(localStorage.getItem('currentBranchId'));
+      const submitValues = {
+        ...values,
+        userId: user && user.userId,
+        createdBy,
+        branchId,
+      };
 
-    return (
-        <Modal open={visible} onCancel={onClose} footer={null} title="Nạp tiền vào ví">
-            <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ amount: 0, description: '' }}>
-                <Form.Item label="Số tiền" name="amount" rules={[{ required: true, message: 'Nhập số tiền!' }]}>
-                    <InputNumber
-                        min={1000}
-                        step={1000}
-                        style={{ width: '100%' }}
-                        stringMode={false}
-                        onKeyPress={handleKeyPress}
-                        onPaste={handlePaste}
-                    />
-                </Form.Item>
-                <Form.Item label="Mô tả" name="description">
-                    <Input.TextArea rows={2} />
-                </Form.Item>
-                <Form.Item>
-                    <Button type="primary" htmlType="submit" block>Nạp tiền</Button>
-                </Form.Item>
-            </Form>
-        </Modal>
-    );
+      await handleSubmit(async () => {
+        await onSubmit(submitValues);
+        resetForm();
+      });
+    } catch (error) {
+      console.error('❌ Lỗi khi nạp tiền:', error);
+    }
+  };
+
+  // Chặn nhập chữ vào ô số tiền
+  const handleKeyPress = (e) => {
+    if (!/[0-9]/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const handlePaste = (e) => {
+    const paste = (e.clipboardData || window.clipboardData).getData('text');
+    if (!/^\d+$/.test(paste)) {
+      e.preventDefault();
+    }
+  };
+
+  return (
+    <ReusableModal
+      title={<span style={{ fontSize: '30px' }}>Nạp tiền vào ví</span>}
+      open={visible}
+      onCancel={onClose}
+      footer={null}
+      destroyOnClose
+      closable={false}
+    >
+      <div style={{ position: 'absolute', top: 16, right: 24, zIndex: 1 }}>
+        <Space>
+          <Button
+            type="primary"
+            onClick={() => form.submit()}
+            style={{
+              backgroundColor: '#52c41a',
+              border: 'none',
+              minWidth: 64,
+              height: 32,
+              fontSize: 14,
+            }}
+          >
+            Lưu
+          </Button>
+          <Button
+            onClick={onClose}
+            style={{
+              backgroundColor: '#ff4d4f',
+              color: '#fff',
+              border: 'none',
+              minWidth: 64,
+              height: 32,
+              fontSize: 14,
+            }}
+          >
+            X
+          </Button>
+        </Space>
+      </div>
+
+      <ReusableForm form={form} onFinish={handleFormSubmit} layout="vertical">
+        <div className="custom-floating">
+          <label className="floating-label">Số tiền</label>
+          <Form.Item
+            name="amount"
+            rules={[{ required: true, message: 'Vui lòng nhập số tiền!' }]}
+            style={{ marginBottom: 0 }}
+          >
+            <InputNumber
+              min={1000}
+              step={1000}
+              className="input-label"
+              placeholder="Số tiền"
+              style={{ width: '100%', height: 48 }}
+              stringMode={false}
+              onKeyPress={handleKeyPress}
+              onPaste={handlePaste}
+            />
+          </Form.Item>
+        </div>
+
+        <div className="custom-floating">
+          <label className="floating-label">Mô tả</label>
+          <Form.Item name="description" style={{ marginBottom: 0 }}>
+            <Input.TextArea
+              className="textarea-label"
+              placeholder="Mô tả"
+              autoSize={{ minRows: 2, maxRows: 5 }}
+            />
+          </Form.Item>
+        </div>
+      </ReusableForm>
+    </ReusableModal>
+  );
 };
 
-export default DepositModal; 
+export default DepositModal;

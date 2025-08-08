@@ -36,16 +36,12 @@ export const patientService = {
     return response.data;
   },
 
-  async createPatient(patientData, branchId) {
+ async createPatient(patientData, branchId) {
     const payload = {
       ...patientData,
       branchId: parseInt(branchId, 10),
-      departmentId: patientData.departmentId ? parseInt(patientData.departmentId, 10) : null, // Explicitly include departmentId
+      departmentId: patientData.departmentId ? parseInt(patientData.departmentId, 10) : null,
     };
-
-    if (!payload.diseaseCategoryIds?.length) {
-      delete payload.diseaseCategoryIds;
-    }
 
     try {
       if (environment.features.enableLogging) {
@@ -69,29 +65,29 @@ export const patientService = {
   },
 
   async updatePatient(patientId, patientData, branchId) {
+    const payload = {
+      ...patientData,
+      branchId: parseInt(branchId, 10),
+      departmentId: patientData.departmentId ? parseInt(patientData.departmentId, 10) : null,
+    };
+
     try {
-      const payload = {
-        ...patientData,
-        branchId: parseInt(branchId, 10),
-        departmentId: patientData.departmentId ? parseInt(patientData.departmentId, 10) : null,
-      };
-
-      if (!payload.diseaseCategoryIds?.length) {
-        delete payload.diseaseCategoryIds;
+      if (environment.features.enableLogging) {
+        console.log('🔍 patientService.updatePatient - Sending payload:', JSON.stringify(payload, null, 2));
       }
-
-      console.log('🔍 Sending update patient payload:', JSON.stringify(payload, null, 2));
-
       const response = await api.put(`/api/v1/Patient/${patientId}`, payload);
-      console.log('✅ Update patient response:', JSON.stringify(response.data, null, 2));
-
+      if (environment.features.enableLogging) {
+        console.log('✅ patientService.updatePatient - Success:', JSON.stringify(response.data, null, 2));
+      }
       return response.data;
     } catch (error) {
-      console.error('❌ Update patient error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
+      if (environment.features.enableLogging) {
+        console.error('❌ patientService.updatePatient - Error:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+        });
+      }
       throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân');
     }
   },
@@ -106,14 +102,101 @@ export const patientService = {
       throw new Error(error.response?.data?.message || 'Lỗi khi xóa bệnh nhân');
     }
   },
+async assignDiseaseCategories(patientId, diseaseCategoryIds, branchId) {
+    try {
+      const payload = {
+        diseaseCategoryIds: diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id)),
+        branchId: parseInt(branchId, 10),
+      };
+      if (environment.features.enableLogging) {
+        console.log('🔍 patientService.assignDiseaseCategories - Sending payload:', JSON.stringify(payload, null, 2));
+      }
+      const response = await api.put(`/api/v1/Patient/${patientId}/disease-categories`, payload);
+      if (environment.features.enableLogging) {
+        console.log('✅ patientService.assignDiseaseCategories - Success:', JSON.stringify(response.data, null, 2));
+      }
+      return response.data;
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error('❌ patientService.assignDiseaseCategories - Error:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+        });
+      }
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật nhóm bệnh');
+    }
+  },
 
   async assignDiseaseCategories(patientId, diseaseCategoryIds, branchId) {
-    const response = await api.post(`/api/v1/Patient/${patientId}/disease-categories`, {
-      diseaseCategoryIds,
-      branchId: parseInt(branchId, 10),
-    });
-    return response.data;
+    try {
+      // Clear existing disease categories
+      await this.clearDiseaseCategories(patientId, branchId);
+
+      // Assign new disease categories one by one
+      const responses = [];
+      for (const categoryId of diseaseCategoryIds || []) {
+        const payload = {
+          patientId,
+          diseaseCategoryId: parseInt(categoryId, 10),
+          branchId: parseInt(branchId, 10),
+        };
+        if (environment.features.enableLogging) {
+          console.log('🔍 patientService.assignDiseaseCategories - Sending payload:', JSON.stringify(payload, null, 2));
+        }
+        const response = await api.post('/api/v1/PatientDiseaseCategory', payload);
+        responses.push(response.data);
+        if (environment.features.enableLogging) {
+          console.log('✅ patientService.assignDiseaseCategories - Success for category:', categoryId, JSON.stringify(response.data, null, 2));
+        }
+      }
+      return responses;
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error('❌ patientService.assignDiseaseCategories - Error:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+        });
+      }
+      throw new Error(error.response?.data?.message || 'Lỗi khi gán nhóm bệnh');
+    }
   },
+
+  
+  async clearDiseaseCategories(patientId, branchId) {
+    try {
+      // Get all existing assignments for the patient
+      const response = await api.get('/api/v1/PatientDiseaseCategory', {
+        params: { branchId: parseInt(branchId, 10) },
+      });
+      const patientAssignments = response.data.data.filter(item => item.patientId === patientId);
+
+      // Delete each assignment
+      for (const assignment of patientAssignments) {
+        if (environment.features.enableLogging) {
+          console.log('🔍 patientService.clearDiseaseCategories - Deleting assignment ID:', assignment.id);
+        }
+        await api.delete('/api/v1/PatientDiseaseCategory', {
+          params: { id: assignment.id },
+        });
+        if (environment.features.enableLogging) {
+          console.log('✅ patientService.clearDiseaseCategories - Deleted assignment ID:', assignment.id);
+        }
+      }
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error('❌ patientService.clearDiseaseCategories - Error:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+        });
+      }
+      // Only throw error if critical; otherwise, proceed to assign new categories
+      console.warn('Warning: Failed to clear existing disease categories, proceeding with assignment');
+    }
+  },
+
 
   async getPatientOrderHistory(patientId) {
     const response = await api.get(`/api/v1/orders/patient/${patientId}/history`);
@@ -158,7 +241,7 @@ export const nurseOrderService = {
         isPatientOrder: true,
         orderDate: orderData.orderDate || new Date().toISOString(),
         receiveDate: orderData.receiveDate ? new Date(orderData.receiveDate).toISOString() : null,
-        receiveTime: orderData.receiveTime || '12:00',
+        receiveTime: orderData.receiveTime || '45 phút',
         receiveType: orderData.receiveType || 'Giao tận nơi',
         type: orderData.type || 'Patient',
         status: orderData.status || 'Confirmed',

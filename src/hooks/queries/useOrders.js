@@ -47,7 +47,7 @@ export const useOrders = (branchId, filters = {}, searchText = '', options = {})
   const query = useQuery({
     queryKey: stableQueryKey,
     queryFn: async () => {
-      if (!currentBranchId) throw new Error('Branch ID is required');
+      if (!currentBranchId) throw new Error('Cần Branch ID');
       console.log('🚀 useOrders queryFn executing with:', { filters, searchText });
       try {
         const apiFilters = {
@@ -63,7 +63,7 @@ export const useOrders = (branchId, filters = {}, searchText = '', options = {})
         console.log('🔍 Clean filters for API:', cleanFilters);
         const response = await orderService.getOrdersByBranchWithFilters(currentBranchId, cleanFilters);
         const orderData = response?.data || [];
-        console.log(`✅ Query completed successfully. Orders count: ${orderData.length}`, orderData);
+        console.log(`✅ Query completed successfully. Orders count: ${orderData.length}`, JSON.stringify(orderData, null, 2));
         return orderData;
       } catch (error) {
         console.error(`❌ Query failed for branch ${currentBranchId}:`, error);
@@ -104,7 +104,7 @@ export const useChefOrders = (branchId, options = {}) => {
   const query = useQuery({
     queryKey: ORDER_QUERY_KEYS.chefList(currentBranchId),
     queryFn: async () => {
-      if (!currentBranchId) throw new Error('Branch ID is required');
+      if (!currentBranchId) throw new Error('Cần Branch ID');
       console.log('🍳 useChefOrders queryFn executing for branch:', currentBranchId);
       try {
         const response = await orderService.getOrdersByBranchWithFilters(currentBranchId, { status: 'Confirmed' });
@@ -199,23 +199,19 @@ export const useDeliveryOrders = (branchId, filters = {}, searchText = '', optio
 
   const stableQueryKey = useMemo(() => {
     const filterKey = {
-      startOrderDate: filters.startOrderDate,
-      endOrderDate: filters.endOrderDate,
       status: filters.status || 'Delivered',
       isPaid: filters.isPaid,
     };
     return [...ORDER_QUERY_KEYS.list(currentBranchId), JSON.stringify(filterKey), searchText];
-  }, [currentBranchId, filters.startOrderDate, filters.endOrderDate, filters.status, filters.isPaid, searchText]);
+  }, [currentBranchId, filters.status, filters.isPaid, searchText]);
 
   const query = useQuery({
     queryKey: stableQueryKey,
     queryFn: async () => {
-      if (!currentBranchId) throw new Error('Branch ID is required');
+      if (!currentBranchId) throw new Error('Cần Branch ID');
       console.log('🚚 useDeliveryOrders queryFn executing with:', { branchId: currentBranchId, filters, searchText });
       try {
         const apiFilters = {
-          startOrderDate: filters.startOrderDate,
-          endOrderDate: filters.endOrderDate,
           status: filters.status || 'Delivered',
           isPaid: filters.isPaid,
           ...(searchText && { keyword: searchText }),
@@ -226,7 +222,7 @@ export const useDeliveryOrders = (branchId, filters = {}, searchText = '', optio
         console.log('🔍 Clean filters for delivery API:', cleanFilters);
         const response = await orderService.getOrdersByBranchWithFilters(currentBranchId, cleanFilters);
         const orderData = response?.data || [];
-        console.log(`✅ Delivery query completed successfully. Orders count: ${orderData.length}`, orderData);
+        console.log(`✅ Delivery query completed successfully. Orders count: ${orderData.length}`, JSON.stringify(orderData, null, 2));
         return orderData;
       } catch (error) {
         console.error(`❌ Delivery query failed for branch ${currentBranchId}:`, error);

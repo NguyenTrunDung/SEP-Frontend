@@ -1,11 +1,11 @@
-// src/components/Wallet/Wallet.js
 import React, { useState, useEffect } from 'react';
-import { Modal, Tabs, Table, Spin } from 'antd';
+import { Modal, Table, Spin, message } from 'antd';
 import { walletService } from '../../services/walletService';
+import { useAuth } from '../../context/AuthContext';
+import { ROLES } from '../../constants/roles';
 
-const { TabPane } = Tabs;
 const formatDateTime = (date) => {
-  return date.toLocaleString('vi-VN', {
+  const formatted = new Date(date).toLocaleString('vi-VN', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -13,64 +13,102 @@ const formatDateTime = (date) => {
     minute: '2-digit',
     hour12: false,
   }).replace(/\//g, '/').replace(',', '');
+  console.log('📅 Formatted date:', date, '->', formatted);
+  return formatted;
 };
 
 const formatAmount = (amount) => {
-  return `${amount.toLocaleString('vi-VN')}đ`;
+  if (amount == null || isNaN(amount)) {
+    console.warn('⚠️ Invalid amount for formatting:', amount);
+    return '0đ';
+  }
+  const formatted = `${Number(amount).toLocaleString('vi-VN')}đ`;
+  console.log('💵 Formatted amount:', amount, '->', formatted);
+  return formatted;
 };
 
-const Wallet = ({ visible, onClose, userId }) => {
-  const [activeTab, setActiveTab] = useState('paymentHistory');
+const Wallet = ({ visible, onClose }) => {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
+  const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      if (visible && userId) {
-        setLoading(true);
-        try {
-          const data = await walletService.getWalletTransactions(userId);
-          setTransactions(data);
-        } catch (error) {
-          console.error('Error fetching transactions:', error);
-        } finally {
-          setLoading(false);
+    const fetchWalletData = async () => {
+      if (!visible || !user?.id) {
+        console.log('⛔ Skipped fetching: missing visible or userId', { visible, userId: user?.id });
+        if (visible) {
+          message.error('Không tìm thấy thông tin người dùng');
         }
+        return;
+      }
+
+      if (![ROLES.NURSE, ROLES.DOCTOR].includes(user.role)) {
+        console.log('⛔ User role not allowed to view wallet:', user.role);
+        message.error('Vai trò của bạn không được phép xem ví');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        console.log(`📡 Fetching wallet data for userId: ${user.id}, role: ${user.role}, branchId: ${user.branchId || 'default'}`);
+        const branchId = user.branchId || null;
+        const [depositData, balanceData] = await Promise.all([
+          walletService.getDepositHistory(user.id, branchId),
+          walletService.getWalletBalance(user.id, branchId),
+        ]);
+
+        console.log('💰 balanceData from API:', balanceData);
+
+        const combinedTransactions = depositData.map(tx => ({
+          ...tx,
+          balanceAfter: tx.balanceAfter || balanceData,
+          transactionType: tx.transactionType === 'Credit' ? 'DEPOSIT' : tx.transactionType || 'DEPOSIT',
+        })).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        console.log('✅ Combined transactions:', combinedTransactions);
+        setTransactions(combinedTransactions);
+        const latestBalance = depositData.length > 0 ? depositData[0].balanceAfter : balanceData;
+        console.log('💰 Using balance:', latestBalance);
+        setBalance(latestBalance);
+      } catch (error) {
+        console.error('❌ Error fetching wallet data:', error.message, error.response?.data);
+        let errorMessage = 'Không thể tải dữ liệu ví. Vui lòng thử lại sau.';
+        if (error.response?.status === 404) {
+          errorMessage = 'Ví của bạn chưa được tạo. Vui lòng nạp tiền để kích hoạt ví.';
+        } else if (error.message.includes('Invalid userId') || error.message.includes('branchId')) {
+          errorMessage = 'Thiếu thông tin người dùng hoặc chi nhánh.';
+        }
+        message.error(errorMessage);
+        setTransactions([]);
+        setBalance(0);
+      } finally {
+        console.log('🔄 Setting loading to false');
+        setLoading(false);
       }
     };
-    fetchTransactions();
-  }, [visible, userId]);
-
-  const paymentHistoryData = transactions
-    .filter(tx => tx.transactionType === 'PAYMENT')
-    .map(tx => ({
-      key: tx.id,
-      orderId: tx.orderId,
-      time: formatDateTime(new Date(tx.createdAt)),
-      amount: formatAmount(tx.amount),
-    }));
+    fetchWalletData();
+  }, [visible, user]);
 
   const depositHistoryData = transactions
     .filter(tx => tx.transactionType === 'DEPOSIT')
     .map(tx => ({
-      key: tx.id,
-      time: formatDateTime(new Date(tx.createdAt)),
+      key: tx.id || `deposit-${tx.createdAt}`,
+      time: formatDateTime(tx.createdAt),
       amount: formatAmount(tx.amount),
-      note: tx.description,
+      note: tx.description || '-',
     }));
 
-  const currentBalance = transactions.length > 0 ? formatAmount(transactions[transactions.length - 1].balanceAfter) : '0đ';
+  console.log('📊 depositHistoryData:', depositHistoryData);
+  console.log('🔍 Current loading state:', loading);
 
-  const paymentColumns = [
-    { title: 'Đơn hàng', dataIndex: 'orderId', key: 'orderId' },
-    { title: 'Thời gian', dataIndex: 'time', key: 'time' },
-    { title: 'Số tiền', dataIndex: 'amount', key: 'amount' },
-  ];
+  const currentBalance = formatAmount(balance);
+  console.log('💰 Current balance formatted:', currentBalance);
 
   const depositColumns = [
-    { title: 'Thời gian', dataIndex: 'time', key: 'time' },
-    { title: 'Số tiền', dataIndex: 'amount', key: 'amount' },
-    { title: 'Ghi chú', dataIndex: 'note', key: 'note' },
+    { title: 'Thời gian', dataIndex: 'time', align: 'left', key: 'time' },
+    { title: 'Số tiền', dataIndex: 'amount', align: 'left', key: 'amount' },
+    { title: 'Ghi chú', dataIndex: 'note', align: 'left', key: 'note' },
   ];
 
   return (
@@ -107,26 +145,18 @@ const Wallet = ({ visible, onClose, userId }) => {
               <p style={{ fontSize: '16px', fontWeight: 500, color: '#333', marginBottom: '16px' }}>
                 Số dư: {currentBalance}
               </p>
-              <Tabs activeKey={activeTab} onChange={setActiveTab}>
-                <TabPane tab="Lịch Sử Thanh Toán" key="paymentHistory">
-                  <Table
-                    columns={paymentColumns}
-                    dataSource={paymentHistoryData}
-                    pagination={false}
-                    size="small"
-                    locale={{ emptyText: 'Không có dữ liệu' }}
-                  />
-                </TabPane>
-                <TabPane tab="Lịch Sử Nạp Tiền" key="depositHistory">
-                  <Table
-                    columns={depositColumns}
-                    dataSource={depositHistoryData}
-                    pagination={false}
-                    size="small"
-                    locale={{ emptyText: 'Không có dữ liệu' }}
-                  />
-                </TabPane>
-              </Tabs>
+              <div style={{ marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#333' }}>
+                  Lịch Sử Nạp Tiền
+                </h3>
+              </div>
+              <Table
+                columns={depositColumns}
+                dataSource={depositHistoryData}
+                pagination={false}
+                size="small"
+                locale={{ emptyText: 'Không có dữ liệu' }}
+              />
               <p style={{ fontSize: '12px', color: '#666', textAlign: 'right', marginTop: '8px' }}>
                 *Chi tiết sẽ được làm mới sau 10 ngày giao dịch gần nhất
               </p>

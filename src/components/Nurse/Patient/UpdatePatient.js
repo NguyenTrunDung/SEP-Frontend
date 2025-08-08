@@ -39,13 +39,21 @@ const UpdatePatient = ({
 
   useEffect(() => {
     if (initialValues) {
-      const birthYear = new Date().getFullYear() - (initialValues.age || 0);
+      // Lấy danh sách ID nhóm bệnh từ initialValues
+      let selectedDiseaseCategoryIds = [];
+      if (Array.isArray(initialValues.diseaseCategoryIds) && initialValues.diseaseCategoryIds.length > 0) {
+        selectedDiseaseCategoryIds = initialValues.diseaseCategoryIds.map(id => String(id));
+      } else if (Array.isArray(initialValues.diseaseCategories) && initialValues.diseaseCategories.length > 0) {
+        selectedDiseaseCategoryIds = initialValues.diseaseCategories
+          .map(dc => String(dc.diseaseCategoryId || dc.id))
+          .filter(id => id);
+      }
+
       form.setFieldsValue({
         ...initialValues,
-        dateOfBirth: initialValues.dateOfBirth ? moment(initialValues.dateOfBirth) : moment(`${birthYear}-01-01`),
-        admissionDate: initialValues.admissionDate ? moment(initialValues.admissionDate) : null,
+        dateOfBirth: initialValues.dateOfBirth ? moment(initialValues.dateOfBirth) : null,
         dischargeDate: initialValues.dischargeDate ? moment(initialValues.dischargeDate) : null,
-        diseaseCategories: initialValues.diseaseCategories?.map(dc => dc.diseaseCategoryId) || [],
+        diseaseCategories: selectedDiseaseCategoryIds, // Điền ID vào field diseaseCategories
         departmentId: initialValues.departmentId ? String(initialValues.departmentId) : null,
         isCurrentlyAdmitted: initialValues.isCurrentlyAdmitted || false,
       });
@@ -64,7 +72,6 @@ const UpdatePatient = ({
         medicalRecordNumber: values.medicalRecordNumber.trim(),
         gender: values.gender,
         dateOfBirth,
-        admissionDate: values.admissionDate?.format('YYYY-MM-DD') || null,
         dischargeDate: values.dischargeDate?.format('YYYY-MM-DD') || null,
         roomNumber: values.roomNumber?.trim() || '',
         bedNumber: values.bedNumber?.trim() || '',
@@ -72,7 +79,7 @@ const UpdatePatient = ({
         notes: values.notes?.trim() || '',
         requiresDietarySupervision: values.isCurrentlyAdmitted || false,
         externalSystemId: '',
-        diseaseCategoryIds: values.diseaseCategories || [],
+        diseaseCategoryIds: values.diseaseCategories?.map(id => parseInt(id, 10)) || [],
         departmentId: values.departmentId ? parseInt(values.departmentId, 10) : null,
         isActive: true,
       };
@@ -90,15 +97,15 @@ const UpdatePatient = ({
                   values.diseaseCategories,
                   currentBranchId
                 );
-                message.success('Gán nhóm bệnh thành công');
+                message.success('Cập nhật nhóm bệnh thành công');
               } catch (error) {
-                console.error('Gán nhóm bệnh lỗi:', error);
-                message.warning('Cập nhật thành công nhưng không gán được nhóm bệnh');
+                console.error('Cập nhật nhóm bệnh lỗi:', error);
+                message.warning('Cập nhật bệnh nhân thành công nhưng không cập nhật được nhóm bệnh');
               }
             }
 
             form.resetFields();
-            if (externalSubmit) externalSubmit(response.data);
+            if (externalSubmit) externalSubmit(payload);
             onCancel();
             refetch();
           },
@@ -111,40 +118,6 @@ const UpdatePatient = ({
       console.error('Validation or mutation failed:', error);
       message.error(`Lỗi khi cập nhật bệnh nhân: ${error.message || 'Không xác định'}`);
     }
-  };
-
-  const validateFullName = (_, value) => {
-    if (!value || value.trim().split(/\s+/).length < 2) {
-      return Promise.reject(new Error('Họ và tên phải chứa ít nhất họ và tên!'));
-    }
-    return Promise.resolve();
-  };
-
-  const validateAge = (_, value) => {
-    const age = parseInt(value, 10);
-    if (isNaN(age) || age < 0 || age > 150) {
-      return Promise.reject(new Error('Tuổi phải từ 0 đến 150!'));
-    }
-    return Promise.resolve();
-  };
-
-  const validateAdmissionDate = (_, value) => {
-    if (!value) {
-      return Promise.reject(new Error('Vui lòng chọn ngày vào viện!'));
-    }
-    if (value.isAfter(moment(), 'day')) {
-      return Promise.reject(new Error('Ngày vào viện không được sau ngày hiện tại!'));
-    }
-    return Promise.resolve();
-  };
-
-  const validateDischargeDate = (_, value) => {
-    if (!value) return Promise.resolve();
-    const admissionDate = form.getFieldValue('admissionDate');
-    if (admissionDate && value.isBefore(admissionDate)) {
-      return Promise.reject(new Error('Ngày xuất viện không được trước ngày vào viện!'));
-    }
-    return Promise.resolve();
   };
 
   return (
@@ -201,10 +174,6 @@ const UpdatePatient = ({
           </label>
           <Form.Item
             name="fullName"
-            rules={[
-              { required: true, message: 'Vui lòng nhập họ và tên!' },
-              { validator: validateFullName },
-            ]}
             style={{ marginBottom: 16 }}
           >
             <Input
@@ -222,7 +191,6 @@ const UpdatePatient = ({
           </label>
           <Form.Item
             name="medicalRecordNumber"
-            rules={[{ required: true, message: 'Vui lòng nhập mã hồ sơ!' }]}
             style={{ marginBottom: 16 }}
           >
             <Input
@@ -240,7 +208,6 @@ const UpdatePatient = ({
           </label>
           <Form.Item
             name="gender"
-            rules={[{ required: true, message: 'Vui lòng chọn giới tính!' }]}
             style={{ marginBottom: 16 }}
           >
             <Select
@@ -262,10 +229,6 @@ const UpdatePatient = ({
           </label>
           <Form.Item
             name="age"
-            rules={[
-              { required: true, message: 'Vui lòng nhập tuổi!' },
-              { validator: validateAge },
-            ]}
             style={{ marginBottom: 16 }}
           >
             <Input
@@ -284,7 +247,6 @@ const UpdatePatient = ({
           </label>
           <Form.Item
             name="departmentId"
-            rules={[{ required: true, message: 'Vui lòng chọn phòng ban!' }]}
             style={{ marginBottom: 16 }}
           >
             <Select
@@ -332,14 +294,12 @@ const UpdatePatient = ({
           </Form.Item>
         </div>
 
-
         <div className="custom-floating">
           <label className={`floating-label ${focus === 'dischargeDate' ? 'focused' : ''}`}>
             Ngày xuất viện
           </label>
           <Form.Item
             name="dischargeDate"
-            rules={[{ validator: validateDischargeDate }]}
             style={{ marginBottom: 16 }}
           >
             <DatePicker
@@ -368,7 +328,7 @@ const UpdatePatient = ({
               onBlur={() => setFocus('')}
             >
               {diseaseCategories.map(category => (
-                <Option key={category.id} value={category.id}>
+                <Option key={category.id} value={String(category.id)}>
                   {category.name}
                 </Option>
               ))}
