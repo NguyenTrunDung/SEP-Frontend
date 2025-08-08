@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { departmentService } from '../services/departmentService';
+import { branchService } from '../services/branchService';
 import { useDepartments } from '../hooks/queries/useDepartments';
 import { ROLES } from '../constants/roles';
 import './Profile.css';
@@ -20,11 +21,11 @@ const EditProfile = () => {
     phoneNumber: user?.phoneNumber || '',
     profilePictureUrl: user?.profilePictureUrl || null,
     departmentId: user?.departmentId || '',
+    branch: user?.branch || 'N/A', // Use branch name for display
   });
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // Move useCallback to top level to comply with Rules of Hooks
   const handleAvatarChange = useCallback((e) => {
     const file = e.target.files[0];
     if (file) {
@@ -37,23 +38,53 @@ const EditProfile = () => {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      setEditProfileData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        phoneNumber: user.phoneNumber || '',
-        profilePictureUrl: user.profilePictureUrl || null,
-        departmentId: user.departmentId || '',
-      });
-    }
-  }, [user]);
+    const fetchProfileAndBranch = async () => {
+      if (user) {
+        let updatedUserData = {
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          phoneNumber: user.phoneNumber || '',
+          profilePictureUrl: user.profilePictureUrl || null,
+          departmentId: user.departmentId || '',
+          branch: user.branch || 'N/A',
+        };
+
+        const rolesWithBranch = [
+          ROLES.STAFF,
+          ROLES.CASHIER,
+          ROLES.KITCHEN,
+          ROLES.DOCTOR,
+          ROLES.NURSE,
+        ];
+
+        // Fetch branch information if the user role requires it and branch is not already set
+        if (rolesWithBranch.includes(user.role) && !user.branch) {
+          try {
+            const branchData = await branchService.getCurrentBranch();
+            updatedUserData = {
+              ...updatedUserData,
+              branch: branchData?.name || 'N/A',
+            };
+            updateUser({ ...user, branch: branchData?.name || 'N/A' });
+          } catch (error) {
+            console.error('Failed to fetch branch:', error);
+            updatedUserData.branch = 'N/A';
+          }
+        }
+
+        setEditProfileData(updatedUserData);
+      }
+    };
+
+    fetchProfileAndBranch();
+  }, [user, updateUser]);
 
   if (loading || isDepartmentsLoading) {
-    return <div>Loading...</div>;
+    return <div className="loading-text">Loading...</div>;
   }
 
   if (!user || user.id !== id) {
-    return <div>Unauthorized or invalid user ID</div>;
+    return <div className="no-user-text">Unauthorized or invalid user ID</div>;
   }
 
   const getProfileRoute = () => {
@@ -68,8 +99,8 @@ const EditProfile = () => {
       case ROLES.STAFF:
       case ROLES.CASHIER:
       case ROLES.KITCHEN:
-        return '/admin/profile';
       case ROLES.DOCTOR:
+      case ROLES.NURSE:
         return '/admin/profile';
       case ROLES.PATIENT:
         return '/patient/profile';
@@ -87,18 +118,14 @@ const EditProfile = () => {
         profilePictureUrl: editProfileData.profilePictureUrl,
       };
 
-      // Update user profile via API
       await authService.editProfile(updatedUser);
 
-      // Update department if changed
       if (editProfileData.departmentId && editProfileData.departmentId !== user.departmentId) {
         await departmentService.updateUserDepartment(user.id, editProfileData.departmentId);
       }
 
-      // Fetch updated user data
       const updatedUserData = await authService.getProfile();
 
-      // Update local context
       updateUser({
         ...user,
         ...updatedUserData,
@@ -107,18 +134,27 @@ const EditProfile = () => {
         lastName: editProfileData.lastName,
         phoneNumber: editProfileData.phoneNumber,
         profilePictureUrl: editProfileData.profilePictureUrl,
+        branch: editProfileData.branch, // Preserve branch info
       });
 
       message.success('Cập nhật hồ sơ thành công!');
-      const profileRoute = getProfileRoute();
-      navigate(profileRoute);
+      navigate(getProfileRoute());
     } catch (error) {
       message.error(error.response?.data?.message || 'Cập nhật hồ sơ thất bại');
     }
   };
 
+  const rolesWithoutBranch = [
+    ROLES.SYSTEM_ADMIN,
+    ROLES.ADMIN,
+    ROLES.BRANCH_MANAGER,
+    ROLES.MANAGER,
+  ];
+  const showBranch = !rolesWithoutBranch.includes(user.role);
+  const isNurseOrDoctor = [ROLES.NURSE, ROLES.DOCTOR].includes(user.role);
+
   return (
-    <div className="edit-profile-container">
+    <div className="view-profile-container">
       <Card className="profile-card">
         <div className="profile-header">
           <Avatar size={64} icon={!editProfileData.profilePictureUrl && <UserOutlined />} src={editProfileData.profilePictureUrl} />
@@ -159,22 +195,41 @@ const EditProfile = () => {
               className="detail-input"
             />
           </div>
-          <div className="profile-detail">
-            <label className="detail-label">Phòng ban:</label>
-            <select
-              value={editProfileData.departmentId}
-              onChange={(e) => setEditProfileData((prev) => ({ ...prev, departmentId: e.target.value }))}
-              className="detail-input"
-              disabled={isDepartmentsLoading}
-            >
-              <option value="">Chọn phòng ban</option>
-              {departments.map((dept) => (
-                <option key={dept.id} value={dept.id}>
-                  {dept.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {isNurseOrDoctor && (
+            <div className="profile-detail">
+              <label className="detail-label">Phòng ban:</label>
+              <select
+                value={editProfileData.departmentId}
+                onChange={(e) => setEditProfileData((prev) => ({ ...prev, departmentId: e.target.value }))}
+                className="detail-input"
+                disabled={isDepartmentsLoading || !Array.isArray(departments)}
+              >
+                <option value="">Chọn phòng ban</option>
+                {Array.isArray(departments) && departments.length > 0 ? (
+                  departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>
+                    Không có phòng ban
+                  </option>
+                )}
+              </select>
+            </div>
+          )}
+          {showBranch && (
+            <div className="profile-detail">
+              <label className="detail-label">Chi nhánh:</label>
+              <Input
+                type="text"
+                value={editProfileData.branch || 'N/A'}
+                readOnly
+                className="detail-input"
+              />
+            </div>
+          )}
           <div className="profile-detail">
             <label className="detail-label">Avatar:</label>
             <input
@@ -187,10 +242,16 @@ const EditProfile = () => {
         </div>
 
         <div className="profile-button-group">
-          <Button type="primary" onClick={handleSave} className="save-button">
+          <Button
+            type="primary"
+            className="save-button"
+            onClick={handleSave}
+          >
             Lưu
           </Button>
-          <Button onClick={() => navigate(getProfileRoute())}>
+          <Button
+            onClick={() => navigate(getProfileRoute())}
+          >
             Hủy
           </Button>
         </div>

@@ -117,9 +117,6 @@ export const authService = {
             if (environment.features.enableLogging) {
                 console.error('❌ Token refresh failed:', error.response?.data?.message || error.message);
             }
-
-            // Don't automatically logout here - let the calling code handle it
-            // This prevents circular dependency issues
             throw error;
         }
     },
@@ -161,7 +158,6 @@ export const authService = {
     /**
      * Get current user information
      * GET /api/auth/me
-     * TODO: Implement this in Backend later
      */
     async getCurrentUser() {
         try {
@@ -234,14 +230,14 @@ export const authService = {
 
     /**
      * Change user password
-     * POST /api/auth/change-password
-     * TODO: Implement this in Backend later
+     * POST /api/v1/auth/change-password
      */
     async changePassword(passwordData) {
         try {
-            const response = await api.post('/api/auth/change-password', {
-                currentPassword: passwordData.currentPassword,
-                newPassword: passwordData.newPassword
+            const response = await api.post('/api/v1/auth/change-password', {
+                Email: passwordData.Email,
+                OldPassword: passwordData.OldPassword,
+                NewPassword: passwordData.NewPassword
             });
 
             if (environment.features.enableLogging) {
@@ -256,9 +252,10 @@ export const authService = {
             throw error;
         }
     },
-/**
+
+    /**
      * Get current user profile
-     * GET /api/v1/profile
+     * GET /api/v1/auth/profile
      */
     async getProfile() {
         try {
@@ -280,7 +277,7 @@ export const authService = {
 
     /**
      * Edit user profile
-     * POST /api/v1/edit-profile
+     * POST /api/v1/auth/edit-profile
      */
     async editProfile(profileData) {
         try {
@@ -304,6 +301,49 @@ export const authService = {
             throw error;
         }
     },
+
+     /**
+     * Request password reset
+     * POST /api/v1/auth/forgot-password
+     */
+    async forgotPassword(email) {
+        try {
+            const response = await api.post('/api/v1/auth/forgot-password', { email });
+            if (environment.features.enableLogging) {
+                console.log('✅ Password reset request sent for email:', email);
+            }
+            return response.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Password reset request failed:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Reset password
+     * POST /api/v1/auth/reset-password
+     */
+    async resetPassword({ email, token, newPassword }) {
+        try {
+            const response = await api.post('/api/v1/auth/reset-password', {
+                email,
+                token,
+                newPassword
+            });
+            if (environment.features.enableLogging) {
+                console.log('✅ Password reset successful for email:', email);
+            }
+            return response.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Password reset failed:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
+
     async register(userData) {
         try {
             const response = await api.post(environment.api.getVersionedPath('/auth/register'), {
@@ -326,7 +366,6 @@ export const authService = {
             throw error;
         }
     },
-    
 
     // Permission management helpers
     getPermissions() {
@@ -560,4 +599,4 @@ export const authService = {
     getToken() {
         return environment.auth.getToken();
     }
-}; 
+};

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Table, Button, Space, Tooltip, message, Popconfirm } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import GroupUserModal from './GroupUserModal';
 import { fetchGroupUsersByBranch } from '../../../services/groupUserService';
+import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 
 const menuTree = [
     {
@@ -169,12 +170,10 @@ const GroupUser = () => {
     const [editingGroup, setEditingGroup] = useState(null);
     const [checkedKeys, setCheckedKeys] = useState([]);
     const [isEdit, setIsEdit] = useState(false);
-    // Thêm state cho phân trang
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
-    // Fetch group users by branch on mount
-    React.useEffect(() => {
+    useEffect(() => {
         const branchId = localStorage.getItem('currentBranchId') || '1';
         fetchGroupUsersByBranch(branchId)
             .then(data => {
@@ -187,9 +186,9 @@ const GroupUser = () => {
             });
     }, []);
 
-    const filteredGroups = groups.filter(g => g.name && g.name.toLowerCase().includes(search.toLowerCase()));
-    // Tính toán dataSource cho trang hiện tại
-    const pagedGroups = filteredGroups.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    const filteredGroups = useMemo(() => {
+        return groups.filter(g => g.name && g.name.toLowerCase().includes(search.toLowerCase()));
+    }, [groups, search]);
 
     const openModal = (group) => {
         setEditingGroup(group);
@@ -240,15 +239,16 @@ const GroupUser = () => {
 
     const columns = [
         {
-            title: 'Tên nhóm',
+            title: 'TÊN NHÓM',
             dataIndex: 'name',
             key: 'name',
+            align: 'left',
             sorter: (a, b) => a.name.localeCompare(b.name),
         },
         {
-            title: 'Hành động',
+            title: 'HÀNH ĐỘNG',
             key: 'action',
-            align: 'center',
+            align: 'right',
             render: (_, record) => (
                 <Space>
                     <Tooltip title="Sửa">
@@ -283,6 +283,21 @@ const GroupUser = () => {
         },
     ];
 
+    const paginationConfig = {
+        show: true,
+        pageSizeOptions: [5, 10, 20, 50],
+        showTotal: true,
+        showSizeChanger: true,
+        total: filteredGroups.length,
+        current: currentPage,
+        pageSize: pageSize,
+        onChange: (page, pageSize) => {
+            setCurrentPage(page);
+            setPageSize(pageSize);
+        },
+        showTotal: (total, range) => `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} mục`,
+    };
+
     return (
         <div style={{ padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -292,26 +307,18 @@ const GroupUser = () => {
                         <Button icon={<ReloadOutlined />} onClick={handleRefresh}>Làm mới</Button>
                     </Tooltip>
                     <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal(null)}>
-                        Thêm nhóm người dùng
+                        Thêm
                     </Button>
                 </Space>
             </div>
-            <Table
-                rowKey="id"
+            <ReusableTableV2
+                dataSource={filteredGroups.slice((currentPage - 1) * pageSize, currentPage * pageSize)}
                 columns={columns}
-                dataSource={pagedGroups}
-                pagination={{
-                    total: filteredGroups.length,
-                    current: currentPage,
-                    pageSize,
-                    showSizeChanger: true,
-                    pageSizeOptions: ['5', '10', '20', '50'],
-                    onChange: (page, size) => {
-                        setCurrentPage(page);
-                        setPageSize(size);
-                    },
-                    showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} nhóm`,
-                }}
+                pagination={paginationConfig}
+                listHeader="TÊN NHÓM"
+                onEdit={openModal}
+                onDelete={handleDelete}
+                emptyMessage="Không tìm thấy nhóm người dùng nào."
             />
             <GroupUserModal
                 visible={modalVisible}

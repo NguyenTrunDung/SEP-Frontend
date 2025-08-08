@@ -287,12 +287,7 @@ const PaymentModal = ({
           Thanh toán
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <Text strong style={{ fontSize: '16px' }}>Thông tin đặt hàng</Text>
-          <div>
-            <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
-              Người đặt: <strong style={{ color: '#262626' }}>{`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Khách'}</strong>
-            </Text>
-          </div>
+    
           <div>
             <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
               Chi nhánh

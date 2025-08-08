@@ -18,6 +18,7 @@ const withPageWrapperV2 = (WrappedComponent) => {
     searchProps,
     filterProps,
     headerActions,
+    extraButtons, // Thêm prop extraButtons
     loading = false,
     emptyMessage = 'Không có dữ liệu nào.',
     showSearch = true,
@@ -102,6 +103,7 @@ const withPageWrapperV2 = (WrappedComponent) => {
           <h2 className="page-title-v2">{title}</h2>
           <div className="header-actions-v2">
             {headerActions}
+            {extraButtons} {/* Render extraButtons */}
             {showRefreshButton && (
               <Button
                 icon={<ReloadOutlined />}
@@ -163,6 +165,7 @@ const withPageWrapperV2 = (WrappedComponent) => {
     searchProps: PropTypes.object,
     filterProps: PropTypes.object,
     headerActions: PropTypes.node,
+    extraButtons: PropTypes.node, // Thêm propTypes cho extraButtons
     className: PropTypes.string,
     style: PropTypes.object,
     loading: PropTypes.bool,
@@ -187,6 +190,7 @@ const PageWrapperV2 = ({
   searchProps,
   filterProps,
   headerActions,
+  extraButtons, // Thêm prop extraButtons
   className,
   style,
   loading = false,
@@ -269,6 +273,7 @@ const PageWrapperV2 = ({
         <h2 className="page-title-v2">{title}</h2>
         <div className="header-actions-v2">
           {headerActions}
+          {extraButtons} {/* Render extraButtons */}
           {showRefreshButton && (
             <Button
               icon={<ReloadOutlined />}
@@ -326,6 +331,7 @@ PageWrapperV2.propTypes = {
   searchProps: PropTypes.object,
   filterProps: PropTypes.object,
   headerActions: PropTypes.node,
+  extraButtons: PropTypes.node, // Thêm propTypes cho extraButtons
   className: PropTypes.string,
   style: PropTypes.object,
   loading: PropTypes.bool,
