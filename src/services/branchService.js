@@ -25,9 +25,9 @@ export const branchService = {
         }
     },
     /**
- * Create a new branch
- * POST /api/v1/branches
- */
+     * Create a new branch
+     * POST /api/v1/branches
+     */
     async createBranch(branchData) {
         try {
             const response = await api.post(environment.api.endpoints.branch.create, branchData);
@@ -272,6 +272,55 @@ export const branchService = {
 
             if (environment.features.enableLogging) {
                 console.error('❌ Failed to switch branch:', error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Get branch by ID
+     * GET /api/v1/branches/{branchId}
+     */
+    async getBranchById(branchId) {
+        try {
+            const response = await api.get(environment.api.endpoints.branch.getById(branchId));
+            if (environment.features.enableLogging) {
+                console.log('✅ Fetched branch by ID:', branchId);
+            }
+            return response.data?.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to fetch branch by ID:', error.message);
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * Validate branch name availability
+     * GET /api/v1/branches/check-name-availability?name={name}&excludeId={excludeId}
+     */
+    async validateBranchName(name, excludeId = null) {
+        try {
+            const params = { name };
+            if (excludeId) {
+                params.excludeId = excludeId;
+            }
+
+            const response = await api.get(environment.api.endpoints.branch.checkNameAvailability, {
+                params
+            });
+
+            const isAvailable = response.data?.data;
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Branch name validation:', name, 'is available:', isAvailable);
+            }
+
+            return isAvailable;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to validate branch name:', error.message);
             }
             throw error;
         }

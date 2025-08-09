@@ -129,7 +129,7 @@ export const canAccessAdminRoutes = (userRole) => {
         ROLES.ADMIN,
         ROLES.BRANCH_MANAGER,
         ROLES.MANAGER,
-        ROLES.DOCTOR
+        ROLES.CASHIER
     ];
     return adminRouteRoles.includes(userRole);
 };

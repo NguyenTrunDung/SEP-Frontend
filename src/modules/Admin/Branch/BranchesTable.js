@@ -51,17 +51,21 @@ const BranchesTableV2 = () => {
         return branchesData.filter(
             (item) =>
                 item?.name?.toLowerCase()?.includes(keyword) ||
+                item?.Name?.toLowerCase()?.includes(keyword) ||
                 item?.phoneNumber?.toLowerCase()?.includes(keyword) ||
-                item?.address?.toLowerCase()?.includes(keyword)
+                item?.Phone?.toLowerCase()?.includes(keyword) ||
+                item?.address?.toLowerCase()?.includes(keyword) ||
+                item?.Address?.toLowerCase()?.includes(keyword)
         );
     }, [branchesData, searchText]);
 
     const handleCreateOrUpdate = async (formData) => {
         try {
             const payload = {
-                name: formData.name,
-                phoneNumber: formData.phoneNumber,
-                address: formData.address,
+                Name: formData.Name || formData.name,
+                Phone: formData.Phone || formData.phoneNumber,
+                Address: formData.Address || formData.address,
+                IsActive: formData.IsActive !== undefined ? formData.IsActive : true
             };
 
             if (formData.id) {
@@ -145,9 +149,25 @@ const BranchesTableV2 = () => {
                 <ReusableTableV2
                     dataSource={filteredData}
                     columns={[
-                        { dataIndex: 'name', primary: true, align: 'left', title: 'Tên chi nhánh' },
-                        { dataIndex: 'phoneNumber', align: 'left', title: 'Số điện thoại' },
-                        { dataIndex: 'address', align: 'left', title: 'Địa chỉ' },
+                        {
+                            dataIndex: 'name',
+                            primary: true,
+                            align: 'left',
+                            title: 'Tên chi nhánh',
+                            render: (text, record) => record.Name || record.name || text
+                        },
+                        {
+                            dataIndex: 'phoneNumber',
+                            align: 'left',
+                            title: 'Số điện thoại',
+                            render: (text, record) => record.Phone || record.phoneNumber || text
+                        },
+                        {
+                            dataIndex: 'address',
+                            align: 'left',
+                            title: 'Địa chỉ',
+                            render: (text, record) => record.Address || record.address || text
+                        },
                     ]}
                     loading={isLoading}
                     listHeader="TÊN CHI NHÁNH"

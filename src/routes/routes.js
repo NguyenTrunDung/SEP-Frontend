@@ -17,6 +17,7 @@ import Unauthorized from '../modules/Unauthorized.js';
 // Order pages
 import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
+import OrderPatient from '../modules/Admin/OrderPatient/OrderPatient.js';
 import Feedbacks from '../modules/Admin/Feedback/Feedbacks.js';
 
 //Cart
@@ -185,6 +186,16 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
         <AdminLayout>
           <OrderDetails />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/order-patients',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.NURSE]}>
+        <AdminLayout>
+          <OrderPatient />
         </AdminLayout>
       </ProtectedRoute>
     ),

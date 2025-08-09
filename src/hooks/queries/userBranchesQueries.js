@@ -74,6 +74,21 @@ export const useDefaultBranch = (options = {}) => {
 };
 
 /**
+ * Hook for fetching a specific branch by ID
+ */
+export const useBranchById = (branchId, options = {}) => {
+    return useQuery({
+        queryKey: [...BRANCH_KEYS.details(), branchId],
+        queryFn: () => branchService.getBranchById(branchId),
+        enabled: !!branchId, // Only run if branchId is provided
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
+        refetchOnWindowFocus: false,
+        ...options,
+    });
+};
+
+/**
  * Hook for fetching admin system user for a branch
  */
 export const useAdminSystemUser = (branchCode, options = {}) => {

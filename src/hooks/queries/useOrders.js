@@ -40,9 +40,10 @@ export const useOrders = (branchId, filters = {}, searchText = '', options = {})
       endOrderDate: filters.endOrderDate,
       status: filters.status,
       isPaid: filters.isPaid,
+      isOrderPatient: filters.isOrderPatient,
     };
     return [...ORDER_QUERY_KEYS.list(currentBranchId), JSON.stringify(filterKey), searchText];
-  }, [currentBranchId, filters.startOrderDate, filters.endOrderDate, filters.status, filters.isPaid, searchText]);
+  }, [currentBranchId, filters.startOrderDate, filters.endOrderDate, filters.status, filters.isPaid, filters.isOrderPatient, searchText]);
 
   const query = useQuery({
     queryKey: stableQueryKey,
@@ -55,6 +56,7 @@ export const useOrders = (branchId, filters = {}, searchText = '', options = {})
           endOrderDate: filters.endOrderDate,
           status: filters.status,
           isPaid: filters.isPaid,
+          isOrderPatient: filters.isOrderPatient,
           ...(searchText && { keyword: searchText }),
         };
         const cleanFilters = Object.fromEntries(
