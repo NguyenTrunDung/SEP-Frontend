@@ -11,7 +11,6 @@ import {
   FireFilled,
   AppstoreOutlined,
   CoffeeOutlined,
-  EnvironmentOutlined,
   AimOutlined,
   ShopOutlined,
   CommentOutlined,
@@ -20,7 +19,9 @@ import {
   TruckOutlined
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
+import { usePermissions } from "../hooks/usePermissions";
 import { ROLES } from "../constants/roles";
+import { PERMISSIONS } from "../constants/permissions";
 import UserHeader from "../components/common/UserHeader";
 import BranchSwitcher from "../components/common/BranchSwitcher";
 
@@ -28,32 +29,39 @@ const { Header, Sider, Content, Footer } = Layout;
 const { Title, Text } = Typography;
 
 const AdminLayout = ({ children }) => {
-  const { user, hasPermission } = useAuth();
+  const { user, isSystemAdmin, logout, loginType } = useAuth();
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Navigate based on original login type for better UX
+      const redirectPath = loginType === 'internal' ? '/login' : '/';
+      navigate(redirectPath);
+    } catch (error) {
+      console.error('❌ AdminLayout logout failed:', error);
+      const redirectPath = loginType === 'internal' ? '/login' : '/';
+      navigate(redirectPath);
+    }
   };
 
-  // Helper function to check if user has required role
-  const hasRequiredRole = (allowedRoles) => {
+  // Helper function to check if user has required role (kept for backwards compatibility)
+  const hasRequiredRole = React.useCallback((allowedRoles) => {
     return user?.role && allowedRoles.includes(user.role);
-  };
+  }, [user?.role]);
 
-  // Helper function to check permission or role
-  const canAccess = (allowedRoles = [], requiredPermissions = []) => {
-    // Check roles first
-    if (allowedRoles.length > 0 && hasRequiredRole(allowedRoles)) {
-      return true;
-    }
+  // Helper function to check permission-based access
+  const canAccess = (requiredPermissions = []) => {
+    // System admins can access everything
+    if (isSystemAdmin) return true;
 
-    // Check permissions if available
-    if (requiredPermissions.length > 0 && hasPermission) {
-      return requiredPermissions.some((permission) => hasPermission(permission));
-    }
+    // If no permissions required, allow access
+    if (requiredPermissions.length === 0) return true;
 
-    return false;
+    // Check if user has any of the required permissions
+    return requiredPermissions.some((permission) => hasPermission(permission));
   };
 
   // Map routes to menu keys for active state persistence
@@ -92,7 +100,7 @@ const AdminLayout = ({ children }) => {
           : hasRequiredRole([ROLES.KITCHEN])
             ? ["kitchen"]
             : []);
-  }, [location.pathname, user]);
+  }, [location.pathname, hasRequiredRole]);
 
   const siderStyle = {
     background: "#fff",
@@ -113,171 +121,158 @@ const AdminLayout = ({ children }) => {
     fontWeight: "500",
   };
 
-  // Menu items for KITCHEN role
-  const kitchenMenuItems = [
-    {
-      key: "kitchen",
-      icon: <FireFilled style={{ fontSize: "18px" }} />,
-      label: <Link to="/kitchens">Bếp</Link>,
-    },
-  ];
-
-  // Menu items for CASHIER role
-  const cashierMenuItems = [
-    {
-      key: "orders",
-      icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
-      label: <Link to="/orders">Đơn hàng</Link>,
-    },
-    {
-      key: "kitchen",
-      icon: <FireFilled style={{ fontSize: "18px" }} />,
-      label: <Link to="/kitchens">Nhà bếp</Link>,
-    },
-    {
-      key: "shippers",
-      icon: <TruckOutlined style={{ fontSize: "18px" }} />,
-      label: <Link to="/shippers">Nhân viên giao hàng</Link>,
-    },
-    {
-      key: "menus",
-      icon: <MenuOutlined style={{ fontSize: "18px" }} />,
-      label: <Link to="/menus">Thực đơn</Link>,
-    },
-  ];
-
-  // Menu items for other roles
-  const defaultMenuItems = [
-    // Dashboard - Accessible by Admin, Branch Manager, Manager, and Doctor
-    canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR], ["overview:view"]) && {
+  // Permission-based menu items
+  const menuItems = [
+    // Dashboard
+    canAccess([PERMISSIONS.OVERVIEW_VIEW]) && {
       key: "dashboard",
       icon: <DashboardOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/dashboard">Thống kê</Link>,
     },
 
-    // Orders - Accessible by Admin, Branch Manager, Manager, Staff, and Nurse
-    canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.NURSE], ["orders:view"]) && {
+    // Orders
+    canAccess([PERMISSIONS.ORDERS_VIEW]) && {
       key: "orders",
       icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/orders">Đơn hàng</Link>,
     },
 
-    // Shippers - Accessible by multiple roles
-    canAccess([ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER], ["shippers:view"]) && {
+    // Kitchen
+    canAccess([PERMISSIONS.KITCHEN_VIEW]) && {
+      key: "kitchen",
+      icon: <FireFilled style={{ fontSize: "18px" }} />,
+      label: <Link to="/kitchens">Nhà bếp</Link>,
+    },
+
+    // Shippers
+    canAccess([PERMISSIONS.DELIVERY_VIEW]) && {
       key: "shippers",
       icon: <TruckOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/shippers">Nhân viên giao hàng</Link>,
     },
 
-    // Menus - Accessible by Admin, Branch Manager, Manager, and Staff
-    canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF], ["foods:view"]) && {
+    // Menus
+    canAccess([PERMISSIONS.MENUS_VIEW]) && {
       key: "menus",
       icon: <MenuOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/menus">Thực đơn</Link>,
     },
 
-    // Feedbacks - Accessible by multiple roles
-    canAccess([ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF], ["feedbacks:view"]) && {
+    // Feedbacks
+    canAccess([PERMISSIONS.FEEDBACKS_VIEW]) && {
       key: "feedbacks",
       icon: <CommentOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/feedbacks">Đánh giá</Link>,
     },
 
-    // Food Management - Admin, Branch Manager, Manager, Staff, Doctor
-    canAccess([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR], ["foods:view"]) && {
+    // Food Management
+    canAccess([PERMISSIONS.FOODS_VIEW, PERMISSIONS.FOODCATEGORIES_VIEW]) && {
       key: "food-management",
       icon: <CoffeeOutlined style={{ fontSize: "18px" }} />,
       label: "Món ăn",
       children: [
-        {
+        canAccess([PERMISSIONS.FOODCATEGORIES_VIEW]) && {
           key: "food-categories",
           icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
           label: <Link to="/food-categories">Nhóm món ăn</Link>,
         },
-        {
+        canAccess([PERMISSIONS.FOODS_VIEW]) && {
           key: "foods",
           icon: <ShopOutlined style={{ fontSize: "18px" }} />,
           label: <Link to="/foods">Món ăn</Link>,
         },
-        {
+        canAccess([PERMISSIONS.FOODS_VIEW, PERMISSIONS.PATIENTS_DIETARY]) && {
           key: "food-for-patients",
           icon: <ShopOutlined style={{ fontSize: "18px" }} />,
           label: <Link to="/food-for-patients">Món ăn cho bệnh nhân</Link>,
         },
-      ],
+      ].filter(Boolean),
     },
 
-    // Settings - Admin only
-    canAccess([ROLES.ADMIN], ["system:settings"]) && {
+    // System Settings (include categories permissions so users with branches:view can access)
+    canAccess([
+      PERMISSIONS.SYSTEM_SETTINGS,
+      PERMISSIONS.USERS_VIEW,
+      PERMISSIONS.WALLET_VIEW,
+      PERMISSIONS.BRANCHES_VIEW,
+      PERMISSIONS.AREAS_VIEW,
+      PERMISSIONS.LOCATIONS_VIEW,
+      PERMISSIONS.DEPARTMENTS_VIEW,
+      PERMISSIONS.DISEASECATEGORIES_VIEW
+    ]) && {
       key: "settings",
       icon: <SettingOutlined style={{ fontSize: "18px" }} />,
       label: "Cài đặt hệ thống",
       children: [
-        {
+        // User Management Group
+        canAccess([PERMISSIONS.USERS_VIEW, PERMISSIONS.WALLET_VIEW]) && {
           key: "user-wallet-group",
           icon: <UserOutlined style={{ fontSize: "18px" }} />,
           label: "Quản lý người dùng",
           children: [
-            {
+            canAccess([PERMISSIONS.WALLET_VIEW]) && {
               key: "user-management",
               icon: <WalletOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/admin/user-management">Quản lý ví người dùng (Mới)</Link>,
             },
-            {
+            canAccess([PERMISSIONS.USERS_ROLES]) && {
               key: "group-user",
               icon: <TeamOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/admin/group-user">Nhóm người dùng</Link>,
             },
-            {
+            canAccess([PERMISSIONS.USERS_VIEW]) && {
               key: "user-account",
               icon: <UserOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/admin/user-account">Người dùng</Link>,
             },
-          ],
+          ].filter(Boolean),
         },
-        // Categories - Admin only
-        {
+
+        // Categories Group
+        (() => {
+          const categoriesPermissions = [
+            PERMISSIONS.BRANCHES_VIEW,
+            PERMISSIONS.AREAS_VIEW,
+            PERMISSIONS.LOCATIONS_VIEW,
+            PERMISSIONS.DEPARTMENTS_VIEW,
+            PERMISSIONS.DISEASECATEGORIES_VIEW
+          ];
+          return canAccess(categoriesPermissions);
+        })() && {
           key: "categories",
           icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
           label: "Danh mục",
           children: [
-            {
+            canAccess([PERMISSIONS.BRANCHES_VIEW]) && {
               key: "branches",
               icon: <ShopOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/branches">Chi nhánh</Link>,
             },
-            {
+            canAccess([PERMISSIONS.AREAS_VIEW]) && {
               key: "areas",
               icon: <GlobalOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/areas">Khu vực</Link>,
             },
-            {
+            canAccess([PERMISSIONS.LOCATIONS_VIEW]) && {
               key: "locations",
               icon: <AimOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/locations">Vị trí</Link>,
             },
-            {
+            canAccess([PERMISSIONS.DEPARTMENTS_VIEW]) && {
               key: "departments",
               icon: <TeamOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/departments">Phòng ban</Link>,
             },
-            {
+            canAccess([PERMISSIONS.DISEASECATEGORIES_VIEW]) && {
               key: "disease-categories",
               icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
               label: <Link to="/disease-categories">Nhóm bệnh</Link>,
             },
-          ],
+          ].filter(Boolean),
         },
-      ],
+      ].filter(Boolean),
     },
   ].filter(Boolean);
-
-  // Determine which menu items to display based on user role
-  const menuItems = hasRequiredRole([ROLES.KITCHEN])
-    ? kitchenMenuItems
-    : hasRequiredRole([ROLES.CASHIER])
-      ? cashierMenuItems
-      : defaultMenuItems;
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -315,7 +310,7 @@ const AdminLayout = ({ children }) => {
           }}
         >
           {/* Branch Switcher - Only for System Admin */}
-          {hasRequiredRole([ROLES.SYSTEM_ADMIN]) ? <BranchSwitcher /> : <div />}
+          {isSystemAdmin ? <BranchSwitcher /> : <div />}
           <UserHeader onLogout={handleLogout} />
         </Header>
 

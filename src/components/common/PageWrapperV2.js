@@ -1,7 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Button, Input, DatePicker, Select } from 'antd';
+import { Button, Input, DatePicker, Select, Tooltip } from 'antd';
 import { SearchOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
+import { usePermissions } from '../../hooks/usePermissions';
 import './PageWrapperV2.css';
 import moment from 'moment';
 
@@ -30,8 +31,43 @@ const withPageWrapperV2 = (WrappedComponent) => {
     className,
     style,
     children,
+    // Permission-based props
+    resourceName, // e.g., 'foods', 'orders', 'users'
+    requiredPermissions, // Custom permissions array
+    addPermission, // Specific add permission (overrides resourceName:add)
+    viewPermission, // Permission to view the page
+    hideOnNoPermission = true, // Hide completely or show disabled
+    permissionFallback, // Custom fallback component/content
     ...props
   }) => {
+    const { hasPermission, canPerformAction, isSystemAdmin } = usePermissions();
+
+    // Permission checking functions
+    const checkAddPermission = () => {
+      if (isSystemAdmin) return true;
+      if (addPermission) return hasPermission(addPermission);
+      if (resourceName) return canPerformAction('add', resourceName);
+      if (requiredPermissions) return requiredPermissions.some(p => hasPermission(p));
+      return true; // Default to true if no permissions specified
+    };
+
+    const checkViewPermission = () => {
+      if (isSystemAdmin) return true;
+      if (viewPermission) return hasPermission(viewPermission);
+      if (resourceName) return canPerformAction('view', resourceName);
+      return true; // Default to true if no permissions specified
+    };
+
+    // Check if user can view this page/component
+    const canViewPage = checkViewPermission();
+    if (!canViewPage && hideOnNoPermission) {
+      return permissionFallback || <div>Bạn không có quyền truy cập trang này.</div>;
+    }
+
+    // Check add button permission
+    const canAddResource = checkAddPermission();
+    const shouldShowAddButton = showAddButton && canAddResource;
+
     const renderFilterField = (field) => {
       if (field.type === 'date') {
         return (
@@ -114,7 +150,7 @@ const withPageWrapperV2 = (WrappedComponent) => {
                 {refreshButtonText}
               </Button>
             )}
-            {showAddButton && (
+            {shouldShowAddButton ? (
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
@@ -123,7 +159,17 @@ const withPageWrapperV2 = (WrappedComponent) => {
               >
                 {addButtonText}
               </Button>
-            )}
+            ) : showAddButton && !hideOnNoPermission && !canAddResource ? (
+              <Tooltip title="Bạn không có quyền thêm mới">
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  disabled
+                >
+                  {addButtonText}
+                </Button>
+              </Tooltip>
+            ) : null}
           </div>
         </div>
 
@@ -176,6 +222,13 @@ const withPageWrapperV2 = (WrappedComponent) => {
     addButtonText: PropTypes.string,
     refreshButtonText: PropTypes.string,
     searchPlaceholder: PropTypes.string,
+    // Permission-based props
+    resourceName: PropTypes.string,
+    requiredPermissions: PropTypes.arrayOf(PropTypes.string),
+    addPermission: PropTypes.string,
+    viewPermission: PropTypes.string,
+    hideOnNoPermission: PropTypes.bool,
+    permissionFallback: PropTypes.node,
   };
 
   return PageWrapperV2Component;
@@ -201,8 +254,42 @@ const PageWrapperV2 = ({
   addButtonText = 'Thêm',
   refreshButtonText = 'Làm mới',
   searchPlaceholder = 'Tìm kiếm...',
+  // Permission-based props
+  resourceName, // e.g., 'foods', 'orders', 'users'
+  requiredPermissions, // Custom permissions array
+  addPermission, // Specific add permission (overrides resourceName:add)
+  viewPermission, // Permission to view the page
+  hideOnNoPermission = true, // Hide completely or show disabled
+  permissionFallback, // Custom fallback component/content
   ...rest
 }) => {
+  const { hasPermission, canPerformAction, isSystemAdmin } = usePermissions();
+
+  // Permission checking functions
+  const checkAddPermission = () => {
+    if (isSystemAdmin) return true;
+    if (addPermission) return hasPermission(addPermission);
+    if (resourceName) return canPerformAction('add', resourceName);
+    if (requiredPermissions) return requiredPermissions.some(p => hasPermission(p));
+    return true; // Default to true if no permissions specified
+  };
+
+  const checkViewPermission = () => {
+    if (isSystemAdmin) return true;
+    if (viewPermission) return hasPermission(viewPermission);
+    if (resourceName) return canPerformAction('view', resourceName);
+    return true; // Default to true if no permissions specified
+  };
+
+  // Check if user can view this page/component
+  const canViewPage = checkViewPermission();
+  if (!canViewPage && hideOnNoPermission) {
+    return permissionFallback || <div>Bạn không có quyền truy cập trang này.</div>;
+  }
+
+  // Check add button permission
+  const canAddResource = checkAddPermission();
+  const shouldShowAddButton = showAddButton && canAddResource;
   const renderFilterField = (field) => {
     if (field.type === 'date') {
       return (
@@ -284,7 +371,7 @@ const PageWrapperV2 = ({
               {refreshButtonText}
             </Button>
           )}
-          {showAddButton && (
+          {shouldShowAddButton ? (
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -293,7 +380,17 @@ const PageWrapperV2 = ({
             >
               {addButtonText}
             </Button>
-          )}
+          ) : showAddButton && !hideOnNoPermission && !canAddResource ? (
+            <Tooltip title="Bạn không có quyền thêm mới">
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                disabled
+              >
+                {addButtonText}
+              </Button>
+            </Tooltip>
+          ) : null}
         </div>
       </div>
 
@@ -342,6 +439,13 @@ PageWrapperV2.propTypes = {
   addButtonText: PropTypes.string,
   refreshButtonText: PropTypes.string,
   searchPlaceholder: PropTypes.string,
+  // Permission-based props
+  resourceName: PropTypes.string,
+  requiredPermissions: PropTypes.arrayOf(PropTypes.string),
+  addPermission: PropTypes.string,
+  viewPermission: PropTypes.string,
+  hideOnNoPermission: PropTypes.bool,
+  permissionFallback: PropTypes.node,
 };
 
 export default PageWrapperV2;

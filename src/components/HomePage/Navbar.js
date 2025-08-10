@@ -25,7 +25,7 @@ const Navbar = () => {
   const { data: branchesData, isLoading: loading, isError, error } = usePublicBranchesOnly();
   const switchBranchMutation = usePublicSwitchBranchOnly();
   const { cartItems, setCartItems } = useCart();
-  const { user, logout } = useAuth();
+  const { user, logout, loginType } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -240,11 +240,20 @@ const Navbar = () => {
     setIsUserMenuVisible(false);
   };
 
-  const handleLogout = () => {
-    console.log('Logging out user:', user);
-    logout();
-    navigate('/');
-    setIsUserMenuVisible(false);
+  const handleLogout = async () => {
+    try {
+      console.log('Logging out user:', user);
+      await logout();
+      // Navigate based on original login type for better UX
+      const redirectPath = loginType === 'internal' ? '/login' : '/';
+      navigate(redirectPath);
+      setIsUserMenuVisible(false);
+    } catch (error) {
+      console.error('❌ Navbar logout failed:', error);
+      const redirectPath = loginType === 'internal' ? '/login' : '/';
+      navigate(redirectPath);
+      setIsUserMenuVisible(false);
+    }
   };
 
   const handleOrderHistoryClick = () => {
@@ -330,8 +339,8 @@ const Navbar = () => {
     { key: 'cart', label: 'GIỎ HÀNG' },
     ...(user?.role === ROLES.NURSE
       ? [
-          { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
-        ]
+        { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
+      ]
       : user?.role === ROLES.GUEST
         ? []
         : []
@@ -417,10 +426,7 @@ const Navbar = () => {
                         gap: '8px',
                       }}
                       greetingStyle={{ color: '#fff', fontSize: '14px' }}
-                      onLogout={() => {
-                        logout();
-                        navigate('/');
-                      }}
+                      onLogout={handleLogout}
                     />
                   ) : (
                     <Row gutter={8} align="middle">

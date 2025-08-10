@@ -18,7 +18,7 @@ const OrdersTableV2 = () => {
     startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
     endOrderDate: moment().format('YYYY-MM-DD'),
     status: null,
-    isPaid: null,
+    isPaid: true,
   });
   const [ordersData, setOrdersData] = useState([]);
   const [viewOrder, setViewOrder] = useState(null);

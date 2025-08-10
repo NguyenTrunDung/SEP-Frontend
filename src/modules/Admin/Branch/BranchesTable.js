@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { message, Button, Tooltip } from 'antd';
-import { EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'; // Thêm EyeOutlined
+import { EyeOutlined } from '@ant-design/icons';
 import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import CreateBranch from './CreateBranch';
@@ -127,7 +127,6 @@ const BranchesTableV2 = () => {
     const paginationConfig = {
         show: true,
         pageSizeOptions: [5, 10, 20, 50],
-        showTotal: true,
         showSizeChanger: true,
         total: filteredData.length,
         showTotal: (total, range) => `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} mục`,
@@ -145,6 +144,9 @@ const BranchesTableV2 = () => {
                     onChange: (e) => setSearchText(e.target.value),
                     placeholder: 'Tìm kiếm chi nhánh',
                 }}
+                resourceName="branches"
+                addPermission="branches:add"
+                viewPermission="branches:view"
             >
                 <ReusableTableV2
                     dataSource={filteredData}
@@ -176,6 +178,12 @@ const BranchesTableV2 = () => {
                     actions={renderActions} // Sử dụng prop actions để thêm nút View Detail
                     emptyMessage="Không tìm thấy chi nhánh nào."
                     pagination={paginationConfig}
+                    // Permission-based props
+                    resourceName="branches"
+                    editPermission="branches:edit"
+                    deletePermission="branches:delete"
+                    hideActionsOnNoPermission={true}
+                    showPermissionTooltips={true}
                 />
             </PageWrapperV2>
 

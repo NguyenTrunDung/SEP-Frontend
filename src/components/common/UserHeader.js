@@ -20,31 +20,44 @@ const UserHeader = ({
   onAvatarClick = null,
   useCustomModal = false
 }) => {
-  const { logout, user, token, loading } = useAuth();
+  const { logout, user, token, loading, loginType } = useAuth();
   const navigate = useNavigate();
 
   // Determine if user is authenticated based on available data
   const isAuthenticated = !!(user && token);
 
-  // Debug logging to help troubleshoot
-  console.log('UserHeader - Debug info:', {
-    user: user ? { email: user.email, role: user.role } : null,
-    hasToken: !!token,
-    isAuthenticated,
-    loading,
-    guestMode
-  });
+  // Debug logging (enable only when needed for troubleshooting)
+  // console.log('UserHeader - Debug info:', {
+  //   user: user ? { email: user.email, role: user.role } : null,
+  //   hasToken: !!token,
+  //   isAuthenticated,
+  //   loading,
+  //   guestMode
+  // });
 
   if (user?.email) {
     localStorage.setItem('userEmail', user.email);
   }
 
-  const handleLogout = () => {
-    logout();
-    if (onLogout) {
-      onLogout();
+  const handleLogout = async () => {
+    try {
+      console.log('🚪 Logging out...');
+      await logout();
+
+      if (onLogout) {
+        onLogout();
+      }
+
+      // Navigate based on original login type for better UX
+      const redirectPath = loginType === 'internal' ? '/login' : '/';
+      console.log(`🔄 Redirecting to ${redirectPath} (loginType: ${loginType})`);
+      navigate(redirectPath);
+    } catch (error) {
+      console.error('❌ Logout failed:', error);
+      // Still navigate based on login type even if logout API fails
+      const redirectPath = loginType === 'internal' ? '/login' : '/';
+      navigate(redirectPath);
     }
-    navigate('/login');
   };
 
   const handleLogin = () => {

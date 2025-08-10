@@ -68,6 +68,9 @@ export const orderService = {
       if (filters.isPaid !== undefined && filters.isPaid !== null) {
         queryParams.isPaid = filters.isPaid;
       }
+      if (filters.isOrderPatient !== undefined && filters.isOrderPatient !== null) {
+        queryParams.IsPatientOrder = filters.isOrderPatient;
+      }
 
       if (environment.features.enableLogging) {
         console.log(`🔍 Query parameters sent to API:`, queryParams);

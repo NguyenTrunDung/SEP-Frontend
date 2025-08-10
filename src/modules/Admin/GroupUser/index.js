@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Table, Button, Space, Tooltip, message, Popconfirm } from 'antd';
+import { Button, Space, Tooltip, message, Popconfirm } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import GroupUserModal from './GroupUserModal';
-import { fetchGroupUsersByBranch } from '../../../services/groupUserService';
+import { fetchGroupUsersByBranch, createGroupUser, updateGroupUser, deleteGroupUser } from '../../../services/groupUserService';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 
 const menuTree = [
@@ -47,6 +47,19 @@ const menuTree = [
         ],
     },
     {
+        title: 'Đơn hàng bệnh nhân',
+        key: 'orderpatients',
+        children: [
+            { title: 'Xem', key: 'orderpatients:view' },
+            { title: 'Thêm', key: 'orderpatients:add' },
+            { title: 'Sửa', key: 'orderpatients:edit' },
+            { title: 'Xóa', key: 'orderpatients:delete' },
+            { title: 'Duyệt đơn', key: 'orderpatients:approve' },
+            { title: 'Hủy đơn', key: 'orderpatients:cancel' },
+            { title: 'Chuyển trạng thái', key: 'orderpatients:status' },
+        ],
+    },
+    {
         title: 'Thực đơn',
         key: 'menus',
         children: [
@@ -75,6 +88,15 @@ const menuTree = [
             { title: 'Phân công', key: 'delivery:assign' },
             { title: 'Cập nhật trạng thái', key: 'delivery:status' },
             { title: 'Hoàn tất giao', key: 'delivery:complete' },
+        ],
+    },
+    {
+        title: 'Phản hồi',
+        key: 'feedbacks',
+        children: [
+            { title: 'Xem', key: 'feedbacks:view' },
+            { title: 'Trả lời', key: 'feedbacks:reply' },
+            { title: 'Xóa', key: 'feedbacks:delete' },
         ],
     },
     {
@@ -131,6 +153,59 @@ const menuTree = [
         ],
     },
     {
+        title: 'Khoa phòng',
+        key: 'departments',
+        children: [
+            { title: 'Xem', key: 'departments:view' },
+            { title: 'Thêm', key: 'departments:add' },
+            { title: 'Sửa', key: 'departments:edit' },
+            { title: 'Xóa', key: 'departments:delete' },
+        ],
+    },
+    {
+        title: 'Danh mục bệnh',
+        key: 'diseasecategories',
+        children: [
+            { title: 'Xem', key: 'diseasecategories:view' },
+            { title: 'Thêm', key: 'diseasecategories:add' },
+            { title: 'Sửa', key: 'diseasecategories:edit' },
+            { title: 'Xóa', key: 'diseasecategories:delete' },
+        ],
+    },
+    {
+        title: 'Thức ăn cho bệnh nhân',
+        key: 'foodforpatients',
+        children: [
+            { title: 'Xem', key: 'foodforpatients:view' },
+            { title: 'Thêm', key: 'foodforpatients:add' },
+            { title: 'Sửa', key: 'foodforpatients:edit' },
+            { title: 'Xóa', key: 'foodforpatients:delete' },
+            //   { title: 'Quản lý hạn chế', key: 'foodforpatients:restrictions' },
+        ],
+    },
+    {
+        title: 'Nhóm người dùng',
+        key: 'groupusers',
+        children: [
+            { title: 'Xem', key: 'groupusers:view' },
+            { title: 'Thêm', key: 'groupusers:add' },
+            { title: 'Sửa', key: 'groupusers:edit' },
+            { title: 'Xóa', key: 'groupusers:delete' },
+            { title: 'Gán quyền', key: 'groupusers:permissions' },
+        ],
+    },
+    {
+        title: 'Tài khoản người dùng',
+        key: 'useraccounts',
+        children: [
+            { title: 'Xem', key: 'useraccounts:view' },
+            { title: 'Thêm', key: 'useraccounts:add' },
+            { title: 'Sửa', key: 'useraccounts:edit' },
+            { title: 'Xóa', key: 'useraccounts:delete' },
+            { title: 'Khóa/Mở khóa', key: 'useraccounts:status' },
+        ],
+    },
+    {
         title: 'Ví thanh toán',
         key: 'wallet',
         children: [
@@ -165,7 +240,7 @@ const menuTree = [
 
 const GroupUser = () => {
     const [groups, setGroups] = useState([]);
-    const [search, setSearch] = useState('');
+    const [search] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
     const [editingGroup, setEditingGroup] = useState(null);
     const [checkedKeys, setCheckedKeys] = useState([]);
@@ -208,20 +283,40 @@ const GroupUser = () => {
         setIsEdit(false);
     };
 
-    const handleModalOk = (values) => {
-        if (editingGroup) {
-            setGroups(prev => prev.map(g => g.id === editingGroup.id ? { ...g, name: values.name, permissions: values.permissions } : g));
-            message.success('Cập nhật nhóm thành công (mock)');
-        } else {
-            setGroups(prev => [...prev, { id: Date.now(), name: values.name, permissions: values.permissions }]);
-            message.success('Thêm nhóm thành công (mock)');
+    const handleModalOk = async (values) => {
+        try {
+            const branchId = localStorage.getItem('currentBranchId') || '1';
+            const payload = {
+                name: values.name,
+                permissions: values.permissions,
+                branchId: parseInt(branchId)
+            };
+
+            if (editingGroup) {
+                await updateGroupUser(editingGroup.id, payload);
+                setGroups(prev => prev.map(g => g.id === editingGroup.id ? { ...g, ...payload } : g));
+                message.success('Cập nhật nhóm thành công!');
+            } else {
+                const newGroup = await createGroupUser(payload);
+                setGroups(prev => [...prev, newGroup]);
+                message.success('Thêm nhóm thành công!');
+            }
+            closeModal();
+        } catch (error) {
+            console.error('❌ Lỗi khi xử lý nhóm người dùng:', error);
+            message.error(error.response?.data?.message || 'Lỗi khi xử lý nhóm người dùng!');
         }
-        closeModal();
     };
 
-    const handleDelete = (group) => {
-        setGroups(prev => prev.filter(g => g.id !== group.id));
-        message.success('Đã xóa nhóm (mock)');
+    const handleDelete = async (group) => {
+        try {
+            await deleteGroupUser(group.id);
+            setGroups(prev => prev.filter(g => g.id !== group.id));
+            message.success('Đã xóa nhóm thành công!');
+        } catch (error) {
+            console.error('❌ Lỗi khi xóa nhóm người dùng:', error);
+            message.error(error.response?.data?.message || 'Lỗi khi xóa nhóm người dùng!');
+        }
     };
 
     const handleRefresh = () => {
@@ -286,7 +381,6 @@ const GroupUser = () => {
     const paginationConfig = {
         show: true,
         pageSizeOptions: [5, 10, 20, 50],
-        showTotal: true,
         showSizeChanger: true,
         total: filteredGroups.length,
         current: currentPage,
