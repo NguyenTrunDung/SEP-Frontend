@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import { departmentService } from '../../services/departmentService';
+import { locationService } from '../../services/locationService';
 import environment from '../../config/environment';
 
 export const DEPARTMENT_QUERY_KEYS = {
@@ -32,7 +33,6 @@ export const useDepartments = (branchId, options = {}) => {
       if (environment.features.enableLogging) {
         console.log(`✅ Received departments for branch ${currentBranchId}:`, response);
       }
-      // Ensure the response is an array
       const departments = Array.isArray(response) ? response : response.data || [];
       return departments;
     },
@@ -109,6 +109,62 @@ export const useDepartment = (deptId, branchId, options = {}) => {
   };
 };
 
+export const useLocationsForBranch = (branchId, options = {}) => {
+  const currentBranchId = normalizeBranchId(branchId);
+
+  const query = useQuery({
+    queryKey: ['locations', currentBranchId],
+    queryFn: async () => {
+      if (!currentBranchId) {
+        console.warn('⚠️ branchId is missing, skipping fetch');
+        return [];
+      }
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Fetching locations for branch: ${currentBranchId}`);
+      }
+      try {
+        const areas = await locationService.getAreas(currentBranchId);
+        const locationPromises = areas.data.map((area) =>
+          locationService.getLocationsByArea(area.id).catch((error) => {
+            console.warn(`⚠️ Failed to fetch locations for area ${area.id}:`, error.message);
+            return [];
+          })
+        );
+        const locationsByArea = await Promise.all(locationPromises);
+        const data = locationsByArea.flat();
+        if (environment.features.enableLogging) {
+          console.log('✅ Final fetched locations:', data);
+        }
+        return data || [];
+      } catch (error) {
+        console.error('❌ Error fetching locations:', error.response?.data || error.message);
+        throw error;
+      }
+    },
+    staleTime: environment.performance.queryStaleTime || 120000,
+    cacheTime: environment.performance.queryCacheTime || 120000,
+    refetchOnWindowFocus: false,
+    enabled: !!currentBranchId,
+    retry: (failureCount, error) => {
+      const status = error?.response?.status;
+      if ([404, 403, 401, 302].includes(status)) {
+        console.warn(`🚫 Request failed with status ${status}, stopping retries`);
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    ...options,
+  });
+
+  return {
+    locations: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
+};
+
 export const useCreateDepartment = (options = {}) => {
   const queryClient = useQueryClient();
   const currentBranchId = normalizeBranchId();
@@ -119,18 +175,32 @@ export const useCreateDepartment = (options = {}) => {
       if (!deptData?.name) {
         throw new Error('Department name is required');
       }
+      if (!deptData?.locationId) {
+        throw new Error('Location ID is required');
+      }
       if (!targetBranchId) {
         throw new Error('Branch ID is required');
       }
+      const payload = {
+        name: deptData.name,
+        branchId: Number(targetBranchId),
+        locationId: Number(deptData.locationId),
+      };
       if (environment.features.enableLogging) {
-        console.log(`🔍 Creating department for branch: ${targetBranchId}`, deptData);
+        console.log(`🔍 Creating department for branch: ${targetBranchId}`, payload);
       }
-      return departmentService.createDepartment(deptData, targetBranchId);
+      return departmentService.createDepartment(payload, targetBranchId);
     },
     onSuccess: (response, variables) => {
       message.success(response.message || 'Tạo phòng ban thành công!');
       const targetBranchId = normalizeBranchId(variables.branchId);
-      const newDept = response;
+      // Fetch locations to get locationName
+      const locations = queryClient.getQueryData(['locations', targetBranchId]) || [];
+      const location = locations.find(loc => String(loc.id) === String(variables.deptData.locationId));
+      const newDept = {
+        ...response,
+        locationName: location ? location.name : 'N/A',
+      };
       if (newDept) {
         queryClient.setQueryData(DEPARTMENT_QUERY_KEYS.detail(newDept.id, targetBranchId), newDept);
         queryClient.setQueryData(DEPARTMENT_QUERY_KEYS.list(targetBranchId), (oldData) => {
@@ -143,7 +213,7 @@ export const useCreateDepartment = (options = {}) => {
     onError: (error) => {
       const errorMessage = error.response?.data?.message || error.message || 'Không thể tạo phòng ban!';
       message.error(errorMessage);
-      console.error('❌ Failed to create department:', error);
+      console.error('❌ Failed to create department:', error.response?.data || error);
     },
     ...options,
   });
@@ -162,16 +232,29 @@ export const useUpdateDepartment = (options = {}) => {
       if (!deptData?.name) {
         throw new Error('Department name is required');
       }
-      if (environment.features.enableLogging) {
-        console.log(`🔍 Updating department ${deptId} for branch: ${targetBranchId}`, deptData);
+      if (!deptData?.locationId) {
+        throw new Error('Location ID is required');
       }
-      const payload = { name: deptData.name };
+      const payload = {
+        name: deptData.name,
+        locationId: Number(deptData.locationId),
+        branchId: Number(targetBranchId), // Added branchId to match BE DTO
+      };
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Updating department ${deptId} for branch: ${targetBranchId}`, payload);
+      }
       return departmentService.updateDepartment(deptId, payload);
     },
     onSuccess: (response, variables) => {
       message.success(response.message || 'Cập nhật phòng ban thành công!');
       const targetBranchId = normalizeBranchId(variables.branchId);
-      const updatedDept = response;
+      // Fetch locations to get locationName
+      const locations = queryClient.getQueryData(['locations', targetBranchId]) || [];
+      const location = locations.find(loc => String(loc.id) === String(variables.deptData.locationId));
+      const updatedDept = {
+        ...response,
+        locationName: location ? location.name : 'N/A',
+      };
       if (updatedDept) {
         queryClient.setQueryData(DEPARTMENT_QUERY_KEYS.detail(variables.deptId, targetBranchId), updatedDept);
         queryClient.setQueryData(DEPARTMENT_QUERY_KEYS.list(targetBranchId), (oldData) => {
@@ -226,7 +309,7 @@ export const useDeleteDepartment = (options = {}) => {
     onError: (error) => {
       const errorMessage = error.response?.data?.message || error.message || 'Không thể xóa phòng ban!';
       message.error(errorMessage);
-      console.error('❌ Failed to delete department:', error);
+      console.error('❌ Failed to delete department:', error.response?.data || error);
     },
     ...options,
   });

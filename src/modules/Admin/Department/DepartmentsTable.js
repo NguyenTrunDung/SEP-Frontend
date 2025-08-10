@@ -21,6 +21,13 @@ const DepartmentsTable = ({
       primary: true,
     },
     {
+      title: 'VỊ TRÍ',
+      dataIndex: 'locationName',
+      key: 'locationName',
+      align: 'left',
+      render: (text) => text || 'N/A',
+    },
+    {
       title: '',
       key: 'actions',
       width: 120,
@@ -86,6 +93,8 @@ DepartmentsTable.propTypes = {
     PropTypes.shape({
       id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       name: PropTypes.string.isRequired,
+      locationName: PropTypes.string,
+      locationId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
       branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     })
   ),
