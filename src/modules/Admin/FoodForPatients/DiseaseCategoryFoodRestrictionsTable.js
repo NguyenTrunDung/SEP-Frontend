@@ -201,6 +201,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
             key: 'foodName',
             sorter: (a, b) => a.foodName.localeCompare(b.foodName),
             render: (foodName) => <span className="vietnamese-text">{foodName || '-'}</span>,
+            align: 'center',
         },
         {
             title: 'DANH MỤC BỆNH',
@@ -219,6 +220,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                     </div>
                 );
             },
+            align: 'center',
         },
         // {
         //     title: 'MỨC ĐỘ HẠN CHẾ',
@@ -243,6 +245,8 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                     {reason ? (reason.length > 50 ? `${reason.substring(0, 50)}...` : reason) : '-'}
                 </span>
             ),
+            align: 'center',
+
         },
         {
             title: 'TRẠNG THÁI',
@@ -253,6 +257,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                     {isActive ? 'Hoạt động' : 'Không hoạt động'}
                 </Tag>
             ),
+            align: 'center',
         },
         {
             title: 'HÀNH ĐỘNG',

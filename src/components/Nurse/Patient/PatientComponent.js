@@ -173,7 +173,7 @@ const PatientComponent = () => {
         </div>
       ),
       width: 600,
-      onOk() {},
+      onOk() { },
     });
   };
 
@@ -196,16 +196,94 @@ const PatientComponent = () => {
     setSelectedFoodsByPatient(prev => {
       const newFoodsByPatient = {
         ...prev,
-        [patientId]: Array.from(selectedFoods).map(foodId => ({
-          foodId,
-          quantity: quantity[`${patientId}-${foodId}`] || 1,
-          note: note[`${patientId}-${foodId}`] || '',
-        })),
+        [patientId]: Array.from(selectedFoods).map(foodId => {
+          const foodQuantity = quantity[`${patientId}-${foodId}`] || 1;
+          const foodNote = note[`${patientId}-${foodId}`] || '';
+
+          console.log(`🔍 Setting food ${foodId} for patient ${patientId}:`, {
+            foodId,
+            quantity: foodQuantity,
+            note: foodNote,
+            stateKey: `${patientId}-${foodId}`,
+            stateQuantity: quantity[`${patientId}-${foodId}`],
+            stateNote: note[`${patientId}-${foodId}`]
+          });
+
+          return {
+            foodId,
+            quantity: foodQuantity,
+            note: foodNote,
+          };
+        }),
       };
       console.log(`🔍 Updated selectedFoodsByPatient:`, newFoodsByPatient);
       return newFoodsByPatient;
     });
   }, [quantity, note]);
+
+  // Add callback to handle quantity changes from PatientTable
+  const handleQuantityChange = useCallback((patientId, foodId, value) => {
+    console.log(`🔍 handleQuantityChange called for patient ${patientId}, food ${foodId}, value:`, value);
+    console.log(`🔍 Current quantity state before update:`, quantity);
+
+    setQuantity(prev => {
+      const newState = {
+        ...prev,
+        [`${patientId}-${foodId}`]: value || 1,
+      };
+      console.log(`🔍 Updated quantity state:`, newState);
+      return newState;
+    });
+
+    // Update selectedFoodsByPatient with new quantity
+    setSelectedFoodsByPatient(prev => {
+      const patientFoods = prev[patientId] || [];
+      const updatedFoods = patientFoods.map(food =>
+        food.foodId === foodId
+          ? { ...food, quantity: value || 1 }
+          : food
+      );
+
+      const newState = {
+        ...prev,
+        [patientId]: updatedFoods,
+      };
+      console.log(`🔍 Updated selectedFoodsByPatient with new quantity:`, newState);
+      return newState;
+    });
+  }, [quantity]);
+
+  // Add callback to handle note changes from PatientTable
+  const handleNoteChange = useCallback((patientId, foodId, value) => {
+    console.log(`🔍 handleNoteChange called for patient ${patientId}, food ${foodId}, value:`, value);
+    console.log(`🔍 Current note state before update:`, note);
+
+    setNote(prev => {
+      const newState = {
+        ...prev,
+        [`${patientId}-${foodId}`]: value || '',
+      };
+      console.log(`🔍 Updated note state:`, newState);
+      return newState;
+    });
+
+    // Update selectedFoodsByPatient with new note
+    setSelectedFoodsByPatient(prev => {
+      const patientFoods = prev[patientId] || [];
+      const updatedFoods = patientFoods.map(food =>
+        food.foodId === foodId
+          ? { ...food, note: value || '' }
+          : food
+      );
+
+      const newState = {
+        ...prev,
+        [patientId]: updatedFoods,
+      };
+      console.log(`🔍 Updated selectedFoodsByPatient with new note:`, newState);
+      return newState;
+    });
+  }, [note]);
 
   const handleSelectAllAndOrder = async () => {
     if (!selectedPatients.size) {
@@ -240,6 +318,17 @@ const PatientComponent = () => {
             console.warn(`⚠️ Food not found: ${item.foodId}`);
             return null;
           }
+
+          // Debug logging to see what values we're working with
+          console.log(`🔍 Creating cart item for food ${item.foodId}:`, {
+            itemQuantity: item.quantity,
+            itemNote: item.note,
+            stateQuantity: quantity[`${patientId}-${item.foodId}`],
+            stateNote: note[`${patientId}-${item.foodId}`],
+            finalQuantity: Number(item.quantity || 1),
+            finalNote: item.note || ''
+          });
+
           return {
             foodId: Number(food.id),
             quantity: Number(item.quantity || 1),
@@ -263,7 +352,7 @@ const PatientComponent = () => {
         const orderData = {
           branchId: Number(currentBranchId),
           userId: nurseId || 'NURSE_DEFAULT',
-          patientId: Number(patientId),
+          patientId: patientId,
           isPatientOrder: true,
           orderDate: new Date().toISOString(),
           receiveDate: getFormattedDate(activeDay),
@@ -476,6 +565,8 @@ const PatientComponent = () => {
             refetch={refetch}
             resetTable={handleResetTable} // Pass reset function to PatientTable
             foods={menuData?.foods || []}
+            onQuantityChange={handleQuantityChange}
+            onNoteChange={handleNoteChange}
           />
           <CreatePatient
             open={isCreateModalVisible}

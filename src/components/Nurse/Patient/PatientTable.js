@@ -28,6 +28,8 @@ const PatientTable = ({
   activeDay,
   setActiveDay,
   resetTable,
+  onQuantityChange,
+  onNoteChange,
 }) => {
   const [selectedPatients, setSelectedPatients] = useState(new Map());
   const [allAvailableFoods, setAllAvailableFoods] = useState({});
@@ -129,8 +131,8 @@ const PatientTable = ({
     const patientDiseaseCategoryIds = patient.diseaseCategories?.length
       ? patient.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
       : patient.diseaseCategoryIds?.length
-      ? patient.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
-      : [];
+        ? patient.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
+        : [];
     return restrictions
       ?.filter(restriction => patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId))
       ?.map(restriction => {
@@ -185,8 +187,8 @@ const PatientTable = ({
           const patientDiseaseCategoryIds = patientData.diseaseCategoryIds?.length
             ? patientData.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
             : patientData.diseaseCategories?.length
-            ? patientData.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
-            : [];
+              ? patientData.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
+              : [];
 
           if (!patientDiseaseCategoryIds.length) {
             console.warn(`⚠️ No diseaseCategoryIds for patient ${patientId}`);
@@ -305,34 +307,63 @@ const PatientTable = ({
   };
 
   const handleCheckboxChange = (patientId, foodId) => (e) => {
-    const newSelectedFoods = new Set(selectedFoodsByPatient[patientId] || []);
+    const currentSelectedFoods = selectedFoodsByPatient[patientId] || [];
+    const newSelectedFoods = new Set(currentSelectedFoods.map(food => food.foodId));
+
     if (e.target.checked) {
       newSelectedFoods.add(foodId);
     } else {
       newSelectedFoods.delete(foodId);
     }
+
+    // Update local state for immediate UI feedback
     setSelectedFoodsByPatient(prev => ({
       ...prev,
-      [patientId]: newSelectedFoods,
+      [patientId]: Array.from(newSelectedFoods).map(foodId => ({
+        foodId,
+        quantity: quantity[`${patientId}-${foodId}`] || 1,
+        note: note[`${patientId}-${foodId}`] || '',
+      })),
     }));
+
     console.log(`🔍 Checkbox changed for patient ${patientId}, food ${foodId}, selectedFoods:`, Array.from(newSelectedFoods));
+
+    // Call parent callback with the Set of food IDs
     onSelectPatient(patientId, newSelectedFoods);
   };
 
   const handleQuantityChange = (patientId, foodId) => (value) => {
+    const newValue = value || 1;
+
+    // Update local state for immediate UI feedback
     setQuantity(prev => ({
       ...prev,
-      [`${patientId}-${foodId}`]: value || 1,
+      [`${patientId}-${foodId}`]: newValue,
     }));
-    console.log(`🔍 Quantity changed for patient ${patientId}, food ${foodId}:`, value);
+
+    // Call parent callback to sync with PatientComponent state
+    if (onQuantityChange) {
+      onQuantityChange(patientId, foodId, newValue);
+    }
+
+    console.log(`🔍 Quantity changed for patient ${patientId}, food ${foodId}:`, newValue);
   };
 
   const handleNoteChange = (patientId, foodId) => (e) => {
+    const newValue = e.target.value || '';
+
+    // Update local state for immediate UI feedback
     setNote(prev => ({
       ...prev,
-      [`${patientId}-${foodId}`]: e.target.value,
+      [`${patientId}-${foodId}`]: newValue,
     }));
-    console.log(`🔍 Note changed for patient ${patientId}, food ${foodId}:`, e.target.value);
+
+    // Call parent callback to sync with PatientComponent state
+    if (onNoteChange) {
+      onNoteChange(patientId, foodId, newValue);
+    }
+
+    console.log(`🔍 Note changed for patient ${patientId}, food ${foodId}:`, newValue);
   };
 
   const handleEdit = (record) => {
@@ -352,8 +383,8 @@ const PatientTable = ({
       diseaseCategories: Array.isArray(record.diseaseCategories)
         ? record.diseaseCategories.map(dc => String(dc.diseaseCategoryId))
         : Array.isArray(record.diseaseCategoryIds)
-        ? record.diseaseCategoryIds.map(id => String(id))
-        : [],
+          ? record.diseaseCategoryIds.map(id => String(id))
+          : [],
       departmentId: record.departmentId ? String(record.departmentId) : null,
     });
   };
@@ -611,7 +642,7 @@ const PatientTable = ({
                             >
                               <div style={{ display: 'flex', alignItems: 'center', maxWidth: 180, flex: 1 }}>
                                 <Checkbox
-                                  checked={selectedFoodsByPatient[record.id]?.has(food.id)}
+                                  checked={selectedFoodsByPatient[record.id]?.some(item => item.foodId === food.id)}
                                   onChange={handleCheckboxChange(record.id, food.id)}
                                   style={{ marginRight: 6 }}
                                 />
@@ -717,11 +748,11 @@ const PatientTable = ({
                               onClick={() => {
                                 const newOrders = patientOrders[record.id].filter(f => f.foodId !== item.foodId);
                                 setPatientOrders(prev => ({ ...prev, [record.id]: newOrders }));
-                                const newSelectedFoods = new Set(selectedFoodsByPatient[record.id]);
+                                const newSelectedFoods = new Set(selectedFoodsByPatient[record.id].map(item => item.foodId));
                                 newSelectedFoods.delete(item.foodId);
                                 setSelectedFoodsByPatient(prev => ({
                                   ...prev,
-                                  [record.id]: newSelectedFoods,
+                                  [record.id]: prev[record.id].filter(foodItem => foodItem.foodId !== item.foodId),
                                 }));
                                 onSelectPatient(record.id, newSelectedFoods);
                                 message.success(`Đã xóa ${filteredFoods[record.id]?.find(f => f.id === item.foodId)?.name || 'món ăn'} khỏi danh sách`);
@@ -813,6 +844,8 @@ PatientTable.propTypes = {
   activeDay: PropTypes.string,
   setActiveDay: PropTypes.func,
   resetTable: PropTypes.func, // Add resetTable to propTypes
+  onQuantityChange: PropTypes.func,
+  onNoteChange: PropTypes.func,
 };
 
 export default PatientTable;

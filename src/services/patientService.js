@@ -36,7 +36,7 @@ export const patientService = {
     return response.data;
   },
 
- async createPatient(patientData, branchId) {
+  async createPatient(patientData, branchId) {
     const payload = {
       ...patientData,
       branchId: parseInt(branchId, 10),
@@ -102,7 +102,7 @@ export const patientService = {
       throw new Error(error.response?.data?.message || 'Lỗi khi xóa bệnh nhân');
     }
   },
-async assignDiseaseCategories(patientId, diseaseCategoryIds, branchId) {
+  async assignDiseaseCategories(patientId, diseaseCategoryIds, branchId) {
     try {
       const payload = {
         diseaseCategoryIds: diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id)),
@@ -163,7 +163,7 @@ async assignDiseaseCategories(patientId, diseaseCategoryIds, branchId) {
     }
   },
 
-  
+
   async clearDiseaseCategories(patientId, branchId) {
     try {
       // Get all existing assignments for the patient
@@ -260,7 +260,7 @@ export const nurseOrderService = {
         orderDetails: orderData.orderDetails.map(item => ({
           foodId: Number(item.foodId),
           orderId: 0,
-          qty: Number(item.quantity),
+          qty: Number(item.qty || item.quantity || 0),
           price: Number(item.price || 0),
           total: Number(item.total || 0),
           note: item.note || null,
