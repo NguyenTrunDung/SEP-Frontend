@@ -29,17 +29,22 @@ const ViewOrderDetail = ({
 
   // Normalize paymentMethod to string
   const normalizePaymentMethod = (paymentMethod) => {
-    const validPaymentMethods = ['Tiền mặt', 'Wallet', 'Miễn phí', 'VNPay'];
     const numberToStringMap = {
-      '1': 'Tiền mặt',
-      '2': 'Wallet',
-      '3': 'Miễn phí',
-      '4': 'VNPay'
+      '1': 'Wallet',
+      '2': 'VNPay'
     };
+
     if (typeof paymentMethod === 'number' || (typeof paymentMethod === 'string' && numberToStringMap[paymentMethod])) {
-      return numberToStringMap[paymentMethod.toString()] || 'Tiền mặt';
+      return numberToStringMap[paymentMethod.toString()] || 'Wallet';
     }
-    return validPaymentMethods.includes(paymentMethod) ? paymentMethod : 'Tiền mặt';
+
+    // Handle string values that might come from the API
+    if (typeof paymentMethod === 'string') {
+      if (paymentMethod.toLowerCase() === 'vnpay') return 'VNPay';
+      if (paymentMethod.toLowerCase() === 'wallet') return 'Wallet';
+    }
+
+    return 'Wallet'; // Default to Wallet
   };
 
   // Normalize receiveType to display string
