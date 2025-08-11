@@ -199,7 +199,7 @@ export const orderService = {
         total: orderData.total || 0,
         shippingFee: orderData.shippingFee || 0,
         foodToolFee: orderData.foodToolFee || 0,
-        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod) || 3,
+        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod),
         isPaid: orderData.isPaid !== undefined ? orderData.isPaid : true,
         walletAmountUsed: orderData.walletAmountUsed || 0,
         code: orderData.code || this._generateOrderCode(),
@@ -255,6 +255,7 @@ export const orderService = {
         branchId: currentBranchId,
         status: orderData.status,
         paymentStatus: orderData.paymentStatus ? orderData.paymentStatus.toLowerCase() : 'pending',
+        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod),
       };
       if (environment.features.enableLogging) {
         console.log('🔍 orderService.updateOrder - ID:', orderId, 'data:', JSON.stringify(payload, null, 2));

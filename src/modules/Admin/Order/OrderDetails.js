@@ -3,7 +3,6 @@ import {
   Modal,
   Input,
   Button,
-  Select,
   Table,
   Switch,
   Row,
@@ -17,8 +16,6 @@ import moment from 'moment';
 import './ViewOrderDetail.css';
 import { useUpdateOrder } from '../../../hooks/queries/useOrders';
 
-const { Option } = Select;
-
 const ViewOrderDetail = ({
   open,
   onCancel,
@@ -30,9 +27,51 @@ const ViewOrderDetail = ({
   const [formData, setFormData] = useState({});
   const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
 
+  // Normalize paymentMethod to string
+  const normalizePaymentMethod = (paymentMethod) => {
+    const validPaymentMethods = ['Tiền mặt', 'Wallet', 'Miễn phí', 'VNPay'];
+    const numberToStringMap = {
+      '1': 'Tiền mặt',
+      '2': 'Wallet',
+      '3': 'Miễn phí',
+      '4': 'VNPay'
+    };
+    if (typeof paymentMethod === 'number' || (typeof paymentMethod === 'string' && numberToStringMap[paymentMethod])) {
+      return numberToStringMap[paymentMethod.toString()] || 'Tiền mặt';
+    }
+    return validPaymentMethods.includes(paymentMethod) ? paymentMethod : 'Tiền mặt';
+  };
+
+  // Normalize receiveType to display string
+  const normalizeReceiveType = (receiveType) => {
+    const receiveTypeMap = {
+      'take': 'Tự đến lấy',
+      'delivery': 'Giao hàng'
+    };
+    return receiveTypeMap[receiveType] || receiveType || 'Giao hàng';
+  };
+
+  // Normalize status to display string
+  const normalizeStatus = (status) => {
+    const statusMap = {
+      'Pending': 'Đang chờ',
+      'Confirmed': 'Đã xác nhận',
+      'Delivered': 'Đang giao hàng',
+      'Completed': 'Hoàn thành',
+      'Cancelled': 'Hủy',
+      'PendingPayment': 'Chờ thanh toán'
+    };
+    return statusMap[status] || status || 'Đang chờ';
+  };
+
   useEffect(() => {
     if (orderData) {
-      setFormData(orderData);
+      setFormData({
+        ...orderData,
+        paymentMethod: normalizePaymentMethod(orderData.paymentMethod),
+        receiveType: normalizeReceiveType(orderData.receiveType),
+        status: normalizeStatus(orderData.status)
+      });
     }
     console.log('🔍 Order details received:', orderDetails);
   }, [orderData, orderDetails]);
@@ -44,7 +83,7 @@ const ViewOrderDetail = ({
         branchId,
         newStatus: 'Delivered',
       });
-      setFormData((prev) => ({ ...prev, status: 'Delivered' }));
+      setFormData((prev) => ({ ...prev, status: 'Đang giao hàng' }));
       message.success('Đơn hàng đã được chuyển sang trạng thái Shipper nhận đơn và đi giao!');
       onStatusChange?.();
     } catch (error) {
@@ -60,7 +99,7 @@ const ViewOrderDetail = ({
         branchId,
         newStatus: 'Completed',
       });
-      setFormData((prev) => ({ ...prev, status: 'Completed' }));
+      setFormData((prev) => ({ ...prev, status: 'Hoàn thành' }));
       message.success('Đơn hàng đã được hoàn thành!');
       onStatusChange?.();
     } catch (error) {
@@ -77,7 +116,7 @@ const ViewOrderDetail = ({
         branchId,
         newStatus: 'Confirmed',
       });
-      setFormData((prev) => ({ ...prev, status: 'Confirmed' }));
+      setFormData((prev) => ({ ...prev, status: 'Đã xác nhận' }));
       message.success('Đơn hàng đã được xác nhận!');
       onStatusChange?.();
     } catch (error) {
@@ -93,7 +132,7 @@ const ViewOrderDetail = ({
         branchId,
         newStatus: 'Cancelled',
       });
-      setFormData((prev) => ({ ...prev, status: 'Cancelled' }));
+      setFormData((prev) => ({ ...prev, status: 'Hủy' }));
       message.success('Đã hủy đơn hàng!');
       onStatusChange?.();
     } catch (error) {
@@ -103,31 +142,35 @@ const ViewOrderDetail = ({
   };
 
   const columns = [
-    { title: '#', dataIndex: 'index', key: 'index', render: (_, __, idx) => idx + 1 },
-    { 
-      title: 'TÊN MÓN', 
-      dataIndex: 'foodName', 
+    { title: '#', dataIndex: 'index', key: 'index', align: 'center', render: (_, __, idx) => idx + 1 },
+    {
+      title: 'TÊN MÓN',
+      dataIndex: 'foodName',
       key: 'foodName',
+      align: 'center',
       render: (foodName, record) => foodName || record.name || `Món ăn ID ${record.foodId || 'Unknown'}`,
     },
-    { 
-      title: 'GIÁ TIỀN', 
-      dataIndex: 'price', 
-      key: 'price', 
-      render: (val) => val?.toLocaleString() || '0' 
+    {
+      title: 'GIÁ TIỀN',
+      dataIndex: 'price',
+      align: 'center',
+      key: 'price',
+      render: (val) => val?.toLocaleString() || '0'
     },
-    { 
-      title: 'SỐ LƯỢNG', 
-      dataIndex: 'Qty', 
-      key: 'qty', 
+    {
+      title: 'SỐ LƯỢNG',
+      dataIndex: 'Qty',
+      align: 'center',
+      key: 'qty',
       render: (Qty) => Qty ?? 1,
     },
     { title: 'GHI CHÚ', dataIndex: 'note', key: 'note', render: (note) => note || '' },
-    { 
-      title: 'TIỀN', 
-      dataIndex: 'total', 
-      key: 'total', 
-      render: (val) => val?.toLocaleString() || '0' 
+    {
+      title: 'TIỀN',
+      dataIndex: 'total',
+      align: 'center',
+      key: 'total',
+      render: (val) => val?.toLocaleString() || '0'
     },
   ];
 
@@ -195,10 +238,7 @@ const ViewOrderDetail = ({
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col span={6}>
             <label className="floating-label">Hình thức giao</label>
-            <Select value={formData.receiveType} disabled style={{ width: '100%' }}>
-              <Option value="take">Tự đến lấy</Option>
-              <Option value="delivery">Giao hàng</Option>
-            </Select>
+            <Input value={formData.receiveType} disabled placeholder="Hình thức giao" />
           </Col>
           <Col span={6}>
             <Input value={formData.customerAddress} disabled placeholder="Địa chỉ" />
@@ -219,14 +259,7 @@ const ViewOrderDetail = ({
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col span={6}>
             <label className="floating-label">Trạng thái</label>
-            <Select value={formData.status} disabled style={{ width: '100%' }}>
-              <Option value="Pending">Đang chờ</Option>
-              <Option value="Confirmed">Đã xác nhận</Option>
-              <Option value="Delivered">Đang giao hàng</Option>
-              <Option value="Completed">Hoàn thành</Option>
-              <Option value="Cancelled">Hủy</Option>
-              <Option value="PendingPayment">Chờ thanh toán</Option>
-            </Select>
+            <Input value={formData.status} disabled placeholder="Trạng thái" />
           </Col>
           <Col span={6}>
             <label className="floating-label">Phí vận chuyển</label>
@@ -245,9 +278,12 @@ const ViewOrderDetail = ({
           <Col span={6}>
             <Input value={formData.area} disabled placeholder="Khu vực" />
           </Col>
-
+          <Col span={6}>
+            <label className="floating-label">Phương thức thanh toán</label>
+            <Input value={formData.paymentMethod} disabled placeholder="Phương thức thanh toán" />
+          </Col>
           <Col span={3}>
-            {(formData.status?.toLowerCase() === 'pending') ? (
+            {(formData.status === 'Đang chờ') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#00B8A9', border: 'none' }}
@@ -256,7 +292,7 @@ const ViewOrderDetail = ({
               >
                 Xác Nhận
               </Button>
-            ) : (formData.status?.toLowerCase() === 'confirmed') ? (
+            ) : (formData.status === 'Đã xác nhận') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#0d8ce0', border: 'none' }}
@@ -265,7 +301,7 @@ const ViewOrderDetail = ({
               >
                 Đang giao hàng
               </Button>
-            ) : formData.status?.toLowerCase() === 'delivered' ? (
+            ) : (formData.status === 'Đang giao hàng') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#52c41a', border: 'none' }}
@@ -277,7 +313,7 @@ const ViewOrderDetail = ({
             ) : null}
           </Col>
 
-          {['pending', 'confirmed'].includes(formData.status?.toLowerCase()) && (
+          {['Đang chờ', 'Đã xác nhận'].includes(formData.status) && (
             <Col span={3}>
               <Popconfirm
                 title="Bạn có chắc muốn hủy đơn hàng này?"
