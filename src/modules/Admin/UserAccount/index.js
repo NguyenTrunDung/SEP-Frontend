@@ -8,6 +8,7 @@ import EditUserAccountModal from './EditUserAccountModal';
 import { fetchUserAccountsByBranch, updateUserAccountStatus, createUserAccount, updateUserAccount, deleteUserAccount } from '../../../services/userAccountService';
 import { fetchGroupUsersByBranch } from '../../../services/groupUserService';
 import * as XLSX from 'xlsx';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 function extractApiErrorMessage(err) {
   if (Array.isArray(err?.response?.data)) {
@@ -305,6 +306,12 @@ const UserAccount = () => {
         onAdd={() => openModal(null)}
         onRefresh={handleRefresh}
         loading={isLoading}
+        // Permission controls
+        resourceName="useraccounts"
+        addPermission={PERMISSIONS.USERACCOUNTS_ADD}
+        viewPermission={PERMISSIONS.USERACCOUNTS_VIEW}
+        hideOnNoPermission={true}
+        permissionFallback={<div>Bạn không có quyền truy cập trang quản lý tài khoản người dùng.</div>}
         extraButtons={[
           <Tooltip key="export" title="Xuất danh sách ra Excel">
             <Button icon={<FileExcelOutlined />} onClick={handleExportExcel}>
@@ -352,6 +359,12 @@ const UserAccount = () => {
           emptyMessage="Không tìm thấy người dùng nào."
           loading={isLoading}
           pagination={paginationConfig}
+          // Permission controls for table actions
+          resourceName="useraccounts"
+          editPermission={PERMISSIONS.USERACCOUNTS_EDIT}
+          deletePermission={PERMISSIONS.USERACCOUNTS_DELETE}
+          hideActionsOnNoPermission={true}
+          showPermissionTooltips={true}
         />
       </PageWrapperV2>
 

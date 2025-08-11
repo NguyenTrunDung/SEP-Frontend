@@ -58,6 +58,7 @@ const Navbar = () => {
     area: '',
     room: '',
     deliveryTime: '',
+    customTime: '',
     note: '',
     receiveMethod: 'Giao tận nơi',
     includeUtensils: false,
@@ -123,10 +124,16 @@ const Navbar = () => {
       localStorage.setItem('currentBranchId', branch.id);
       setIsModalVisible(false);
       message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
+      // Invalidate all menu queries for both public and admin contexts
       if (queryClient) {
+        // Admin context keys
+        queryClient.invalidateQueries({ queryKey: ['menusAdmin'] });
+        queryClient.invalidateQueries({ queryKey: ['menusAdmin', 'list'] });
+        queryClient.invalidateQueries({ queryKey: ['menusAdmin', 'byDate'] });
+        // Public context keys
         queryClient.invalidateQueries({ queryKey: ['menus'] });
         queryClient.invalidateQueries({ queryKey: ['public', 'menus'] });
-        queryClient.refetchQueries({ queryKey: ['menus', 'byDate'] });
+        queryClient.invalidateQueries({ queryKey: ['menus', 'byDate'] });
         console.log('🔄 Invalidated menu queries for branch switch');
       }
     } catch (error) {

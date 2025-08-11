@@ -93,6 +93,10 @@ const PaymentModal = ({
       message.error('Vui lòng chọn thời gian giao hàng.');
       return;
     }
+    if (paymentDetails.deliveryTime === 'Tuỳ chọn thời gian' && !paymentDetails.customTime) {
+      message.error('Vui lòng chọn thời gian cụ thể khi chọn "Tuỳ chọn thời gian".');
+      return;
+    }
     if (!selectedBranch?.id) {
       message.error('Vui lòng chọn chi nhánh trước khi đặt món.');
       return;
@@ -117,6 +121,7 @@ const PaymentModal = ({
         customerAddress: `${paymentDetails.area} - ${paymentDetails.room}`,
         receiveMethod: paymentDetails.receiveMethod,
         receiveTime: paymentDetails.deliveryTime,
+        receiveDate: calculateReceiveDate(paymentDetails.deliveryTime),
         paymentMethod: paymentDetails.paymentMethod,
         note: paymentDetails.note,
         includeUtensils: paymentDetails.includeUtensils,
@@ -127,13 +132,15 @@ const PaymentModal = ({
           FoodId: item.FoodId || item.ID,
           dishName: item.dishName || item.name,
           price: item.price,
-          quantity: item.quantity,
+          qty: item.quantity,
           note: item.note || null
         }))
       };
 
       console.log('Submitting order:', { orderData, branchId: selectedBranch.id });
-
+      console.log('paymentDetails.paymentMethod:', paymentDetails.paymentMethod);
+      console.log('Calculated receiveDate:', orderData.receiveDate);
+      console.log('Delivery time:', paymentDetails.deliveryTime);
       // Check if payment method is VNPay
       if (paymentDetails.paymentMethod === 'VNPay') {
         await handleVnPayPayment(orderData, totalAmount);
@@ -226,6 +233,7 @@ const PaymentModal = ({
       area: '',
       room: '',
       deliveryTime: '',
+      customTime: '',
       note: '',
       receiveMethod: 'Giao tận nơi',
       includeUtensils: false,
@@ -241,13 +249,68 @@ const PaymentModal = ({
     ? [{ value: 'VNPay', label: 'VNPay (Thanh toán trực tuyến)' }]
     : user?.role === ROLES.NURSE || user?.role === ROLES.DOCTOR
       ? [
-          { value: 'VNPay', label: 'VNPay (Thanh toán trực tuyến)' },
-          { value: 'Ví', label: 'Thanh toán ví' }
-        ]
+        { value: 'VNPay', label: 'VNPay (Thanh toán trực tuyến)' },
+        { value: 'Ví', label: 'Thanh toán ví' }
+      ]
       : [{ value: 'VNPay', label: 'VNPay (Thanh toán trực tuyến)' }]; // Fallback for undefined role
 
   // Log payment options for debugging
   console.log('Payment options:', paymentOptions);
+
+  console.log('Payment role:', user?.role);
+
+  // Function to calculate receive date based on delivery time
+  const calculateReceiveDate = (deliveryTime) => {
+    if (!deliveryTime) return null;
+
+    const now = new Date();
+    let receiveDate = new Date(now);
+
+    switch (deliveryTime) {
+      case '30 phút':
+        receiveDate.setMinutes(now.getMinutes() + 30);
+        break;
+      case '45 phút':
+        receiveDate.setMinutes(now.getMinutes() + 45);
+        break;
+      case '60 phút':
+        receiveDate.setHours(now.getHours() + 1);
+        break;
+      case 'Tuỳ chọn thời gian':
+        // Use custom time if available, otherwise default to 1 hour from now
+        if (paymentDetails.customTime) {
+          const [hours, minutes] = paymentDetails.customTime.split(':').map(Number);
+          receiveDate.setHours(hours, minutes, 0, 0);
+
+          // If the time has already passed today, set it for tomorrow
+          if (receiveDate <= now) {
+            receiveDate.setDate(receiveDate.getDate() + 1);
+          }
+        } else {
+          // Default to 1 hour from now
+          receiveDate.setHours(now.getHours() + 1);
+        }
+        break;
+      default:
+        // If it's a custom time string (e.g., "14:30"), parse it
+        if (deliveryTime.includes(':')) {
+          const [hours, minutes] = deliveryTime.split(':').map(Number);
+          receiveDate.setHours(hours, minutes, 0, 0);
+
+          // If the time has already passed today, set it for tomorrow
+          if (receiveDate <= now) {
+            receiveDate.setDate(receiveDate.getDate() + 1);
+          }
+        } else {
+          // Default to 1 hour from now
+          receiveDate.setHours(now.getHours() + 1);
+        }
+        break;
+    }
+
+    return receiveDate;
+  };
+
 
   return (
     <Modal
@@ -287,7 +350,7 @@ const PaymentModal = ({
           Thanh toán
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-    
+
           <div>
             <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
               Chi nhánh
@@ -393,6 +456,15 @@ const PaymentModal = ({
               <Option value="60 phút">60 phút</Option>
               <Option value="Tuỳ chọn thời gian">Tuỳ chọn thời gian</Option>
             </Select>
+            {paymentDetails.deliveryTime === 'Tuỳ chọn thời gian' && (
+              <Input
+                type="time"
+                value={paymentDetails.customTime || ''}
+                onChange={(e) => setPaymentDetails({ ...paymentDetails, customTime: e.target.value })}
+                placeholder="Chọn thời gian cụ thể"
+                style={{ marginTop: '8px', borderRadius: '4px' }}
+              />
+            )}
           </div>
           <div>
             <Text style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Ghi chú</Text>

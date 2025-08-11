@@ -4,13 +4,18 @@ import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import { useChefOrders, useUpdateOrder } from '../../../hooks/queries/useOrders';
 import { orderService } from '../../../services/orderService';
+import environment from '../../../config/environment';
 import './Kitchen.css';
+import PERMISSIONS from '../../../constants/permissions';
 
-const KitchenView = ({ branchId = 1 }) => {
+const KitchenView = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const { orders, isLoading, error, refetch } = useChefOrders(branchId, {
+  // Get current branch ID from environment instead of hardcoded default
+  const currentBranchId = environment.multiTenant.getCurrentBranchId();
+
+  const { orders, isLoading, error, refetch } = useChefOrders(currentBranchId, {
     onSuccess: (data) => {
       console.log('✅ Chef orders fetched successfully:', data);
     },
@@ -30,6 +35,16 @@ const KitchenView = ({ branchId = 1 }) => {
       console.error('❌ Update order status error:', error.response?.data || error);
     },
   });
+
+  // Show message if no branch is selected
+  if (!currentBranchId) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <h3>Vui lòng chọn chi nhánh để xem đơn hàng bếp</h3>
+        <p>Bạn cần chọn một chi nhánh từ thanh điều hướng để xem đơn hàng bếp.</p>
+      </div>
+    );
+  }
 
   const tableData = orders.flatMap((order) =>
     order.orderDetails?.map((item, index) => {
@@ -56,12 +71,12 @@ const KitchenView = ({ branchId = 1 }) => {
     if (selectedItem) {
       console.log('🚀 Sending status update for order:', {
         orderId: selectedItem.id,
-        branchId,
+        branchId: currentBranchId,
         newStatus: 'Delivered',
       });
       updateOrderStatus({
         orderId: selectedItem.id,
-        branchId,
+        branchId: currentBranchId,
         newStatus: 'Delivered',
       });
       setIsModalVisible(false);
@@ -155,6 +170,11 @@ const KitchenView = ({ branchId = 1 }) => {
         showRefreshButton={true}
         onRefresh={refetch}
         loading={isLoading}
+        // Permission controls
+        resourceName="kitchen"
+        viewPermission={PERMISSIONS.KITCHEN_VIEW}
+        hideOnNoPermission={true}
+        permissionFallback={<div>Bạn không có quyền truy cập trang quản lý nhà bếp.</div>}
       >
         {error && <div style={{ color: 'red', marginBottom: 16 }}>Lỗi: {error.message}</div>}
         <ReusableTableV2
@@ -165,6 +185,11 @@ const KitchenView = ({ branchId = 1 }) => {
           pagination={paginationConfig}
           emptyMessage="Không có món ăn nào."
           loading={isLoading}
+          // Permission controls for table actions
+          resourceName="kitchen"
+          editPermission={PERMISSIONS.KITCHEN_STATUS}
+          hideActionsOnNoPermission={true}
+          showPermissionTooltips={true}
         />
       </PageWrapperV2>
 

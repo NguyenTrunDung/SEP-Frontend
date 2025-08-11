@@ -33,6 +33,7 @@ export const BRANCH_ROLE_NAMES = {
     STAFF: 'Nhân viên',
     KITCHEN: 'Nhà bếp',
     NURSE: 'Y tá',
+    DOCTOR: 'Bác sĩ',
 };
 
 // Map backend Identity roles + Branch roles to frontend role constants

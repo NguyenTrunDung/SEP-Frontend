@@ -86,7 +86,7 @@ const AdminLayout = ({ children }) => {
       "/admin/user-management": ["user-management"],
       "/admin/group-user": ["group-user"],
       "/admin/user-account": ["user-account"],
-      "/branches": ["branches"],
+    "/branches": ["branches"],
       "/departments": ["departments"],
       "/shippers": ["shippers"],
     };
@@ -130,7 +130,7 @@ const AdminLayout = ({ children }) => {
       label: <Link to="/dashboard">Thống kê</Link>,
     },
 
-    // Orders
+    // Orders Management
     canAccess([PERMISSIONS.ORDERS_VIEW]) && {
       key: "orders",
       icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,

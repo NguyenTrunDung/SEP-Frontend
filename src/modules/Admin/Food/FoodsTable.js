@@ -6,6 +6,7 @@ import { FoodImage } from '../../../components/common/ImageDisplay';
 import PropTypes from 'prop-types';
 import { foodService } from '../../../services/foodService';
 import * as XLSX from 'xlsx';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 const FoodsTable = ({
   dataSource = [],
@@ -350,6 +351,12 @@ const FoodsTable = ({
           showSizeChanger: true,
         }}
         className="reusable-table-v2"
+        // Permission controls for table actions
+        resourceName="foods"
+        editPermission={PERMISSIONS.FOODS_EDIT}
+        deletePermission={PERMISSIONS.FOODS_DELETE}
+        hideActionsOnNoPermission={true}
+        showPermissionTooltips={true}
       />
       <Modal
         title="Chi tiết món ăn"

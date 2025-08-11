@@ -187,9 +187,20 @@ export const useSwitchBranch = () => {
             });
 
             // Invalidate order queries with branch context
+            // queryClient.invalidateQueries({
+            //     queryKey: ['orders'],
+            //     predicate: (query) => query.queryKey[0] === 'orders'
+            // });
+
+            // Invalidate chef orders queries with the correct query key structure
             queryClient.invalidateQueries({
-                queryKey: ['orders'],
-                predicate: (query) => query.queryKey[0] === 'orders'
+                queryKey: ['orders', 'list'],
+                predicate: (query) => {
+                    // Invalidate all chef orders queries regardless of branch
+                    return query.queryKey[0] === 'orders' &&
+                        query.queryKey[1] === 'list' &&
+                        query.queryKey[2] === 'chefOrders';
+                }
             });
 
             // Also refetch current branch data to ensure UI is updated

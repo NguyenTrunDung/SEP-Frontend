@@ -159,12 +159,13 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   const categoryRefs = useRef({});
 
   // Use React Query hooks for menu data with branch context
+  const currentBranchId = environment.multiTenant.getCurrentBranchId();
   const {
     data: menuData,
     isLoading: loading,
     error,
     refetch: refreshMenus
-  } = useMenus({ date: getFormattedDate(activeDay) });
+  } = useMenus({ date: getFormattedDate(activeDay), branchId: currentBranchId });
 
   // Fetch feedbacks for the selected food
   const branchId = environment.multiTenant.getCurrentBranchId() || '1';

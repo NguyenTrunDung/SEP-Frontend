@@ -12,6 +12,7 @@ import {
   useUpdateFoodWithImage,
   useDeleteFood
 } from '../../../hooks/queries/useFoods';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 
 const FoodsPageContent = ({
@@ -145,6 +146,12 @@ const Foods = () => {
         showAddButton={true}
         showRefreshButton={true}
         showSearch={false} // FoodsTable has its own search
+        // Permission controls
+        resourceName="foods"
+        addPermission={PERMISSIONS.FOODS_ADD}
+        viewPermission={PERMISSIONS.FOODS_VIEW}
+        hideOnNoPermission={true}
+        permissionFallback={<div>Bạn không có quyền truy cập trang quản lý món ăn.</div>}
         // Pass data and handlers to the wrapped component
         foodsData={foods}
         onEdit={handleEdit}

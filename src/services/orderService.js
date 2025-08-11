@@ -129,6 +129,7 @@ export const orderService = {
   },
 
   async createOrder(orderData, branchId, options = {}) {
+    console.log('this._mapPaymentMethod(orderData.paymentMethod):', this._mapPaymentMethod(orderData.paymentMethod));
     try {
       const orderDto = {
         branchId: branchId,
@@ -145,13 +146,13 @@ export const orderService = {
         total: orderData.total,
         shippingFee: orderData.shippingFee || 0,
         foodToolFee: orderData.includeUtensils ? 5000 : 0,
-        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod),
-        isPaid: false,
+        paymentMethod: 1,
+        isPaid: true,
         note: orderData.note,
         locationId: orderData.locationId || null,
         orderDetails: orderData.cartItems.map(item => ({
           foodId: item.FoodId || item.ID,
-          quantity: item.quantity,
+          qty: item.quantity,
           price: item.price,
           total: item.price * item.quantity,
           note: item.note || null,
@@ -282,23 +283,22 @@ export const orderService = {
         ...options,
       });
       const orders = response.data.data || [];
-      const detailedOrders = await Promise.all(
-        orders.map(async (order) => {
-          const orderDetails = await this.getOrderDetails(order.id);
-          return {
-            ...order,
-            orderDetails: orderDetails.data.map((item) => ({
-              ...item,
-              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
-              Qty: item.Qty ?? item.quantity ?? 1,
-            })),
-          };
-        })
-      );
+
+      // Process the orders to ensure orderDetails are properly formatted
+      // The backend should return orders with orderDetails included
+      const processedOrders = orders.map((order) => ({
+        ...order,
+        orderDetails: (order.orderDetails || []).map((item) => ({
+          ...item,
+          foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+          Qty: item.Qty ?? item.quantity ?? 1,
+        })),
+      }));
+
       if (environment.features.enableLogging) {
-        console.log(`✅ Received chef orders for branch ${normalizedBranchId}:`, detailedOrders);
+        console.log(`✅ Received chef orders for branch ${normalizedBranchId}:`, processedOrders);
       }
-      return detailedOrders;
+      return processedOrders;
     } catch (error) {
       console.error('Failed to fetch chef orders:', error);
       throw error;
@@ -322,13 +322,13 @@ export const orderService = {
         total: orderData.total,
         shippingFee: orderData.shippingFee || 0,
         foodToolFee: orderData.includeUtensils ? 5000 : 0,
-        paymentMethod: 2,
+        paymentMethod: 2, // FIXED: VNPay payment method is always 2
         isPaid: false,
         note: orderData.note,
         locationId: orderData.locationId || null,
         orderDetails: orderData.cartItems.map(item => ({
           foodId: item.FoodId || item.ID,
-          quantity: item.quantity,
+          qty: item.quantity, // FIXED: Use 'qty' instead of 'quantity' to match backend expectation
           price: item.price,
           total: item.price * item.quantity,
           note: item.note || null,
@@ -382,10 +382,10 @@ export const orderService = {
 
   _mapPaymentMethod(paymentMethod) {
     const paymentMap = {
-      'Tiền mặt': 1,
-      'Wallet': 2,
-      'Miễn phí': 3,
-      'VNPay': 4
+      // 'Tiền mặt': 1,
+      'Wallet': 1,
+      //'Miễn phí': 3,
+      'VNPay': 2
     };
     return paymentMap[paymentMethod] || 1;
   },

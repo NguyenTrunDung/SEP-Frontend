@@ -23,7 +23,6 @@ import Feedbacks from '../modules/Admin/Feedback/Feedbacks.js';
 //Cart
 
 import Menu from '../modules/Admin/Menu/index.js';
-import CustomerPage from '../modules/Admin/Staff/index.js';
 
 import ContactPage from '../components/HomePage/Contact.js';
 import Navbar from '../components/HomePage/Navbar.js';

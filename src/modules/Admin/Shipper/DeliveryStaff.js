@@ -7,6 +7,7 @@ import { useDeliveryOrders, useUpdateOrder } from '../../../hooks/queries/useOrd
 import { environment } from '../../../services/api/config';
 import moment from 'moment';
 import './DeliveryStaff.css';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 const DeliveryStaffView = () => {
   const queryClient = useQueryClient();
@@ -148,6 +149,11 @@ const DeliveryStaffView = () => {
         showAddButton={false}
         showRefreshButton={true}
         onRefresh={refetch}
+        // Permission controls
+        resourceName="delivery"
+        viewPermission={PERMISSIONS.DELIVERY_VIEW}
+        hideOnNoPermission={true}
+        permissionFallback={<div>Bạn không có quyền truy cập trang quản lý giao hàng.</div>}
         searchProps={{
           value: searchText,
           onChange: (e) => setSearchText(e.target.value),
@@ -163,6 +169,11 @@ const DeliveryStaffView = () => {
           pagination={paginationConfig}
           emptyMessage="Không có dữ liệu."
           loading={isLoading}
+          // Permission controls for table actions
+          resourceName="delivery"
+          editPermission={PERMISSIONS.DELIVERY_STATUS}
+          hideActionsOnNoPermission={true}
+          showPermissionTooltips={true}
         />
       </PageWrapperV2>
 

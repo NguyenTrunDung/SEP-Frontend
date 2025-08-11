@@ -4,6 +4,8 @@ import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant
 import GroupUserModal from './GroupUserModal';
 import { fetchGroupUsersByBranch, createGroupUser, updateGroupUser, deleteGroupUser } from '../../../services/groupUserService';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
+import { PERMISSIONS } from '../../../constants/permissions';
+import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 
 const menuTree = [
     {
@@ -394,26 +396,32 @@ const GroupUser = () => {
 
     return (
         <div style={{ padding: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <h1 style={{ margin: 0 }}>Nhóm người dùng</h1>
-                <Space>
-                    <Tooltip title="Làm mới danh sách">
-                        <Button icon={<ReloadOutlined />} onClick={handleRefresh}>Làm mới</Button>
-                    </Tooltip>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal(null)}>
-                        Thêm
-                    </Button>
-                </Space>
-            </div>
-            <ReusableTableV2
-                dataSource={filteredGroups.slice((currentPage - 1) * pageSize, currentPage * pageSize)}
-                columns={columns}
-                pagination={paginationConfig}
-                listHeader="TÊN NHÓM"
-                onEdit={openModal}
-                onDelete={handleDelete}
-                emptyMessage="Không tìm thấy nhóm người dùng nào."
-            />
+            <PageWrapperV2
+                title="Nhóm người dùng"
+                onAdd={() => openModal(null)}
+                onRefresh={handleRefresh}
+                loading={false}
+                resourceName="groupusers"
+                addPermission={PERMISSIONS.GROUPUSERS_ADD}
+                viewPermission={PERMISSIONS.GROUPUSERS_VIEW}
+                hideOnNoPermission={true}
+                permissionFallback={<div>Bạn không có quyền truy cập trang quản lý nhóm người dùng.</div>}
+            >
+                <ReusableTableV2
+                    dataSource={filteredGroups.slice((currentPage - 1) * pageSize, currentPage * pageSize)}
+                    columns={columns}
+                    pagination={paginationConfig}
+                    listHeader="TÊN NHÓM"
+                    onEdit={openModal}
+                    onDelete={handleDelete}
+                    emptyMessage="Không tìm thấy nhóm người dùng nào."
+                    resourceName="groupusers"
+                    editPermission={PERMISSIONS.GROUPUSERS_EDIT}
+                    deletePermission={PERMISSIONS.GROUPUSERS_DELETE}
+                    hideActionsOnNoPermission={true}
+                    showPermissionTooltips={true}
+                />
+            </PageWrapperV2>
             <GroupUserModal
                 visible={modalVisible}
                 onCancel={closeModal}

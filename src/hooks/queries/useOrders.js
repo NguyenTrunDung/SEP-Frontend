@@ -8,7 +8,7 @@ export const ORDER_QUERY_KEYS = {
   all: ['orders'],
   lists: () => [...ORDER_QUERY_KEYS.all, 'list'],
   list: (branchId) => [...ORDER_QUERY_KEYS.lists(), { branchId: String(branchId) }],
-  chefList: (branchId) => [...ORDER_QUERY_KEYS.lists(), 'chef', { branchId: String(branchId) }],
+  chefList: (branchId) => [...ORDER_QUERY_KEYS.lists(), 'chefOrders', { branchId: String(branchId) }],
   details: () => [...ORDER_QUERY_KEYS.all, 'detail'],
   detail: (id, branchId) => [...ORDER_QUERY_KEYS.details(), id, { branchId: String(branchId) }],
 };
@@ -19,10 +19,16 @@ const normalizeBranchId = (branchId) => {
       ? branchId
       : environment.multiTenant.getCurrentBranchId();
 
-  const id =
-    resolvedBranchId !== undefined && resolvedBranchId !== null
-      ? String(resolvedBranchId)
-      : '1';
+  // Don't use hardcoded fallback - return null if no branch is available
+  // This will prevent queries from running until a branch is selected
+  if (resolvedBranchId === undefined || resolvedBranchId === null) {
+    if (environment.features.enableLogging) {
+      console.log(`🔄 No branch ID available, query will be disabled`);
+    }
+    return null;
+  }
+
+  const id = String(resolvedBranchId);
 
   if (environment.features.enableLogging) {
     console.log(`🔄 Normalized branchId: ${id}`);
@@ -109,23 +115,23 @@ export const useChefOrders = (branchId, options = {}) => {
       if (!currentBranchId) throw new Error('Cần Branch ID');
       console.log('🍳 useChefOrders queryFn executing for branch:', currentBranchId);
       try {
-        const response = await orderService.getOrdersByBranchWithFilters(currentBranchId, { status: 'Confirmed' });
-        const orders = response?.data || [];
-        const detailedOrders = await Promise.all(
-          orders.map(async (order) => {
-            const orderDetails = await orderService.getOrderDetails(order.id);
-            return {
-              ...order,
-              orderDetails: orderDetails.data.map((item) => ({
-                ...item,
-                foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
-                Qty: item.Qty ?? item.quantity ?? 1,
-              })),
-            };
-          })
-        );
-        console.log(`✅ Chef orders fetched successfully. Orders count: ${detailedOrders.length}`);
-        return detailedOrders;
+        // Use the dedicated chef endpoint which should return orders with orderDetails included
+        // The backend chef endpoint returns orders with status "Confirmed"
+        const response = await orderService.getOrdersForChef(currentBranchId);
+        const orders = response || [];
+
+        // Process the orders to ensure orderDetails are properly formatted
+        const processedOrders = orders.map((order) => ({
+          ...order,
+          orderDetails: (order.orderDetails || []).map((item) => ({
+            ...item,
+            foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+            Qty: item.Qty ?? item.quantity ?? 1,
+          })),
+        }));
+
+        console.log(`✅ Chef orders fetched successfully. Orders count: ${processedOrders.length}`);
+        return processedOrders;
       } catch (error) {
         console.error(`❌ Failed to fetch chef orders for branch ${currentBranchId}:`, error);
         throw error;
@@ -166,24 +172,67 @@ export const useUpdateOrder = (options = {}) => {
   return useMutation({
     mutationFn: async ({ orderId, orderData, branchId, newStatus, updateFn }) => {
       const targetBranchId = normalizeBranchId(branchId);
+
       if (environment.features.enableLogging) {
         console.log(`🔍 Updating order ${orderId} for branch: ${targetBranchId}`, JSON.stringify({ ...orderData, status: newStatus }, null, 2));
       }
-      return await orderService.updateOrder(orderId, { ...orderData, branchId: targetBranchId, status: newStatus });
+
+      // If we're only updating status, we need to get the current order data first
+      if (newStatus && !orderData) {
+        // Get current order data from cache to avoid overwriting with null values
+        const currentOrder = queryClient.getQueryData(ORDER_QUERY_KEYS.detail(orderId, targetBranchId)) ||
+          queryClient.getQueryData(ORDER_QUERY_KEYS.list(targetBranchId))?.find(o => o.id === orderId);
+
+        if (currentOrder) {
+          // Only update the status field, preserve all other data
+          const updateData = {
+            ...currentOrder,
+            status: newStatus,
+            // Ensure branchId is set
+            branchId: targetBranchId
+          };
+
+          return await orderService.updateOrder(orderId, updateData);
+        }
+      }
+
+      // If we have full orderData, use it
+      if (orderData) {
+        return await orderService.updateOrder(orderId, { ...orderData, branchId: targetBranchId, status: newStatus });
+      }
+
+      throw new Error('No order data available for update');
     },
     onSuccess: (response, variables) => {
       message.success(response.message || 'Cập nhật đơn hàng thành công!');
       const targetBranchId = normalizeBranchId(variables.branchId);
       const updatedOrder = response.data?.data || response.data;
+
       console.log('🔍 Updated order in cache:', JSON.stringify(updatedOrder, null, 2));
+
       if (updatedOrder) {
+        // Update the specific order in detail cache
         queryClient.setQueryData(ORDER_QUERY_KEYS.detail(variables.orderId, targetBranchId), updatedOrder);
+
+        // Update the order in list cache
         queryClient.setQueryData(ORDER_QUERY_KEYS.list(targetBranchId), (oldData) => {
-          return oldData
-            ? oldData.map((order) => (order.id === variables.orderId ? { ...order, ...updatedOrder } : order))
-            : [updatedOrder];
+          if (!oldData) return [updatedOrder];
+          return oldData.map((order) =>
+            order.id === variables.orderId ? { ...order, ...updatedOrder } : order
+          );
         });
+
+        // Update chef orders cache specifically
+        queryClient.setQueryData(ORDER_QUERY_KEYS.chefList(targetBranchId), (oldData) => {
+          if (!oldData) return [];
+          return oldData.map((order) =>
+            order.id === variables.orderId ? { ...order, ...updatedOrder } : order
+          );
+        });
+
+        // Invalidate related queries to ensure fresh data
         queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.list(targetBranchId) });
+        queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.chefList(targetBranchId) });
         queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.lists() });
       }
     },

@@ -15,6 +15,7 @@ import {
 } from '../../../hooks/queries/useFoodCategories';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
 import { environment } from '../../../services/api/config';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 const FoodCategoriesPageContent = ({
   categoriesData,
@@ -173,6 +174,12 @@ const FoodCategories = () => {
       showAddButton={true}
       showRefreshButton={true}
       showSearch={false} // FoodCategoriesTable has its own search
+      // Permission controls
+      resourceName="foodcategories"
+      addPermission={PERMISSIONS.FOODCATEGORIES_ADD}
+      viewPermission={PERMISSIONS.FOODCATEGORIES_VIEW}
+      hideOnNoPermission={true}
+      permissionFallback={<div>Bạn không có quyền truy cập trang quản lý danh mục món ăn.</div>}
       // Pass data and handlers to the wrapped component
       categoriesData={categoriesData}
       branchId={branchId} // Pass branchId for drag-and-drop functionality

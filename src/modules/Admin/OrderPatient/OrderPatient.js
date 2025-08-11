@@ -11,6 +11,7 @@ import { environment } from '../../../services/api/config';
 import { orderService } from '../../../services/orderService';
 import moment from 'moment';
 import './OrderPatient.css';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 const OrderPatientTableV2 = () => {
     const [searchText, setSearchText] = useState('');
@@ -114,6 +115,11 @@ const OrderPatientTableV2 = () => {
                 showAddButton={false}
                 showRefreshButton={true}
                 onRefresh={refetch}
+                // Permission controls
+                resourceName="orderpatients"
+                viewPermission={PERMISSIONS.ORDERPATIENTS_VIEW}
+                hideOnNoPermission={true}
+                permissionFallback={<div>Bạn không có quyền truy cập trang quản lý đơn hàng bệnh nhân.</div>}
                 searchProps={{
                     value: searchText,
                     onChange: (e) => {
@@ -226,6 +232,12 @@ const OrderPatientTableV2 = () => {
                     pagination={paginationConfig}
                     rowKey="id"
                     className="orders-patient-table"
+                    // Permission controls for table actions
+                    resourceName="orderpatients"
+                    editPermission={PERMISSIONS.ORDERPATIENTS_EDIT}
+                    deletePermission={PERMISSIONS.ORDERPATIENTS_DELETE}
+                    hideActionsOnNoPermission={true}
+                    showPermissionTooltips={true}
                 />
             </PageWrapperV2>
 

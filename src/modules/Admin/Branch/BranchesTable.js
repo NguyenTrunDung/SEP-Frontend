@@ -14,6 +14,7 @@ import {
     useDeleteBranch,
 } from '../../../hooks/queries/userBranchesQueries';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 const BranchesTableV2 = () => {
     const [searchText, setSearchText] = useState('');
@@ -144,9 +145,12 @@ const BranchesTableV2 = () => {
                     onChange: (e) => setSearchText(e.target.value),
                     placeholder: 'Tìm kiếm chi nhánh',
                 }}
+                // Permission controls
                 resourceName="branches"
-                addPermission="branches:add"
-                viewPermission="branches:view"
+                addPermission={PERMISSIONS.BRANCHES_ADD}
+                viewPermission={PERMISSIONS.BRANCHES_VIEW}
+                hideOnNoPermission={true}
+                permissionFallback={<div>Bạn không có quyền truy cập trang quản lý chi nhánh.</div>}
             >
                 <ReusableTableV2
                     dataSource={filteredData}
@@ -180,8 +184,8 @@ const BranchesTableV2 = () => {
                     pagination={paginationConfig}
                     // Permission-based props
                     resourceName="branches"
-                    editPermission="branches:edit"
-                    deletePermission="branches:delete"
+                    editPermission={PERMISSIONS.BRANCHES_EDIT}
+                    deletePermission={PERMISSIONS.BRANCHES_DELETE}
                     hideActionsOnNoPermission={true}
                     showPermissionTooltips={true}
                 />

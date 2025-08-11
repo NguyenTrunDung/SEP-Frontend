@@ -11,6 +11,7 @@ import { environment } from '../../../services/api/config';
 import { orderService } from '../../../services/orderService';
 import moment from 'moment';
 import './Order.css';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 const OrdersTableV2 = () => {
   const [searchText, setSearchText] = useState('');
@@ -109,6 +110,11 @@ const OrdersTableV2 = () => {
         showAddButton={false}
         showRefreshButton={true}
         onRefresh={refetch}
+        // Permission controls
+        resourceName="orders"
+        viewPermission={PERMISSIONS.ORDERS_VIEW}
+        hideOnNoPermission={true}
+        permissionFallback={<div>Bạn không có quyền truy cập trang quản lý đơn hàng.</div>}
         searchProps={{
           value: searchText,
           onChange: (e) => {
@@ -220,6 +226,12 @@ const OrdersTableV2 = () => {
           pagination={paginationConfig}
           rowKey="id"
           className="orders-table"
+          // Permission controls for table actions
+          resourceName="orders"
+          editPermission={PERMISSIONS.ORDERS_EDIT}
+          deletePermission={PERMISSIONS.ORDERS_DELETE}
+          hideActionsOnNoPermission={true}
+          showPermissionTooltips={true}
         />
       </PageWrapperV2>
 
