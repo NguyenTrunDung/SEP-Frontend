@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, message } from 'antd';
+import { Modal, Button, message, Table, Space } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
 import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import { useDeliveryOrders, useUpdateOrder } from '../../../hooks/queries/useOrders';
 import { environment } from '../../../services/api/config';
+import { orderService } from '../../../services/orderService';
 import moment from 'moment';
+import { EyeOutlined } from '@ant-design/icons';
 import './DeliveryStaff.css';
 
 const DeliveryStaffView = () => {
@@ -19,6 +21,9 @@ const DeliveryStaffView = () => {
   const [searchText, setSearchText] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
+  const [orderDetails, setOrderDetails] = useState([]);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   const { orders: data, isLoading, error, refetch } = useDeliveryOrders(branchId, filters, searchText, {
     onSuccess: (data) => {
@@ -55,6 +60,20 @@ const DeliveryStaffView = () => {
     setIsModalVisible(true);
   };
 
+  const handleViewDetailsClick = async (record) => {
+    setIsLoadingDetails(true);
+    try {
+      const details = await orderService.getOrderDetails(record.id);
+      setOrderDetails(details.data);
+      setIsDetailModalVisible(true);
+    } catch (error) {
+      console.error('❌ Error fetching order details:', error);
+      message.error('Không thể tải chi tiết đơn hàng.');
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
   const handleConfirmDone = async () => {
     try {
       await updateOrder({
@@ -82,6 +101,11 @@ const DeliveryStaffView = () => {
   const handleCancel = () => {
     setIsModalVisible(false);
     setSelectedItem(null);
+  };
+
+  const handleDetailModalCancel = () => {
+    setIsDetailModalVisible(false);
+    setOrderDetails([]);
   };
 
   const columns = [
@@ -117,18 +141,59 @@ const DeliveryStaffView = () => {
     },
     {
       title: '',
-      dataIndex: 'action',
+      dataIndex: 'actions',
       align: 'center',
       render: (_, record) => (
-        <Button
-          shape="circle"
-          type="text"
-          className="check-button-hover"
-          icon={<span style={{ fontSize: 16 }}>✓</span>}
-          onClick={() => handleConfirmClick(record)}
-          loading={isUpdating}
-        />
+        <Space size="middle">
+          <Button
+            shape="circle"
+            type="text"
+            icon={<EyeOutlined style={{ fontSize: 16 }} />}
+            onClick={() => handleViewDetailsClick(record)}
+          />
+          <Button
+            shape="circle"
+            type="text"
+            className="check-button-hover"
+            icon={<span style={{ fontSize: 16 }}>✓</span>}
+            onClick={() => handleConfirmClick(record)}
+            loading={isUpdating}
+          />
+        </Space>
       ),
+    },
+  ];
+
+  const detailColumns = [
+    { title: '#', dataIndex: 'index', key: 'index', align: 'center', render: (_, __, idx) => idx + 1 },
+    {
+      title: 'TÊN MÓN',
+      dataIndex: 'foodName',
+      key: 'foodName',
+      align: 'center',
+      render: (foodName, record) => foodName || record.name || `Món ăn ID ${record.foodId || 'Unknown'}`,
+    },
+    {
+      title: 'GIÁ TIỀN',
+      dataIndex: 'price',
+      align: 'center',
+      key: 'price',
+      render: (val) => val?.toLocaleString() || '0',
+    },
+    {
+      title: 'SỐ LƯỢNG',
+      dataIndex: 'Qty',
+      align: 'center',
+      key: 'qty',
+      render: (Qty) => Qty ?? 1,
+    },
+    { title: 'GHI CHÚ', dataIndex: 'note', key: 'note', render: (note) => note || '' },
+    {
+      title: 'TIỀN',
+      dataIndex: 'total',
+      align: 'center',
+      key: 'total',
+      render: (val) => val?.toLocaleString() || '0',
     },
   ];
 
@@ -166,6 +231,7 @@ const DeliveryStaffView = () => {
         />
       </PageWrapperV2>
 
+      {/* Modal for confirming delivery */}
       <Modal
         open={isModalVisible}
         footer={null}
@@ -223,6 +289,25 @@ const DeliveryStaffView = () => {
             Huỷ
           </Button>
         </div>
+      </Modal>
+
+      {/* Modal for viewing dish details */}
+      <Modal
+        open={isDetailModalVisible}
+        onCancel={handleDetailModalCancel}
+        footer={null}
+        title="Chi tiết món ăn"
+        centered
+        width={800}
+        bodyStyle={{ padding: 24 }}
+      >
+        <Table
+          columns={detailColumns}
+          dataSource={orderDetails.map((item, index) => ({ ...item, key: index }))}
+          pagination={false}
+          bordered
+          loading={isLoadingDetails}
+        />
       </Modal>
     </div>
   );
