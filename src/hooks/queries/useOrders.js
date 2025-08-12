@@ -268,8 +268,6 @@ export const useDeliveryOrders = (branchId, filters = {}, searchText = '', optio
     isFetching: query.isFetching,
   };
 };
-
-
 export const useDeleteOrder = (options = {}) => {
   const queryClient = useQueryClient();
   const currentBranchId = normalizeBranchId();
@@ -317,4 +315,3 @@ export const useDeleteOrder = (options = {}) => {
     ...options,
   });
 };
-
