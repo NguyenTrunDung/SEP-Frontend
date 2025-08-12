@@ -307,3 +307,50 @@ export const useDeliveryOrders = (branchId, filters = {}, searchText = '', optio
     isFetching: query.isFetching,
   };
 };
+export const useDeleteOrder = (options = {}) => {
+  const queryClient = useQueryClient();
+  const currentBranchId = normalizeBranchId();
+
+  return useMutation({
+    mutationFn: async ({ orderId, branchId }) => {
+      const targetBranchId = normalizeBranchId(branchId);
+      if (!targetBranchId) {
+        throw new Error('Branch ID is required');
+      }
+      if (environment.features.enableLogging) {
+        console.log(`🗑️ Deleting order ${orderId} for branch: ${targetBranchId}`);
+      }
+      return await orderService.deleteOrder(orderId, targetBranchId);
+    },
+    onSuccess: (response, variables) => {
+      message.success(response.message || 'Xóa đơn hàng thành công!');
+      const targetBranchId = normalizeBranchId(variables.branchId);
+
+      // Remove the order from list cache
+      queryClient.setQueryData(ORDER_QUERY_KEYS.list(targetBranchId), (oldData) => {
+        if (!oldData) return [];
+        return oldData.filter((order) => order.id !== variables.orderId);
+      });
+
+      // Remove the order from chef list cache
+      queryClient.setQueryData(ORDER_QUERY_KEYS.chefList(targetBranchId), (oldData) => {
+        if (!oldData) return [];
+        return oldData.filter((order) => order.id !== variables.orderId);
+      });
+
+      // Remove the order from detail cache
+      queryClient.removeQueries({ queryKey: ORDER_QUERY_KEYS.detail(variables.orderId, targetBranchId) });
+
+      // Invalidate related queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.list(targetBranchId) });
+      queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.chefList(targetBranchId) });
+      queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.lists() });
+    },
+    onError: (error) => {
+      const errorMessage = error.response?.data?.message || 'Không thể xóa đơn hàng!';
+      message.error(errorMessage);
+      console.error('❌ Failed to delete order:', error);
+    },
+    ...options,
+  });
+};

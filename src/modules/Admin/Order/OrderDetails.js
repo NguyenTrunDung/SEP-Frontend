@@ -9,12 +9,11 @@ import {
   Col,
   DatePicker,
   TimePicker,
-  Popconfirm,
   message,
 } from 'antd';
 import moment from 'moment';
 import './ViewOrderDetail.css';
-import { useUpdateOrder } from '../../../hooks/queries/useOrders';
+import { useUpdateOrder, useDeleteOrder } from '../../../hooks/queries/useOrders';
 
 const ViewOrderDetail = ({
   open,
@@ -26,32 +25,29 @@ const ViewOrderDetail = ({
 }) => {
   const [formData, setFormData] = useState({});
   const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
+  const { mutate: deleteOrder, isLoading: isDeleting } = useDeleteOrder();
 
   // Normalize paymentMethod to string
   const normalizePaymentMethod = (paymentMethod) => {
     const numberToStringMap = {
       '1': 'Wallet',
-      '2': 'VNPay'
+      '2': 'VNPay',
     };
-
     if (typeof paymentMethod === 'number' || (typeof paymentMethod === 'string' && numberToStringMap[paymentMethod])) {
       return numberToStringMap[paymentMethod.toString()] || 'Wallet';
     }
-
-    // Handle string values that might come from the API
     if (typeof paymentMethod === 'string') {
       if (paymentMethod.toLowerCase() === 'vnpay') return 'VNPay';
       if (paymentMethod.toLowerCase() === 'wallet') return 'Wallet';
     }
-
-    return 'Wallet'; // Default to Wallet
+    return 'Wallet';
   };
 
   // Normalize receiveType to display string
   const normalizeReceiveType = (receiveType) => {
     const receiveTypeMap = {
       'take': 'Tự đến lấy',
-      'delivery': 'Giao hàng'
+      'delivery': 'Giao hàng',
     };
     return receiveTypeMap[receiveType] || receiveType || 'Giao hàng';
   };
@@ -64,7 +60,7 @@ const ViewOrderDetail = ({
       'Delivered': 'Đang giao hàng',
       'Completed': 'Hoàn thành',
       'Cancelled': 'Hủy',
-      'PendingPayment': 'Chờ thanh toán'
+      'PendingPayment': 'Chờ thanh toán',
     };
     return statusMap[status] || status || 'Đang chờ';
   };
@@ -75,7 +71,7 @@ const ViewOrderDetail = ({
         ...orderData,
         paymentMethod: normalizePaymentMethod(orderData.paymentMethod),
         receiveType: normalizeReceiveType(orderData.receiveType),
-        status: normalizeStatus(orderData.status)
+        status: normalizeStatus(orderData.status),
       });
     }
     console.log('🔍 Order details received:', orderDetails);
@@ -132,17 +128,17 @@ const ViewOrderDetail = ({
 
   const handleCancelOrder = async () => {
     try {
-      await updateOrder({
+      await deleteOrder({
         orderId: orderData.id,
         branchId,
-        newStatus: 'Cancelled',
       });
       setFormData((prev) => ({ ...prev, status: 'Hủy' }));
-      message.success('Đã hủy đơn hàng!');
+      message.success('Đã xóa đơn hàng!');
       onStatusChange?.();
+      onCancel?.();
     } catch (error) {
-      console.error('Lỗi hủy đơn:', error);
-      message.error('Hủy đơn hàng thất bại!');
+      console.error('Lỗi xóa đơn:', error);
+      message.error('Xóa đơn hàng thất bại!');
     }
   };
 
@@ -160,7 +156,7 @@ const ViewOrderDetail = ({
       dataIndex: 'price',
       align: 'center',
       key: 'price',
-      render: (val) => val?.toLocaleString() || '0'
+      render: (val) => val?.toLocaleString() || '0',
     },
     {
       title: 'SỐ LƯỢNG',
@@ -175,7 +171,7 @@ const ViewOrderDetail = ({
       dataIndex: 'total',
       align: 'center',
       key: 'total',
-      render: (val) => val?.toLocaleString() || '0'
+      render: (val) => val?.toLocaleString() || '0',
     },
   ];
 
@@ -274,19 +270,20 @@ const ViewOrderDetail = ({
             <label className="floating-label">Thành tiền</label>
             <Input value={formData.total} disabled />
           </Col>
-          <Col span={6}>
+          {/* <Col span={6}>
             <Input value={formData.location} disabled placeholder="Vị trí" />
-          </Col>
-        </Row>
-
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }} align="middle">
-          <Col span={6}>
-            <Input value={formData.area} disabled placeholder="Khu vực" />
-          </Col>
+          </Col> */}
           <Col span={6}>
             <label className="floating-label">Phương thức thanh toán</label>
             <Input value={formData.paymentMethod} disabled placeholder="Phương thức thanh toán" />
           </Col>
+        </Row>
+
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }} align="middle">
+          {/* <Col span={6}>
+            <Input value={formData.area} disabled placeholder="Khu vực" />
+          </Col> */}
+
           <Col span={3}>
             {(formData.status === 'Đang chờ') ? (
               <Button
@@ -320,26 +317,19 @@ const ViewOrderDetail = ({
 
           {['Đang chờ', 'Đã xác nhận'].includes(formData.status) && (
             <Col span={3}>
-              <Popconfirm
-                title="Bạn có chắc muốn hủy đơn hàng này?"
-                onConfirm={handleCancelOrder}
-                okText="Hủy đơn"
-                cancelText="Thoát"
-                okButtonProps={{ danger: true }}
+              <Button
+                danger
+                style={{
+                  backgroundColor: '#ff4d4f',
+                  color: '#fff',
+                  border: 'none',
+                  width: '100%',
+                }}
+                onClick={handleCancelOrder}
+                loading={isUpdating || isDeleting}
               >
-                <Button
-                  danger
-                  style={{
-                    backgroundColor: '#ff4d4f',
-                    color: '#fff',
-                    border: 'none',
-                    width: '100%',
-                  }}
-                  loading={isUpdating}
-                >
-                  Hủy Đơn
-                </Button>
-              </Popconfirm>
+                Hủy Đơn
+              </Button>
             </Col>
           )}
         </Row>

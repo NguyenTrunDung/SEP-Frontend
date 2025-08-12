@@ -112,11 +112,13 @@ export const orderService = {
       console.log(`🔍 Raw order details for order ${orderId}:`, response.data);
       const normalizedData = response.data.data.map(item => {
         const qty = item.Qty ?? item.quantity ?? item.qty ?? 1;
+        const food = item.food || {}; // Ensure food object exists
         console.log(`🔍 Normalizing item for order ${orderId}:`, { item, qty });
         return {
           ...item,
           Qty: qty,
-          foodName: item.foodName || item.FoodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+          foodName: item.foodName || item.FoodName || food.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+          imageUrl: food.imageUrl || item.image || null, // Prioritize food.imageUrl
           total: item.total ?? (item.price ?? 0) * qty,
         };
       });
@@ -380,6 +382,32 @@ export const orderService = {
       throw error;
     }
   },
+  async deleteOrder(orderId, branchId, options = {}) {
+    try {
+      const normalizedBranchId = normalizeBranchId(branchId);
+      if (environment.features.enableLogging) {
+        console.log(`🗑️ Deleting order ${orderId} for branch: ${normalizedBranchId}`);
+      }
+      const response = await api.delete(`/api/v1/order/DeleteOrder`, {
+        params: { id: orderId },
+        headers: normalizedBranchId ? { 'X-Branch-Id': normalizedBranchId } : {},
+        ...options,
+      });
+      if (environment.features.enableLogging) {
+        console.log(`✅ Order ${orderId} deleted successfully:`, response.data);
+      }
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Failed to delete order ${orderId}:`, error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.errors ||
+        error.message ||
+        'Failed to delete order';
+      throw new Error(errorMessage);
+    }
+  },
+
 
   _mapPaymentMethod(paymentMethod) {
     const paymentMap = {

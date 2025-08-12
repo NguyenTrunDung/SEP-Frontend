@@ -1,6 +1,7 @@
-import api, { environment } from './api/config';
+import api from './api/config';
+import { environment } from './api/config';
 import { orderService } from './orderService';
-
+import { getImageUrlWithFallback } from '../utils/imageUtils';
 export const feedbackService = {
   async createFeedback(feedbackData) {
     try {
@@ -18,6 +19,7 @@ export const feedbackService = {
 
       let customerName = response.data.data.userId;
       let avatar = null;
+      let images = [];
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
         customerName = userResponse.data?.firstName && userResponse.data?.lastName
@@ -27,6 +29,21 @@ export const feedbackService = {
       } catch (error) {
         if (environment.features?.enableLogging) {
           console.warn(`⚠️ Failed to fetch customerName for userId ${response.data.data.userId}:`, error.response?.data?.message || error.message);
+        }
+      }
+
+      try {
+        const orderResponse = await orderService.getOrderDetails(response.data.data.orderId);
+        if (environment.features?.enableLogging) {
+          console.log(`🔍 Order details for orderId ${response.data.data.orderId}:`, orderResponse.data);
+        }
+        images = orderResponse.data.map(item => ({
+          url: getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production'),
+          alt: item.foodName || 'Món ăn'
+        }));
+      } catch (error) {
+        if (environment.features?.enableLogging) {
+          console.warn(`⚠️ Failed to fetch order details for orderId ${response.data.data.orderId}:`, error.response?.data?.message || error.message);
         }
       }
 
@@ -41,6 +58,7 @@ export const feedbackService = {
         customerName,
         avatar,
         timestamp: response.data.data.createdAt || new Date().toISOString(),
+        images, // Thêm danh sách ảnh món ăn
       };
     } catch (error) {
       if (environment.features?.enableLogging) {
@@ -49,7 +67,6 @@ export const feedbackService = {
       throw new Error(error.response?.data?.message || 'Failed to create feedback');
     }
   },
-
   async getFeedbacks(branchId) {
     try {
       if (!branchId) throw new Error('Thiếu branchId khi gọi getFeedbacks');
@@ -147,13 +164,21 @@ export const feedbackService = {
         response.data.data.map(async (feedback) => {
           // Kiểm tra xem orderId của feedback có chứa foodId không
           let isRelevant = false;
+          let images = [];
           try {
             const orderResponse = await orderService.getOrderDetails(feedback.orderId);
             if (environment.features?.enableLogging) {
               console.log(`🔍 Order details for orderId ${feedback.orderId}:`, orderResponse.data);
             }
-            const foodIds = orderResponse.data.map(item => item.foodId);
-            isRelevant = foodIds.includes(foodId);
+            const orderItems = orderResponse.data;
+            isRelevant = orderItems.some(item => item.foodId === foodId);
+            // Lấy danh sách ảnh từ orderDetails cho món ăn có foodId
+            images = orderItems
+              .filter(item => item.foodId === foodId)
+              .map(item => ({
+                url: getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production'),
+                alt: item.foodName || 'Món ăn'
+              }));
           } catch (error) {
             if (environment.features?.enableLogging) {
               console.warn(`⚠️ Failed to fetch order details for orderId ${feedback.orderId}:`, error.response?.data?.message || error.message);
@@ -191,7 +216,7 @@ export const feedbackService = {
             customerName,
             avatar,
             timestamp: feedback.createdAt || new Date().toISOString(),
-            images: [], // Thêm trường images mặc định vì CommentDto không hỗ trợ
+            images, // Thêm danh sách ảnh món ăn
           };
         })
       );
@@ -221,6 +246,7 @@ export const feedbackService = {
 
       let customerName = response.data.data.userId;
       let avatar = null;
+      let images = [];
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
         customerName = userResponse.data?.firstName && userResponse.data?.lastName
@@ -230,6 +256,21 @@ export const feedbackService = {
       } catch (error) {
         if (environment.features?.enableLogging) {
           console.warn(`⚠️ Failed to fetch customerName for userId ${response.data.data.userId}:`, error.response?.data?.message || error.message);
+        }
+      }
+
+      try {
+        const orderResponse = await orderService.getOrderDetails(response.data.data.orderId);
+        if (environment.features?.enableLogging) {
+          console.log(`🔍 Order details for orderId ${response.data.data.orderId}:`, orderResponse.data);
+        }
+        images = orderResponse.data.map(item => ({
+          url: getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production'),
+          alt: item.foodName || 'Món ăn'
+        }));
+      } catch (error) {
+        if (environment.features?.enableLogging) {
+          console.warn(`⚠️ Failed to fetch order details for orderId ${response.data.data.orderId}:`, error.response?.data?.message || error.message);
         }
       }
 
@@ -244,7 +285,7 @@ export const feedbackService = {
         customerName,
         avatar,
         timestamp: response.data.data.createdAt || new Date().toISOString(),
-        images: [], // Thêm trường images mặc định
+        images, // Thêm danh sách ảnh món ăn
       };
     } catch (error) {
       if (environment.features?.enableLogging) {
@@ -304,6 +345,7 @@ export const feedbackService = {
 
       let customerName = response.data.data.userId;
       let avatar = null;
+      let images = [];
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
         customerName = userResponse.data?.firstName && userResponse.data?.lastName
@@ -313,6 +355,21 @@ export const feedbackService = {
       } catch (error) {
         if (environment.features?.enableLogging) {
           console.warn(`⚠️ Failed to fetch customerName for userId ${response.data.data.userId}:`, error.response?.data?.message || error.message);
+        }
+      }
+
+      try {
+        const orderResponse = await orderService.getOrderDetails(response.data.data.orderId);
+        if (environment.features?.enableLogging) {
+          console.log(`🔍 Order details for orderId ${response.data.data.orderId}:`, orderResponse.data);
+        }
+        images = orderResponse.data.map(item => ({
+          url: getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production'),
+          alt: item.foodName || 'Món ăn'
+        }));
+      } catch (error) {
+        if (environment.features?.enableLogging) {
+          console.warn(`⚠️ Failed to fetch order details for orderId ${response.data.data.orderId}:`, error.response?.data?.message || error.message);
         }
       }
 
@@ -327,7 +384,7 @@ export const feedbackService = {
         customerName,
         avatar,
         timestamp: response.data.data.createdAt || new Date().toISOString(),
-        images: [], // Thêm trường images mặc định
+        images, // Thêm danh sách ảnh món ăn
       };
     } catch (error) {
       if (environment.features?.enableLogging) {

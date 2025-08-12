@@ -246,7 +246,7 @@ const LocationsPage = () => {
       return;
     }
     try {
-      await deleteLocationMutation.mutateAsync({ locationId: record.id, branchId });
+      await deleteLocationMutation.mutateAsync(record.id);  // <-- Changed: Pass only record.id
       message.success('Xóa vị trí thành công');
       await refetch();
     } catch (error) {

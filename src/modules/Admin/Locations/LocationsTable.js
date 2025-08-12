@@ -48,7 +48,7 @@ const LocationsTable = ({
       <div className="list-header">
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div className="area-id" />
-          <span>TÊN CHI NHÁNH</span>
+          <span>TÊN VỊ TRÍ</span>
         </div>
       </div>
 

@@ -238,35 +238,46 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   };
 
   const getFilteredCategories = () => {
+    // Check if current time is past 11 AM
+    const currentTime = new Date();
+    const currentHour = currentTime.getHours();
+    const isPast11AM = currentHour >= 11;
+
+    let filteredCategories = [];
     if (categories.length > 0) {
-      return categories.map(cat => ({
+      filteredCategories = categories.map(cat => ({
         ID: cat.id,
         Name: cat.name,
         Image: cat.imageUrl
       }));
-    }
-
-    const foodCategories = [...new Set(foods.map((food) => food.categoryId))];
-    if (foodCategories.length === 0 && isUsingMockData) {
-      return mockFoodCategories.map(cat => ({
-        ...cat,
-        Image: cat.Image
-      }));
-    }
-
-    const uniqueCategories = [];
-    foods.forEach(food => {
-      if (!uniqueCategories.find(cat => cat.ID === food.categoryId)) {
-        const categoryName = categoryMap[food.categoryId] || food.category || `Category ${food.categoryId}`;
-        uniqueCategories.push({
-          ID: food.categoryId,
-          Name: categoryName,
-          Image: null
-        });
+    } else {
+      const foodCategories = [...new Set(foods.map((food) => food.categoryId))];
+      if (foodCategories.length === 0 && isUsingMockData) {
+        filteredCategories = mockFoodCategories.map(cat => ({
+          ...cat,
+          Image: cat.Image
+        }));
+      } else {
+        filteredCategories = foods.reduce((acc, food) => {
+          if (!acc.find(cat => cat.ID === food.categoryId)) {
+            const categoryName = categoryMap[food.categoryId] || food.category || `Category ${food.categoryId}`;
+            acc.push({
+              ID: food.categoryId,
+              Name: categoryName,
+              Image: null
+            });
+          }
+          return acc;
+        }, []);
       }
-    });
+    }
 
-    return uniqueCategories;
+    // Filter out "Điểm tâm" category if past 11 AM and it's today
+    if (isToday && isPast11AM) {
+      filteredCategories = filteredCategories.filter(category => category.Name.toLowerCase() !== 'điểm tâm');
+    }
+
+    return filteredCategories;
   };
 
   const categoryMap = categories.reduce((map, cat) => {
@@ -380,106 +391,109 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
             ) : foods.length > 0 || isUsingMockData ? (
               <div>
                 {Object.keys(groupedFoods).length > 0 ? (
-                  Object.keys(groupedFoods).map((category) => {
-                    console.log('Rendering category section:', category);
-                    return (
-                      <div
-                        key={category}
-                        style={{
-                          marginBottom: '32px',
-                          paddingTop: '20px',
-                          scrollMarginTop: '140px'
-                        }}
-                        ref={(el) => {
-                          if (el) {
-                            categoryRefs.current[category] = el;
-                            console.log('Set ref for category:', category);
-                          }
-                        }}
-                      >
-                        <Title
-                          level={4}
+                  // Filter out "Điểm tâm" category if past 11 AM and it's today
+                  Object.keys(groupedFoods)
+                    .filter(category => !(isToday && new Date().getHours() >= 11 && category.toLowerCase() === 'điểm tâm'))
+                    .map((category) => {
+                      console.log('Rendering category section:', category);
+                      return (
+                        <div
+                          key={category}
                           style={{
-                            marginBottom: 16,
-                            color: '#000',
-                            backgroundColor: selectedCategory === category ? '#f0f0f0' : 'transparent',
-                            padding: '8px 0',
-                            borderRadius: '4px'
+                            marginBottom: '32px',
+                            paddingTop: '20px',
+                            scrollMarginTop: '140px'
+                          }}
+                          ref={(el) => {
+                            if (el) {
+                              categoryRefs.current[category] = el;
+                              console.log('Set ref for category:', category);
+                            }
                           }}
                         >
-                          {category}
-                        </Title>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-                          {groupedFoods[category].map((item) => {
-                            const isInCart = cartItems.some(cartItem => cartItem.FoodId === item.id);
+                          <Title
+                            level={4}
+                            style={{
+                              marginBottom: 16,
+                              color: '#000',
+                              backgroundColor: selectedCategory === category ? '#f0f0f0' : 'transparent',
+                              padding: '8px 0',
+                              borderRadius: '4px'
+                            }}
+                          >
+                            {category}
+                          </Title>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                            {groupedFoods[category].map((item) => {
+                              const isInCart = cartItems.some(cartItem => cartItem.FoodId === item.id);
 
-                            return (
-                              <div
-                                key={item.id}
-                                style={{
-                                  border: '1px solid #ddd',
-                                  borderRadius: 4,
-                                  padding: 10,
-                                  width: 220,
-                                  boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
-                                  background: '#fff',
-                                  position: 'relative',
-                                }}
-                              >
-                                <Image
-                                  width={200}
-                                  height={140}
-                                  src={getImageUrlWithFallback(item.imageUrl, '/images/placeholder-food.png')}
-                                  alt={item.name}
-                                  preview={false}
-                                  style={{ objectFit: 'cover', borderRadius: 4, marginBottom: 8 }}
-                                  fallback="/images/placeholder-food.png"
-                                  onError={(e) => {
-                                    console.warn('Failed to load image:', item.imageUrl);
-                                  }}
-                                />
-                                {isInCart && (
-                                  <div style={{
-                                    position: 'absolute',
-                                    top: 8,
-                                    right: 8,
-                                    backgroundColor: '#b4c80f',
-                                    color: '#fff',
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '16px',
-                                  }}>
-                                    Đã thêm: {cartItems.find(cartItem => cartItem.FoodId === item.id)?.quantity || 0}
-                                  </div>
-                                )}
-                                <Title level={5} style={{ marginBottom: 8 }}>{item.name}</Title>
-                                <div style={{ marginBottom: 4 }}>
-                                  <Text strong style={{ fontSize: 14, color: '#222' }}>
-                                    {item.priceForGuest.toLocaleString('vi-VN')}đ
-                                  </Text>
-                                </div>
-                                <Button
+                              return (
+                                <div
+                                  key={item.id}
                                   style={{
-                                    backgroundColor: '#b4c80f',
-                                    borderColor: '#b4c80f',
-                                    color: '#000',
-                                    float: 'left',
-                                    padding: '14px 12px',
-                                    fontSize: '15px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: 4,
+                                    padding: 10,
+                                    width: 220,
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                                    background: '#fff',
+                                    position: 'relative',
                                   }}
-                                  type="primary"
-                                  size="small"
-                                  onClick={() => handleShowDetails(item)}
                                 >
-                                  {isToday && isInCart ? 'Cập nhật giỏ hàng' : isToday ? 'Thêm' : 'Xem chi tiết'}
-                                </Button>
-                              </div>
-                            );
-                          })}
+                                  <Image
+                                    width={200}
+                                    height={140}
+                                    src={getImageUrlWithFallback(item.imageUrl, '/images/placeholder-food.png')}
+                                    alt={item.name}
+                                    preview={false}
+                                    style={{ objectFit: 'cover', borderRadius: 4, marginBottom: 8 }}
+                                    fallback="/images/placeholder-food.png"
+                                    onError={(e) => {
+                                      console.warn('Failed to load image:', item.imageUrl);
+                                    }}
+                                  />
+                                  {isInCart && (
+                                    <div style={{
+                                      position: 'absolute',
+                                      top: 8,
+                                      right: 8,
+                                      backgroundColor: '#b4c80f',
+                                      color: '#fff',
+                                      padding: '4px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '16px',
+                                    }}>
+                                      Đã thêm: {cartItems.find(cartItem => cartItem.FoodId === item.id)?.quantity || 0}
+                                    </div>
+                                  )}
+                                  <Title level={5} style={{ marginBottom: 8 }}>{item.name}</Title>
+                                  <div style={{ marginBottom: 4 }}>
+                                    <Text strong style={{ fontSize: 14, color: '#222' }}>
+                                      {item.priceForGuest.toLocaleString('vi-VN')}đ
+                                    </Text>
+                                  </div>
+                                  <Button
+                                    style={{
+                                      backgroundColor: '#b4c80f',
+                                      borderColor: '#b4c80f',
+                                      color: '#000',
+                                      float: 'left',
+                                      padding: '14px 12px',
+                                      fontSize: '15px',
+                                    }}
+                                    type="primary"
+                                    size="small"
+                                    onClick={() => handleShowDetails(item)}
+                                  >
+                                    {isToday && isInCart ? 'Cập nhật giỏ hàng' : isToday ? 'Thêm' : 'Xem chi tiết'}
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })
                 ) : (
                   <Text
                     style={{ color: 'red', textAlign: 'center', display: 'block', marginTop: 24 }}
