@@ -579,8 +579,10 @@ export const AuthProvider = ({ children }) => {
             console.warn('⚠️ Logout API call failed:', error);
         } finally {
             // Clear refresh timestamp on logout
-            localStorage.removeItem('lastTokenRefresh');
-            localStorage.removeItem('loginType');
+            // localStorage.removeItem('lastTokenRefresh');
+            // localStorage.removeItem('loginType');
+            localStorage.clear()
+
             dispatch({ type: 'LOGOUT' });
             console.log('✅ Logout completed');
         }

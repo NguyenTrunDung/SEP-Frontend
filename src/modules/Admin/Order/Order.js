@@ -18,7 +18,7 @@ const OrdersTableV2 = () => {
   const [filters, setFilters] = useState({
     startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
     endOrderDate: moment().format('YYYY-MM-DD'),
-    status: null,
+    status: "Pending",
     isPaid: true,
   });
   const [ordersData, setOrdersData] = useState([]);

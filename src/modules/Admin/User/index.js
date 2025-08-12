@@ -8,6 +8,8 @@ import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import api from '../../../services/api/config';
 import environment from '../../../config/environment';
 import { fetchUserWalletList, depositToWallet, createUser, updateWallet, deleteUserWallet } from '../../../services/userWalletService';
+import PageWrapperV2 from '../../../components/common/PageWrapperV2';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 // const initialUsers = [
 //     {
@@ -198,34 +200,31 @@ const UserManagement = () => {
     };
 
     return (
-        <div style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <h1 style={{ margin: 0 }}>Quản lý ví người dùng</h1>
-                <Space>
-                    <Tooltip title="Làm mới danh sách">
-                        <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-                            Làm mới
-                        </Button>
-                    </Tooltip>
-                    {/* <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={handleCreate}
-                    >
-                        Thêm người dùng
-                    </Button> */}
-                </Space>
-            </div>
-            <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Input
-                    prefix={<SearchOutlined />}
-                    placeholder="Tìm theo tên, tài khoản, số điện thoại"
-                    allowClear
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    style={{ width: 300, borderRadius: 4 }}
-                />
-            </div>
+        <PageWrapperV2
+            title="Quản lý ví người dùng"
+            resourceName="users"
+            addPermission={PERMISSIONS.USERS_ADD}
+            viewPermission={PERMISSIONS.USERS_VIEW}
+            hideOnNoPermission={true}
+            permissionFallback={<div>Bạn không có quyền truy cập trang quản lý ví người dùng.</div>}
+            onAdd={handleCreate}
+            addButtonText="Thêm người dùng"
+            showAddButton={false} // Temporarily disabled based on commented button
+            searchProps={{
+                placeholder: "Tìm theo tên, tài khoản, số điện thoại",
+                value: search,
+                onChange: (e) => setSearch(e.target.value),
+                onSearch: () => { }, // Add search functionality if needed
+            }}
+            actionButtons={[
+                {
+                    icon: <ReloadOutlined />,
+                    onClick: handleRefresh,
+                    tooltip: "Làm mới danh sách",
+                    type: "default"
+                }
+            ]}
+        >
             <UserTable
                 onViewWallet={handleViewWallet}
                 onDeposit={handleDeposit}
@@ -322,7 +321,7 @@ const UserManagement = () => {
                     }
                 }}
             />
-        </div>
+        </PageWrapperV2>
     );
 };
 

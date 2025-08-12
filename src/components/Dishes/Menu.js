@@ -158,14 +158,41 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   const [note, setNote] = useState('');
   const categoryRefs = useRef({});
 
+  // Use state instead of environment for immediate reactivity
+  const [currentBranchId, setCurrentBranchId] = useState(() =>
+    environment.multiTenant.getCurrentBranchId()
+  );
+
+  // Listen for branch changes
+  useEffect(() => {
+    const handleBranchChange = () => {
+      const newBranchId = environment.multiTenant.getCurrentBranchId();
+      if (newBranchId !== currentBranchId) {
+        console.log('🔄 Branch changed in Menu.js:', { old: currentBranchId, new: newBranchId });
+        setCurrentBranchId(newBranchId);
+      }
+    };
+
+    // Check for branch changes every 100ms for immediate updates
+    const interval = setInterval(handleBranchChange, 100);
+
+    // Also listen for storage events (if user switches branch in another tab)
+    window.addEventListener('storage', handleBranchChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleBranchChange);
+    };
+  }, [currentBranchId]);
+
   // Use React Query hooks for menu data with branch context
-  const currentBranchId = environment.multiTenant.getCurrentBranchId();
   const {
     data: menuData,
     isLoading: loading,
     error,
     refetch: refreshMenus
   } = useMenus({ date: getFormattedDate(activeDay), branchId: currentBranchId });
+
 
   // Fetch feedbacks for the selected food
   const branchId = environment.multiTenant.getCurrentBranchId() || '1';

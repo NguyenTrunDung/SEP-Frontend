@@ -112,13 +112,11 @@ export const orderService = {
       console.log(`🔍 Raw order details for order ${orderId}:`, response.data);
       const normalizedData = response.data.data.map(item => {
         const qty = item.Qty ?? item.quantity ?? item.qty ?? 1;
-        const food = item.food || {}; // Ensure food object exists
         console.log(`🔍 Normalizing item for order ${orderId}:`, { item, qty });
         return {
           ...item,
           Qty: qty,
-          foodName: item.foodName || item.FoodName || food.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
-          imageUrl: food.imageUrl || item.image || null, // Prioritize food.imageUrl
+          foodName: item.foodName || item.FoodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
           total: item.total ?? (item.price ?? 0) * qty,
         };
       });
@@ -201,7 +199,7 @@ export const orderService = {
         total: orderData.total || 0,
         shippingFee: orderData.shippingFee || 0,
         foodToolFee: orderData.foodToolFee || 0,
-        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod),
+        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod) || 3,
         isPaid: orderData.isPaid !== undefined ? orderData.isPaid : true,
         walletAmountUsed: orderData.walletAmountUsed || 0,
         code: orderData.code || this._generateOrderCode(),
@@ -257,7 +255,6 @@ export const orderService = {
         branchId: currentBranchId,
         status: orderData.status,
         paymentStatus: orderData.paymentStatus ? orderData.paymentStatus.toLowerCase() : 'pending',
-        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod),
       };
       if (environment.features.enableLogging) {
         console.log('🔍 orderService.updateOrder - ID:', orderId, 'data:', JSON.stringify(payload, null, 2));
@@ -275,6 +272,30 @@ export const orderService = {
     }
   },
 
+  async updateOrderStatus(orderId, newStatus) {
+    try {
+      if (environment.features.enableLogging) {
+        console.log('🔍 orderService.updateOrderStatus - ID:', orderId, 'newStatus:', newStatus);
+      }
+
+      // Use the new PATCH endpoint for status updates only
+      const response = await api.patch(`/api/v1/order/UpdateOrderStatus`,
+        { status: newStatus },
+        { params: { id: orderId } }
+      );
+
+      if (environment.features.enableLogging) {
+        console.log('✅ Updated order status response:', JSON.stringify(response.data, null, 2));
+      }
+      return response.data;
+    } catch (error) {
+      if (environment.features.enableLogging) {
+        console.error('❌ Failed to update order status:', error.response?.data?.message || error.message);
+      }
+      throw error;
+    }
+  },
+
   async getOrdersForChef(branchId, options = {}) {
     try {
       const normalizedBranchId = normalizeBranchId(branchId);
@@ -286,22 +307,23 @@ export const orderService = {
         ...options,
       });
       const orders = response.data.data || [];
-
-      // Process the orders to ensure orderDetails are properly formatted
-      // The backend should return orders with orderDetails included
-      const processedOrders = orders.map((order) => ({
-        ...order,
-        orderDetails: (order.orderDetails || []).map((item) => ({
-          ...item,
-          foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
-          Qty: item.Qty ?? item.quantity ?? 1,
-        })),
-      }));
-
+      const detailedOrders = await Promise.all(
+        orders.map(async (order) => {
+          const orderDetails = await this.getOrderDetails(order.id);
+          return {
+            ...order,
+            orderDetails: orderDetails.data.map((item) => ({
+              ...item,
+              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+              Qty: item.Qty ?? item.quantity ?? 1,
+            })),
+          };
+        })
+      );
       if (environment.features.enableLogging) {
-        console.log(`✅ Received chef orders for branch ${normalizedBranchId}:`, processedOrders);
+        console.log(`✅ Received chef orders for branch ${normalizedBranchId}:`, detailedOrders);
       }
-      return processedOrders;
+      return detailedOrders;
     } catch (error) {
       console.error('Failed to fetch chef orders:', error);
       throw error;
@@ -382,32 +404,6 @@ export const orderService = {
       throw error;
     }
   },
-  async deleteOrder(orderId, branchId, options = {}) {
-    try {
-      const normalizedBranchId = normalizeBranchId(branchId);
-      if (environment.features.enableLogging) {
-        console.log(`🗑️ Deleting order ${orderId} for branch: ${normalizedBranchId}`);
-      }
-      const response = await api.delete(`/api/v1/order/DeleteOrder`, {
-        params: { id: orderId },
-        headers: normalizedBranchId ? { 'X-Branch-Id': normalizedBranchId } : {},
-        ...options,
-      });
-      if (environment.features.enableLogging) {
-        console.log(`✅ Order ${orderId} deleted successfully:`, response.data);
-      }
-      return response.data;
-    } catch (error) {
-      console.error(`❌ Failed to delete order ${orderId}:`, error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.errors ||
-        error.message ||
-        'Failed to delete order';
-      throw new Error(errorMessage);
-    }
-  },
-
 
   _mapPaymentMethod(paymentMethod) {
     const paymentMap = {

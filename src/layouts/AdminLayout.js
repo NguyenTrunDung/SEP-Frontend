@@ -86,7 +86,7 @@ const AdminLayout = ({ children }) => {
       "/admin/user-management": ["user-management"],
       "/admin/group-user": ["group-user"],
       "/admin/user-account": ["user-account"],
-    "/branches": ["branches"],
+      "/branches": ["branches"],
       "/departments": ["departments"],
       "/shippers": ["shippers"],
     };
@@ -181,7 +181,7 @@ const AdminLayout = ({ children }) => {
           icon: <ShopOutlined style={{ fontSize: "18px" }} />,
           label: <Link to="/foods">Món ăn</Link>,
         },
-        canAccess([PERMISSIONS.FOODS_VIEW, PERMISSIONS.PATIENTS_DIETARY]) && {
+        canAccess([PERMISSIONS.FOODFORPATIENTS_VIEW]) && {
           key: "food-for-patients",
           icon: <ShopOutlined style={{ fontSize: "18px" }} />,
           label: <Link to="/food-for-patients">Món ăn cho bệnh nhân</Link>,
@@ -189,89 +189,101 @@ const AdminLayout = ({ children }) => {
       ].filter(Boolean),
     },
 
-    // System Settings (include categories permissions so users with branches:view can access)
-    canAccess([
-      PERMISSIONS.SYSTEM_SETTINGS,
-      PERMISSIONS.USERS_VIEW,
-      PERMISSIONS.WALLET_VIEW,
-      PERMISSIONS.BRANCHES_VIEW,
-      PERMISSIONS.AREAS_VIEW,
-      PERMISSIONS.LOCATIONS_VIEW,
-      PERMISSIONS.DEPARTMENTS_VIEW,
-      PERMISSIONS.DISEASECATEGORIES_VIEW
-    ]) && {
-      key: "settings",
-      icon: <SettingOutlined style={{ fontSize: "18px" }} />,
-      label: "Cài đặt hệ thống",
-      children: [
-        // User Management Group
-        canAccess([PERMISSIONS.USERS_VIEW, PERMISSIONS.WALLET_VIEW]) && {
+    // System Settings - Only show if user has any relevant permissions
+    (() => {
+      // Check if user has any system-related permissions
+      const hasSystemPermissions = canAccess([PERMISSIONS.SYSTEM_SETTINGS]);
+      const hasUserPermissions = canAccess([PERMISSIONS.USERS_VIEW, PERMISSIONS.WALLET_VIEW, PERMISSIONS.USERS_ROLES]);
+      const hasCategoryPermissions = canAccess([
+        PERMISSIONS.BRANCHES_VIEW,
+        PERMISSIONS.AREAS_VIEW,
+        PERMISSIONS.LOCATIONS_VIEW,
+        PERMISSIONS.DEPARTMENTS_VIEW,
+        PERMISSIONS.DISEASECATEGORIES_VIEW
+      ]);
+
+      // Only show System Settings if user has any relevant permissions
+      if (!hasSystemPermissions && !hasUserPermissions && !hasCategoryPermissions) {
+        return false;
+      }
+
+      // Build the System Settings menu
+      const systemChildren = [];
+
+      // User Management Group - Only show if user has user-related permissions
+      const userManagementChildren = [
+        canAccess([PERMISSIONS.WALLET_VIEW]) && {
+          key: "user-management",
+          icon: <WalletOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/admin/user-management">Quản lý ví người dùng (Mới)</Link>,
+        },
+        canAccess([PERMISSIONS.GROUPUSERS_VIEW]) && {
+          key: "group-user",
+          icon: <TeamOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/admin/group-user">Nhóm người dùng</Link>,
+        },
+        canAccess([PERMISSIONS.USERACCOUNTS_VIEW]) && {
+          key: "user-account",
+          icon: <UserOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/admin/user-account">Người dùng</Link>,
+        },
+      ].filter(Boolean);
+
+      if (userManagementChildren.length > 0) {
+        systemChildren.push({
           key: "user-wallet-group",
           icon: <UserOutlined style={{ fontSize: "18px" }} />,
           label: "Quản lý người dùng",
-          children: [
-            canAccess([PERMISSIONS.WALLET_VIEW]) && {
-              key: "user-management",
-              icon: <WalletOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/admin/user-management">Quản lý ví người dùng (Mới)</Link>,
-            },
-            canAccess([PERMISSIONS.USERS_ROLES]) && {
-              key: "group-user",
-              icon: <TeamOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/admin/group-user">Nhóm người dùng</Link>,
-            },
-            canAccess([PERMISSIONS.USERS_VIEW]) && {
-              key: "user-account",
-              icon: <UserOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/admin/user-account">Người dùng</Link>,
-            },
-          ].filter(Boolean),
-        },
+          children: userManagementChildren,
+        });
+      }
 
-        // Categories Group
-        (() => {
-          const categoriesPermissions = [
-            PERMISSIONS.BRANCHES_VIEW,
-            PERMISSIONS.AREAS_VIEW,
-            PERMISSIONS.LOCATIONS_VIEW,
-            PERMISSIONS.DEPARTMENTS_VIEW,
-            PERMISSIONS.DISEASECATEGORIES_VIEW
-          ];
-          return canAccess(categoriesPermissions);
-        })() && {
+      // Categories Group - Only show if user has category-related permissions
+      const categoryChildren = [
+        canAccess([PERMISSIONS.BRANCHES_VIEW]) && {
+          key: "branches",
+          icon: <ShopOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/branches">Chi nhánh</Link>,
+        },
+        canAccess([PERMISSIONS.AREAS_VIEW]) && {
+          key: "areas",
+          icon: <GlobalOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/areas">Khu vực</Link>,
+        },
+        canAccess([PERMISSIONS.LOCATIONS_VIEW]) && {
+          key: "locations",
+          icon: <AimOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/locations">Vị trí</Link>,
+        },
+        canAccess([PERMISSIONS.DEPARTMENTS_VIEW]) && {
+          key: "departments",
+          icon: <TeamOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/departments">Phòng ban</Link>,
+        },
+        canAccess([PERMISSIONS.DISEASECATEGORIES_VIEW]) && {
+          key: "disease-categories",
+          icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
+          label: <Link to="/disease-categories">Nhóm bệnh</Link>,
+        },
+      ].filter(Boolean);
+
+      if (categoryChildren.length > 0) {
+        systemChildren.push({
           key: "categories",
           icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
           label: "Danh mục",
-          children: [
-            canAccess([PERMISSIONS.BRANCHES_VIEW]) && {
-              key: "branches",
-              icon: <ShopOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/branches">Chi nhánh</Link>,
-            },
-            canAccess([PERMISSIONS.AREAS_VIEW]) && {
-              key: "areas",
-              icon: <GlobalOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/areas">Khu vực</Link>,
-            },
-            canAccess([PERMISSIONS.LOCATIONS_VIEW]) && {
-              key: "locations",
-              icon: <AimOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/locations">Vị trí</Link>,
-            },
-            canAccess([PERMISSIONS.DEPARTMENTS_VIEW]) && {
-              key: "departments",
-              icon: <TeamOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/departments">Phòng ban</Link>,
-            },
-            canAccess([PERMISSIONS.DISEASECATEGORIES_VIEW]) && {
-              key: "disease-categories",
-              icon: <AppstoreOutlined style={{ fontSize: "18px" }} />,
-              label: <Link to="/disease-categories">Nhóm bệnh</Link>,
-            },
-          ].filter(Boolean),
-        },
-      ].filter(Boolean),
-    },
+          children: categoryChildren,
+        });
+      }
+
+      // Only return the menu item if there are children to show
+      return systemChildren.length > 0 ? {
+        key: "settings",
+        icon: <SettingOutlined style={{ fontSize: "18px" }} />,
+        label: "Cài đặt hệ thống",
+        children: systemChildren,
+      } : false;
+    })(),
   ].filter(Boolean);
 
   return (

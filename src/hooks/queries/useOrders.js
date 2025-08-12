@@ -170,76 +170,37 @@ export const useUpdateOrder = (options = {}) => {
   const currentBranchId = normalizeBranchId();
 
   return useMutation({
-    mutationFn: async ({ orderId, orderData, branchId, newStatus, updateFn }) => {
+    mutationFn: async ({ orderId, branchId, newStatus }) => {
       const targetBranchId = normalizeBranchId(branchId);
 
       if (environment.features.enableLogging) {
-        console.log(`🔍 Updating order ${orderId} for branch: ${targetBranchId}`, JSON.stringify({ ...orderData, status: newStatus }, null, 2));
+        console.log(`🔍 Updating order status: ${orderId} -> ${newStatus} for branch: ${targetBranchId}`);
       }
 
-      // If we're only updating status, we need to get the current order data first
-      if (newStatus && !orderData) {
-        // Get current order data from cache to avoid overwriting with null values
-        const currentOrder = queryClient.getQueryData(ORDER_QUERY_KEYS.detail(orderId, targetBranchId)) ||
-          queryClient.getQueryData(ORDER_QUERY_KEYS.list(targetBranchId))?.find(o => o.id === orderId);
-
-        if (currentOrder) {
-          // Only update the status field, preserve all other data
-          const updateData = {
-            ...currentOrder,
-            status: newStatus,
-            // Ensure branchId is set
-            branchId: targetBranchId
-          };
-
-          return await orderService.updateOrder(orderId, updateData);
-        }
-      }
-
-      // If we have full orderData, use it
-      if (orderData) {
-        return await orderService.updateOrder(orderId, { ...orderData, branchId: targetBranchId, status: newStatus });
-      }
-
-      throw new Error('No order data available for update');
+      // Always use the PATCH endpoint for status updates only
+      return await orderService.updateOrderStatus(orderId, newStatus);
     },
     onSuccess: (response, variables) => {
-      message.success(response.message || 'Cập nhật đơn hàng thành công!');
+      message.success(response.message || 'Cập nhật trạng thái đơn hàng thành công!');
       const targetBranchId = normalizeBranchId(variables.branchId);
       const updatedOrder = response.data?.data || response.data;
-
       console.log('🔍 Updated order in cache:', JSON.stringify(updatedOrder, null, 2));
-
       if (updatedOrder) {
-        // Update the specific order in detail cache
         queryClient.setQueryData(ORDER_QUERY_KEYS.detail(variables.orderId, targetBranchId), updatedOrder);
-
-        // Update the order in list cache
         queryClient.setQueryData(ORDER_QUERY_KEYS.list(targetBranchId), (oldData) => {
-          if (!oldData) return [updatedOrder];
-          return oldData.map((order) =>
-            order.id === variables.orderId ? { ...order, ...updatedOrder } : order
-          );
+          return oldData
+            ? oldData.map((order) => (order.id === variables.orderId ? { ...order, ...updatedOrder } : order))
+            : [updatedOrder];
         });
-
-        // Update chef orders cache specifically
-        queryClient.setQueryData(ORDER_QUERY_KEYS.chefList(targetBranchId), (oldData) => {
-          if (!oldData) return [];
-          return oldData.map((order) =>
-            order.id === variables.orderId ? { ...order, ...updatedOrder } : order
-          );
-        });
-
-        // Invalidate related queries to ensure fresh data
         queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.list(targetBranchId) });
         queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.chefList(targetBranchId) });
         queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.lists() });
       }
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.message || 'Không thể cập nhật đơn hàng!';
+      const errorMessage = error.response?.data?.message || 'Không thể cập nhật trạng thái đơn hàng!';
       message.error(errorMessage);
-      console.error('❌ Failed to update order:', error);
+      console.error('❌ Failed to update order status:', error);
     },
     ...options,
   });
@@ -307,6 +268,8 @@ export const useDeliveryOrders = (branchId, filters = {}, searchText = '', optio
     isFetching: query.isFetching,
   };
 };
+
+
 export const useDeleteOrder = (options = {}) => {
   const queryClient = useQueryClient();
   const currentBranchId = normalizeBranchId();
@@ -354,3 +317,4 @@ export const useDeleteOrder = (options = {}) => {
     ...options,
   });
 };
+

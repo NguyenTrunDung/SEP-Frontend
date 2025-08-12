@@ -65,7 +65,53 @@ const ViewOrderDetail = ({
     return statusMap[status] || status || 'Đang chờ';
   };
 
+  // Helper function to safely parse Vietnamese time strings
+  const safeParseVietnameseTime = (timeString) => {
+    if (!timeString) return null;
+
+    // If it's already a valid time format (HH:mm), use it directly
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (timeRegex.test(timeString)) {
+      return moment(timeString, 'HH:mm');
+    }
+
+    // Handle Vietnamese time strings like "30 phút", "1 giờ", etc.
+    if (typeof timeString === 'string') {
+      // Extract numbers from Vietnamese time strings
+      const numberMatch = timeString.match(/(\d+)/);
+      if (numberMatch) {
+        const number = parseInt(numberMatch[1]);
+
+        // Handle "phút" (minutes)
+        if (timeString.includes('phút')) {
+          // Convert to HH:mm format (assuming it's minutes from midnight)
+          const hours = Math.floor(number / 60);
+          const minutes = number % 60;
+          return moment(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`, 'HH:mm');
+        }
+
+        // Handle "giờ" (hours)
+        if (timeString.includes('giờ')) {
+          return moment(`${number.toString().padStart(2, '0')}:00`, 'HH:mm');
+        }
+      }
+    }
+
+    // If all else fails, try to parse as regular time
+    try {
+      const parsed = moment(timeString, ['HH:mm', 'H:mm', 'HH:mm:ss', 'H:mm:ss']);
+      if (parsed.isValid()) {
+        return parsed;
+      }
+    } catch (error) {
+      console.warn('Failed to parse time:', timeString, error);
+    }
+
+    return null;
+  };
+
   useEffect(() => {
+    console.log('🔍 Order data received in OrderDetails:', orderData);
     if (orderData) {
       setFormData({
         ...orderData,
@@ -78,6 +124,7 @@ const ViewOrderDetail = ({
   }, [orderData, orderDetails]);
 
   const handleDeliverOrder = async () => {
+    console.log('🔍 Form data in handleDeliverOrder:', formData);
     try {
       await updateOrder({
         orderId: orderData.id,
@@ -113,7 +160,6 @@ const ViewOrderDetail = ({
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: {},
         branchId,
         newStatus: 'Confirmed',
       });
@@ -228,10 +274,11 @@ const ViewOrderDetail = ({
           <Col span={6}>
             <label className="floating-label">Thời gian nhận</label>
             <TimePicker
-              value={formData.receiveTime ? moment(formData.receiveTime, 'HH:mm') : null}
+              value={safeParseVietnameseTime(formData.receiveTime)}
               disabled
               style={{ width: '100%' }}
               format="HH:mm"
+            //placeholder="Chưa có thời gian nhận"
             />
           </Col>
         </Row>
