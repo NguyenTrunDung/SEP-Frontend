@@ -47,7 +47,15 @@ const AuthForm = ({
             if (onSuccess) {
                 onSuccess(values);
             }
-            navigate(from, { replace: true });
+
+            // Navigate to appropriate page instead of using /redirect
+            if (from && from !== '/redirect') {
+                // If we have a specific 'from' location, go there
+                navigate(from, { replace: true });
+            } else {
+                // Otherwise, navigate to /redirect for role-based routing
+                navigate('/redirect', { replace: true });
+            }
         } catch (err) {
             console.error('Login error:', err);
             // Không cần xử lý error ở đây vì AuthContext đã xử lý

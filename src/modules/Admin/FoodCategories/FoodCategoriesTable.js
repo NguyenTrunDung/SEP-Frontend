@@ -26,6 +26,7 @@ import { useReorderFoodCategories } from '../../../hooks/queries/useFoodCategori
 import environment from '../../../config/environment';
 import PropTypes from 'prop-types';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 // Sortable Row Component for drag-and-drop (following Ant Design pattern)
 const SortableRow = (props) => {
@@ -301,7 +302,17 @@ const FoodCategoriesTable = ({
       };
     }
 
-    return <ReusableTableV2 {...tableProps} />;
+    return (
+      <ReusableTableV2
+        {...tableProps}
+        // Permission controls for table actions
+        resourceName="foodcategories"
+        editPermission={PERMISSIONS.FOODCATEGORIES_EDIT}
+        deletePermission={PERMISSIONS.FOODCATEGORIES_DELETE}
+        hideActionsOnNoPermission={true}
+        showPermissionTooltips={true}
+      />
+    );
   };
 
   return (

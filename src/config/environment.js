@@ -48,6 +48,11 @@ const environment = {
                 // Branch-specific endpoints
                 branch: {
                     list: this.getVersionedPath('/branches'),
+                    create: this.getVersionedPath('/branches'),
+                    update: (branchId) => this.getVersionedPath(`/branches/${branchId}`),
+                    delete: (branchId) => this.getVersionedPath(`/branches/${branchId}`),
+                    getById: (branchId) => this.getVersionedPath(`/branches/${branchId}`),
+                    checkNameAvailability: this.getVersionedPath('/branches/check-name-availability'),
                     default: this.getVersionedPath('/branches/default'),
                     current: this.getVersionedPath('/branches/current'),
                     setCurrent: (branchId) => this.getVersionedPath(`/branches/set-current/${branchId}`),

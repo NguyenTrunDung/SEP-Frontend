@@ -1,4 +1,3 @@
-// src/layouts/DefaultLayout.js
 import React from 'react';
 import { Layout } from 'antd';
 import { Outlet, useLocation } from 'react-router-dom';
@@ -18,15 +17,18 @@ const DefaultLayout = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Navbar />
-      <Carousel />
-      <Menu />
-      <Desease />
-      {/* <Content style={{ padding: '24px', background: '#fff' }}>
-        <div style={{ minHeight: '360px' }}>
-          <Outlet />
-        </div>
-      </Content> */}
-      <FooterComponent />
+      <div id="home">
+        <Carousel />
+      </div>
+      <div id="menu">
+        <Menu />
+      </div>
+      <div id="desease">
+        <Desease />
+      </div>
+      <div id="contact">
+        <FooterComponent />
+      </div>
     </Layout>
   );
 };

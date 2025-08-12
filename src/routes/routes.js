@@ -17,12 +17,12 @@ import Unauthorized from '../modules/Unauthorized.js';
 // Order pages
 import Order from '../modules/Admin/Order/Order.js';
 import OrderDetails from '../modules/Admin/Order/OrderDetails.js';
+import OrderPatient from '../modules/Admin/OrderPatient/OrderPatient.js';
 import Feedbacks from '../modules/Admin/Feedback/Feedbacks.js';
 
 //Cart
 
 import Menu from '../modules/Admin/Menu/index.js';
-import CustomerPage from '../modules/Admin/Staff/index.js';
 
 import ContactPage from '../components/HomePage/Contact.js';
 import Navbar from '../components/HomePage/Navbar.js';
@@ -51,6 +51,89 @@ import KitchenView from '../modules/Admin/Kitchen/KitchenPage.js';
 import BranchesPage from '../modules/Admin/Branch/BranchesPage.js';
 import DepartmentsPage from '../modules/Admin/Department/DepartmentsPage.js';
 
+import DeliveryStaff from '../modules/Admin/Shipper/DeliveryStaff.js'
+
+// Helper function to find any accessible route for user permissions
+const findAnyAccessibleRoute = (userPermissions) => {
+  // Create a comprehensive permission-to-route mapping
+  const allPermissionRoutes = {
+    'overview:view': '/dashboard',
+    'orders:view': '/orders',
+    'menus:view': '/menus',
+    'foods:view': '/foods',
+    'foodcategories:view': '/food-categories',
+    'kitchen:view': '/kitchens',
+    'branches:view': '/branches',
+    'areas:view': '/areas',
+    'locations:view': '/locations',
+    'departments:view': '/departments',
+    'diseasecategories:view': '/disease-categories',
+    'feedbacks:view': '/feedbacks',
+    'delivery:view': '/shippers',
+    'users:view': '/admin/user-account',
+    'users:roles': '/admin/group-user',
+    'wallet:view': '/admin/user-management',
+  };
+
+  // Find the first permission that has a corresponding route
+  for (const permission of userPermissions) {
+    if (allPermissionRoutes[permission]) {
+      return allPermissionRoutes[permission];
+    }
+  }
+
+  return null; // No accessible route found
+};
+
+// Smart redirect function based on user permissions
+const getSmartRedirectPath = (userRole, userPermissions) => {
+  // Priority order: try to find the first page the user has access to
+  const permissionToRouteMap = [
+    { permission: 'overview:view', route: '/dashboard' },
+    { permission: 'orders:view', route: '/orders' },
+    { permission: 'menus:view', route: '/menus' },
+    { permission: 'foods:view', route: '/foods' },
+    { permission: 'foodcategories:view', route: '/food-categories' },
+    { permission: 'kitchen:view', route: '/kitchens' },
+    { permission: 'branches:view', route: '/branches' },
+    { permission: 'areas:view', route: '/areas' },
+    { permission: 'locations:view', route: '/locations' },
+    { permission: 'departments:view', route: '/departments' },
+    { permission: 'diseasecategories:view', route: '/disease-categories' },
+    { permission: 'feedbacks:view', route: '/feedbacks' },
+    { permission: 'delivery:view', route: '/shippers' },
+  ];
+
+  // Find first route user has permission for
+  for (const { permission, route } of permissionToRouteMap) {
+    if (userPermissions.includes(permission)) {
+      return route;
+    }
+  }
+
+  // Enhanced fallback: try role-based redirect only if user has permission for it
+  const roleBasedRoute = roleHomeRedirects[userRole];
+  if (roleBasedRoute && roleBasedRoute !== '/dashboard') {
+    // For special routes like /nurse/home, /patient/home, /, use them directly
+    return roleBasedRoute;
+  }
+
+  // Final fallback: check if user can access dashboard, otherwise find any accessible page
+  if (userPermissions.includes('overview:view')) {
+    return '/dashboard';
+  }
+
+  // Last resort: find ANY page the user can access from their permissions
+  const anyAccessibleRoute = findAnyAccessibleRoute(userPermissions);
+  if (anyAccessibleRoute) {
+    return anyAccessibleRoute;
+  }
+
+  // If user has no permissions for any known routes, send to unauthorized
+  console.warn('User has no permissions for any known routes:', userPermissions);
+  return '/unauthorized';
+};
+
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
   [ROLES.ADMIN]: '/dashboard',
@@ -59,10 +142,10 @@ const roleHomeRedirects = {
 
   [ROLES.NURSE]: '/nurse/home',          // Nurses go to nurse home interface
   [ROLES.PATIENT]: '/patient/home',
-  [ROLES.STAFF]: '/orders',
-  [ROLES.CASHIER]: '/orders',
-  [ROLES.KITCHEN]: '/orders',
-  [ROLES.GUEST]: '/'           // Guests stay on home page
+  [ROLES.STAFF]: '/dashboard',           // ✅ FIXED: Changed from /orders to /dashboard (safer default)
+  [ROLES.CASHIER]: '/dashboard',         // ✅ FIXED: Changed from /orders to /dashboard (safer default)
+  [ROLES.KITCHEN]: '/dashboard',         // ✅ FIXED: Changed from /orders to /dashboard (safer default)
+  [ROLES.GUEST]: '/'                     // Guests stay on home page
 };
 
 // Route config with layout and role protection
@@ -71,7 +154,7 @@ const routes = [
   {
     path: '/',
     element: (
-      <AuthRedirect roleHomeRedirects={roleHomeRedirects}>
+      <AuthRedirect roleHomeRedirects={roleHomeRedirects} getSmartRedirectPath={getSmartRedirectPath}>
         <Home />
       </AuthRedirect>
     ),
@@ -91,7 +174,7 @@ const routes = [
   {
     path: '/login',
     element: (
-      <AuthRedirect roleHomeRedirects={roleHomeRedirects}>
+      <AuthRedirect roleHomeRedirects={roleHomeRedirects} getSmartRedirectPath={getSmartRedirectPath}>
         <Login />
       </AuthRedirect>
     ),
@@ -99,7 +182,7 @@ const routes = [
   {
     path: '/register',
     element: (
-      <AuthRedirect roleHomeRedirects={roleHomeRedirects}>
+      <AuthRedirect roleHomeRedirects={roleHomeRedirects} getSmartRedirectPath={getSmartRedirectPath}>
         <Register />
       </AuthRedirect>
     ),
@@ -127,30 +210,45 @@ const routes = [
     path: '/redirect',
     element: (
       <ProtectedRoute>
-        {({ user, loginType }) => {
+        {({ user, loginType, loading, permissions }) => {
+          // Wait for authentication to complete before redirecting
+          if (loading) {
+            return (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '18px', marginBottom: '16px' }}>🔄 Redirecting...</div>
+                  <div style={{ color: '#666' }}>Setting up your workspace...</div>
+                </div>
+              </div>
+            );
+          }
+
           if (!user?.role) {
-            // If no user or role, redirect to login
+            // If no user or role after loading, redirect to login
+            console.log('❌ No user role found after loading, redirecting to login');
             return <Navigate to="/login" replace />;
           }
 
           // Nếu user đăng nhập qua public login, redirect về trang chủ
           if (loginType === 'public') {
+            console.log('✅ Public login user, redirecting to home');
             return <Navigate to="/" replace />;
           }
 
-          // Nếu user đăng nhập qua internal login, redirect theo role
-          const redirectPath = roleHomeRedirects[user.role] || '/dashboard';
+          // Nếu user đăng nhập qua internal login, redirect theo permissions
+          const redirectPath = getSmartRedirectPath(user.role, permissions || []);
+          console.log(`✅ Internal login user with role ${user.role}, redirecting to ${redirectPath}`);
           return <Navigate to={redirectPath} replace />;
         }}
       </ProtectedRoute>
     ),
   },
 
-  // Admin routes
+  // Admin routes - Now using permission-based access
   {
     path: '/dashboard',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <Dashboard />
         </AdminLayout>
@@ -160,7 +258,7 @@ const routes = [
   {
     path: '/admin',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <Dashboard />
         </AdminLayout>
@@ -170,7 +268,7 @@ const routes = [
   {
     path: '/orders',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+      <ProtectedRoute>
         <AdminLayout>
           <Order />
         </AdminLayout>
@@ -180,7 +278,7 @@ const routes = [
   {
     path: '/orders/:id',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+      <ProtectedRoute>
         <AdminLayout>
           <OrderDetails />
         </AdminLayout>
@@ -188,9 +286,19 @@ const routes = [
     ),
   },
   {
+    path: '/order-patients',
+    element: (
+      <ProtectedRoute>
+        <AdminLayout>
+          <OrderPatient />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/kitchens',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+      <ProtectedRoute>
         <AdminLayout>
           <KitchenView />
         </AdminLayout>
@@ -200,7 +308,7 @@ const routes = [
   {
     path: '/feedbacks',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF]}>
+      <ProtectedRoute>
         <AdminLayout>
           <Feedbacks />
         </AdminLayout>
@@ -208,9 +316,19 @@ const routes = [
     ),
   },
   {
+    path: '/shippers',
+    element: (
+      <ProtectedRoute>
+        <AdminLayout>
+          <DeliveryStaff />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/branches',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+      <ProtectedRoute>
         <AdminLayout>
           <BranchesPage />
         </AdminLayout>
@@ -220,7 +338,7 @@ const routes = [
   {
     path: '/departments',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+      <ProtectedRoute>
         <AdminLayout>
           <DepartmentsPage />
         </AdminLayout>
@@ -240,7 +358,7 @@ const routes = [
   {
     path: '/admin/user-management',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
+      <ProtectedRoute>
         <AdminLayout>
           <UserManagement />
         </AdminLayout>
@@ -250,7 +368,7 @@ const routes = [
   {
     path: '/admin/group-user',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
+      <ProtectedRoute>
         <AdminLayout>
           <GroupUser />
         </AdminLayout>
@@ -260,7 +378,7 @@ const routes = [
   {
     path: '/admin/user-account',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER]}>
+      <ProtectedRoute>
         <AdminLayout>
           <UserAccount />
         </AdminLayout>
@@ -270,7 +388,7 @@ const routes = [
   {
     path: '/admin/settings',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN]}>
+      <ProtectedRoute>
         <AdminLayout>
           <div>Settings</div>
         </AdminLayout>
@@ -280,7 +398,7 @@ const routes = [
   {
     path: '/admin/profile',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+      <ProtectedRoute>
         <AdminLayout>
           <Profile />
         </AdminLayout>
@@ -290,7 +408,7 @@ const routes = [
   {
     path: '/admin/edit-profile/:id',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+      <ProtectedRoute>
         <AdminLayout>
           <EditProfile />
         </AdminLayout>
@@ -300,7 +418,7 @@ const routes = [
   {
     path: '/admin/change-password/:id',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.CASHIER, ROLES.KITCHEN]}>
+      <ProtectedRoute>
         <AdminLayout>
           <ChangePassword />
         </AdminLayout>
@@ -310,7 +428,7 @@ const routes = [
   {
     path: '/menus',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <Menu />
         </AdminLayout>
@@ -320,7 +438,7 @@ const routes = [
   {
     path: '/food-categories',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <FoodCategories />
         </AdminLayout>
@@ -330,7 +448,7 @@ const routes = [
   {
     path: '/foods', // Added Foods route
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <Food />
         </AdminLayout>
@@ -340,7 +458,7 @@ const routes = [
   {
     path: '/areas', // Thêm route cho Areas
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <AreasPage />
         </AdminLayout>
@@ -350,7 +468,7 @@ const routes = [
   {
     path: '/locations', // Thêm route cho Areas
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <LocationsPage />
         </AdminLayout>
@@ -360,7 +478,7 @@ const routes = [
   {
     path: '/disease-categories',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <DiseaseCategoriesTable />
         </AdminLayout>
@@ -370,7 +488,7 @@ const routes = [
   {
     path: '/food-for-patients',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <FoodForPatientPage />
         </AdminLayout>
@@ -380,7 +498,7 @@ const routes = [
   {
     path: '/test/images', // Test route for image loading system
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <ImageTestComponent />
         </AdminLayout>
@@ -390,7 +508,7 @@ const routes = [
   {
     path: '/test/vnpay', // Test route for VNPay integration
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.STAFF, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <AdminLayout>
           <VnPayIntegrationExample />
         </AdminLayout>
@@ -459,7 +577,7 @@ const routes = [
   {
     path: '/kitchen',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.KITCHEN]}>
+      <ProtectedRoute>
         <AdminLayout>
           <Order />
         </AdminLayout>
@@ -471,7 +589,7 @@ const routes = [
   {
     path: '/test-admin',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER, ROLES.DOCTOR]}>
+      <ProtectedRoute>
         <div style={{ padding: '20px' }}>
           <h1>Admin Test Page</h1>
           <p>If you can see this, you have admin access.</p>
@@ -488,3 +606,4 @@ const routes = [
 ];
 
 export default routes;
+export { getSmartRedirectPath };

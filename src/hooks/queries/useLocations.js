@@ -196,19 +196,17 @@ export const useUpdateLocation = (options = {}) => {
 
 export const useDeleteLocation = (options = {}) => {
   const queryClient = useQueryClient();
-  const currentBranchId = normalizeBranchId();
 
   return useMutation({
     mutationFn: (locationId) => locationService.deleteLocation(locationId),
-    onSuccess: (response, locationId) => {
+    onSuccess: (response, locationId) => {  // <-- Changed: Receive locationId directly
       message.success(response.message || 'Xóa vị trí thành công!');
-      queryClient.removeQueries({ queryKey: LOCATION_QUERY_KEYS.detail(locationId, currentBranchId) });
-      queryClient.setQueryData(LOCATION_QUERY_KEYS.list(currentBranchId), (oldData) => {
-        return oldData ? oldData.filter((location) => location.id !== locationId) : [];
+      queryClient.setQueryData(LOCATION_QUERY_KEYS.lists(), (oldData) => {
+        return oldData ? oldData.filter((location) => location.id !== locationId) : [];  // <-- Changed: Use lists() key
       });
       console.log('✅ Invalidating cache for delete location');
-      queryClient.invalidateQueries({ queryKey: LOCATION_QUERY_KEYS.list(currentBranchId) });
-      queryClient.invalidateQueries({ queryKey: LOCATION_QUERY_KEYS.lists() });
+      queryClient.invalidateQueries({ queryKey: LOCATION_QUERY_KEYS.lists() });  // <-- Changed: Use lists() key
+      queryClient.invalidateQueries({ queryKey: LOCATION_QUERY_KEYS.lists() });  // <-- Already here, but consistent
     },
     onError: (error) => {
       const errorMessage = error.response?.data?.message || 'Không thể xóa vị trí!';

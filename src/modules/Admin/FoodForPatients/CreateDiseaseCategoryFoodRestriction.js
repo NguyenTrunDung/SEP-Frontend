@@ -120,7 +120,7 @@ const CreateDiseaseCategoryFoodRestriction = ({
                     />
                 </Form.Item>
 
-                <Form.Item
+                {/* <Form.Item
                     name="restrictionLevel"
                     label="Mức độ hạn chế"
                     rules={[{ required: true, message: 'Vui lòng chọn mức độ hạn chế!' }]}
@@ -133,7 +133,7 @@ const CreateDiseaseCategoryFoodRestriction = ({
                             { value: 3, label: 'Cấm (Forbidden)', color: '#d32f2f' },
                         ]}
                     />
-                </Form.Item>
+                </Form.Item> */}
 
                 <Form.Item
                     name="reason"

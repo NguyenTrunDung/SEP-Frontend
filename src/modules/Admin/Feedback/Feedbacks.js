@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { message } from 'antd';
 import { withPageWrapperV2 } from '../../../components/common/PageWrapperV2';
 import FeedbacksTable from './FeedbackTable';
 import ReplyFeedback from './ReplyFeedback';
-import { useFeedbacks, useDeleteFeedback, useUpdateFeedback } from '../../../hooks/queries/useFeedback';
+import { useFeedbacks, useDeleteFeedback } from '../../../hooks/queries/useFeedback';
 import { useAntModal } from '../../../hooks/useAntModal';
 import { environment } from '../../../services/api/config';
+import { feedbackService } from '../../../services/feedbackService';
 
 const FeedbacksPageContent = ({
   feedbacksData,
@@ -46,7 +46,6 @@ const Feedbacks = () => {
   const branchId = environment.multiTenant.getCurrentBranchId() || '1';
   const { feedbacks, isLoading: feedbacksLoading, refetch } = useFeedbacks();
   const deleteFeedbackMutation = useDeleteFeedback();
-  const updateFeedbackMutation = useUpdateFeedback();
   const { open: replyOpen, showModal: showReplyModal, handleCancel: handleReplyCancel } = useAntModal();
   const [selectedFeedback, setSelectedFeedback] = useState(null);
 
@@ -60,12 +59,12 @@ const Feedbacks = () => {
         console.log('🔍 Deleting feedback:', record.id);
       }
       await deleteFeedbackMutation.mutateAsync(record.id);
-      message.success('Xóa đánh giá thành công');
+      window.alert('Xóa đánh giá thành công');
     } catch (error) {
       if (environment.features?.enableLogging) {
         console.error('❌ Failed to delete feedback:', error);
       }
-      message.error(error.response?.data?.message || 'Xóa đánh giá thất bại');
+      window.alert(error.response?.data?.message || 'Xóa đánh giá thất bại');
     }
   };
 
@@ -82,16 +81,16 @@ const Feedbacks = () => {
       if (environment.features?.enableLogging) {
         console.log('🔍 Submitting reply:', formData);
       }
-      await updateFeedbackMutation.mutateAsync({ id: formData.id, feedbackData: formData, branchId });
+      await feedbackService.addReply(formData.id, { replyContent: formData.reply });
       handleReplyCancel();
-      setSelectedFeedback(null);
       refetch();
-      message.success('Phản hồi đã được lưu thành công!');
+      window.alert('Phản hồi đã được lưu thành công!');
     } catch (error) {
       if (environment.features?.enableLogging) {
-        console.error('❌ Failed to save reply:', error);
+        console.error('❌ Failed to save reply:', error.message);
       }
-      message.error(error.response?.data?.message || 'Gửi phản hồi thất bại');
+      window.alert(error.message || 'Gửi phản hồi thất bại');
+      handleReplyCancel();
     }
   };
 
@@ -100,10 +99,10 @@ const Feedbacks = () => {
       console.log('🔍 Refreshing feedbacks');
     }
     refetch();
-    message.success('Đã làm mới danh sách đánh giá');
+    window.alert('Đã làm mới danh sách đánh giá');
   };
 
-  const isLoading = feedbacksLoading || deleteFeedbackMutation.isPending || updateFeedbackMutation.isPending;
+  const isLoading = feedbacksLoading || deleteFeedbackMutation.isPending;
 
   return (
     <FeedbacksPageWithWrapper

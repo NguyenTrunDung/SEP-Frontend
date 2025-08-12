@@ -2,6 +2,19 @@
 import api, { environment } from './api/config';
 
 export const publicBranchService = {
+    // Simple listeners for branch change events (UI can subscribe to react immediately)
+    _listeners: new Set(),
+    onBranchChanged(handler) {
+        this._listeners.add(handler);
+        return () => this._listeners.delete(handler);
+    },
+    _emitBranchChanged(branchId) {
+        try {
+            this._listeners.forEach(fn => {
+                try { fn(branchId); } catch (_) { }
+            });
+        } catch (_) { }
+    },
     /**
      * Get all branches for public use (no authentication required)
      * GET /api/v1/branches (public endpoint)
@@ -82,11 +95,11 @@ export const publicBranchService = {
                 console.log('✅ API response:', response.data);
             }
 
+            // Notify listeners for immediate UI reactions
+            this._emitBranchChanged(branchId);
+
             // Return the response data
-            return response.data?.data || {
-                id: branchId,
-                success: true
-            };
+            return response.data?.data || { id: branchId, success: true };
         } catch (error) {
             if (environment.features.enableLogging) {
                 console.error('❌ Failed to set public current branch via API:', error.message);

@@ -31,6 +31,13 @@ export const CartProvider = ({ children }) => {
     if (callback) callback();
   };
 
+  // Function to clear cart (can be called from AuthContext)
+  const clearCart = () => {
+    console.log('🛒 Clearing cart');
+    setCartItems([]);
+    localStorage.removeItem('cartItems');
+  };
+
   return (
     <CartContext.Provider value={{ cartItems, setCartItems, editCartItem }}>
       {children}

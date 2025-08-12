@@ -1,12 +1,12 @@
 import React from 'react';
-import { Button, Space } from 'antd';
+import { Button } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import './Branch.css';
 
 const ViewBranchDetail = ({ open, onCancel, data }) => {
     return (
         <ReusableModal
-            title={<span style={{ fontSize: '30px' }}>Xem</span>}
+            title={<span style={{ fontSize: '30px' }}>Chi tiết chi nhánh</span>}
             open={open}
             onCancel={onCancel}
             footer={null}
@@ -31,17 +31,17 @@ const ViewBranchDetail = ({ open, onCancel, data }) => {
 
             <div className="detail-group">
                 <label className="floating-label">Tên chi nhánh</label>
-                <div className="detail-input">{data?.name || '-'}</div>
+                <div className="detail-input">{data?.Name || data?.name || '-'}</div>
             </div>
 
             <div className="detail-group">
                 <label className="floating-label">Số điện thoại</label>
-                <div className="detail-input">{data?.phoneNumber || '-'}</div>
+                <div className="detail-input">{data?.Phone || data?.phoneNumber || '-'}</div>
             </div>
 
             <div className="detail-group">
                 <label className="floating-label">Địa chỉ</label>
-                <div className="detail-textarea">{data?.address || '-'}</div>
+                <div className="detail-textarea">{data?.Address || data?.address || '-'}</div>
             </div>
         </ReusableModal>
     );

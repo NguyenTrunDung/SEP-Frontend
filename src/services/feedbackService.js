@@ -1,5 +1,7 @@
-import api, { environment } from './api/config';
-
+import api from './api/config';
+import { environment } from './api/config';
+import { orderService } from './orderService';
+import { getImageUrlWithFallback } from '../utils/imageUtils';
 export const feedbackService = {
   async createFeedback(feedbackData) {
     try {
@@ -17,15 +19,31 @@ export const feedbackService = {
 
       let customerName = response.data.data.userId;
       let avatar = null;
+      let images = [];
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
+        customerName = userResponse.data?.firstName && userResponse.data?.lastName
+          ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
           : response.data.data.userId;
         avatar = userResponse.data?.avatar || null;
       } catch (error) {
         if (environment.features?.enableLogging) {
           console.warn(`⚠️ Failed to fetch customerName for userId ${response.data.data.userId}:`, error.response?.data?.message || error.message);
+        }
+      }
+
+      try {
+        const orderResponse = await orderService.getOrderDetails(response.data.data.orderId);
+        if (environment.features?.enableLogging) {
+          console.log(`🔍 Order details for orderId ${response.data.data.orderId}:`, orderResponse.data);
+        }
+        images = orderResponse.data.map(item => ({
+          url: getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production'),
+          alt: item.foodName || 'Món ăn'
+        }));
+      } catch (error) {
+        if (environment.features?.enableLogging) {
+          console.warn(`⚠️ Failed to fetch order details for orderId ${response.data.data.orderId}:`, error.response?.data?.message || error.message);
         }
       }
 
@@ -40,6 +58,7 @@ export const feedbackService = {
         customerName,
         avatar,
         timestamp: response.data.data.createdAt || new Date().toISOString(),
+        images, // Thêm danh sách ảnh món ăn
       };
     } catch (error) {
       if (environment.features?.enableLogging) {
@@ -48,7 +67,6 @@ export const feedbackService = {
       throw new Error(error.response?.data?.message || 'Failed to create feedback');
     }
   },
-
   async getFeedbacks(branchId) {
     try {
       if (!branchId) throw new Error('Thiếu branchId khi gọi getFeedbacks');
@@ -80,8 +98,8 @@ export const feedbackService = {
           let avatar = null;
           try {
             const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
-            customerName = userResponse.data?.firstName && userResponse.data?.lastName 
-              ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
+            customerName = userResponse.data?.firstName && userResponse.data?.lastName
+              ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
               : feedback.userId;
             avatar = userResponse.data?.avatar || null;
             if (environment.features?.enableLogging) {
@@ -117,6 +135,102 @@ export const feedbackService = {
     }
   },
 
+  async getFeedbacksByFood(foodId, branchId) {
+    try {
+      if (!foodId || !branchId) throw new Error('Thiếu foodId hoặc branchId khi gọi getFeedbacksByFood');
+
+      if (environment.features?.enableLogging) {
+        console.log('🔍 feedbackService.getFeedbacksByFood for foodId:', foodId, 'branchId:', branchId);
+      }
+
+      const config = { params: { branchId } };
+      const response = await api.get('/api/v1/Comment/AllByBranch', config);
+
+      if (environment.features?.enableLogging) {
+        console.log('✅ API /api/v1/Comment/AllByBranch response:', response.data);
+      }
+
+      if (response.data.status !== 'success') {
+        console.warn('⚠️ Response status not success:', response.data.message);
+        return [];
+      }
+
+      if (!Array.isArray(response.data.data)) {
+        console.warn('⚠️ Invalid data format. Expected an array:', response.data.data);
+        return [];
+      }
+
+      const normalizedData = await Promise.all(
+        response.data.data.map(async (feedback) => {
+          // Kiểm tra xem orderId của feedback có chứa foodId không
+          let isRelevant = false;
+          let images = [];
+          try {
+            const orderResponse = await orderService.getOrderDetails(feedback.orderId);
+            if (environment.features?.enableLogging) {
+              console.log(`🔍 Order details for orderId ${feedback.orderId}:`, orderResponse.data);
+            }
+            const orderItems = orderResponse.data;
+            isRelevant = orderItems.some(item => item.foodId === foodId);
+            // Lấy danh sách ảnh từ orderDetails cho món ăn có foodId
+            images = orderItems
+              .filter(item => item.foodId === foodId)
+              .map(item => ({
+                url: getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production'),
+                alt: item.foodName || 'Món ăn'
+              }));
+          } catch (error) {
+            if (environment.features?.enableLogging) {
+              console.warn(`⚠️ Failed to fetch order details for orderId ${feedback.orderId}:`, error.response?.data?.message || error.message);
+            }
+            return null; // Bỏ qua feedback nếu không lấy được chi tiết đơn hàng
+          }
+
+          if (!isRelevant) return null;
+
+          let customerName = feedback.userId;
+          let avatar = null;
+          try {
+            const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
+            customerName = userResponse.data?.firstName && userResponse.data?.lastName
+              ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
+              : feedback.userId;
+            avatar = userResponse.data?.avatar || null;
+            if (environment.features?.enableLogging) {
+              console.log(`🔍 Fetched customerName for userId ${feedback.userId}:`, customerName);
+            }
+          } catch (error) {
+            if (environment.features?.enableLogging) {
+              console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error.response?.data?.message || error.message);
+            }
+          }
+
+          return {
+            id: feedback.id,
+            orderId: feedback.orderId,
+            userId: feedback.userId,
+            branchId: feedback.branchId,
+            rating: feedback.star,
+            content: feedback.commentLines,
+            reply: feedback.reply || null,
+            customerName,
+            avatar,
+            timestamp: feedback.createdAt || new Date().toISOString(),
+            images, // Thêm danh sách ảnh món ăn
+          };
+        })
+      );
+
+      // Lọc bỏ các giá trị null (feedback không liên quan)
+      return normalizedData.filter(feedback => feedback !== null);
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to fetch feedbacks by food:', error.response?.data?.message || error.message);
+      }
+      throw new Error(error.response?.data?.message || 'Failed to fetch feedbacks by food');
+    }
+  },
+
   async getFeedback(id) {
     try {
       if (environment.features?.enableLogging) {
@@ -132,15 +246,31 @@ export const feedbackService = {
 
       let customerName = response.data.data.userId;
       let avatar = null;
+      let images = [];
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
+        customerName = userResponse.data?.firstName && userResponse.data?.lastName
+          ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
           : response.data.data.userId;
         avatar = userResponse.data?.avatar || null;
       } catch (error) {
         if (environment.features?.enableLogging) {
           console.warn(`⚠️ Failed to fetch customerName for userId ${response.data.data.userId}:`, error.response?.data?.message || error.message);
+        }
+      }
+
+      try {
+        const orderResponse = await orderService.getOrderDetails(response.data.data.orderId);
+        if (environment.features?.enableLogging) {
+          console.log(`🔍 Order details for orderId ${response.data.data.orderId}:`, orderResponse.data);
+        }
+        images = orderResponse.data.map(item => ({
+          url: getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production'),
+          alt: item.foodName || 'Món ăn'
+        }));
+      } catch (error) {
+        if (environment.features?.enableLogging) {
+          console.warn(`⚠️ Failed to fetch order details for orderId ${response.data.data.orderId}:`, error.response?.data?.message || error.message);
         }
       }
 
@@ -155,6 +285,7 @@ export const feedbackService = {
         customerName,
         avatar,
         timestamp: response.data.data.createdAt || new Date().toISOString(),
+        images, // Thêm danh sách ảnh món ăn
       };
     } catch (error) {
       if (environment.features?.enableLogging) {
@@ -185,13 +316,11 @@ export const feedbackService = {
         throw new Error('Nhận xét không được để trống');
       }
 
-      // Fetch existing feedback to get OrderId, BranchId, and UserId
       const existingFeedback = await this.getFeedback(id);
       if (!existingFeedback) {
         throw new Error(`Feedback with ID ${id} not found`);
       }
 
-      // Construct payload without Id to avoid modifying the primary key
       const payload = {
         Star: feedbackData.Star,
         CommentLines: feedbackData.CommentLines,
@@ -216,15 +345,31 @@ export const feedbackService = {
 
       let customerName = response.data.data.userId;
       let avatar = null;
+      let images = [];
       try {
         const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
+        customerName = userResponse.data?.firstName && userResponse.data?.lastName
+          ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
           : response.data.data.userId;
         avatar = userResponse.data?.avatar || null;
       } catch (error) {
         if (environment.features?.enableLogging) {
           console.warn(`⚠️ Failed to fetch customerName for userId ${response.data.data.userId}:`, error.response?.data?.message || error.message);
+        }
+      }
+
+      try {
+        const orderResponse = await orderService.getOrderDetails(response.data.data.orderId);
+        if (environment.features?.enableLogging) {
+          console.log(`🔍 Order details for orderId ${response.data.data.orderId}:`, orderResponse.data);
+        }
+        images = orderResponse.data.map(item => ({
+          url: getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production'),
+          alt: item.foodName || 'Món ăn'
+        }));
+      } catch (error) {
+        if (environment.features?.enableLogging) {
+          console.warn(`⚠️ Failed to fetch order details for orderId ${response.data.data.orderId}:`, error.response?.data?.message || error.message);
         }
       }
 
@@ -239,6 +384,7 @@ export const feedbackService = {
         customerName,
         avatar,
         timestamp: response.data.data.createdAt || new Date().toISOString(),
+        images, // Thêm danh sách ảnh món ăn
       };
     } catch (error) {
       if (environment.features?.enableLogging) {
@@ -268,63 +414,10 @@ export const feedbackService = {
     }
   },
 
-  async replyFeedback(id, replyData) {
-    try {
-      if (environment.features?.enableLogging) {
-        console.log('🔍 feedbackService.replyFeedback - ID:', id, 'data:', replyData);
-      }
-
-      // Fetch existing feedback to get OrderId, BranchId, and UserId
-      const existingFeedback = await this.getFeedback(id);
-      if (!existingFeedback) {
-        throw new Error(`Feedback with ID ${id} not found`);
-      }
-
-      const payload = {
-        Star: existingFeedback.rating,
-        CommentLines: existingFeedback.content,
-        Reply: replyData.reply || null,
-        OrderId: existingFeedback.orderId,
-        BranchId: existingFeedback.branchId,
-        UserId: existingFeedback.userId,
-      };
-
-      const response = await api.put(`/api/v1/Comment/${id}`, payload, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      let customerName = response.data.data.userId;
-      let avatar = null;
-      try {
-        const userResponse = await api.get(`/api/v1/BranchUserManagement/${response.data.data.userId}/branch/${response.data.data.branchId}`);
-        customerName = userResponse.data?.firstName && userResponse.data?.lastName 
-          ? `${userResponse.data.firstName} ${userResponse.data.lastName}` 
-          : response.data.data.userId;
-        avatar = userResponse.data?.avatar || null;
-      } catch (error) {
-        if (environment.features?.enableLogging) {
-          console.warn(`⚠️ Failed to fetch customerName for userId ${response.data.data.userId}:`, error.response?.data?.message || error.message);
-        }
-      }
-
-      return {
-        id: response.data.data.id,
-        orderId: response.data.data.orderId,
-        userId: replyData.userId || response.data.data.userId,
-        branchId: response.data.data.branchId,
-        rating: response.data.data.star,
-        content: response.data.data.commentLines,
-        reply: response.data.data.reply || null,
-        customerName,
-        avatar,
-        timestamp: response.data.data.createdAt || new Date().toISOString(),
-      };
-    } catch (error) {
-      if (environment.features?.enableLogging) {
-        console.error('❌ Failed to save reply:', error.response?.data?.message || error.message);
-      }
-      throw new Error(error.response?.data?.message || 'Failed to save reply');
+  async addReply(feedbackId, replyData) {
+    if (environment.features?.enableLogging) {
+      console.log('🔍 feedbackService.addReply - Feedback ID:', feedbackId, 'Reply data:', replyData);
     }
-  },
-  
+    throw new Error('Tính năng này đang phát triển!');
+  }
 };

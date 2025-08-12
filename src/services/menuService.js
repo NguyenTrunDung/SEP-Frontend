@@ -129,13 +129,13 @@ export const menuService = {
     },
 
     /**
-     * Get public menu by date (for customer-facing displays)
-     * Uses the GET /api/v1/public/menus/menu-by-date endpoint
-     * @param {Object} filters - Filter parameters
-     * @param {string} filters.date - Date to filter by (ISO string format)
-     * @param {string|number} filters.branchId - Branch ID (optional, uses current branch if not provided)
-     * @returns {Promise<Object>} Public menu data with foods and categories
-     */
+ * Get public menu by date (for customer-facing displays)
+ * Uses the GET /api/v1/public/menus/menu-by-date endpoint
+ * @param {Object} filters - Filter parameters
+ * @param {string} filters.date - Date to filter by (ISO string format)
+ * @param {string|number} filters.branchId - Branch ID (optional, uses current branch if not provided)
+ * @returns {Promise<Object>} Public menu data with foods, categories, and menuId
+ */
     async getPublicMenuByDate(filters = {}) {
         try {
             if (environment.features.enableLogging) {
@@ -145,39 +145,53 @@ export const menuService = {
             // Get current branch ID if not provided in filters
             const currentBranchId = filters.branchId || environment.multiTenant.getCurrentBranchId();
 
+            if (!currentBranchId) {
+                throw new Error('Branch ID is required for fetching public menu');
+            }
+
             const queryParams = {
                 ...(filters.date && { date: filters.date }),
-                ...(currentBranchId && { branchId: currentBranchId })
+                branchId: currentBranchId,
             };
 
             const response = await api.get(environment.api.endpoints.publicMenus.menuByDate, {
-                params: queryParams
+                params: queryParams,
             });
 
             if (environment.features.enableLogging) {
-                console.log('✅ Fetched public menu by date:', response.data);
+                console.log('✅ Fetched public menu by date:', {
+                    menuId: response.data?.data?.menuId || 'N/A',
+                    foods: response.data?.data?.foods?.length || 0,
+                    categories: response.data?.data?.categories?.length || 0,
+                    date: filters.date,
+                    branchId: currentBranchId,
+                });
             }
 
             // Extract data from API response structure
             const menuData = response.data?.data || response.data || null;
 
             return {
+                menuId: menuData?.menuId || null, // Include menuId
                 foods: menuData?.foods || [],
                 categories: menuData?.categories || [],
                 foodsTotalCount: menuData?.foodsTotalCount || 0,
                 categoriesTotalCount: menuData?.categoriesTotalCount || 0,
                 date: filters.date,
                 branchId: currentBranchId,
-                isUsingMockData: false
+                isUsingMockData: false,
             };
         } catch (error) {
             if (environment.features.enableLogging) {
-                console.error('❌ Failed to fetch public menu by date:', error.response?.data?.message || error.message);
+                console.error('❌ Failed to fetch public menu by date:', {
+                    message: error.response?.data?.message || error.message,
+                    status: error.response?.status,
+                    data: error.response?.data,
+                });
             }
             throw error;
         }
     },
-
     /**
      * Validate menu data before submission
      * @param {Object} menuData - Menu data to validate

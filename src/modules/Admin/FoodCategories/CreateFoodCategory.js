@@ -6,6 +6,7 @@ import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { validateImageFile, createImagePreview, cleanupImagePreview } from '../../../utils/imageUtils';
 import PropTypes from 'prop-types';
+import './AddFoodCategory.css';
 
 const { Text } = Typography;
 const { Dragger } = Upload;
@@ -14,6 +15,7 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
   const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm();
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [focus, setFocus] = useState('');
 
   useEffect(() => {
     if (!open) {
@@ -25,24 +27,21 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
       }
     }
 
-    // Cleanup function for when component unmounts or dependencies change
     return () => {
       if (previewUrl) {
         cleanupImagePreview(previewUrl);
       }
     };
-  }, [open]); // Removed previewUrl from dependencies to prevent cleanup loops
+  }, [open]);
 
-  // Cleanup effect when component unmounts
   useEffect(() => {
     return () => {
-      // Clean up any remaining preview URLs when component unmounts
       if (previewUrl && previewUrl.startsWith('blob:')) {
-        console.log('🧹 CreateFoodCategory - Component unmounting - cleaning up preview URL:', previewUrl);
+        console.log('🧹 AddFoodCategory - Component unmounting - cleaning up preview URL:', previewUrl);
         cleanupImagePreview(previewUrl);
       }
     };
-  }, [previewUrl]); // This effect only cares about previewUrl changes
+  }, [previewUrl]);
 
   const handleFormSubmit = async (values) => {
     const result = await handleSubmit(async (formData) => {
@@ -75,50 +74,76 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
       return false;
     }
 
-    console.log('📁 CreateFoodCategory - New image file selected:', file.name);
+    console.log('📁 AddFoodCategory - New image file selected:', file.name);
 
-    // Clean up existing preview BEFORE creating new one
     if (previewUrl) {
-      console.log('🧹 CreateFoodCategory - Cleaning up existing preview URL:', previewUrl);
+      console.log('🧹 AddFoodCategory - Cleaning up existing preview URL:', previewUrl);
       cleanupImagePreview(previewUrl);
     }
 
-    // Set the new file
     setImageFile(file);
-
-    // Create new preview URL
     const preview = createImagePreview(file);
-    console.log('🖼️ CreateFoodCategory - Created new preview URL:', preview);
+    console.log('🖼️ AddFoodCategory - Created new preview URL:', preview);
     setPreviewUrl(preview);
 
     message.success('Hình ảnh đã được chọn để tải lên server!');
-    return false; // Prevent auto upload
+    return false;
   };
 
   const handleRemoveImage = () => {
-    console.log('🗑️ CreateFoodCategory - Removing image');
+    console.log('🗑️ AddFoodCategory - Removing image');
 
-    // Clean up preview URL if it exists
     if (previewUrl) {
-      console.log('🧹 CreateFoodCategory - Cleaning up preview URL on removal:', previewUrl);
+      console.log('🧹 AddFoodCategory - Cleaning up preview URL on removal:', previewUrl);
       cleanupImagePreview(previewUrl);
       setPreviewUrl('');
     }
 
-    // Reset state
     setImageFile(null);
     message.info('Hình ảnh đã được xóa!');
   };
 
   return (
     <ReusableModal
-      title="Thêm Danh Mục Mới"
+      title={<span style={{ fontSize: '30px', color: '#000' }}>Thêm</span>}
       open={open}
       onCancel={handleCancel}
       footer={null}
-      width={700}
       destroyOnClose
+      closable={false}
+      width={700}
     >
+      <div style={{ position: 'absolute', top: 16, right: 24, zIndex: 1 }}>
+        <Space>
+          <Button
+            type="primary"
+            onClick={() => form.submit()}
+            style={{
+              backgroundColor: '#52c41a',
+              border: 'none',
+              minWidth: 64,
+              height: 32,
+              fontSize: 14,
+            }}
+          >
+            Lưu
+          </Button>
+          <Button
+            onClick={handleCancel}
+            style={{
+              backgroundColor: '#ff4d4f',
+              color: '#fff',
+              border: 'none',
+              minWidth: 64,
+              height: 32,
+              fontSize: 14,
+            }}
+          >
+            X
+          </Button>
+        </Space>
+      </div>
+
       <ReusableForm
         form={form}
         onFinish={handleFormSubmit}
@@ -127,15 +152,29 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
       >
         <Form.Item
           name="name"
-          label="Tên danh mục"
           rules={[{ required: true, message: 'Vui lòng nhập tên danh mục!' }]}
+          style={{ marginBottom: 0 }}
         >
-          <Input placeholder="Nhập tên danh mục" />
+          <div className="category-floating-input-wrapper">
+            <Input
+              className="category-custom-input"
+              onFocus={() => setFocus('name')}
+              onBlur={(e) => {
+                if (!e.target.value) setFocus('');
+              }}
+              value={form.getFieldValue('name')}
+              onChange={(e) => form.setFieldValue('name', e.target.value)}
+            />
+            <label
+              className={`category-floating-label ${focus === 'name' || form.getFieldValue('name') ? 'focused' : ''}`}
+            >
+              Tên danh mục
+            </label>
+          </div>
         </Form.Item>
 
         <Form.Item label="Hình ảnh danh mục">
           <Space direction="vertical" style={{ width: '100%' }}>
-            {/* Image Upload Area */}
             <Dragger
               name="image"
               multiple={false}
@@ -144,7 +183,7 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
               accept=".png,.jpg,.jpeg"
               style={{
                 background: imageFile ? '#f6ffed' : '#fafafa',
-                border: imageFile ? '2px dashed #52c41a' : '1px dashed #d9d9d9'
+                border: imageFile ? '2px dashed #52c41a' : '1px dashed #d9d9d9',
               }}
             >
               <p className="ant-upload-drag-icon">
@@ -158,7 +197,6 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
               </p>
             </Dragger>
 
-            {/* Image Preview */}
             {previewUrl && (
               <div style={{ textAlign: 'center', marginTop: 16 }}>
                 <img
@@ -169,7 +207,7 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
                     maxHeight: '200px',
                     objectFit: 'cover',
                     borderRadius: '8px',
-                    border: '1px solid #d9d9d9'
+                    border: '1px solid #d9d9d9',
                   }}
                 />
                 <div style={{ marginTop: 8 }}>
@@ -191,7 +229,6 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
               </div>
             )}
 
-            {/* Upload Button (Alternative) */}
             {!imageFile && (
               <Upload
                 name="image"
@@ -204,22 +241,6 @@ const AddFoodCategory = ({ open, onCancel, onSubmit }) => {
                 </Button>
               </Upload>
             )}
-          </Space>
-        </Form.Item>
-
-        <Form.Item style={{ marginTop: 24, textAlign: 'right' }}>
-          <Space>
-            <Button onClick={handleCancel}>
-              Hủy
-            </Button>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={formLoading}
-              disabled={formLoading}
-            >
-              Tạo danh mục
-            </Button>
           </Space>
         </Form.Item>
       </ReusableForm>

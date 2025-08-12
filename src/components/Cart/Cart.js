@@ -151,7 +151,18 @@ const CartModal = ({
                   key="menu"
                   onClick={() => {
                     setIsCartModalVisible(false);
-                    navigate('/menu');
+                    navigate('/#menu');
+                    setTimeout(() => {
+                      const section = document.getElementById('menu');
+                      if (section) {
+                        const headerHeight = 139;
+                        const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
+                        window.scrollTo({
+                          top: sectionPosition - headerHeight,
+                          behavior: 'smooth',
+                        });
+                      }
+                    }, 100);
                   }}
                   style={{
                     backgroundColor: '#b4c80f',

@@ -1,4 +1,9 @@
 import { useAuth } from '../context/AuthContext';
+import {
+    canAccessRoute,
+    getRoutePermissions,
+    MENU_PERMISSIONS
+} from '../constants/permissions';
 
 /**
  * Custom hook for permission management
@@ -9,8 +14,7 @@ export const usePermissions = () => {
         permissions,
         hasPermission,
         hasAnyPermission,
-        isSystemAdmin,
-        user
+        isSystemAdmin
     } = useAuth();
 
     /**
@@ -70,6 +74,51 @@ export const usePermissions = () => {
             edit: checkPermission(`${module}:edit`),
             delete: checkPermission(`${module}:delete`),
         };
+    };
+
+    /**
+     * Check if user can access a specific route/page
+     * @param {string} pathname - Route path to check
+     * @returns {boolean} - True if user can access the route
+     */
+    const canAccessPage = (pathname) => {
+        // System admins can access all pages
+        if (isSystemAdmin) return true;
+        return canAccessRoute(permissions, pathname);
+    };
+
+    /**
+     * Check if a menu item should be visible
+     * @param {string} menuKey - Menu item key
+     * @returns {boolean} - True if menu item should be shown
+     */
+    const canShowMenuItem = (menuKey) => {
+        // System admins can see all menu items
+        if (isSystemAdmin) return true;
+        const requiredPermissions = MENU_PERMISSIONS[menuKey];
+        if (!requiredPermissions || requiredPermissions.length === 0) return true;
+        return checkAnyPermission(requiredPermissions);
+    };
+
+    /**
+     * Get required permissions for a specific route
+     * @param {string} pathname - Route path
+     * @returns {string[]} - Array of required permissions
+     */
+    const getPagePermissions = (pathname) => {
+        return getRoutePermissions(pathname);
+    };
+
+    /**
+     * Helper function for component-level permission checks
+     * @param {string} action - Action to perform (view, add, edit, delete)
+     * @param {string} resource - Resource name (foods, orders, users, etc.)
+     * @returns {boolean} - True if user can perform action
+     */
+    const canPerformAction = (action, resource) => {
+        if (isSystemAdmin) return true;
+        const permission = `${resource}:${action}`;
+        return checkPermission(permission);
     };
 
     /**
@@ -180,6 +229,12 @@ export const usePermissions = () => {
         hasPermission: checkPermission,
         hasAnyPermission: checkAnyPermission,
         hasAllPermissions: checkAllPermissions,
+
+        // Route and UI access control
+        canAccessPage,
+        canShowMenuItem,
+        getPagePermissions,
+        canPerformAction,
 
         // Module-specific helpers
         getModulePermissions,

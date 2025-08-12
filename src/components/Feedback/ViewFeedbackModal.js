@@ -6,7 +6,7 @@ import { EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
 const { Text } = Typography;
 
 const ViewFeedbackModal = ({ visible, onClose, feedbacks, selectedOrder, onDelete, onEdit }) => {
-  const hasItems = selectedOrder && Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0;
+  const hasItems = selectedOrder && Array.isArray(selectedOrder.orderDetails) && selectedOrder.orderDetails.length > 0;
 
   return (
     <Modal
@@ -38,14 +38,14 @@ const ViewFeedbackModal = ({ visible, onClose, feedbacks, selectedOrder, onDelet
         <div style={{ padding: '16px', background: '#fff' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: 16 }}>
             {hasItems ? (
-              selectedOrder.items.map((item, index) => (
+              selectedOrder.orderDetails.map((item, index) => (
                 <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <img
-                    src={getImageUrlWithFallback(item.imageUrl || item.image, '/images/placeholder-food.png')}
-                    alt={item.name || item.foodName || 'Món ăn'}
+                    src={getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production')}
+                    alt={item.foodName || 'Món ăn'}
                     style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px' }}
                   />
-                  <Text style={{ fontWeight: 500 }}>{item.name || item.foodName || 'Không xác định'}</Text>
+                  <Text style={{ fontWeight: 500 }}>{item.foodName || 'Không xác định'}</Text>
                 </div>
               ))
             ) : (

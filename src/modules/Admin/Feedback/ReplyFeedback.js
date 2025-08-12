@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Space, message } from 'antd';
+import { Form, Input, Button, Space } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
@@ -42,24 +42,17 @@ const ReplyFeedback = ({ open, onCancel, onSubmit, formData, branchId }) => {
         }
         const updatedFeedback = {
           id: formData.id,
-          userId: formData.userId,
-          orderId: formData.orderId,
-          branchId: branchId,
-          rating: formData.rating,
-          content: formData.content,
-          reply: formData.reply.trim(),
-          customerName: formData.customerName,
+          replyContent: formData.reply.trim(),
         };
         if (onSubmit) {
           await onSubmit(updatedFeedback);
-          message.success('Phản hồi đã được lưu thành công!');
         }
       });
     } catch (error) {
       if (environment.features?.enableLogging) {
-        console.error('❌ Failed to submit reply:', error.response?.data?.message || error.message);
+        console.error('❌ Failed to submit reply:', error.message);
       }
-      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu phản hồi!');
+      window.alert(error.message || 'Có lỗi xảy ra khi lưu phản hồi!');
     } finally {
       setIsLoading(false);
     }

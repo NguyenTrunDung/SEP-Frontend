@@ -1,15 +1,16 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Button, Input, Tooltip, Popconfirm, Modal, Descriptions, Spin, message, Select } from 'antd';
-import { EditOutlined, DeleteOutlined, SearchOutlined, EyeOutlined, FilterOutlined } from '@ant-design/icons';
-
+import { EditOutlined, DeleteOutlined, SearchOutlined, EyeOutlined, FilterOutlined, FileExcelOutlined } from '@ant-design/icons';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import { FoodImage } from '../../../components/common/ImageDisplay';
 import PropTypes from 'prop-types';
 import { foodService } from '../../../services/foodService';
+import * as XLSX from 'xlsx';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 const FoodsTable = ({
   dataSource = [],
-  loading, // Remove default - let parent explicitly control loading state
+  loading,
   onEdit,
   onDelete,
   className,
@@ -30,17 +31,14 @@ const FoodsTable = ({
 
   // Debounce search text to avoid excessive message notifications
   useEffect(() => {
-    // Clear the previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // Set a new timeout
     searchTimeoutRef.current = setTimeout(() => {
       setDebouncedSearchText(searchText);
-    }, 1000); // 1000ms delay
+    }, 1000);
 
-    // Cleanup timeout on unmount
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -52,7 +50,7 @@ const FoodsTable = ({
   const categoryOptions = useMemo(() => {
     const uniqueCategories = dataSource
       .map(item => item.category)
-      .filter(category => category && category.id) // Filter out null/undefined categories
+      .filter(category => category && category.id)
       .reduce((acc, category) => {
         if (!acc.find(c => c.id === category.id)) {
           acc.push(category);
@@ -73,14 +71,12 @@ const FoodsTable = ({
   const filteredData = useMemo(() => {
     let filtered = dataSource;
 
-    // Filter by search text
     if (searchText) {
       filtered = filtered.filter(item =>
         item.name?.toLowerCase().includes(searchText.toLowerCase())
       );
     }
 
-    // Filter by category
     if (selectedCategory !== null) {
       filtered = filtered.filter(item => item.category?.id === selectedCategory);
     }
@@ -88,7 +84,6 @@ const FoodsTable = ({
     return filtered;
   }, [dataSource, searchText, selectedCategory]);
 
-  // Handle debounced search notifications
   useEffect(() => {
     if (debouncedSearchText && debouncedSearchText.trim()) {
       const searchResults = dataSource.filter(item => {
@@ -142,7 +137,6 @@ const FoodsTable = ({
     const value = e.target.value;
     setSearchText(value);
 
-    // Show immediate feedback for clearing search
     if (!value && searchText) {
       message.success('Đã xóa bộ lọc tìm kiếm');
     }
@@ -163,6 +157,44 @@ const FoodsTable = ({
     setDebouncedSearchText('');
     setSelectedCategory(null);
     message.success('Đã xóa tất cả bộ lọc');
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const exportData = filteredData.map(food => ({
+        'Tên món ăn': food.name || '-',
+        'Danh mục': food.category?.name || 'Chưa chọn danh mục',
+        'Giá cho khách': food.priceForGuest ? `${food.priceForGuest.toLocaleString('vi-VN')} VNĐ` : '0 VNĐ',
+        'Giá cho bệnh nhân': food.priceForPatient ? `${food.priceForPatient.toLocaleString('vi-VN')} VNĐ` : '0 VNĐ',
+        'Giá cho nhân viên': food.priceForStaff ? `${food.priceForStaff.toLocaleString('vi-VN')} VNĐ` : '0 VNĐ',
+        'Mô tả': food.description || 'Không có',
+        'Là món kèm': food.isAddOn ? 'Có' : 'Không',
+        'Là món chính': food.isSetDish ? 'Có' : 'Không',
+        'Thứ tự sắp xếp': food.sort || '0',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      ws['!cols'] = [
+        { wch: 25 }, // Tên món ăn
+        { wch: 20 }, // Danh mục
+        { wch: 15 }, // Giá cho khách
+        { wch: 15 }, // Giá cho bệnh nhân
+        { wch: 15 }, // Giá cho nhân viên
+        { wch: 30 }, // Mô tả
+        { wch: 10 }, // Là món kèm
+        { wch: 10 }, // Là món chính
+        { wch: 15 }, // Thứ tự sắp xếp
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Foods');
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      const fileName = `Foods_${timestamp}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      message.success('Xuất file Excel thành công!');
+    } catch (err) {
+      console.error('Error exporting Excel:', err);
+      message.error('Không thể xuất file Excel. Vui lòng thử lại.');
+    }
   };
 
   const columns = [
@@ -219,8 +251,6 @@ const FoodsTable = ({
               type="text"
               icon={<EyeOutlined />}
               onClick={() => handleViewDetails(record)}
-            //className="action-btn view-btn"
-            //size="small"
             />
           </Tooltip>
           <Tooltip title="Chỉnh sửa">
@@ -228,8 +258,6 @@ const FoodsTable = ({
               type="text"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
-            // className="action-btn edit-btn"
-            // size="small"
             />
           </Tooltip>
           <Tooltip title="Xóa">
@@ -244,8 +272,6 @@ const FoodsTable = ({
               <Button
                 type="text"
                 icon={<DeleteOutlined />}
-                // className="action-btn delete-btn"
-                // size="small"
                 danger
               />
             </Popconfirm>
@@ -265,7 +291,6 @@ const FoodsTable = ({
           flexWrap: 'wrap',
           marginBottom: '8px'
         }}>
-          {/* Search Input */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <SearchOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
             <Input
@@ -281,8 +306,6 @@ const FoodsTable = ({
               }
             />
           </div>
-
-          {/* Category Filter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FilterOutlined style={{ fontSize: '16px', color: '#52c41a' }} />
             <Select
@@ -295,19 +318,25 @@ const FoodsTable = ({
             />
           </div>
 
-          {/* Clear All Filters Button */}
+          <Tooltip title="Xuất danh sách ra Excel">
+            <Button
+              icon={<FileExcelOutlined />}
+              onClick={handleExportExcel}
+              style={{ marginLeft: 'auto', color: 'green' }}
+            >
+              Xuất File
+            </Button>
+          </Tooltip>
           {(searchText || selectedCategory !== null) && (
             <Button
               size="small"
               onClick={clearAllFilters}
-              style={{ marginLeft: 'auto' }}
+              style={{ marginLeft: '8px' }}
             >
               Xóa tất cả bộ lọc
             </Button>
           )}
         </div>
-
-
       </div>
       <ReusableTableV2
         {...rest}
@@ -322,6 +351,12 @@ const FoodsTable = ({
           showSizeChanger: true,
         }}
         className="reusable-table-v2"
+        // Permission controls for table actions
+        resourceName="foods"
+        editPermission={PERMISSIONS.FOODS_EDIT}
+        deletePermission={PERMISSIONS.FOODS_DELETE}
+        hideActionsOnNoPermission={true}
+        showPermissionTooltips={true}
       />
       <Modal
         title="Chi tiết món ăn"
@@ -342,10 +377,11 @@ const FoodsTable = ({
         ) : selectedFood ? (
           <div className="food-detail-content">
             {selectedFood.imageUrl && (
-              <img
+              <FoodImage
                 src={selectedFood.imageUrl}
                 alt={selectedFood.name}
-                className="food-image"
+                size="small"
+                preview={true}
               />
             )}
             <Descriptions column={1} bordered>
@@ -414,7 +450,7 @@ FoodsTable.propTypes = {
       sort: PropTypes.number,
     })
   ),
-  loading: PropTypes.bool, // Optional - defaults to false if undefined
+  loading: PropTypes.bool,
   onEdit: PropTypes.func,
   onDelete: PropTypes.func,
   className: PropTypes.string,

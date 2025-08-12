@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { ROLE_HIERARCHY, ROLE_TO_PERMISSION_MAP, isAdminRoute, canAccessAdminRoutes } from '../constants/roles';
+import { getRoutePermissions } from '../constants/permissions';
 import { Spin } from 'antd';
 import environment from '../config/environment';
 
@@ -59,7 +60,7 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermissions, redirectP
 
     // Handle function as children for dynamic rendering (like redirects)
     if (typeof children === 'function') {
-        return children({ user, token, loading, permissions, hasPermission });
+        return children({ user, token, loading, permissions, hasPermission, loginType });
     }
 
     // Check if user is authenticated
@@ -107,14 +108,22 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermissions, redirectP
         return <Navigate to={redirectPath || "/unauthorized"} replace />;
     }
 
+    // **NEW: Auto-detect permissions based on route if not explicitly provided**
+    let routeRequiredPermissions = requiredPermissions;
+    if (!routeRequiredPermissions || routeRequiredPermissions.length === 0) {
+        routeRequiredPermissions = getRoutePermissions(location.pathname);
+    }
+
     // If specific permissions are required, check them first (new system)
-    if (requiredPermissions && requiredPermissions.length > 0) {
-        const hasRequiredPermission = hasAnyPermission(requiredPermissions);
+    if (routeRequiredPermissions && routeRequiredPermissions.length > 0) {
+        const hasRequiredPermission = hasAnyPermission(routeRequiredPermissions);
 
         console.log('🔐 Permission-based check:', {
-            requiredPermissions,
+            pathname: location.pathname,
+            requiredPermissions: routeRequiredPermissions,
             userPermissions: permissions,
-            hasRequiredPermission
+            hasRequiredPermission,
+            isSystemAdmin
         });
 
         if (!hasRequiredPermission) {
@@ -207,20 +216,20 @@ ProtectedRoute.propTypes = {
 };
 
 // Component to redirect authenticated users away from login/register pages
-export const AuthRedirect = ({ children, roleHomeRedirects }) => {
-    const { user, token, loading, loginType } = useAuth();
+export const AuthRedirect = ({ children, roleHomeRedirects, getSmartRedirectPath }) => {
+    const { user, token, loading, loginType, permissions } = useAuth();
     const location = useLocation();
 
-    // if (environment.features.enableLogging) {
-    //     console.log('🔄 AuthRedirect Check:', {
-    //         user: user?.email,
-    //         userRole: user?.role,
-    //         token: token ? 'Token exists' : 'No token',
-    //         loading,
-    //         currentPath: location.pathname,
-    //         loginType
-    //     });
-    // }
+    // Debug logging (enable only when needed for troubleshooting)
+    // console.log('🔄 AuthRedirect Check:', {
+    //     user: user?.email,
+    //     userRole: user?.role,
+    //     token: token ? 'Token exists' : 'No token',
+    //     loading,
+    //     currentPath: location.pathname,
+    //     loginType,
+    //     isAuthenticated: !!(token && user?.role)
+    // });
 
     // Show loading state if auth is still being determined
     if (loading) {
@@ -233,7 +242,14 @@ export const AuthRedirect = ({ children, roleHomeRedirects }) => {
 
     // If user is authenticated, redirect to their role-specific home
     if (token && user?.role) {
-        let redirectPath = roleHomeRedirects[user.role] || '/dashboard';
+        let redirectPath;
+
+        // Use smart routing if available, otherwise fall back to legacy
+        if (getSmartRedirectPath && permissions) {
+            redirectPath = getSmartRedirectPath(user.role, permissions);
+        } else {
+            redirectPath = roleHomeRedirects[user.role] || '/dashboard';
+        }
 
         // Nếu user đăng nhập qua public login và là NURSE, redirect về /nurse/home
         if (loginType === 'public' && user.role === 'NURSE') {
@@ -262,6 +278,7 @@ export const AuthRedirect = ({ children, roleHomeRedirects }) => {
 AuthRedirect.propTypes = {
     children: PropTypes.node.isRequired,
     roleHomeRedirects: PropTypes.object.isRequired,
+    getSmartRedirectPath: PropTypes.func,
 };
 
 export default ProtectedRoute;

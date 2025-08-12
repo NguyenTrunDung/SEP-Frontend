@@ -1,28 +1,14 @@
 import React, { useState, useMemo } from 'react';
+import { Collapse, Button, Tooltip, Popconfirm } from 'antd';
 import {
-  Input,
-  Button,
-  Tooltip,
-  Popconfirm,
-  message,
-  Collapse,
-  Select,
-} from 'antd';
-import {
-  SearchOutlined,
   EditOutlined,
   DeleteOutlined,
-  PlusOutlined,
-  ReloadOutlined,
   CaretRightOutlined,
 } from '@ant-design/icons';
-import CreateLocation from './CreateLocation';
-import EditLocation from './EditLocation';
-import { useAntModal } from '../../../hooks/useAntModal';
+import PropTypes from 'prop-types';
 import './Location.css';
 
 const { Panel } = Collapse;
-const { Option } = Select;
 
 const LocationsTable = ({
   dataSource,
@@ -30,51 +16,23 @@ const LocationsTable = ({
   onEdit,
   onDelete,
   branchId,
-  onRefresh,
-  onCreateOrUpdate,
   areas,
 }) => {
-  const [searchText, setSearchText] = useState('');
-  const [selectedArea, setSelectedArea] = useState(null);
-  const [editingLocation, setEditingLocation] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-
-  const {
-    open: addOpen,
-    showModal: showAddModal,
-    handleCancel: handleAddCancel,
-  } = useAntModal();
-  const {
-    open: editOpen,
-    showModal: showEditModal,
-    handleCancel: handleEditCancel,
-  } = useAntModal();
 
   const areasWithLocations = useMemo(() => {
     const areaIds = new Set(dataSource.map((item) => String(item.areaId)));
     return areas.filter((area) => areaIds.has(String(area.id)));
   }, [dataSource, areas]);
 
-  const filteredData = useMemo(() => {
-    if (!Array.isArray(dataSource)) return [];
-    const keyword = searchText.toLowerCase();
-    return dataSource.filter((item) => {
-      const name = item?.name?.toLowerCase?.() || '';
-      const room = item?.roomNumber?.toLowerCase?.() || '';
-      const matchesKeyword = name.includes(keyword) || room.includes(keyword);
-      const matchesArea = selectedArea ? String(item.areaId) === String(selectedArea) : true;
-      return matchesKeyword && matchesArea;
-    });
-  }, [dataSource, searchText, selectedArea]);
-
-  const total = filteredData.length;
+  const total = dataSource.length;
   const totalPages = Math.ceil(total / pageSize);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredData.slice(start, start + pageSize);
-  }, [filteredData, currentPage, pageSize]);
+    return dataSource.slice(start, start + pageSize);
+  }, [dataSource, currentPage, pageSize]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -85,65 +43,15 @@ const LocationsTable = ({
     setCurrentPage(1);
   };
 
-  const handleCreateOrUpdate = async (formData) => {
-    try {
-      await onCreateOrUpdate(formData);
-      onRefresh();
-      message.success('Lưu vị trí thành công!');
-    } catch (error) {
-      console.error('❌ Failed to save location:', error);
-      message.error('Lỗi khi lưu vị trí!');
-    }
-  };
-
   return (
     <div className="location-wrapper">
-      {/* Header */}
-      <div className="location-header">
-        <h2 className="location-title">Danh mục vị trí</h2>
-        <div>
-          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ marginRight: 8 }}>
-            Làm mới
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={showAddModal}>
-            Thêm
-          </Button>
-        </div>
-      </div>
-
-      {/* Search + Filter */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <Input
-          placeholder="Tìm kiếm"
-          prefix={<SearchOutlined />}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ width: 300 }}
-        />
-        <Select
-          placeholder="Khu vực"
-          value={selectedArea}
-          onChange={setSelectedArea}
-          allowClear
-          style={{ width: 300 }}
-        >
-          {areasWithLocations.map(({ id, name }) => (
-            <Option key={id} value={id}>
-              {name}
-            </Option>
-          ))}
-        </Select>
-      </div>
-
-      {/* Label row */}
       <div className="list-header">
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div className="area-id" />
-          <span>TÊN CHI NHÁNH</span>
+          <span>TÊN VỊ TRÍ</span>
         </div>
       </div>
 
-      {/* Data */}
       {loading ? (
         <div>Đang tải...</div>
       ) : (
@@ -183,18 +91,28 @@ const LocationsTable = ({
                             <Button
                               type="text"
                               icon={<EditOutlined />}
-                              onClick={() => {
-                                setEditingLocation(item);
-                                showEditModal();
-                              }}
+                              onClick={() => onEdit(item)}
+                              disabled={String(item.branchId) !== String(branchId)}
                             />
                           </Tooltip>
-                          <Popconfirm
-                            title={`Xóa ${item.name}?`}
-                            onConfirm={() => onDelete(item)}
-                          >
-                            <Button type="text" icon={<DeleteOutlined />} danger />
-                          </Popconfirm>
+                          <Tooltip title="Xóa">
+                            <Popconfirm
+                              title="Xóa vị trí"
+                              description={`Bạn có chắc chắn muốn xóa vị trí ${item.name}?`}
+                              onConfirm={() => onDelete(item)}
+                              okText="Xóa"
+                              cancelText="Hủy"
+                              okButtonProps={{ danger: true }}
+                              disabled={String(item.branchId) !== String(branchId)}
+                            >
+                              <Button
+                                type="text"
+                                icon={<DeleteOutlined />}
+                                danger
+                                disabled={String(item.branchId) !== String(branchId)}
+                              />
+                            </Popconfirm>
+                          </Tooltip>
                         </div>
                       </div>
                     ))}
@@ -206,7 +124,6 @@ const LocationsTable = ({
         </>
       )}
 
-      {/* Pagination luôn hiển thị */}
       <div
         className="pagination-footer"
         style={{
@@ -263,23 +180,30 @@ const LocationsTable = ({
           {Math.min(currentPage * pageSize, total)} trong tổng số {total}
         </span>
       </div>
-
-      {/* Modals */}
-      <CreateLocation
-        open={addOpen}
-        onCancel={handleAddCancel}
-        onSubmit={handleCreateOrUpdate}
-        branchId={branchId}
-      />
-      <EditLocation
-        open={editOpen}
-        onCancel={handleEditCancel}
-        onSubmit={handleCreateOrUpdate}
-        formData={editingLocation}
-        branchId={branchId}
-      />
     </div>
   );
+};
+
+LocationsTable.propTypes = {
+  dataSource: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      name: PropTypes.string.isRequired,
+      roomNumber: PropTypes.string,
+      areaId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    })
+  ),
+  loading: PropTypes.bool,
+  onEdit: PropTypes.func,
+  onDelete: PropTypes.func,
+  branchId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  areas: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      name: PropTypes.string.isRequired,
+    })
+  ),
 };
 
 export default LocationsTable;

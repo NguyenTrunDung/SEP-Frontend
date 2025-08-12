@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Typography, Button, Form, Rate, Input, message } from 'antd';
 import { environment } from '../../services/api/config';
+import { getImageUrlWithFallback } from '../../utils/imageUtils';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -81,6 +82,25 @@ const EditFeedbackModal = ({ visible, onClose, selectedOrder, feedback, onUpdate
             Chỉnh sửa đánh giá
           </div>
           <div style={{ padding: '16px', background: '#fff' }}>
+            <div style={{ marginBottom: '8px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {Array.isArray(selectedOrder.orderDetails) && selectedOrder.orderDetails.length > 0 ? (
+                  selectedOrder.orderDetails.map((item, index) => (
+                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <img
+                        src={getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production')}
+                        alt={item.foodName || 'Món ăn'}
+                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px' }}
+                      />
+                      <Text style={{ fontWeight: 500 }}>{item.foodName || 'Không xác định'}</Text>
+                    </div>
+                  ))
+                ) : (
+                  <Text style={{ fontWeight: 500 }}>Không có món ăn</Text>
+                )}
+              </div>
+            </div>
+
             <Form form={form} onFinish={handleSubmit} layout="vertical">
               <Form.Item
                 name="rating"
