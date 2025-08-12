@@ -1,57 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Space, message, Select, Switch } from 'antd';
+import React, { useEffect, useState, useRef } from 'react';
+import { Form, Input, Button, Space, Select, Switch, message } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { useDiseaseCategories } from '../../../hooks/queries/useDiseaseCategoryFoodRestrictions';
 import { useFoods } from '../../../hooks/queries/useFoods';
 import PropTypes from 'prop-types';
+import '../Department/Department.css';
 
 const { TextArea } = Input;
+const { Option } = Select;
 
 const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData }) => {
-    const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm();
+    const { form, loading: formLoading, resetForm } = useAntForm(formData || {});
     const { diseaseCategories } = useDiseaseCategories();
     const { foods } = useFoods();
+    const [focus, setFocus] = useState('');
+    const prevFormDataRef = useRef(null);
 
     useEffect(() => {
-        if (open) {
-            // Reset form when modal opens
-            resetForm();
-        } else if (!open) {
-            // Clean up when modal closes
-            resetForm();
-        }
-    }, [open, form, resetForm]);
-
-    // Handle formData changes when modal is open
-    useEffect(() => {
-        if (formData && open) {
-            console.log('🔄 EditDiseaseCategoryFoodRestriction - Setting form data:', formData);
+        if (open && formData) {
+            if (
+                prevFormDataRef.current &&
+                prevFormDataRef.current.id === formData.id &&
+                prevFormDataRef.current.diseaseCategoryId === formData.diseaseCategoryId &&
+                prevFormDataRef.current.foodId === formData.foodId &&
+                prevFormDataRef.current.reason === formData.reason &&
+                prevFormDataRef.current.alternativeRecommendations === formData.alternativeRecommendations &&
+                prevFormDataRef.current.requiresPhysicianOverride === formData.requiresPhysicianOverride &&
+                prevFormDataRef.current.isActive === formData.isActive
+            ) {
+                console.log('🔄 Form data unchanged, skipping update');
+                return;
+            }
+            console.log('🔄 Setting form data:', formData);
             form.setFieldsValue({
                 id: formData.id,
                 diseaseCategoryId: formData.diseaseCategoryId,
                 foodId: formData.foodId,
-                // restrictionLevel: formData.restrictionLevel,
                 reason: formData.reason,
                 alternativeRecommendations: formData.alternativeRecommendations,
                 requiresPhysicianOverride: formData.requiresPhysicianOverride || false,
                 isActive: formData.isActive !== undefined ? formData.isActive : true,
             });
+            prevFormDataRef.current = formData;
+        } else if (!open) {
+            resetForm();
+            prevFormDataRef.current = null;
         }
-    }, [open, formData, form]);
+    }, [open, formData, form, resetForm]);
 
     const handleFormSubmit = async (values) => {
-        console.log('🚀 EditDiseaseCategoryFoodRestriction - Form submit with values:', values);
+        try {
+            const updateDto = {
+                id: values.id,
+                diseaseCategoryId: values.diseaseCategoryId,
+                foodId: values.foodId,
+                reason: values.reason?.trim(),
+                alternativeRecommendations: values.alternativeRecommendations?.trim(),
+                requiresPhysicianOverride: values.requiresPhysicianOverride,
+                isActive: values.isActive,
+            };
 
-        const result = await handleSubmit(async (formData) => {
-            if (onSubmit) {
-                await onSubmit(formData);
+            if (!updateDto.diseaseCategoryId) {
+                form.setFields([
+                    { name: 'diseaseCategoryId', errors: ['Vui lòng chọn danh mục bệnh!'] },
+                ]);
+                return;
             }
-        });
+            if (!updateDto.foodId) {
+                form.setFields([
+                    { name: 'foodId', errors: ['Vui lòng chọn thực phẩm!'] },
+                ]);
+                return;
+            }
+            if (!updateDto.reason) {
+                form.setFields([
+                    { name: 'reason', errors: ['Vui lòng nhập lý do hạn chế!'] },
+                ]);
+                return;
+            }
 
-        if (result.success) {
+            console.log('🔍 Submitting food restriction update:', updateDto);
+            await onSubmit(updateDto);
             handleCancel();
+        } catch (error) {
+            const errorMessage = error.response?.data?.message || 'Lỗi khi cập nhật hạn chế thực phẩm!';
+            console.error('❌ Failed to update food restriction:', errorMessage);
+            form.setFields([
+                { name: 'reason', errors: [errorMessage] },
+            ]);
+            message.error(errorMessage);
         }
     };
 
@@ -62,29 +101,47 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
         }
     };
 
-    // Helper function to get restriction level display
-    // const getRestrictionLevelDisplay = (level) => {
-    //     switch (level) {
-    //         case 1:
-    //             return { text: 'Cảnh báo (Warning)', color: '#faad14' };
-    //         case 2:
-    //             return { text: 'Hạn chế (Restricted)', color: '#ff4d4f' };
-    //         case 3:
-    //             return { text: 'Cấm (Forbidden)', color: '#d32f2f' };
-    //         default:
-    //             return { text: 'Chọn mức độ', color: '#999' };
-    //     }
-    // };
-
     return (
         <ReusableModal
-            title="Sửa Hạn Chế Thực Phẩm"
+            title={<span style={{ fontSize: '30px' }}>Chỉnh sửa</span>}
             open={open}
             onCancel={handleCancel}
             footer={null}
-            width={700}
             destroyOnClose
+            closable={false}
+            width={600} // Increased modal width to accommodate wider TextArea
         >
+            <div style={{ position: 'absolute', top: 16, right: 24, zIndex: 1 }}>
+                <Space>
+                    <Button
+                        type="primary"
+                        onClick={() => form.submit()}
+                        style={{
+                            backgroundColor: '#52c41a',
+                            border: 'none',
+                            minWidth: 64,
+                            height: 32,
+                            fontSize: 14,
+                        }}
+                        loading={formLoading}
+                    >
+                        Lưu
+                    </Button>
+                    <Button
+                        onClick={handleCancel}
+                        style={{
+                            backgroundColor: '#ff4d4f',
+                            color: '#fff',
+                            border: 'none',
+                            minWidth: 64,
+                            height: 32,
+                            fontSize: 14,
+                        }}
+                    >
+                        X
+                    </Button>
+                </Space>
+            </div>
             <ReusableForm
                 form={form}
                 onFinish={handleFormSubmit}
@@ -97,67 +154,79 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
 
                 <Form.Item
                     name="diseaseCategoryId"
-                    label="Danh mục bệnh"
+                    label=""
                     rules={[{ required: true, message: 'Vui lòng chọn danh mục bệnh!' }]}
                 >
                     <Select
                         placeholder="Chọn danh mục bệnh"
-                        options={diseaseCategories.map(category => ({
-                            value: category.id,
-                            label: category.name,
-                        }))}
-                    />
+                        style={{ width: '100%' }}
+                        disabled={diseaseCategories.length === 0}
+                    >
+                        {diseaseCategories.map((category) => (
+                            <Option key={category.id} value={category.id}>
+                                {category.name}
+                            </Option>
+                        ))}
+                    </Select>
                 </Form.Item>
 
                 <Form.Item
                     name="foodId"
-                    label="Thực phẩm"
+                    label=""
                     rules={[{ required: true, message: 'Vui lòng chọn thực phẩm!' }]}
                 >
                     <Select
                         placeholder="Chọn thực phẩm"
-                        options={foods.map(food => ({
-                            value: food.id,
-                            label: food.name,
-                        }))}
-                    />
+                        style={{ width: '100%' }}
+                        disabled={foods.length === 0}
+                    >
+                        {foods.map((food) => (
+                            <Option key={food.id} value={food.id}>
+                                {food.name}
+                            </Option>
+                        ))}
+                    </Select>
                 </Form.Item>
 
-                {/* <Form.Item
-                    name="restrictionLevel"
-                    label="Mức độ hạn chế"
-                    rules={[{ required: true, message: 'Vui lòng chọn mức độ hạn chế!' }]}
-                >
-                    <Select
-                        placeholder="Chọn mức độ hạn chế"
-                        options={[
-                            { value: 1, label: 'Cảnh báo (Warning)', color: '#faad14' },
-                            { value: 2, label: 'Hạn chế (Restricted)', color: '#ff4d4f' },
-                            { value: 3, label: 'Cấm (Forbidden)', color: '#d32f2f' },
+                <div className="custom-floating">
+                    <label className="floating-label">Lý do hạn chế</label>
+                    <Form.Item
+                        className="floating-form-item"
+                        name="reason"
+                        rules={[
+                            { required: true, message: 'Vui lòng nhập lý do hạn chế!' },
+                            { whitespace: true, message: 'Lý do không được chỉ chứa khoảng trắng!' },
+                            { max: 500, message: 'Lý do không được vượt quá 500 ký tự!' },
                         ]}
-                    />
-                </Form.Item> */}
+                        style={{ marginBottom: 0 }}
+                    >
+                        <TextArea
+                            className="floating-input"
+                            placeholder="Nhập lý do hạn chế thực phẩm này cho bệnh nhân"
+                            rows={4}
+                            onFocus={() => setFocus('reason')}
+                            onBlur={() => setFocus('')}
+                        />
+                    </Form.Item>
+                </div>
 
-                <Form.Item
-                    name="reason"
-                    label="Lý do hạn chế"
-                    rules={[{ required: true, message: 'Vui lòng nhập lý do hạn chế!' }]}
-                >
-                    <TextArea
-                        placeholder="Nhập lý do hạn chế thực phẩm này cho bệnh nhân"
-                        rows={4}
-                    />
-                </Form.Item>
-
-                <Form.Item
-                    name="alternativeRecommendations"
-                    label="Khuyến nghị thay thế"
-                >
-                    <TextArea
-                        placeholder="Nhập các thực phẩm thay thế được khuyến nghị"
-                        rows={3}
-                    />
-                </Form.Item>
+                <div className="custom-floating">
+                    <label className="floating-label">Khuyến nghị thay thế</label>
+                    <Form.Item
+                        className="floating-form-item"
+                        name="alternativeRecommendations"
+                        rules={[{ max: 500, message: 'Khuyến nghị không được vượt quá 500 ký tự!' }]}
+                        style={{ marginBottom: 0 }}
+                    >
+                        <TextArea
+                            className="floating-input"
+                            placeholder="Nhập các thực phẩm thay thế được khuyến nghị"
+                            rows={3}
+                            onFocus={() => setFocus('alternativeRecommendations')}
+                            onBlur={() => setFocus('')}
+                        />
+                    </Form.Item>
+                </div>
 
                 <Form.Item
                     name="requiresPhysicianOverride"
@@ -174,22 +243,6 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                 >
                     <Switch />
                 </Form.Item>
-
-                <Form.Item style={{ marginTop: 24, textAlign: 'right' }}>
-                    <Space>
-                        <Button onClick={handleCancel}>
-                            Hủy
-                        </Button>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={formLoading}
-                            disabled={formLoading}
-                        >
-                            Cập nhật hạn chế
-                        </Button>
-                    </Space>
-                </Form.Item>
             </ReusableForm>
         </ReusableModal>
     );
@@ -199,7 +252,15 @@ EditDiseaseCategoryFoodRestriction.propTypes = {
     open: PropTypes.bool.isRequired,
     onCancel: PropTypes.func.isRequired,
     onSubmit: PropTypes.func.isRequired,
-    formData: PropTypes.object,
+    formData: PropTypes.shape({
+        id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        diseaseCategoryId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        foodId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        reason: PropTypes.string,
+        alternativeRecommendations: PropTypes.string,
+        requiresPhysicianOverride: PropTypes.bool,
+        isActive: PropTypes.bool,
+    }),
 };
 
-export default EditDiseaseCategoryFoodRestriction; 
+export default EditDiseaseCategoryFoodRestriction;

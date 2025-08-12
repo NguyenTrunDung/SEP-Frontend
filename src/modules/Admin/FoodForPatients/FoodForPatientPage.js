@@ -140,11 +140,11 @@ const FoodForPatientPage = () => {
     return (
         <>
             <FoodForPatientPageWithWrapper
-                title="Quản Lý Hạn Chế Thực Phẩm Cho Bệnh Nhân"
+                title="Quản Lý Món Ăn Cho Bệnh Nhân"
                 onAdd={handleAdd}
                 onRefresh={handleRefresh}
                 loading={isLoading}
-                addButtonText="Thêm Hạn Chế Mới"
+                addButtonText="Thêm"
                 refreshButtonText="Làm mới"
                 showAddButton={true}
                 showRefreshButton={true}
