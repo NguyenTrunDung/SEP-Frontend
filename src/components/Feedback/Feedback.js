@@ -65,15 +65,15 @@ const FeedbackModal = ({ visible, onClose, selectedOrder, onSubmit }) => {
           <div style={{ padding: '16px', background: '#fff' }}>
             <div style={{ marginBottom: '8px' }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
-                  selectedOrder.items.map((item, index) => (
+                {Array.isArray(selectedOrder.orderDetails) && selectedOrder.orderDetails.length > 0 ? (
+                  selectedOrder.orderDetails.map((item, index) => (
                     <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <img
-                        src={getImageUrlWithFallback(item.imageUrl || item.image, '/images/placeholder-food.png')}
-                        alt={item.name || item.foodName || 'Món ăn'}
+                        src={getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production')}
+                        alt={item.foodName || 'Món ăn'}
                         style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px' }}
                       />
-                      <Text style={{ fontWeight: 500 }}>{item.name || item.foodName || 'Không xác định'}</Text>
+                      <Text style={{ fontWeight: 500 }}>{item.foodName || 'Không xác định'}</Text>
                     </div>
                   ))
                 ) : (

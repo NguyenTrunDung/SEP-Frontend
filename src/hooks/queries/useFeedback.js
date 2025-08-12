@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import { feedbackService } from '../../services/feedbackService';
+import { orderService } from '../../services/orderService';
+import { getImageUrlWithFallback } from '../../utils/imageUtils';
 import environment from '../../config/environment';
 import api from '../../services/api/config';
 
@@ -267,6 +269,7 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
           response.data.data.map(async (feedback) => {
             let customerName = feedback.userId;
             let avatar = null;
+            let images = [];
             try {
               const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
               customerName = userResponse.data?.firstName && userResponse.data?.lastName 
@@ -275,6 +278,18 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
               avatar = userResponse.data?.avatar || null;
             } catch (error) {
               console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error);
+            }
+            try {
+              const orderResponse = await orderService.getOrderDetails(feedback.orderId);
+              if (environment.features?.enableLogging) {
+                console.log(`🔍 Order details for orderId ${feedback.orderId}:`, orderResponse.data);
+              }
+              images = orderResponse.data.map(item => ({
+                url: getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production'),
+                alt: item.foodName || 'Món ăn'
+              }));
+            } catch (error) {
+              console.warn(`⚠️ Failed to fetch order details for orderId ${feedback.orderId}:`, error);
             }
             return {
               id: feedback.id,
@@ -287,6 +302,7 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
               customerName,
               avatar,
               timestamp: feedback.createdAt || new Date().toISOString(),
+              images, // Thêm danh sách ảnh món ăn
             };
           })
         );
@@ -310,7 +326,6 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
     isError: query.isError,
     isSuccess: query.isSuccess,
   };
-  
 };
 export const useFeedbacksByFood = (foodId, branchId, options = {}) => {
   const currentBranchId = branchId || environment.multiTenant.getCurrentBranchId() || '1';
