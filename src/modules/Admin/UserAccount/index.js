@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { message, Button, Tooltip, Switch, Popconfirm } from 'antd';
+import { message, Button, Tooltip, Switch, Popconfirm, Modal, Form, Input, Select } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, FileExcelOutlined } from '@ant-design/icons';
 import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
-import CreateUserAccountModal from './CreateUserAccountModal';
-import EditUserAccountModal from './EditUserAccountModal';
+import UserAccountModal from './UserAccountModal';
 import { fetchUserAccountsByBranch, updateUserAccountStatus, createUserAccount, updateUserAccount, deleteUserAccount } from '../../../services/userAccountService';
 import { fetchGroupUsersByBranch } from '../../../services/groupUserService';
 import * as XLSX from 'xlsx';
@@ -26,8 +25,7 @@ const UserAccount = () => {
   const [users, setUsers] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [groupFilter, setGroupFilter] = useState(null);
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [groupOptions, setGroupOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,15 +73,9 @@ const UserAccount = () => {
           setGroupOptions([]);
         }),
     ])
-      .then(() => {
-        setIsDataReady(true);
-      })
-      .catch(() => {
-        setIsDataReady(true);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+      .then(() => setIsDataReady(true))
+      .catch(() => setIsDataReady(true))
+      .finally(() => setIsLoading(false));
   }, []);
 
   const filteredData = useMemo(() => {
@@ -99,20 +91,12 @@ const UserAccount = () => {
   }, [users, searchText, groupFilter]);
 
   const openModal = (user) => {
-    if (user) {
-      setEditingUser(user);
-      setEditModalVisible(true);
-    } else {
-      setCreateModalVisible(true);
-    }
+    setEditingUser(user);
+    setModalVisible(true);
   };
 
-  const closeCreateModal = () => {
-    setCreateModalVisible(false);
-  };
-
-  const closeEditModal = () => {
-    setEditModalVisible(false);
+  const closeModal = () => {
+    setModalVisible(false);
     setEditingUser(null);
   };
 
@@ -134,7 +118,7 @@ const UserAccount = () => {
         await updateUserAccount(editingUser.id, payload);
         message.success('Cập nhật tài khoản thành công!');
         handleRefresh();
-        closeEditModal();
+        closeModal();
       } catch (err) {
         message.error(extractApiErrorMessage(err));
       }
@@ -154,7 +138,7 @@ const UserAccount = () => {
         await createUserAccount(userAccountPayload);
         message.success('Thêm tài khoản thành công!');
         handleRefresh();
-        closeCreateModal();
+        closeModal();
       } catch (err) {
         message.error(extractApiErrorMessage(err));
       }
@@ -215,15 +199,9 @@ const UserAccount = () => {
           setGroupOptions([]);
         }),
     ])
-      .then(() => {
-        setIsDataReady(true);
-      })
-      .catch(() => {
-        setIsDataReady(true);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+      .then(() => setIsDataReady(true))
+      .catch(() => setIsDataReady(true))
+      .finally(() => setIsLoading(false));
   };
 
   const handleStatusChange = async (checked, user) => {
@@ -306,7 +284,6 @@ const UserAccount = () => {
         onAdd={() => openModal(null)}
         onRefresh={handleRefresh}
         loading={isLoading}
-        // Permission controls
         resourceName="useraccounts"
         addPermission={PERMISSIONS.USERACCOUNTS_ADD}
         viewPermission={PERMISSIONS.USERACCOUNTS_VIEW}
@@ -359,7 +336,6 @@ const UserAccount = () => {
           emptyMessage="Không tìm thấy người dùng nào."
           loading={isLoading}
           pagination={paginationConfig}
-          // Permission controls for table actions
           resourceName="useraccounts"
           editPermission={PERMISSIONS.USERACCOUNTS_EDIT}
           deletePermission={PERMISSIONS.USERACCOUNTS_DELETE}
@@ -368,17 +344,12 @@ const UserAccount = () => {
         />
       </PageWrapperV2>
 
-      <CreateUserAccountModal
-        visible={createModalVisible}
-        onCancel={closeCreateModal}
-        onOk={handleModalOk}
-        groupOptions={groupOptions || []}
-      />
-      <EditUserAccountModal
-        visible={editModalVisible}
-        onCancel={closeEditModal}
+      <UserAccountModal
+        visible={modalVisible}
+        onCancel={closeModal}
         onOk={handleModalOk}
         initialValues={editingUser ? { ...editingUser, phone: editingUser.phone || editingUser.phoneNumber } : {}}
+        isEdit={!!editingUser}
         groupOptions={groupOptions || []}
       />
     </>
