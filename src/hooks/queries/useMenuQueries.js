@@ -109,12 +109,20 @@ export const useMenus = (filters = {}, options = {}) => {
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
+    // Add refetchOnMount to ensure fresh data after branch switch
+    refetchOnMount: true,
+    // Add refetchInterval to check for branch changes
+    refetchInterval: (data, query) => {
+      // Refetch every 1 second if no branch is selected (waiting for user to choose)
+      return !queryFilters.branchId ? 1000 : false;
+    },
     // Retry once on failure before falling back to mock data
     retry: 1,
     retryDelay: 1000,
     ...options,
   });
 };
+
 
 /**
  * Hook for fetching menu categories by date

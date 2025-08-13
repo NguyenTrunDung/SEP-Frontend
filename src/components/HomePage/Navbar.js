@@ -124,23 +124,42 @@ const Navbar = () => {
       localStorage.setItem('currentBranchId', branch.id);
       setIsModalVisible(false);
       message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
-      // Invalidate all menu queries for both public and admin contexts
+
+      // Force immediate refetch of menu data
       if (queryClient) {
-        // Admin context keys
-        queryClient.invalidateQueries({ queryKey: ['menusAdmin'] });
-        queryClient.invalidateQueries({ queryKey: ['menusAdmin', 'list'] });
-        queryClient.invalidateQueries({ queryKey: ['menusAdmin', 'byDate'] });
-        // Public context keys
+        // Invalidate all menu queries
         queryClient.invalidateQueries({ queryKey: ['menus'] });
         queryClient.invalidateQueries({ queryKey: ['public', 'menus'] });
         queryClient.invalidateQueries({ queryKey: ['menus', 'byDate'] });
-        console.log('🔄 Invalidated menu queries for branch switch');
+        queryClient.invalidateQueries({ queryKey: ['menusAdmin'] });
+        queryClient.invalidateQueries({ queryKey: ['menusAdmin', 'list'] });
+        queryClient.invalidateQueries({ queryKey: ['menusAdmin', 'byDate'] });
+
+        // Force immediate refetch with new branch ID
+        queryClient.refetchQueries({
+          queryKey: ['menus', 'byDate'],
+          predicate: (query) => {
+            // Refetch any menu queries that might have the old branch ID
+            return query.queryKey[0] === 'menus' && query.queryKey[1] === 'byDate';
+          }
+        });
+
+        // Also refetch admin menu queries
+        queryClient.refetchQueries({
+          queryKey: ['menusAdmin', 'list'],
+          predicate: (query) => {
+            return query.queryKey[0] === 'menusAdmin' && query.queryKey[1] === 'list';
+          }
+        });
+
+        console.log('🔄 Invalidated and forced refetch of menu queries for branch switch');
       }
     } catch (error) {
       console.error('❌ Failed to switch branch:', error);
       message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
     }
   };
+
 
   useEffect(() => {
     const currentPath = location.pathname;

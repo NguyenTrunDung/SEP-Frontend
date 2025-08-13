@@ -3,7 +3,7 @@ import { Modal, Input, Button, Typography, Select, Checkbox, message } from 'ant
 import { useCreateOrder, useCreateVnPayOrder } from '../../hooks/queries/userOrderQueries';
 import { useCreateVnPayPayment } from '../../hooks/queries/paymentQueries';
 import { useAuth } from '../../context/AuthContext';
-import { ROLES } from '../../constants/roles';
+import { BRANCH_ROLE_NAMES, ROLES } from '../../constants/roles';
 import { useAreas } from '../../hooks/queries/useAreas';
 import { useDepartments } from '../../hooks/queries/useDepartments';
 
@@ -257,7 +257,7 @@ const PaymentModal = ({
   // Log payment options for debugging
   console.log('Payment options:', paymentOptions);
 
-  console.log('Payment role:', user?.role);
+  console.log('Payment role:', user);
 
   // Function to calculate receive date based on delivery time
   const calculateReceiveDate = (deliveryTime) => {

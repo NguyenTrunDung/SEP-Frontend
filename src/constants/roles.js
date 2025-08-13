@@ -75,6 +75,10 @@ export const mapBackendRoleToFrontend = (identityRoles, branchRoleName = null, u
             return ROLES.NURSE; // This will be used to redirect to guest layout
         }
 
+        if (effectiveBranchRole === BRANCH_ROLE_NAMES.DOCTOR) {
+            return ROLES.DOCTOR;
+        }
+
         // Map other Staff branch roles to appropriate frontend roles
         switch (effectiveBranchRole) {
             case BRANCH_ROLE_NAMES.ADMIN_SYSTEM:

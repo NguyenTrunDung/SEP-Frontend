@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Tooltip, Popconfirm, message } from 'antd';
 import { EyeOutlined, EditOutlined, DeleteOutlined, WalletOutlined } from '@ant-design/icons';
+import ReusableTableV2 from '../../../components/common/ReusableTableV2';
+import { PERMISSIONS } from '../../../constants/permissions';
 
-const UserTable = ({ users, loading, ...props }) => {
+const UserTable = ({ users, loading, onViewWallet, onDeposit, onEdit, onDelete, pagination, ...props }) => {
     const columns = [
         {
             title: 'TÊN NGƯỜI DÙNG',
@@ -51,7 +53,7 @@ const UserTable = ({ users, loading, ...props }) => {
                         <Button
                             type="text"
                             icon={<EyeOutlined />}
-                            onClick={() => props.onViewWallet(record)}
+                            onClick={() => onViewWallet(record)}
                             className="action-btn view-btn"
                             size="small"
                         />
@@ -60,44 +62,45 @@ const UserTable = ({ users, loading, ...props }) => {
                         <Button
                             type="text"
                             icon={<WalletOutlined />}
-                            onClick={() => props.onDeposit(record)}
+                            onClick={() => onDeposit(record)}
                             className="action-btn deposit-btn"
                             size="small"
                         />
                     </Tooltip>
-                    {/* <Tooltip title="Chỉnh sửa">
-                        <Button
-                            type="text"
-                            icon={<EditOutlined />}
-                            onClick={() => props.onEdit(record)}
-                            className="action-btn edit-btn"
-                            size="small"
-                        />
-                    </Tooltip> */}
-                    <Tooltip title="Xóa">
-                        <Popconfirm
-                            title="Xóa người dùng"
-                            description={`Bạn có chắc chắn muốn xóa người dùng ${record.userName || ''}?`}
-                            onConfirm={() => props.onDelete(record)}
-                            okText="Xóa"
-                            cancelText="Hủy"
-                            okButtonProps={{ danger: true }}
-                        >
-                            <Button
-                                type="text"
-                                icon={<DeleteOutlined />}
-                                className="action-btn delete-btn"
-                                size="small"
-                                danger
-                            />
-                        </Popconfirm>
-                    </Tooltip>
+                    {/* Edit and Delete buttons will be handled by ReusableTableV2 */}
                 </Space>
             ),
         },
     ];
 
-    return <Table rowKey="userId" columns={columns} dataSource={users} loading={loading} pagination={{ pageSize: 10 }} />;
+    return (
+        <ReusableTableV2
+            columns={columns}
+            dataSource={users}
+            loading={loading}
+            pagination={pagination}
+            rowKey="userId"
+            resourceName="users"
+            editPermission={PERMISSIONS.USERS_EDIT}
+            deletePermission={PERMISSIONS.USERS_DELETE}
+            hideActionsOnNoPermission={true}
+            showPermissionTooltips={true}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            customPermissionCheck={(action, record) => {
+                // Custom permission logic if needed
+                if (action === 'edit') {
+                    // Additional checks for editing users
+                    return true; // Or implement custom logic
+                }
+                if (action === 'delete') {
+                    // Additional checks for deleting users  
+                    return true; // Or implement custom logic
+                }
+                return true;
+            }}
+        />
+    );
 };
 
 export default UserTable; 
