@@ -80,11 +80,10 @@ const BranchesPage = () => {
   const handleCreateOrUpdate = async (formData) => {
     try {
       const payload = {
-        name: formData.name.trim(),
-        phoneNumber: formData.phoneNumber?.trim() || '',
-        address: formData.address?.trim() || '',
-        isActive: true,
-        paymentStatus: formData.paymentStatus || 'pending',
+        Name: formData.Name || formData.name?.trim(),
+        Phone: formData.Phone || formData.phoneNumber?.trim() || '',
+        Address: formData.Address || formData.address?.trim() || '',
+        IsActive: formData.IsActive !== undefined ? formData.IsActive : true,
       };
 
       if (formData.id) {

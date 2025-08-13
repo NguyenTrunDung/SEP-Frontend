@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Input, Button, Table, Typography } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
-import { mockOrders, formatAmount, formatDateTime } from '../../mocks/orderTrackingData';
+import { useOrders } from '../../hooks/queries/useOrders';
+import { orderService } from '../../services/orderService';
+import { formatAmount, formatDateTime } from '../../mocks/orderTrackingData';
 import './Order.css';
 
 const { Text } = Typography;
@@ -9,45 +11,71 @@ const { Text } = Typography;
 const OrderTrackingPopup = ({ visible, onClose }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const { orders, isLoading, isError, error: queryError, refetch } = useOrders(
+    null, // branchId (null will use default branch)
+    { customerPhone: phoneNumber },
+    phoneNumber,
+    { enabled: false } // Disable auto-fetch
+  );
 
   useEffect(() => {
     if (visible && phoneNumber) {
       handleSearch();
     }
-  }, [visible]);
+  }, [visible, phoneNumber]);
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (phoneNumber) {
-      setLoading(true);
-      setTimeout(() => {
-        const foundOrder = mockOrders.find(order => order.phone === phoneNumber);
-        if (foundOrder) {
-          setOrder(foundOrder);
-          setError(null);
+      try {
+        setError(null);
+        await refetch();
+
+        // Fetch order details for the first matching order
+        if (orders && orders.length > 0) {
+          const orderWithDetails = await orderService.getOrderDetails(orders[0].id);
+          const detailedOrder = {
+            ...orders[0],
+            total: orders[0].total ?? 0, // Fallback to 0 if total is null
+            items: orderWithDetails.data.map(item => ({
+              id: item.foodId || item.id,
+              name: item.foodName,
+              quantity: item.Qty,
+              subtotal: item.total ?? 0, // Fallback to 0 if subtotal is null
+            })),
+          };
+          console.log('Detailed Order:', detailedOrder); // Debug log
+          setOrder(detailedOrder);
         } else {
           setOrder(null);
           setError('Không tìm thấy đơn hàng');
         }
-        setLoading(false);
-      }, 500);
+      } catch (err) {
+        setOrder(null);
+        setError('Có lỗi xảy ra khi tra cứu đơn hàng');
+        console.error('Search error:', err);
+      }
     }
   };
 
   // Map order status to Vietnamese text
   const getOrderStatusText = (status) => {
     switch (status) {
-      case 'DELIVERED':
-        return 'Đã giao hàng';
-      case 'READY':
-        return 'Sẵn sàng';
-      case 'PROCESSING':
+      case 'Pending':
+        return 'Chưa xử lý';
+      case 'Confirmed':
         return 'Đang xử lý';
-      case 'CANCELLED':
+      case 'Delivered':
+        return 'Đang giao hàng';
+      case 'Completed':
+        return 'Hoàn thành';
+      case 'Cancelled':
         return 'Đã hủy';
+      case 'PendingPayment':
+        return 'Chờ thanh toán';
       default:
-        return status;
+        return status || 'Không xác định';
     }
   };
 
@@ -55,11 +83,13 @@ const OrderTrackingPopup = ({ visible, onClose }) => {
   const getPaymentStatusText = (paymentStatus) => {
     switch (paymentStatus) {
       case 'PAID':
+      case true:
         return 'Đã thanh toán';
       case 'NOT_PAID':
+      case false:
         return 'Chưa thanh toán';
       default:
-        return paymentStatus;
+        return paymentStatus || 'Không xác định';
     }
   };
 
@@ -68,7 +98,6 @@ const OrderTrackingPopup = ({ visible, onClose }) => {
       title: <div style={{ textAlign: 'center', width: '100%' }}>Món ăn</div>,
       dataIndex: 'name',
       key: 'name',
-
     },
     {
       title: 'Số lượng',
@@ -81,7 +110,7 @@ const OrderTrackingPopup = ({ visible, onClose }) => {
       dataIndex: 'subtotal',
       key: 'subtotal',
       align: 'right',
-      render: (text) => formatAmount(text),
+      render: (text) => (text != null ? formatAmount(text) : 'N/A'),
     },
   ];
 
@@ -141,8 +170,8 @@ const OrderTrackingPopup = ({ visible, onClose }) => {
               onChange={(e) => setPhoneNumber(e.target.value)}
               className="input-label"
               style={{
-                height: 36, // giảm chiều cao tại đây
-                lineHeight: '36px', // giúp text căn giữa
+                height: 36,
+                lineHeight: '36px',
                 fontSize: 14,
               }}
             />
@@ -164,30 +193,30 @@ const OrderTrackingPopup = ({ visible, onClose }) => {
               justifyContent: 'center',
               padding: 0,
             }}
+            loading={isLoading}
           />
-
         </div>
 
         {/* Order info */}
-        {loading && <div style={{ textAlign: 'center' }}>Đang tải...</div>}
-        {error && <Text type="danger">{error}</Text>}
+        {isLoading && <div style={{ textAlign: 'center' }}>Đang tải...</div>}
+        {(error || isError) && <Text type="danger">{error || queryError?.message || 'Có lỗi xảy ra'}</Text>}
 
         {order && (
           <>
             <Text style={{ display: 'block', marginBottom: 4 }}>
-              Thời gian đặt: <b>{formatDateTime(new Date(order.createdAt))}</b>
+              Thời gian đặt: <b>{formatDateTime(new Date(order.orderDate || order.createdAt))}</b>
             </Text>
             <Text style={{ display: 'block', marginBottom: 4 }}>
-              Thời gian hẹn giao: <b>{formatDateTime(new Date(order.updatedAt))}</b>
+              Thời gian hẹn giao: <b>{formatDateTime(new Date(order.receiveDate || order.updatedAt))}</b>
             </Text>
             <Text style={{ display: 'block', marginBottom: 4 }}>
-              Tổng thanh toán: <b>{formatAmount(order.total)}</b>
+              Tổng thanh toán: <b>{order.total != null ? formatAmount(order.total) : 'N/A'}</b>
             </Text>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4, gap: 8 }}>
               <Text style={{ marginBottom: 0 }}>
-                Trạng thái thanh toán: <b>{getPaymentStatusText(order.paymentStatus)}</b>
+                Trạng thái thanh toán: <b>{getPaymentStatusText(order.isPaid)}</b>
               </Text>
-              {order.paymentStatus === 'NOT_PAID' && (
+              {order.isPaid === false && (
                 <Button
                   style={{
                     background: '#17A2B8',

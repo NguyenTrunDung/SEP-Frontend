@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { Table, Button, Tooltip, Popconfirm } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { usePermissions } from '../../hooks/usePermissions';
 import CustomPagination from './CustomPagination';
 import './ReusableTableV2.css';
 
@@ -37,10 +38,35 @@ const ReusableTableV2 = ({
     onRow,
     emptyText = 'Không có dữ liệu',
     loadingTip = 'Đang tải...',
+    // Permission-based props
+    resourceName, // e.g., 'foods', 'orders', 'users'
+    editPermission, // Specific edit permission (overrides resourceName:edit)
+    deletePermission, // Specific delete permission (overrides resourceName:delete)
+    customPermissionCheck, // Function to check custom permissions per row
+    hideActionsOnNoPermission = true, // Hide action buttons completely or show disabled
+    showPermissionTooltips = true, // Show tooltips for disabled buttons
     ...rest
 }) => {
+    const { hasPermission, canPerformAction, isSystemAdmin } = usePermissions();
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(pagination.pageSize || 10);
+
+    // Permission checking functions
+    const checkEditPermission = (record) => {
+        if (isSystemAdmin) return true;
+        if (customPermissionCheck) return customPermissionCheck('edit', record);
+        if (editPermission) return hasPermission(editPermission);
+        if (resourceName) return canPerformAction('edit', resourceName);
+        return true; // Default to true if no permissions specified
+    };
+
+    const checkDeletePermission = (record) => {
+        if (isSystemAdmin) return true;
+        if (customPermissionCheck) return customPermissionCheck('delete', record);
+        if (deletePermission) return hasPermission(deletePermission);
+        if (resourceName) return canPerformAction('delete', resourceName);
+        return true; // Default to true if no permissions specified
+    };
 
     // Calculate paginated data
     const paginatedData = useMemo(() => {
@@ -67,7 +93,7 @@ const ReusableTableV2 = ({
         }
     };
 
-    // Add action column if needed
+    // Add action column if needed with permission checks
     const enhancedColumns = useMemo(() => {
         let cols = [...columns];
         if ((onEdit || onDelete || actions) && !columns.find(col => col.key === 'action')) {
@@ -76,30 +102,70 @@ const ReusableTableV2 = ({
                 key: 'action',
                 width: 120,
                 fixed: 'right',
-                render: (_, record) => (
-                    <div className="action-buttons">
-                        {actions && actions(record)}
-                        {onEdit && (
-                            <Tooltip title="Chỉnh sửa">
-                                <Button type="text" icon={<EditOutlined />} onClick={() => onEdit(record)} />
-                            </Tooltip>
-                        )}
-                        {onDelete && (
-                            <Popconfirm
-                                title="Bạn có chắc muốn xóa?"
-                                onConfirm={() => onDelete(record)}
-                                okText="Xóa"
-                                cancelText="Hủy"
-                            >
-                                <Button type="text" icon={<DeleteOutlined />} danger />
-                            </Popconfirm>
-                        )}
-                    </div>
-                ),
+                render: (_, record) => {
+                    const canEdit = checkEditPermission(record);
+                    const canDelete = checkDeletePermission(record);
+
+                    // If hiding actions and no permissions, return null
+                    if (hideActionsOnNoPermission && !canEdit && !canDelete && !actions) {
+                        return null;
+                    }
+
+                    return (
+                        <div className="action-buttons">
+                            {/* Custom actions - always show if provided */}
+                            {actions && actions(record, { canEdit, canDelete })}
+
+                            {/* Edit button */}
+                            {onEdit && (
+                                canEdit ? (
+                                    <Tooltip title="Chỉnh sửa">
+                                        <Button
+                                            type="text"
+                                            icon={<EditOutlined />}
+                                            onClick={() => onEdit(record)}
+                                        />
+                                    </Tooltip>
+                                ) : !hideActionsOnNoPermission ? (
+                                    <Tooltip title={showPermissionTooltips ? "Bạn không có quyền chỉnh sửa" : "Chỉnh sửa"}>
+                                        <Button
+                                            type="text"
+                                            icon={<EditOutlined />}
+                                            disabled
+                                        />
+                                    </Tooltip>
+                                ) : null
+                            )}
+
+                            {/* Delete button */}
+                            {onDelete && (
+                                canDelete ? (
+                                    <Popconfirm
+                                        title="Bạn có chắc muốn xóa?"
+                                        onConfirm={() => onDelete(record)}
+                                        okText="Xóa"
+                                        cancelText="Hủy"
+                                    >
+                                        <Button type="text" icon={<DeleteOutlined />} danger />
+                                    </Popconfirm>
+                                ) : !hideActionsOnNoPermission ? (
+                                    <Tooltip title={showPermissionTooltips ? "Bạn không có quyền xóa" : "Xóa"}>
+                                        <Button
+                                            type="text"
+                                            icon={<DeleteOutlined />}
+                                            danger
+                                            disabled
+                                        />
+                                    </Tooltip>
+                                ) : null
+                            )}
+                        </div>
+                    );
+                },
             });
         }
         return cols;
-    }, [columns, onEdit, onDelete, actions]);
+    }, [columns, onEdit, onDelete, actions, checkEditPermission, checkDeletePermission, hideActionsOnNoPermission, showPermissionTooltips]);
 
     const defaultLocale = {
         emptyText: emptyText,
@@ -205,6 +271,13 @@ ReusableTableV2.propTypes = {
     onRow: PropTypes.func,
     emptyText: PropTypes.string,
     loadingTip: PropTypes.string,
+    // Permission-based props
+    resourceName: PropTypes.string,
+    editPermission: PropTypes.string,
+    deletePermission: PropTypes.string,
+    customPermissionCheck: PropTypes.func,
+    hideActionsOnNoPermission: PropTypes.bool,
+    showPermissionTooltips: PropTypes.bool,
 };
 
 export default ReusableTableV2; 

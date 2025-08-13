@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import { feedbackService } from '../../services/feedbackService';
+import { orderService } from '../../services/orderService';
+import { getImageUrlWithFallback } from '../../utils/imageUtils';
 import environment from '../../config/environment';
 import api from '../../services/api/config';
 
@@ -9,10 +11,10 @@ export const FEEDBACK_QUERY_KEYS = {
   lists: () => [...FEEDBACK_QUERY_KEYS.all, 'list'],
   list: (branchId) => [...FEEDBACK_QUERY_KEYS.lists(), { branchId: String(branchId) }],
   details: () => [...FEEDBACK_QUERY_KEYS.all, 'detail'],
+  byFood: (foodId, branchId) => [...FEEDBACK_QUERY_KEYS.lists(), 'byFood', { foodId, branchId }],
   detail: (id, branchId) => [...FEEDBACK_QUERY_KEYS.details(), id, { branchId: String(branchId) }],
   byOrder: (orderId, branchId) => [...FEEDBACK_QUERY_KEYS.lists(), 'byOrder', { orderId, branchId: String(branchId) }],
 };
-
 const normalizeBranchId = (branchId) => {
   const id = String(branchId || environment.multiTenant.getCurrentBranchId() || '1');
   if (environment.features?.enableLogging) {
@@ -267,6 +269,7 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
           response.data.data.map(async (feedback) => {
             let customerName = feedback.userId;
             let avatar = null;
+            let images = [];
             try {
               const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
               customerName = userResponse.data?.firstName && userResponse.data?.lastName 
@@ -275,6 +278,18 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
               avatar = userResponse.data?.avatar || null;
             } catch (error) {
               console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error);
+            }
+            try {
+              const orderResponse = await orderService.getOrderDetails(feedback.orderId);
+              if (environment.features?.enableLogging) {
+                console.log(`🔍 Order details for orderId ${feedback.orderId}:`, orderResponse.data);
+              }
+              images = orderResponse.data.map(item => ({
+                url: getImageUrlWithFallback(item.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production'),
+                alt: item.foodName || 'Món ăn'
+              }));
+            } catch (error) {
+              console.warn(`⚠️ Failed to fetch order details for orderId ${feedback.orderId}:`, error);
             }
             return {
               id: feedback.id,
@@ -287,6 +302,7 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
               customerName,
               avatar,
               timestamp: feedback.createdAt || new Date().toISOString(),
+              images, // Thêm danh sách ảnh món ăn
             };
           })
         );
@@ -310,36 +326,29 @@ export const useFeedbacksByOrder = (orderId, branchId, options = {}) => {
     isError: query.isError,
     isSuccess: query.isSuccess,
   };
-  
 };
 export const useFeedbacksByFood = (foodId, branchId, options = {}) => {
-  const targetBranchId = normalizeBranchId(branchId);
+  const currentBranchId = branchId || environment.multiTenant.getCurrentBranchId() || '1';
 
-  const query = useQuery({
-    queryKey: FEEDBACK_QUERY_KEYS.byFood(foodId, targetBranchId),
-    queryFn: () => feedbackService.getFeedbacksByFood(foodId, targetBranchId),
-    enabled: !!foodId && !!targetBranchId,
-    staleTime: environment.performance?.queryStaleTime || 5 * 60 * 1000,
-    cacheTime: environment.performance?.queryCacheTime || 5 * 60 * 1000,
-    onSuccess: (data) => {
-      console.log('✅ Fetched feedbacks for foodId:', foodId, 'Data:', data);
-      message.success('Đã tải đánh giá thành công!');
-      if (options.onSuccess) options.onSuccess(data);
+  return useQuery({
+    queryKey: FEEDBACK_QUERY_KEYS.byFood(foodId, currentBranchId),
+    queryFn: async () => {
+      if (!foodId || !currentBranchId) throw new Error('Food ID and Branch ID are required');
+      console.log('🔍 useFeedbacksByFood queryFn executing for foodId:', foodId, 'branchId:', currentBranchId);
+      return await feedbackService.getFeedbacksByFood(foodId, currentBranchId);
     },
-    onError: (error) => {
-      console.error('❌ Failed to fetch feedbacks:', error.response?.data || error.message);
-      message.error('Không thể tải đánh giá. Vui lòng thử lại.');
-      if (options.onError) options.onError(error);
+    staleTime: environment.performance.queryStaleTime || 120000,
+    cacheTime: environment.performance.queryCacheTime || 120000,
+    refetchOnWindowFocus: false,
+    enabled: !!foodId && !!currentBranchId,
+    retry: (failureCount, error) => {
+      const status = error?.response?.status;
+      if ([404, 403, 401].includes(status)) {
+        console.warn(`🚫 Feedback by food request failed with status ${status}, stopping retries`);
+        return false;
+      }
+      return failureCount < 2;
     },
     ...options,
   });
-
-  return {
-    feedbacks: query.data || [],
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
-    isError: query.isError,
-    isSuccess: query.isSuccess,
-  };
 };

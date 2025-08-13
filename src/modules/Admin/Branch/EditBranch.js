@@ -1,11 +1,10 @@
 import React, { useEffect } from 'react';
-import { Form, Input, Button, Space, Select, message } from 'antd';
+import { Form, Input, Button, Space, message } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
-import './Branch.css'; 
-
-const { Option } = Select;
+import { branchService } from '../../../services/branchService';
+import './Branch.css';
 
 const EditBranch = ({ open, onCancel, onSubmit, formData }) => {
     const { form, handleSubmit, resetForm } = useAntForm();
@@ -36,14 +35,29 @@ const EditBranch = ({ open, onCancel, onSubmit, formData }) => {
                 return;
             }
 
+            // Check if name is different from current name before validating
+            const currentName = formData?.name?.trim().toLowerCase();
+            if (normalizedName !== currentName) {
+                const isUnique = await branchService.validateBranchName?.(normalizedName, formData?.id);
+                if (isUnique === false) {
+                    form.setFields([
+                        {
+                            name: 'name',
+                            errors: ['Tên chi nhánh đã tồn tại!'],
+                        },
+                    ]);
+                    return;
+                }
+            }
+
             await handleSubmit(async () => {
                 if (onSubmit) {
                     await onSubmit({
                         id: formData?.id,
-                        name: values.name.trim(),
-                        phoneNumber: values.phoneNumber?.trim() || '',
-                        address: values.address?.trim() || '',
-                        paymentStatus: values.paymentStatus,
+                        Name: values.name.trim(),
+                        Phone: values.phoneNumber?.trim() || '',
+                        Address: values.address?.trim() || '',
+                        IsActive: true
                     });
                 }
             });
@@ -55,7 +69,7 @@ const EditBranch = ({ open, onCancel, onSubmit, formData }) => {
 
     return (
         <ReusableModal
-            title={<span style={{ fontSize: '30px' }}>Chỉnh sửa</span>}
+            title={<span style={{ fontSize: '30px' }}>Chỉnh sửa chi nhánh</span>}
             open={open}
             onCancel={onCancel}
             footer={null}

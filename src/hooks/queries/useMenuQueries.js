@@ -104,16 +104,25 @@ export const useMenus = (filters = {}, options = {}) => {
   return useQuery({
     queryKey: MENU_KEYS.byDate(queryFilters.date, queryFilters.branchId),
     queryFn: () => fetchMenuByDate(queryFilters),
-    enabled: !!queryFilters.date, // Only run if date is provided
+    // Only run if both date and branchId are provided
+    enabled: !!(queryFilters.date && queryFilters.branchId),
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
+    // Add refetchOnMount to ensure fresh data after branch switch
+    refetchOnMount: true,
+    // Add refetchInterval to check for branch changes
+    refetchInterval: (data, query) => {
+      // Refetch every 1 second if no branch is selected (waiting for user to choose)
+      return !queryFilters.branchId ? 1000 : false;
+    },
     // Retry once on failure before falling back to mock data
     retry: 1,
     retryDelay: 1000,
     ...options,
   });
 };
+
 
 /**
  * Hook for fetching menu categories by date
@@ -136,7 +145,7 @@ export const useMenuCategories = (filters = {}, options = {}) => {
         isUsingMockData: menuData.isUsingMockData
       };
     },
-    enabled: !!queryFilters.date,
+    enabled: !!(queryFilters.date && queryFilters.branchId),
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -173,7 +182,7 @@ export const useMenuFoods = (filters = {}, options = {}) => {
         isUsingMockData: menuData.isUsingMockData
       };
     },
-    enabled: !!queryFilters.date,
+    enabled: !!(queryFilters.date && queryFilters.branchId),
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,

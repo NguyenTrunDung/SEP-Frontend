@@ -74,7 +74,7 @@ const FoodForPatientPage = () => {
                     restrictionData: {
                         diseaseCategoryId: formData.diseaseCategoryId,
                         foodId: formData.foodId,
-                        restrictionLevel: formData.restrictionLevel,
+                        // restrictionLevel: formData.restrictionLevel,
                         reason: formData.reason,
                         alternativeRecommendations: formData.alternativeRecommendations,
                         requiresPhysicianOverride: formData.requiresPhysicianOverride,
@@ -86,7 +86,7 @@ const FoodForPatientPage = () => {
                 await createRestrictionMutation.mutateAsync({
                     diseaseCategoryId: formData.diseaseCategoryId,
                     foodId: formData.foodId,
-                    restrictionLevel: formData.restrictionLevel,
+                    // restrictionLevel: formData.restrictionLevel,
                     reason: formData.reason,
                     alternativeRecommendations: formData.alternativeRecommendations,
                     requiresPhysicianOverride: formData.requiresPhysicianOverride,

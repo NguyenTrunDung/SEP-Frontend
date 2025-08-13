@@ -100,8 +100,9 @@ export const useCreateOrder = () => {
         },
 
         onSuccess: (data, { branchId }) => {
+
             message.destroy(); // Clear loading message
-            message.success('Đặt món thành công! Mã đơn hàng: ' + (data.data?.code || data.code || 'N/A'));
+            message.success('Đặt món thành công! Mã đơn hàng: ' + (data?.data?.id || data?.status || 'N/A'));
 
             // Invalidate and refetch order lists for this branch
             queryClient.invalidateQueries({

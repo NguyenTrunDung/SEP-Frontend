@@ -131,7 +131,7 @@ const authReducer = (state, action) => {
 // Hàm xác định loại đăng nhập
 const determineLoginType = (userRole, branchRoleName) => {
     // Nếu là NURSE hoặc có branchRoleName là "Y tá" thì là public login
-    if (userRole === ROLES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.NURSE) {
+    if (userRole === ROLES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.DOCTOR) {
         return 'public';
     }
 
@@ -142,7 +142,7 @@ const determineLoginType = (userRole, branchRoleName) => {
 // Hàm kiểm tra xem user có thể đăng nhập qua internal login không
 const canUseInternalLogin = (userRole, branchRoleName) => {
     // NURSE không thể đăng nhập qua internal login
-    if (userRole === ROLES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.NURSE) {
+    if (userRole === ROLES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.DOCTOR) {
         return false;
     }
 
@@ -153,7 +153,7 @@ const canUseInternalLogin = (userRole, branchRoleName) => {
 // Hàm kiểm tra xem user có thể đăng nhập qua public login không
 const canUsePublicLogin = (userRole, branchRoleName) => {
     // Chỉ NURSE mới có thể đăng nhập qua public login
-    return userRole === ROLES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.NURSE;
+    return userRole === ROLES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.NURSE || branchRoleName === BRANCH_ROLE_NAMES.DOCTOR;
 };
 
 export const AuthProvider = ({ children }) => {
@@ -579,8 +579,10 @@ export const AuthProvider = ({ children }) => {
             console.warn('⚠️ Logout API call failed:', error);
         } finally {
             // Clear refresh timestamp on logout
-            localStorage.removeItem('lastTokenRefresh');
-            localStorage.removeItem('loginType');
+            // localStorage.removeItem('lastTokenRefresh');
+            // localStorage.removeItem('loginType');
+            localStorage.clear()
+
             dispatch({ type: 'LOGOUT' });
             console.log('✅ Logout completed');
         }

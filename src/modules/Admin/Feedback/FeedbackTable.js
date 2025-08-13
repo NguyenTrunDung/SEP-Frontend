@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Button, Input, Tooltip, Popconfirm, Modal, Descriptions, Spin } from 'antd';
+import { Button, Input, Tooltip, Popconfirm, Modal, Descriptions, Spin, message } from 'antd';
 import { EyeOutlined, DeleteOutlined, MessageOutlined, SearchOutlined } from '@ant-design/icons';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import PropTypes from 'prop-types';
 import { environment } from '../../../services/api/config';
+import { feedbackService } from '../../../services/feedbackService';
 
 const getRatingLabel = (rating) => {
   if (environment.features?.enableLogging) {
@@ -78,12 +79,31 @@ const FeedbacksTable = ({
 
   const handleViewDetails = async (record) => {
     if (environment.features?.enableLogging) {
-      console.log('🔍 Viewing feedback details:', record);
+      console.log('🔍 Viewing feedback details for ID:', record.id);
     }
     setModalLoading(true);
-    setIsModalVisible(true);
-    setSelectedFeedback(record);
-    setModalLoading(false);
+    try {
+      const freshFeedback = await feedbackService.getFeedback(record.id);
+      if (freshFeedback) {
+        setSelectedFeedback(freshFeedback);
+        if (environment.features?.enableLogging) {
+          console.log('✅ Fetched fresh feedback:', freshFeedback);
+        }
+      } else {
+        setSelectedFeedback(record);
+        message.warning('Không thể tải dữ liệu mới nhất, hiển thị dữ liệu hiện tại');
+      }
+      setIsModalVisible(true);
+    } catch (error) {
+      if (environment.features?.enableLogging) {
+        console.error('❌ Failed to fetch feedback for details:', error.message);
+      }
+      setSelectedFeedback(record);
+      message.error('Lỗi khi tải chi tiết đánh giá, hiển thị dữ liệu hiện tại');
+      setIsModalVisible(true);
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleDelete = (record) => {

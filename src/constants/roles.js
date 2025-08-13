@@ -33,6 +33,7 @@ export const BRANCH_ROLE_NAMES = {
     STAFF: 'Nhân viên',
     KITCHEN: 'Nhà bếp',
     NURSE: 'Y tá',
+    DOCTOR: 'Bác sĩ',
 };
 
 // Map backend Identity roles + Branch roles to frontend role constants
@@ -72,6 +73,10 @@ export const mapBackendRoleToFrontend = (identityRoles, branchRoleName = null, u
         // Special case: Staff with Nurse branch role should be treated as Guest/Nurse for non-admin access
         if (effectiveBranchRole === BRANCH_ROLE_NAMES.NURSE) {
             return ROLES.NURSE; // This will be used to redirect to guest layout
+        }
+
+        if (effectiveBranchRole === BRANCH_ROLE_NAMES.DOCTOR) {
+            return ROLES.DOCTOR;
         }
 
         // Map other Staff branch roles to appropriate frontend roles
@@ -129,7 +134,7 @@ export const canAccessAdminRoutes = (userRole) => {
         ROLES.ADMIN,
         ROLES.BRANCH_MANAGER,
         ROLES.MANAGER,
-        ROLES.DOCTOR
+        ROLES.CASHIER
     ];
     return adminRouteRoles.includes(userRole);
 };

@@ -8,16 +8,18 @@ import { useAntModal } from '../../../hooks/useAntModal';
 import { useOrders } from '../../../hooks/queries/useOrders';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
 import { environment } from '../../../services/api/config';
+import { orderService } from '../../../services/orderService';
 import moment from 'moment';
 import './Order.css';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 const OrdersTableV2 = () => {
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({
     startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
     endOrderDate: moment().format('YYYY-MM-DD'),
-    status: null,
-    isPaid: null,
+    status: "Pending",
+    isPaid: true,
   });
   const [ordersData, setOrdersData] = useState([]);
   const [viewOrder, setViewOrder] = useState(null);
@@ -40,6 +42,7 @@ const OrdersTableV2 = () => {
       const orderList = Array.isArray(orders) ? orders : (orders.data || []);
       const filtered = orderList.filter(order => String(order.branchId) === String(branchId));
       setOrdersData(filtered);
+      console.log('🔍 Orders data set:', filtered);
     }
   }, [orders, error, handleNonPermissionError, branchId]);
 
@@ -47,17 +50,31 @@ const OrdersTableV2 = () => {
     return ordersData;
   }, [ordersData]);
 
-  const handleViewDetail = (record) => {
+  const handleViewDetail = async (record) => {
     if (String(record.branchId) !== String(branchId)) {
       message.error('Không thể xem chi tiết đơn hàng từ chi nhánh khác!');
       return;
     }
-    setViewOrder(record);
-    showViewModal();
+    try {
+      const orderDetails = await orderService.getOrderDetails(record.id);
+      setViewOrder({
+        ...record,
+        orderDetails: orderDetails.data.map((item) => ({
+          ...item,
+          foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+        })),
+      });
+      showViewModal();
+      refetch();
+    } catch (error) {
+      console.error('Failed to fetch order details:', error);
+      message.error('Không thể lấy chi tiết đơn hàng!');
+    }
   };
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
+    refetch();
   };
 
   const handleClearFilters = () => {
@@ -68,10 +85,12 @@ const OrdersTableV2 = () => {
       isPaid: null,
     });
     setSearchText('');
+    refetch();
   };
 
   const handleStatusChange = () => {
     refetch();
+    console.log('🔄 Refetching orders after status change');
   };
 
   const paginationConfig = {
@@ -89,10 +108,19 @@ const OrdersTableV2 = () => {
         title="Đơn hàng"
         loading={isLoading}
         showAddButton={false}
-        showRefreshButton={false}
+        showRefreshButton={true}
+        onRefresh={refetch}
+        // Permission controls
+        resourceName="orders"
+        viewPermission={PERMISSIONS.ORDERS_VIEW}
+        hideOnNoPermission={true}
+        permissionFallback={<div>Bạn không có quyền truy cập trang quản lý đơn hàng.</div>}
         searchProps={{
           value: searchText,
-          onChange: (e) => setSearchText(e.target.value),
+          onChange: (e) => {
+            setSearchText(e.target.value);
+            refetch();
+          },
           placeholder: 'Tìm kiếm đơn hàng',
         }}
         filterProps={{
@@ -111,7 +139,7 @@ const OrdersTableV2 = () => {
                 { value: 'Delivered', label: 'Đang giao hàng' },
                 { value: 'Completed', label: 'Hoàn thành' },
                 { value: 'Cancelled', label: 'Đã hủy' },
-
+                { value: 'PendingPayment', label: 'Chờ thanh toán' },
               ],
             },
             {
@@ -159,20 +187,14 @@ const OrdersTableV2 = () => {
             {
               dataIndex: 'status',
               title: 'Trạng thái',
-              render: (status) =>
-              ({
-                Pending: 'Chưa xử lý',
-                Confirmed: 'Đang xử lý',
-                Delivered: 'Đang giao hàng',
-                Completed: 'Hoàn thành',
-                Cancelled: 'Đã hủy',
+              render: (status) => ({
                 pending: 'Chưa xử lý',
                 confirmed: 'Đang xử lý',
                 delivered: 'Đang giao hàng',
                 completed: 'Hoàn thành',
                 cancelled: 'Đã hủy',
-
-              }[status] || status || 'N/A'),
+                pendingpayment: 'Chờ thanh toán',
+              }[status.toLowerCase()] || status || 'N/A'),
               align: 'center',
             },
             {
@@ -204,6 +226,12 @@ const OrdersTableV2 = () => {
           pagination={paginationConfig}
           rowKey="id"
           className="orders-table"
+          // Permission controls for table actions
+          resourceName="orders"
+          editPermission={PERMISSIONS.ORDERS_EDIT}
+          deletePermission={PERMISSIONS.ORDERS_DELETE}
+          hideActionsOnNoPermission={true}
+          showPermissionTooltips={true}
         />
       </PageWrapperV2>
 
@@ -213,6 +241,7 @@ const OrdersTableV2 = () => {
         orderData={viewOrder}
         branchId={branchId}
         onStatusChange={handleStatusChange}
+        orderDetails={viewOrder?.orderDetails || []}
       />
     </div>
   );

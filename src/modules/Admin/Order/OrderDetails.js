@@ -3,21 +3,17 @@ import {
   Modal,
   Input,
   Button,
-  Select,
   Table,
   Switch,
   Row,
   Col,
   DatePicker,
   TimePicker,
-  Popconfirm,
   message,
 } from 'antd';
 import moment from 'moment';
 import './ViewOrderDetail.css';
-import { useUpdateOrder } from '../../../hooks/queries/useOrders';
-
-const { Option } = Select;
+import { useUpdateOrder, useDeleteOrder } from '../../../hooks/queries/useOrders';
 
 const ViewOrderDetail = ({
   open,
@@ -29,38 +25,114 @@ const ViewOrderDetail = ({
 }) => {
   const [formData, setFormData] = useState({});
   const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
+  const { mutate: deleteOrder, isLoading: isDeleting } = useDeleteOrder();
 
-  useEffect(() => {
-    if (orderData) {
-      setFormData(orderData);
+  // Normalize paymentMethod to string
+  const normalizePaymentMethod = (paymentMethod) => {
+    const numberToStringMap = {
+      '1': 'Wallet',
+      '2': 'VNPay',
+    };
+    if (typeof paymentMethod === 'number' || (typeof paymentMethod === 'string' && numberToStringMap[paymentMethod])) {
+      return numberToStringMap[paymentMethod.toString()] || 'Wallet';
     }
-  }, [orderData]);
-
-  const handleConfirmOrder = async () => {
-    try {
-      await updateOrder({
-        orderId: orderData.id,
-        orderData: { status: 'Confirmed' }, // Updated to match API format
-        branchId,
-      });
-      setFormData((prev) => ({ ...prev, status: 'Confirmed' }));
-      message.success('Đơn hàng đã được xác nhận!');
-      onStatusChange?.();
-    } catch (error) {
-      console.error('Lỗi xác nhận đơn:', error);
-      message.error('Chuyển trạng thái đơn hàng thất bại!');
+    if (typeof paymentMethod === 'string') {
+      if (paymentMethod.toLowerCase() === 'vnpay') return 'VNPay';
+      if (paymentMethod.toLowerCase() === 'wallet') return 'Wallet';
     }
+    return 'Wallet';
   };
 
+  // Normalize receiveType to display string
+  const normalizeReceiveType = (receiveType) => {
+    const receiveTypeMap = {
+      'take': 'Tự đến lấy',
+      'delivery': 'Giao hàng',
+    };
+    return receiveTypeMap[receiveType] || receiveType || 'Giao hàng';
+  };
+
+  // Normalize status to display string
+  const normalizeStatus = (status) => {
+    const statusMap = {
+      'Pending': 'Đang chờ',
+      'Confirmed': 'Đã xác nhận',
+      'Delivered': 'Đang giao hàng',
+      'Completed': 'Hoàn thành',
+      'Cancelled': 'Hủy',
+      'PendingPayment': 'Chờ thanh toán',
+    };
+    return statusMap[status] || status || 'Đang chờ';
+  };
+
+  // Helper function to safely parse Vietnamese time strings
+  const safeParseVietnameseTime = (timeString) => {
+    if (!timeString) return null;
+
+    // If it's already a valid time format (HH:mm), use it directly
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (timeRegex.test(timeString)) {
+      return moment(timeString, 'HH:mm');
+    }
+
+    // Handle Vietnamese time strings like "30 phút", "1 giờ", etc.
+    if (typeof timeString === 'string') {
+      // Extract numbers from Vietnamese time strings
+      const numberMatch = timeString.match(/(\d+)/);
+      if (numberMatch) {
+        const number = parseInt(numberMatch[1]);
+
+        // Handle "phút" (minutes)
+        if (timeString.includes('phút')) {
+          // Convert to HH:mm format (assuming it's minutes from midnight)
+          const hours = Math.floor(number / 60);
+          const minutes = number % 60;
+          return moment(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`, 'HH:mm');
+        }
+
+        // Handle "giờ" (hours)
+        if (timeString.includes('giờ')) {
+          return moment(`${number.toString().padStart(2, '0')}:00`, 'HH:mm');
+        }
+      }
+    }
+
+    // If all else fails, try to parse as regular time
+    try {
+      const parsed = moment(timeString, ['HH:mm', 'H:mm', 'HH:mm:ss', 'H:mm:ss']);
+      if (parsed.isValid()) {
+        return parsed;
+      }
+    } catch (error) {
+      console.warn('Failed to parse time:', timeString, error);
+    }
+
+    return null;
+  };
+
+  useEffect(() => {
+    console.log('🔍 Order data received in OrderDetails:', orderData);
+    if (orderData) {
+      setFormData({
+        ...orderData,
+        paymentMethod: normalizePaymentMethod(orderData.paymentMethod),
+        receiveType: normalizeReceiveType(orderData.receiveType),
+        status: normalizeStatus(orderData.status),
+      });
+    }
+    console.log('🔍 Order details received:', orderDetails);
+  }, [orderData, orderDetails]);
+
   const handleDeliverOrder = async () => {
+    console.log('🔍 Form data in handleDeliverOrder:', formData);
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: { status: 'Delivered' }, // Updated to match API format
         branchId,
+        newStatus: 'Delivered',
       });
-      setFormData((prev) => ({ ...prev, status: 'Delivered' }));
-      message.success('Đơn hàng đã được chuyển sang trạng thái Đang giao hàng!');
+      setFormData((prev) => ({ ...prev, status: 'Đang giao hàng' }));
+      message.success('Đơn hàng đã được chuyển sang trạng thái Shipper nhận đơn và đi giao!');
       onStatusChange?.();
     } catch (error) {
       console.error('Lỗi giao hàng:', error);
@@ -72,10 +144,10 @@ const ViewOrderDetail = ({
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: { status: 'Completed' }, // Updated to match API format
         branchId,
+        newStatus: 'Completed',
       });
-      setFormData((prev) => ({ ...prev, status: 'Completed' }));
+      setFormData((prev) => ({ ...prev, status: 'Hoàn thành' }));
       message.success('Đơn hàng đã được hoàn thành!');
       onStatusChange?.();
     } catch (error) {
@@ -84,29 +156,69 @@ const ViewOrderDetail = ({
     }
   };
 
-  const handleCancelOrder = async () => {
+  const handleConfirmOrder = async () => {
     try {
       await updateOrder({
         orderId: orderData.id,
-        orderData: { status: 'Cancelled' }, // Updated to match API format
         branchId,
+        newStatus: 'Confirmed',
       });
-      setFormData((prev) => ({ ...prev, status: 'Cancelled' }));
-      message.success('Đã hủy đơn hàng!');
+      setFormData((prev) => ({ ...prev, status: 'Đã xác nhận' }));
+      message.success('Đơn hàng đã được xác nhận!');
       onStatusChange?.();
     } catch (error) {
-      console.error('Lỗi hủy đơn:', error);
-      message.error('Hủy đơn hàng thất bại!');
+      console.error('Lỗi xác nhận đơn:', error);
+      message.error('Chuyển trạng thái đơn hàng thất bại!');
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    try {
+      await deleteOrder({
+        orderId: orderData.id,
+        branchId,
+      });
+      setFormData((prev) => ({ ...prev, status: 'Hủy' }));
+      message.success('Đã xóa đơn hàng!');
+      onStatusChange?.();
+      onCancel?.();
+    } catch (error) {
+      console.error('Lỗi xóa đơn:', error);
+      message.error('Xóa đơn hàng thất bại!');
     }
   };
 
   const columns = [
-    { title: '#', dataIndex: 'index', key: 'index', render: (_, __, idx) => idx + 1 },
-    { title: 'TÊN MÓN', dataIndex: 'foodName', key: 'foodName' },
-    { title: 'GIÁ TIỀN', dataIndex: 'price', key: 'price', render: (val) => val?.toLocaleString() },
-    { title: 'SỐ LƯỢNG', dataIndex: 'qty', key: 'qty' },
-    { title: 'GHI CHÚ', dataIndex: 'note', key: 'note' },
-    { title: 'TIỀN', dataIndex: 'total', key: 'total', render: (val) => val?.toLocaleString() },
+    { title: '#', dataIndex: 'index', key: 'index', align: 'center', render: (_, __, idx) => idx + 1 },
+    {
+      title: 'TÊN MÓN',
+      dataIndex: 'foodName',
+      key: 'foodName',
+      align: 'center',
+      render: (foodName, record) => foodName || record.name || `Món ăn ID ${record.foodId || 'Unknown'}`,
+    },
+    {
+      title: 'GIÁ TIỀN',
+      dataIndex: 'price',
+      align: 'center',
+      key: 'price',
+      render: (val) => val?.toLocaleString() || '0',
+    },
+    {
+      title: 'SỐ LƯỢNG',
+      dataIndex: 'Qty',
+      align: 'center',
+      key: 'qty',
+      render: (Qty) => Qty ?? 1,
+    },
+    { title: 'GHI CHÚ', dataIndex: 'note', key: 'note', render: (note) => note || '' },
+    {
+      title: 'TIỀN',
+      dataIndex: 'total',
+      align: 'center',
+      key: 'total',
+      render: (val) => val?.toLocaleString() || '0',
+    },
   ];
 
   return (
@@ -162,10 +274,11 @@ const ViewOrderDetail = ({
           <Col span={6}>
             <label className="floating-label">Thời gian nhận</label>
             <TimePicker
-              value={formData.receiveTime ? moment(formData.receiveTime, 'HH:mm') : null}
+              value={safeParseVietnameseTime(formData.receiveTime)}
               disabled
               style={{ width: '100%' }}
               format="HH:mm"
+            //placeholder="Chưa có thời gian nhận"
             />
           </Col>
         </Row>
@@ -173,10 +286,7 @@ const ViewOrderDetail = ({
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col span={6}>
             <label className="floating-label">Hình thức giao</label>
-            <Select value={formData.receiveType} disabled style={{ width: '100%' }}>
-              <Option value="take">Tự đến lấy</Option>
-              <Option value="delivery">Giao hàng</Option>
-            </Select>
+            <Input value={formData.receiveType} disabled placeholder="Hình thức giao" />
           </Col>
           <Col span={6}>
             <Input value={formData.customerAddress} disabled placeholder="Địa chỉ" />
@@ -197,15 +307,7 @@ const ViewOrderDetail = ({
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col span={6}>
             <label className="floating-label">Trạng thái</label>
-            <Select value={formData.status} disabled style={{ width: '100%' }}>
-              <Option value="Pending">Đang chờ</Option>
-              <Option value="Confirmed">Đã xác nhận</Option>
-              <Option value="Preparing">Đang chuẩn bị</Option>
-              <Option value="Delivered">Đang giao hàng</Option>
-              <Option value="Completed">Hoàn thành</Option>
-              <Option value="Cancelled">Hủy</Option>
-              <Option value="PendingPayment">Chờ thanh toán</Option>
-            </Select>
+            <Input value={formData.status} disabled placeholder="Trạng thái" />
           </Col>
           <Col span={6}>
             <label className="floating-label">Phí vận chuyển</label>
@@ -215,18 +317,22 @@ const ViewOrderDetail = ({
             <label className="floating-label">Thành tiền</label>
             <Input value={formData.total} disabled />
           </Col>
-          <Col span={6}>
+          {/* <Col span={6}>
             <Input value={formData.location} disabled placeholder="Vị trí" />
+          </Col> */}
+          <Col span={6}>
+            <label className="floating-label">Phương thức thanh toán</label>
+            <Input value={formData.paymentMethod} disabled placeholder="Phương thức thanh toán" />
           </Col>
         </Row>
 
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }} align="middle">
-          <Col span={6}>
+          {/* <Col span={6}>
             <Input value={formData.area} disabled placeholder="Khu vực" />
-          </Col>
+          </Col> */}
 
           <Col span={3}>
-            {(formData.status === 'pending' || formData.status === 'Pending') ? (
+            {(formData.status === 'Đang chờ') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#00B8A9', border: 'none' }}
@@ -235,7 +341,7 @@ const ViewOrderDetail = ({
               >
                 Xác Nhận
               </Button>
-            ) : (formData.status === 'confirmed' || formData.status === 'Confirmed') ? (
+            ) : (formData.status === 'Đã xác nhận') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#0d8ce0', border: 'none' }}
@@ -244,7 +350,7 @@ const ViewOrderDetail = ({
               >
                 Đang giao hàng
               </Button>
-            ) : (formData.status === 'delivered' || formData.status === 'Delivered') ? (
+            ) : (formData.status === 'Đang giao hàng') ? (
               <Button
                 type="primary"
                 style={{ width: '100%', backgroundColor: '#52c41a', border: 'none' }}
@@ -256,28 +362,21 @@ const ViewOrderDetail = ({
             ) : null}
           </Col>
 
-          {['pending', 'Pending', 'confirmed', 'Confirmed'].includes(formData.status) && (
+          {['Đang chờ', 'Đã xác nhận'].includes(formData.status) && (
             <Col span={3}>
-              <Popconfirm
-                title="Bạn có chắc muốn hủy đơn hàng này?"
-                onConfirm={handleCancelOrder}
-                okText="Hủy đơn"
-                cancelText="Thoát"
-                okButtonProps={{ danger: true }}
+              <Button
+                danger
+                style={{
+                  backgroundColor: '#ff4d4f',
+                  color: '#fff',
+                  border: 'none',
+                  width: '100%',
+                }}
+                onClick={handleCancelOrder}
+                loading={isUpdating || isDeleting}
               >
-                <Button
-                  danger
-                  style={{
-                    backgroundColor: '#ff4d4f',
-                    color: '#fff',
-                    border: 'none',
-                    width: '100%',
-                  }}
-                  loading={isUpdating}
-                >
-                  Hủy Đơn
-                </Button>
-              </Popconfirm>
+                Hủy Đơn
+              </Button>
             </Col>
           )}
         </Row>

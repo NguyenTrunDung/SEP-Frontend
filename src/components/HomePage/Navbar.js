@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar, Card, Image } from 'antd';
-import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined, CloseOutlined } from '@ant-design/icons';
+import { Layout, Input, Row, Col, Modal, List, Spin, Alert, Button, Typography, message, ConfigProvider, Avatar, Card, Image, Form } from 'antd';
+import { SearchOutlined, UserOutlined, LogoutOutlined, EditOutlined, WalletOutlined, ShoppingOutlined, CloseOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePublicBranchesOnly, usePublicSwitchBranchOnly } from '../../hooks/queries/useBranchSelector';
 import { useCart } from '../../context/CartContext';
@@ -16,7 +16,7 @@ import UserHeader from '../common/UserHeader';
 import OrderTrackingPopup from '../Order/OrderTrackingPopup';
 import { AuthFormPublic } from '../common/AuthForm';
 import { queryClient } from '../../lib/reactQuery';
-
+import { authService } from '../../services/authService';
 
 const { Header } = Layout;
 const { Text, Title } = Typography;
@@ -25,7 +25,7 @@ const Navbar = () => {
   const { data: branchesData, isLoading: loading, isError, error } = usePublicBranchesOnly();
   const switchBranchMutation = usePublicSwitchBranchOnly();
   const { cartItems, setCartItems } = useCart();
-  const { user, logout } = useAuth();
+  const { user, logout, loginType } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -35,6 +35,13 @@ const Navbar = () => {
   });
   const [isOrderTrackingVisible, setIsOrderTrackingVisible] = useState(false);
   const [isLoginModalVisible, setIsLoginModalVisible] = useState(false);
+  const [isForgotPasswordModalVisible, setIsForgotPasswordModalVisible] = useState(false);
+  const [isOTPModalVisible, setIsOTPModalVisible] = useState(false);
+  const [isResetPasswordModalVisible, setIsResetPasswordModalVisible] = useState(false);
+  const [forgotPasswordForm] = Form.useForm();
+  const [otpForm] = Form.useForm();
+  const [resetPasswordForm] = Form.useForm();
+  const [resetEmail, setResetEmail] = useState('');
 
   const branches = branchesData && Array.isArray(branchesData) ? branchesData : [];
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
@@ -51,6 +58,7 @@ const Navbar = () => {
     area: '',
     room: '',
     deliveryTime: '',
+    customTime: '',
     note: '',
     receiveMethod: 'Giao tận nơi',
     includeUtensils: false,
@@ -61,7 +69,6 @@ const Navbar = () => {
   });
   const [activeKey, setActiveKey] = useState('home');
 
-  // Add event listener to clear localStorage on tab/window close
   useEffect(() => {
     const handleBeforeUnload = () => {
       localStorage.removeItem('selectedBranch');
@@ -70,7 +77,6 @@ const Navbar = () => {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // Cleanup the event listener on component unmount
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
@@ -81,7 +87,6 @@ const Navbar = () => {
     const params = new URLSearchParams(location.search);
     const branchId = params.get('branch');
 
-    // Xử lý chi nhánh từ query parameter
     if (branchId && branches.length > 0 && !selectedBranch) {
       const branch = branches.find(b => b.id === parseInt(branchId));
       if (branch) {
@@ -93,7 +98,6 @@ const Navbar = () => {
       }
     }
 
-    // Hiển thị modal nếu chưa có chi nhánh được chọn và không ở các tuyến đường loại trừ
     if (!selectedBranch && !excludeRoutes.includes(location.pathname) && (!user || user?.role !== ROLES.NURSE)) {
       console.log('Showing branch selection popup: no branch selected');
       setIsModalVisible(true);
@@ -114,39 +118,82 @@ const Navbar = () => {
   const handleBranchSelect = async (branch) => {
     try {
       console.log('🔄 Switching to branch:', branch);
-
-      // Call the mutation to switch branch
       await switchBranchMutation.mutateAsync(branch.id);
-
-      // Update local state
       setSelectedBranch(branch);
       localStorage.setItem('selectedBranch', JSON.stringify(branch));
       localStorage.setItem('currentBranchId', branch.id);
-
-      // Close modal
       setIsModalVisible(false);
-
-      // Show success message
       message.success(`Đã chuyển sang chi nhánh: ${branch.name}`);
 
-      // Force refetch of menu data by invalidating all menu queries
-      // This will trigger a refetch of menu data with the new branch context
+      // Force immediate refetch of menu data
       if (queryClient) {
-        // Invalidate all menu-related queries to force refresh
+        // Invalidate all menu queries
         queryClient.invalidateQueries({ queryKey: ['menus'] });
         queryClient.invalidateQueries({ queryKey: ['public', 'menus'] });
+        queryClient.invalidateQueries({ queryKey: ['menus', 'byDate'] });
+        queryClient.invalidateQueries({ queryKey: ['menusAdmin'] });
+        queryClient.invalidateQueries({ queryKey: ['menusAdmin', 'list'] });
+        queryClient.invalidateQueries({ queryKey: ['menusAdmin', 'byDate'] });
 
-        // Force refetch current menu data
-        queryClient.refetchQueries({ queryKey: ['menus', 'byDate'] });
+        // Force immediate refetch with new branch ID
+        queryClient.refetchQueries({
+          queryKey: ['menus', 'byDate'],
+          predicate: (query) => {
+            // Refetch any menu queries that might have the old branch ID
+            return query.queryKey[0] === 'menus' && query.queryKey[1] === 'byDate';
+          }
+        });
 
-        console.log('🔄 Invalidated menu queries for branch switch');
+        // Also refetch admin menu queries
+        queryClient.refetchQueries({
+          queryKey: ['menusAdmin', 'list'],
+          predicate: (query) => {
+            return query.queryKey[0] === 'menusAdmin' && query.queryKey[1] === 'list';
+          }
+        });
+
+        console.log('🔄 Invalidated and forced refetch of menu queries for branch switch');
       }
-
     } catch (error) {
       console.error('❌ Failed to switch branch:', error);
       message.error('Không thể chuyển chi nhánh. Vui lòng thử lại.');
     }
   };
+
+
+  useEffect(() => {
+    const currentPath = location.pathname;
+    console.log('Current path:', currentPath);
+    let newActiveKey = 'home';
+    if (currentPath === '/' || currentPath === '/nurse/home') {
+      newActiveKey = 'home';
+    } else if (currentPath === '/contact') {
+      newActiveKey = 'contact';
+    } else if (currentPath.includes('/nurse/patient')) {
+      newActiveKey = 'staff';
+    } else if (currentPath.includes('/menu') || location.hash === '#menu') {
+      newActiveKey = 'menu';
+    }
+    const hash = location.hash.replace('#', '');
+    if (hash && ['home', 'menu', 'contact'].includes(hash)) {
+      newActiveKey = hash;
+    }
+    console.log('Setting activeKey to:', newActiveKey);
+    setActiveKey(newActiveKey);
+    if (hash) {
+      setTimeout(() => {
+        const section = document.getElementById(hash);
+        if (section) {
+          const headerHeight = 139;
+          const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
+          window.scrollTo({
+            top: sectionPosition - headerHeight,
+            behavior: 'smooth',
+          });
+        }
+      }, 100);
+    }
+  }, [location.pathname, location.hash]);
 
   const handleOpenBranchModal = () => {
     if (!user) {
@@ -172,6 +219,21 @@ const Navbar = () => {
     if (menuItem?.route) {
       console.log(`Navigating to: ${menuItem.route}`);
       navigate(menuItem.route);
+      if (menuItem.route === '/' || menuItem.route === '/nurse/home') {
+        setTimeout(() => {
+          const section = document.getElementById(key);
+          if (section) {
+            const headerHeight = 139;
+            const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
+            window.scrollTo({
+              top: sectionPosition - headerHeight,
+              behavior: 'smooth',
+            });
+          } else {
+            console.warn(`No section found for key: ${key}`);
+          }
+        }, 100);
+      }
     } else if (key === 'cart') {
       console.log('Handling cart click');
       handleCartClick();
@@ -204,11 +266,20 @@ const Navbar = () => {
     setIsUserMenuVisible(false);
   };
 
-  const handleLogout = () => {
-    console.log('Logging out user:', user);
-    logout();
-    navigate('/');
-    setIsUserMenuVisible(false);
+  const handleLogout = async () => {
+    try {
+      console.log('Logging out user:', user);
+      await logout();
+      // Navigate based on original login type for better UX
+      const redirectPath = loginType === 'internal' ? '/login' : '/';
+      navigate(redirectPath);
+      setIsUserMenuVisible(false);
+    } catch (error) {
+      console.error('❌ Navbar logout failed:', error);
+      const redirectPath = loginType === 'internal' ? '/login' : '/';
+      navigate(redirectPath);
+      setIsUserMenuVisible(false);
+    }
   };
 
   const handleOrderHistoryClick = () => {
@@ -224,19 +295,69 @@ const Navbar = () => {
   };
 
   const handleLoginClick = () => {
-    console.log('open modal login for user');
+    console.log('Opening login modal');
     setIsLoginModalVisible(true);
+  };
+
+  const handleForgotPasswordClick = () => {
+    console.log('Opening forgot password modal');
+    setIsLoginModalVisible(false);
+    setIsForgotPasswordModalVisible(true);
+  };
+
+  const handleForgotPasswordSubmit = async (values) => {
+    try {
+      const response = await authService.forgotPassword(values.email);
+      message.success('Yêu cầu đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra email của bạn.');
+      setIsForgotPasswordModalVisible(false);
+      setResetEmail(values.email);
+      setIsOTPModalVisible(true);
+      forgotPasswordForm.resetFields();
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Không thể gửi yêu cầu đặt lại mật khẩu. Vui lòng thử lại.');
+    }
+  };
+
+  const handleOTPSubmit = async (values) => {
+    try {
+      // Giả sử có API để kiểm tra OTP riêng
+      // Nếu không có API riêng, bạn có thể dùng resetPassword với newPassword rỗng để kiểm tra OTP
+      const response = await authService.resetPassword({
+        email: resetEmail,
+        token: values.otp,
+        newPassword: '' // Gửi rỗng để chỉ kiểm tra OTP
+      });
+      message.success('Mã OTP hợp lệ!');
+      setIsOTPModalVisible(false);
+      setIsResetPasswordModalVisible(true);
+      otpForm.resetFields();
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
+    }
+  };
+
+  const handleResetPasswordSubmit = async (values) => {
+    try {
+      const response = await authService.resetPassword({
+        email: resetEmail,
+        token: '', // Có thể cần lấy OTP từ bước trước nếu API yêu cầu
+        newPassword: values.newPassword
+      });
+      message.success('Mật khẩu đã được đặt lại thành công!');
+      setIsResetPasswordModalVisible(false);
+      resetPasswordForm.resetFields();
+      setIsLoginModalVisible(true);
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Không thể đặt lại mật khẩu. Vui lòng thử lại.');
+    }
   };
 
   const handleLoginSuccess = () => {
     setIsLoginModalVisible(false);
     message.success('Đăng nhập thành công!');
-    // Redirect về trang chủ sau khi login thành công
-    // Nếu user là NURSE, redirect về /nurse/home
     const redirectPath = user?.role === 'NURSE' ? '/nurse/home' : '/';
     navigate(redirectPath, { replace: true });
   };
-
 
   const menuItems = [
     { key: 'home', label: 'TRANG CHỦ', route: '/' },
@@ -331,10 +452,7 @@ const Navbar = () => {
                         gap: '8px',
                       }}
                       greetingStyle={{ color: '#fff', fontSize: '14px' }}
-                      onLogout={() => {
-                        logout();
-                        navigate('/');
-                      }}
+                      onLogout={handleLogout}
                     />
                   ) : (
                     <Row gutter={8} align="middle">
@@ -663,6 +781,7 @@ const Navbar = () => {
           centered
           width={500}
           destroyOnClose
+
           closeIcon={<CloseOutlined style={{ color: '#000', fontSize: '20px' }} />}
           styles={{
             content: { padding: 0, borderRadius: 8, overflow: 'hidden' },
@@ -671,9 +790,7 @@ const Navbar = () => {
         >
           <Card variant="outlined" style={{ borderRadius: 8 }}>
             <div style={{ padding: '40px 32px' }}>
-              <div style={{
-                textAlign: 'center'
-              }}>
+              <div style={{ textAlign: 'center' }}>
                 <Image
                   src="/images/lg.png"
                   alt="Dussmann Logo"
@@ -684,7 +801,7 @@ const Navbar = () => {
                 <Title level={3} style={{ margin: '16px 0 8px' }}>
                   Welcome to Hệ thống đặt suất ăn bệnh viện!
                 </Title>
-                <Text type="secondary" style={{ display: 'block', marginBottom: '4px', fontSize: '16px' }}>
+                <Text type="secondary" style={{ display: 'block', marginBottom: '24px', fontSize: '16px' }}>
                   Vui lòng đăng nhập để tiếp tục
                 </Text>
               </div>
@@ -721,6 +838,350 @@ const Navbar = () => {
                     }
                   }}
                 />
+                <Button
+                  type="link"
+                  onClick={handleForgotPasswordClick}
+                  style={{ marginTop: '16px', width: '100%', textAlign: 'center' }}
+                >
+                  Quên mật khẩu?
+                </Button>
+              </ConfigProvider>
+            </div>
+          </Card>
+        </Modal>
+
+        <Modal
+          open={isForgotPasswordModalVisible}
+          onCancel={() => {
+            setIsForgotPasswordModalVisible(false);
+            forgotPasswordForm.resetFields();
+          }}
+          footer={null}
+          centered
+          width={500}
+          destroyOnClose
+          closeIcon={<CloseOutlined style={{ color: '#000', fontSize: '20px' }} />}
+          styles={{
+            content: { padding: 0, borderRadius: 8, overflow: 'hidden' },
+            body: { padding: 0 },
+          }}
+        >
+          <Card variant="outlined" style={{ borderRadius: 8 }}>
+            <div style={{ padding: '40px 32px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <Image
+                  src="/images/lg.png"
+                  alt="Dussmann Logo"
+                  preview={false}
+                  width={120}
+                  style={{}}
+                />
+                <Title level={3} style={{ margin: '16px 0 8px' }}>
+                  Quên Mật Khẩu
+                </Title>
+                <Text type="secondary" style={{ display: 'block', marginBottom: '24px', fontSize: '16px' }}>
+                  Nhập email của bạn để nhận mã OTP
+                </Text>
+              </div>
+
+              <ConfigProvider
+                theme={{
+                  components: {
+                    Input: {
+                      activeBorderColor: '#b4c80f',
+                      hoverBorderColor: '#b4c80f',
+                      activeShadow: '0 0 0 2px rgba(180, 200, 15, 0.2)'
+                    },
+                    Button: {
+                      primaryColor: '#000',
+                      primaryBg: '#b4c80f',
+                      defaultBorderColor: '#b4c80f',
+                      defaultHoverBg: '#a3b60e',
+                      defaultHoverBorderColor: '#a3b60e',
+                      defaultHoverColor: '#000'
+                    }
+                  }
+                }}
+              >
+                <Form
+                  form={forgotPasswordForm}
+                  onFinish={handleForgotPasswordSubmit}
+                  layout="vertical"
+                >
+                  <Form.Item
+                    name="email"
+                    rules={[
+                      { required: true, message: 'Vui lòng nhập email!' },
+                      { type: 'email', message: 'Email không hợp lệ!' }
+                    ]}
+                  >
+                    <Input
+                      prefix={<MailOutlined />}
+                      placeholder="Nhập email của bạn"
+                      size="large"
+                    />
+                  </Form.Item>
+                  <Form.Item>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      block
+                      size="large"
+                      style={{
+                        backgroundColor: '#b4c80f',
+                        borderColor: '#b4c80f',
+                        color: '#000',
+                        fontWeight: 500,
+                        borderRadius: 8,
+                        height: 40,
+                      }}
+                    >
+                      Gửi Mã OTP
+                    </Button>
+                  </Form.Item>
+                  <Button
+                    type="link"
+                    onClick={() => {
+                      setIsForgotPasswordModalVisible(false);
+                      setIsLoginModalVisible(true);
+                      forgotPasswordForm.resetFields();
+                    }}
+                    style={{ width: '100%', textAlign: 'center' }}
+                  >
+                    Quay lại đăng nhập
+                  </Button>
+                </Form>
+              </ConfigProvider>
+            </div>
+          </Card>
+        </Modal>
+
+        <Modal
+          open={isOTPModalVisible}
+          onCancel={() => {
+            setIsOTPModalVisible(false);
+            otpForm.resetFields();
+          }}
+          footer={null}
+          centered
+          width={500}
+          destroyOnClose
+          closeIcon={<CloseOutlined style={{ color: '#000', fontSize: '20px' }} />}
+          styles={{
+            content: { padding: 0, borderRadius: 8, overflow: 'hidden' },
+            body: { padding: 0 },
+          }}
+        >
+          <Card variant="outlined" style={{ borderRadius: 8 }}>
+            <div style={{ padding: '40px 32px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <Image
+                  src="/images/lg.png"
+                  alt="Dussmann Logo"
+                  preview={false}
+                  width={120}
+                  style={{}}
+                />
+                <Title level={3} style={{ margin: '16px 0 8px' }}>
+                  Xác Minh Mã OTP
+                </Title>
+                <Text type="secondary" style={{ display: 'block', marginBottom: '24px', fontSize: '16px' }}>
+                  Nhập mã OTP đã được gửi đến email {resetEmail}
+                </Text>
+              </div>
+
+              <ConfigProvider
+                theme={{
+                  components: {
+                    Input: {
+                      activeBorderColor: '#b4c80f',
+                      hoverBorderColor: '#b4c80f',
+                      activeShadow: '0 0 0 2px rgba(180, 200, 15, 0.2)'
+                    },
+                    Button: {
+                      primaryColor: '#000',
+                      primaryBg: '#b4c80f',
+                      defaultBorderColor: '#b4c80f',
+                      defaultHoverBg: '#a3b60e',
+                      defaultHoverBorderColor: '#a3b60e',
+                      defaultHoverColor: '#000'
+                    }
+                  }
+                }}
+              >
+                <Form
+                  form={otpForm}
+                  onFinish={handleOTPSubmit}
+                  layout="vertical"
+                >
+                  <Form.Item
+                    name="otp"
+                    rules={[
+                      { required: true, message: 'Vui lòng nhập mã OTP!' },
+                      { len: 6, message: 'Mã OTP phải có 6 ký tự!' }
+                    ]}
+                  >
+                    <Input
+                      prefix={<MailOutlined />}
+                      placeholder="Nhập mã OTP"
+                      size="large"
+                    />
+                  </Form.Item>
+                  <Form.Item>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      block
+                      size="large"
+                      style={{
+                        backgroundColor: '#b4c80f',
+                        borderColor: '#b4c80f',
+                        color: '#000',
+                        fontWeight: 500,
+                        borderRadius: 8,
+                        height: 40,
+                      }}
+                    >
+                      Xác Minh
+                    </Button>
+                  </Form.Item>
+                  <Button
+                    type="link"
+                    onClick={() => {
+                      setIsOTPModalVisible(false);
+                      setIsForgotPasswordModalVisible(true);
+                      otpForm.resetFields();
+                    }}
+                    style={{ width: '100%', textAlign: 'center' }}
+                  >
+                    Gửi lại mã OTP
+                  </Button>
+                </Form>
+              </ConfigProvider>
+            </div>
+          </Card>
+        </Modal>
+
+        <Modal
+          open={isResetPasswordModalVisible}
+          onCancel={() => {
+            setIsResetPasswordModalVisible(false);
+            resetPasswordForm.resetFields();
+          }}
+          footer={null}
+          centered
+          width={500}
+          destroyOnClose
+          closeIcon={<CloseOutlined style={{ color: '#000', fontSize: '20px' }} />}
+          styles={{
+            content: { padding: 0, borderRadius: 8, overflow: 'hidden' },
+            body: { padding: 0 },
+          }}
+        >
+          <Card variant="outlined" style={{ borderRadius: 8 }}>
+            <div style={{ padding: '40px 32px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <Image
+                  src="/images/lg.png"
+                  alt="Dussmann Logo"
+                  preview={false}
+                  width={120}
+                  style={{}}
+                />
+                <Title level={3} style={{ margin: '16px 0 8px' }}>
+                  Đặt Lại Mật Khẩu
+                </Title>
+                <Text type="secondary" style={{ display: 'block', marginBottom: '24px', fontSize: '16px' }}>
+                  Nhập mật khẩu mới cho tài khoản của bạn
+                </Text>
+              </div>
+
+              <ConfigProvider
+                theme={{
+                  components: {
+                    Input: {
+                      activeBorderColor: '#b4c80f',
+                      hoverBorderColor: '#b4c80f',
+                      activeShadow: '0 0 0 2px rgba(180, 200, 15, 0.2)'
+                    },
+                    Button: {
+                      primaryColor: '#000',
+                      primaryBg: '#b4c80f',
+                      defaultBorderColor: '#b4c80f',
+                      defaultHoverBg: '#a3b60e',
+                      defaultHoverBorderColor: '#a3b60e',
+                      defaultHoverColor: '#000'
+                    }
+                  }
+                }}
+              >
+                <Form
+                  form={resetPasswordForm}
+                  onFinish={handleResetPasswordSubmit}
+                  layout="vertical"
+                >
+                  <Form.Item
+                    name="newPassword"
+                    rules={[
+                      { required: true, message: 'Vui lòng nhập mật khẩu mới!' },
+                      { min: 8, message: 'Mật khẩu phải có ít nhất 8 ký tự!' }
+                    ]}
+                  >
+                    <Input.Password
+                      placeholder="Nhập mật khẩu mới"
+                      size="large"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="confirmPassword"
+                    dependencies={['newPassword']}
+                    rules={[
+                      { required: true, message: 'Vui lòng xác nhận mật khẩu!' },
+                      ({ getFieldValue }) => ({
+                        validator(_, value) {
+                          if (!value || getFieldValue('newPassword') === value) {
+                            return Promise.resolve();
+                          }
+                          return Promise.reject(new Error('Mật khẩu xác nhận không khớp!'));
+                        },
+                      }),
+                    ]}
+                  >
+                    <Input.Password
+                      placeholder="Xác nhận mật khẩu mới"
+                      size="large"
+                    />
+                  </Form.Item>
+                  <Form.Item>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      block
+                      size="large"
+                      style={{
+                        backgroundColor: '#b4c80f',
+                        borderColor: '#b4c80f',
+                        color: '#000',
+                        fontWeight: 500,
+                        borderRadius: 8,
+                        height: 40,
+                      }}
+                    >
+                      Đặt Lại Mật Khẩu
+                    </Button>
+                  </Form.Item>
+                  <Button
+                    type="link"
+                    onClick={() => {
+                      setIsResetPasswordModalVisible(false);
+                      setIsLoginModalVisible(true);
+                      resetPasswordForm.resetFields();
+                    }}
+                    style={{ width: '100%', textAlign: 'center' }}
+                  >
+                    Quay lại đăng nhập
+                  </Button>
+                </Form>
               </ConfigProvider>
             </div>
           </Card>

@@ -13,6 +13,7 @@ import {
 } from '../../../hooks/queries/useAreas';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
 import { environment } from '../../../services/api/config';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 /**
  * AreasTableV2 - Refactored version using PageWrapperV2 and ReusableTableV2
@@ -118,6 +119,12 @@ const AreasTableV2 = () => {
                     onChange: (e) => setSearchText(e.target.value),
                     placeholder: 'Tìm kiếm khu vực'
                 }}
+                // Permission controls
+                resourceName="areas"
+                addPermission={PERMISSIONS.AREAS_ADD}
+                viewPermission={PERMISSIONS.AREAS_VIEW}
+                hideOnNoPermission={true}
+                permissionFallback={<div>Bạn không có quyền truy cập trang quản lý khu vực.</div>}
             >
                 <ReusableTableV2
                     dataSource={filteredData}
@@ -129,6 +136,12 @@ const AreasTableV2 = () => {
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     emptyMessage="Không tìm thấy khu vực nào."
+                    // Permission controls for table actions
+                    resourceName="areas"
+                    editPermission={PERMISSIONS.AREAS_EDIT}
+                    deletePermission={PERMISSIONS.AREAS_DELETE}
+                    hideActionsOnNoPermission={true}
+                    showPermissionTooltips={true}
                 />
             </PageWrapperV2>
 

@@ -1,39 +1,37 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Modal, Card, Avatar, Typography, Button, Input, message } from 'antd';
+import { Modal, Card, Avatar, Typography, Button, Form, Input, Select, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ROLES } from '../../constants/roles';
+import { authService } from '../../services/authService';
+import { departmentService } from '../../services/departmentService';
+import { useDepartments } from '../../hooks/queries/useDepartments';
 
 const { Title, Text } = Typography;
+const { Option } = Select;
+
+// Password validation regex: at least 6 characters, 1 uppercase, 1 special character, 1 number
+const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.*[0-9]).{6,}$/;
 
 const ProfilePopup = ({ visible, onClose }) => {
-  const { user, logout, updateUser, changePassword, loading } = useAuth();
+  const { user, logout, updateUser, loading } = useAuth();
   const navigate = useNavigate();
   const [isEditProfileModalVisible, setIsEditProfileModalVisible] = useState(false);
   const [isChangePasswordModalVisible, setIsChangePasswordModalVisible] = useState(false);
-  const [editProfileData, setEditProfileData] = useState({
-    name: user?.name || '',
-    role: user?.role || '',
-    department: user?.department || '',
-    avatar: user?.avatar || null,
-  });
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
+  const [profileForm] = Form.useForm();
+  const [passwordForm] = Form.useForm();
+  const { departments, isLoading: isDepartmentsLoading } = useDepartments();
 
   useEffect(() => {
     if (user) {
-      setEditProfileData({
-        name: user.name || '',
-        role: user.role || '',
-        department: user.department || '',
-        avatar: user.avatar || null,
+      profileForm.setFieldsValue({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        profilePictureUrl: user.profilePictureUrl || null,
+        departmentId: user.departmentId || '',
       });
     }
-  }, [user]);
+  }, [user, profileForm]);
 
   const handleEditProfile = () => {
     if (!user) {
@@ -53,87 +51,94 @@ const ProfilePopup = ({ visible, onClose }) => {
     setIsChangePasswordModalVisible(true);
   };
 
-  const handleLogout = () => {
-    onClose();
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      onClose();
+      logout();
+      navigate('/login');
+      message.success('Đăng xuất thành công!');
+    } catch (error) {
+      message.error('Đăng xuất thất bại.');
+    }
   };
 
-  const handleAvatarChange = useCallback((e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditProfileData((prev) => ({ ...prev, avatar: reader.result }));
-      };
-      reader.readAsDataURL(file);
-    }
-  }, []);
+  const handleAvatarChange = useCallback(
+    (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          profileForm.setFieldsValue({ profilePictureUrl: reader.result });
+        };
+        reader.readAsDataURL(file);
+      }
+    },
+    [profileForm]
+  );
 
-  const handleSaveEditProfile = () => {
+  const handleSaveEditProfile = async (values) => {
     if (!user) {
       message.error('Không có thông tin người dùng.');
       return;
     }
-    const updatedUser = { ...user, ...editProfileData };
-    updateUser(updatedUser);
-    message.success('Cập nhật hồ sơ thành công!');
-    setIsEditProfileModalVisible(false);
+
+    try {
+      const updatedUser = {
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        profilePictureUrl: values.profilePictureUrl,
+      };
+
+      await authService.editProfile(updatedUser);
+
+      if (values.departmentId && values.departmentId !== user.departmentId) {
+        await departmentService.updateUserDepartment(user.id, values.departmentId);
+      }
+
+      const updatedUserData = await authService.getProfile();
+
+      updateUser({
+        ...user,
+        ...updatedUserData,
+        departmentId: values.departmentId,
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        profilePictureUrl: values.profilePictureUrl,
+      });
+
+      message.success('Cập nhật hồ sơ thành công!');
+      setIsEditProfileModalVisible(false);
+      onClose();
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Cập nhật hồ sơ thất bại.');
+    }
   };
 
-  const isValidPassword = useCallback((password) => {
-    const regex = /^[a-zA-Z0-9@]{8,}$/;
-    return regex.test(password);
-  }, []);
-
-  const handlePasswordChange = useCallback((field, value) => {
-    setPasswordData((prev) => ({ ...prev, [field]: value }));
-  }, []);
-
-  const handleSaveChangePassword = useCallback(async () => {
-    const { currentPassword, newPassword, confirmPassword } = passwordData;
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      message.error('Vui lòng điền đầy đủ các trường.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      message.error('Mật khẩu mới và xác nhận mật khẩu không khớp.');
-      return;
-    }
-
-    if (!isValidPassword(newPassword)) {
-      message.error('Mật khẩu mới phải dài ít nhất 8 ký tự và chỉ chứa chữ cái, số, và ký tự "@".');
-      return;
-    }
-
-    if (!window.confirm('Bạn có chắc muốn đổi mật khẩu không?')) {
+  const handleSaveChangePassword = async (values) => {
+    if (!user) {
+      message.error('Không có thông tin người dùng.');
       return;
     }
 
     try {
-      await changePassword(currentPassword, newPassword);
-      message.success('Đổi mật khẩu thành công!');
-      setIsChangePasswordModalVisible(false);
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
+      await authService.changePassword({
+        Email: user.email,
+        OldPassword: values.oldPassword,
+        NewPassword: values.newPassword,
       });
-    } catch (error) {
-      message.error(error.message || 'Đổi mật khẩu thất bại.');
-    }
-  }, [passwordData, changePassword, isValidPassword]);
 
-  const handleCloseChangePasswordModal = useCallback(() => {
-    setIsChangePasswordModalVisible(false);
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
-  }, []);
+      message.success('Đổi mật khẩu thành công!');
+      passwordForm.resetFields();
+      setIsChangePasswordModalVisible(false);
+      onClose();
+    } catch (error) {
+      const errorMessage = error.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().join(', ')
+        : error.response?.data?.message || 'Đổi mật khẩu thất bại.';
+      message.error(errorMessage);
+    }
+  };
 
   return (
     <>
@@ -159,9 +164,9 @@ const ProfilePopup = ({ visible, onClose }) => {
           ) : user ? (
             <Card bordered={false}>
               <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                <Avatar size={64} src={user.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+                <Avatar size={64} src={user.profilePictureUrl} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
                 <Title level={4} style={{ marginTop: '8px', color: '#262626' }}>
-                  {user.name || 'N/A'}
+                  {`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A'}
                 </Title>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -175,7 +180,11 @@ const ProfilePopup = ({ visible, onClose }) => {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text strong>Phòng ban:</Text>
-                  <Input value={user.department || 'N/A'} readOnly style={{ width: '70%', borderRadius: '4px' }} />
+                  <Input
+                    value={departments.find((dept) => dept.id === user.departmentId)?.name || 'N/A'}
+                    readOnly
+                    style={{ width: '70%', borderRadius: '4px' }}
+                  />
                 </div>
               </div>
               <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '16px' }}>
@@ -228,7 +237,10 @@ const ProfilePopup = ({ visible, onClose }) => {
       {/* Edit Profile Modal */}
       <Modal
         open={isEditProfileModalVisible}
-        onCancel={() => setIsEditProfileModalVisible(false)}
+        onCancel={() => {
+          profileForm.resetFields();
+          setIsEditProfileModalVisible(false);
+        }}
         footer={null}
         centered
         width="min(100vw, 600px)"
@@ -244,77 +256,99 @@ const ProfilePopup = ({ visible, onClose }) => {
         <div style={{ padding: '16px' }}>
           <Card bordered={false}>
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <Avatar size={64} src={editProfileData.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+              <Avatar
+                size={64}
+                src={profileForm.getFieldValue('profilePictureUrl')}
+                icon={<UserOutlined />}
+                style={{ backgroundColor: '#1890ff' }}
+              />
               <Title level={4} style={{ marginTop: '8px', color: '#262626' }}>
                 Chỉnh sửa hồ sơ
               </Title>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Tên:</Text>
-                <Input
-                  value={editProfileData.name}
-                  onChange={(e) => setEditProfileData((prev) => ({ ...prev, name: e.target.value }))}
+            <Form
+              form={profileForm}
+              layout="vertical"
+              onFinish={handleSaveEditProfile}
+            >
+              <Form.Item
+                label={<Text strong>Họ</Text>}
+                name="firstName"
+                rules={[{ required: true, message: 'Họ không được để trống.' }]}
+              >
+                <Input style={{ borderRadius: '4px' }} />
+              </Form.Item>
+              <Form.Item
+                label={<Text strong>Tên</Text>}
+                name="lastName"
+                rules={[{ required: true, message: 'Tên không được để trống.' }]}
+              >
+                <Input style={{ borderRadius: '4px' }} />
+              </Form.Item>
+              <Form.Item
+                label={<Text strong>Email</Text>}
+                name="email"
+                initialValue={user?.email || 'N/A'}
+              >
+                <Input disabled style={{ borderRadius: '4px' }} />
+              </Form.Item>
+              <Form.Item
+                label={<Text strong>Phòng ban</Text>}
+                name="departmentId"
+                rules={[{ required: true, message: 'Vui lòng chọn phòng ban.' }]}
+              >
+                <Select
                   style={{ borderRadius: '4px' }}
-                />
-              </div>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Email:</Text>
-                <Input
-                  value={user?.email || 'N/A'}
-                  disabled
-                  style={{ borderRadius: '4px' }}
-                />
-              </div>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Vai trò:</Text>
-                <Input
-                  value={editProfileData.role}
-                  onChange={(e) => setEditProfileData((prev) => ({ ...prev, role: e.target.value }))}
-                  style={{ borderRadius: '4px' }}
-                />
-              </div>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Phòng ban:</Text>
-                <Input
-                  value={editProfileData.department}
-                  onChange={(e) => setEditProfileData((prev) => ({ ...prev, department: e.target.value }))}
-                  style={{ borderRadius: '4px' }}
-                />
-              </div>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Avatar:</Text>
+                  disabled={isDepartmentsLoading}
+                  placeholder="Chọn phòng ban"
+                >
+                  {departments.map((dept) => (
+                    <Option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+              <Form.Item
+                label={<Text strong>Avatar</Text>}
+                name="profilePictureUrl"
+              >
                 <Input
                   type="file"
                   accept="image/*"
                   onChange={handleAvatarChange}
                   style={{ borderRadius: '4px' }}
                 />
+              </Form.Item>
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '16px' }}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  style={{
+                    backgroundColor: '#b4c80f',
+                    borderColor: '#b4c80f',
+                    color: '#000',
+                    borderRadius: '4px',
+                    padding: '8px 16px',
+                  }}
+                  loading={isDepartmentsLoading}
+                >
+                  Lưu thay đổi
+                </Button>
+                <Button
+                  onClick={() => {
+                    profileForm.resetFields();
+                    setIsEditProfileModalVisible(false);
+                  }}
+                  style={{
+                    borderRadius: '4px',
+                    padding: '8px 16px',
+                  }}
+                >
+                  Hủy
+                </Button>
               </div>
-            </div>
-            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '16px' }}>
-              <Button
-                onClick={handleSaveEditProfile}
-                style={{
-                  backgroundColor: '#b4c80f',
-                  borderColor: '#b4c80f',
-                  color: '#000',
-                  borderRadius: '4px',
-                  padding: '8px 16px',
-                }}
-              >
-                Lưu thay đổi
-              </Button>
-              <Button
-                onClick={() => setIsEditProfileModalVisible(false)}
-                style={{
-                  borderRadius: '4px',
-                  padding: '8px 16px',
-                }}
-              >
-                Hủy
-              </Button>
-            </div>
+            </Form>
           </Card>
         </div>
       </Modal>
@@ -322,7 +356,10 @@ const ProfilePopup = ({ visible, onClose }) => {
       {/* Change Password Modal */}
       <Modal
         open={isChangePasswordModalVisible}
-        onCancel={handleCloseChangePasswordModal}
+        onCancel={() => {
+          passwordForm.resetFields();
+          setIsChangePasswordModalVisible(false);
+        }}
         footer={null}
         centered
         width="min(100vw, 600px)"
@@ -337,61 +374,78 @@ const ProfilePopup = ({ visible, onClose }) => {
         </div>
         <div style={{ padding: '16px' }}>
           <Card bordered={false}>
-            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <Avatar size={64} src={user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
-              <Title level={4} style={{ marginTop: '8px', color: '#262626' }}>
-                Đổi mật khẩu
-              </Title>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Mật khẩu hiện tại:</Text>
-                <Input.Password
-                  value={passwordData.currentPassword}
-                  onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
-                  style={{ borderRadius: '4px' }}
-                />
-              </div>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Mật khẩu mới:</Text>
-                <Input.Password
-                  value={passwordData.newPassword}
-                  onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
-                  style={{ borderRadius: '4px' }}
-                />
-              </div>
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: '4px' }}>Xác nhận mật khẩu mới:</Text>
-                <Input.Password
-                  value={passwordData.confirmPassword}
-                  onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-                  style={{ borderRadius: '4px' }}
-                />
-              </div>
-            </div>
-            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '16px' }}>
-              <Button
-                onClick={handleSaveChangePassword}
-                style={{
-                  backgroundColor: '#b4c80f',
-                  borderColor: '#b4c80f',
-                  color: '#000',
-                  borderRadius: '4px',
-                  padding: '8px 16px',
-                }}
+            <Form
+              form={passwordForm}
+              layout="vertical"
+              onFinish={handleSaveChangePassword}
+            >
+              <Form.Item
+                label={<Text strong>Mật khẩu cũ</Text>}
+                name="oldPassword"
+                rules={[{ required: true, message: 'Vui lòng nhập mật khẩu cũ.' }]}
               >
-                Lưu thay đổi
-              </Button>
-              <Button
-                onClick={handleCloseChangePasswordModal}
-                style={{
-                  borderRadius: '4px',
-                  padding: '8px 16px',
-                }}
+                <Input.Password style={{ borderRadius: '4px' }} />
+              </Form.Item>
+              <Form.Item
+                label={<Text strong>Mật khẩu mới</Text>}
+                name="newPassword"
+                rules={[
+                  { required: true, message: 'Vui lòng nhập mật khẩu mới.' },
+                  {
+                    pattern: passwordRegex,
+                    message:
+                      'Mật khẩu mới phải có ít nhất 6 ký tự, bao gồm ít nhất 1 chữ in hoa, 1 ký tự đặc biệt (!@#$%^&*) và 1 số.',
+                  },
+                ]}
               >
-                Hủy
-              </Button>
-            </div>
+                <Input.Password style={{ borderRadius: '4px' }} />
+              </Form.Item>
+              <Form.Item
+                label={<Text strong>Xác nhận mật khẩu mới</Text>}
+                name="confirmPassword"
+                dependencies={['newPassword']}
+                rules={[
+                  { required: true, message: 'Vui lòng nhập xác nhận mật khẩu.' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('newPassword') === value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('Mật khẩu mới và xác nhận mật khẩu không khớp.'));
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password style={{ borderRadius: '4px' }} />
+              </Form.Item>
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '16px' }}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  style={{
+                    backgroundColor: '#b4c80f',
+                    borderColor: '#b4c80f',
+                    color: '#000',
+                    borderRadius: '4px',
+                    padding: '8px 16px',
+                  }}
+                >
+                  Lưu thay đổi
+                </Button>
+                <Button
+                  onClick={() => {
+                    passwordForm.resetFields();
+                    setIsChangePasswordModalVisible(false);
+                  }}
+                  style={{
+                    borderRadius: '4px',
+                    padding: '8px 16px',
+                  }}
+                >
+                  Hủy
+                </Button>
+              </div>
+            </Form>
           </Card>
         </div>
       </Modal>

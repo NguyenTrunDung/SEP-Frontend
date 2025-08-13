@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { message, Button, Tooltip } from 'antd';
-import { EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'; // Thêm EyeOutlined
+import { EyeOutlined } from '@ant-design/icons';
 import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import CreateBranch from './CreateBranch';
@@ -14,6 +14,7 @@ import {
     useDeleteBranch,
 } from '../../../hooks/queries/userBranchesQueries';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
+import { PERMISSIONS } from '../../../constants/permissions';
 
 const BranchesTableV2 = () => {
     const [searchText, setSearchText] = useState('');
@@ -51,17 +52,21 @@ const BranchesTableV2 = () => {
         return branchesData.filter(
             (item) =>
                 item?.name?.toLowerCase()?.includes(keyword) ||
+                item?.Name?.toLowerCase()?.includes(keyword) ||
                 item?.phoneNumber?.toLowerCase()?.includes(keyword) ||
-                item?.address?.toLowerCase()?.includes(keyword)
+                item?.Phone?.toLowerCase()?.includes(keyword) ||
+                item?.address?.toLowerCase()?.includes(keyword) ||
+                item?.Address?.toLowerCase()?.includes(keyword)
         );
     }, [branchesData, searchText]);
 
     const handleCreateOrUpdate = async (formData) => {
         try {
             const payload = {
-                name: formData.name,
-                phoneNumber: formData.phoneNumber,
-                address: formData.address,
+                Name: formData.Name || formData.name,
+                Phone: formData.Phone || formData.phoneNumber,
+                Address: formData.Address || formData.address,
+                IsActive: formData.IsActive !== undefined ? formData.IsActive : true
             };
 
             if (formData.id) {
@@ -123,7 +128,6 @@ const BranchesTableV2 = () => {
     const paginationConfig = {
         show: true,
         pageSizeOptions: [5, 10, 20, 50],
-        showTotal: true,
         showSizeChanger: true,
         total: filteredData.length,
         showTotal: (total, range) => `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} mục`,
@@ -141,13 +145,35 @@ const BranchesTableV2 = () => {
                     onChange: (e) => setSearchText(e.target.value),
                     placeholder: 'Tìm kiếm chi nhánh',
                 }}
+                // Permission controls
+                resourceName="branches"
+                addPermission={PERMISSIONS.BRANCHES_ADD}
+                viewPermission={PERMISSIONS.BRANCHES_VIEW}
+                hideOnNoPermission={true}
+                permissionFallback={<div>Bạn không có quyền truy cập trang quản lý chi nhánh.</div>}
             >
                 <ReusableTableV2
                     dataSource={filteredData}
                     columns={[
-                        { dataIndex: 'name', primary: true, align: 'left', title: 'Tên chi nhánh' },
-                        { dataIndex: 'phoneNumber', align: 'left', title: 'Số điện thoại' },
-                        { dataIndex: 'address', align: 'left', title: 'Địa chỉ' },
+                        {
+                            dataIndex: 'name',
+                            primary: true,
+                            align: 'left',
+                            title: 'Tên chi nhánh',
+                            render: (text, record) => record.Name || record.name || text
+                        },
+                        {
+                            dataIndex: 'phoneNumber',
+                            align: 'left',
+                            title: 'Số điện thoại',
+                            render: (text, record) => record.Phone || record.phoneNumber || text
+                        },
+                        {
+                            dataIndex: 'address',
+                            align: 'left',
+                            title: 'Địa chỉ',
+                            render: (text, record) => record.Address || record.address || text
+                        },
                     ]}
                     loading={isLoading}
                     listHeader="TÊN CHI NHÁNH"
@@ -156,6 +182,12 @@ const BranchesTableV2 = () => {
                     actions={renderActions} // Sử dụng prop actions để thêm nút View Detail
                     emptyMessage="Không tìm thấy chi nhánh nào."
                     pagination={paginationConfig}
+                    // Permission-based props
+                    resourceName="branches"
+                    editPermission={PERMISSIONS.BRANCHES_EDIT}
+                    deletePermission={PERMISSIONS.BRANCHES_DELETE}
+                    hideActionsOnNoPermission={true}
+                    showPermissionTooltips={true}
                 />
             </PageWrapperV2>
 

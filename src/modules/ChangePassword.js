@@ -1,112 +1,156 @@
 import React, { useState } from 'react';
-import { Card, Avatar, Typography, Button, Input, message } from 'antd';
+import { Card, Avatar, Typography, Button, Form, Input, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { authService } from '../services/authService';
+import { ROLES } from '../constants/roles';
 import './Profile.css';
 
-const { Title } = Typography;
+const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.*[0-9]).{6,}$/;
+const { Title, Text } = Typography;
 
 const ChangePassword = () => {
-    const { user, changePassword, loading } = useAuth();
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const navigate = useNavigate();
+  const { user, loading } = useAuth();
+  const [passwordForm] = Form.useForm();
+  const navigate = useNavigate();
 
-    if (loading) {
-        return <div>Loading...</div>;
+  if (loading) {
+    return <div className="loading-text">Đang tải...</div>;
+  }
+
+  if (!user) {
+    return <div className="no-user-text">Không được phép. Vui lòng đăng nhập.</div>;
+  }
+
+  const getProfileRoute = () => {
+    if (!user?.role) {
+      return '/profile';
     }
+    switch (user.role) {
+      case ROLES.SYSTEM_ADMIN:
+      case ROLES.ADMIN:
+      case ROLES.BRANCH_MANAGER:
+      case ROLES.MANAGER:
+      case ROLES.STAFF:
+      case ROLES.CASHIER:
+      case ROLES.KITCHEN:
+        return '/admin/profile';
+      case ROLES.DOCTOR:
+        return '/admin/profile';
+      case ROLES.PATIENT:
+        return '/patient/profile';
+      default:
+        return '/profile';
+    }
+  };
 
+  const handleSaveChangePassword = async (values) => {
     if (!user) {
-        return <div>Unauthorized. Please log in.</div>;
+      message.error('Không có thông tin người dùng.');
+      return;
     }
+    try {
+      await authService.changePassword({
+        Email: user.email,
+        OldPassword: values.oldPassword,
+        NewPassword: values.newPassword,
+      });
+      message.success('Đổi mật khẩu thành công!');
+      passwordForm.resetFields();
+      navigate(getProfileRoute());
+    } catch (error) {
+      const errorMessage = error.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().join(', ')
+        : error.response?.data?.message || 'Đổi mật khẩu thất bại.';
+      message.error(errorMessage);
+    }
+  };
 
-    const isValidPassword = (password) => {
-        const regex = /^[a-zA-Z0-9@]{8,}$/;
-        return regex.test(password);
-    };
-
-    const handleChangePassword = async (e) => {
-        e.preventDefault();
-
-        if (!currentPassword || !newPassword || !confirmPassword) {
-            message.error('Please fill in all fields');
-            return;
-        }
-
-        if (newPassword !== confirmPassword) {
-            message.error('New password and confirm password do not match');
-            return;
-        }
-
-        if (!isValidPassword(newPassword)) {
-            message.error('New password must be at least 8 characters long and can only contain letters, numbers, and the "@" symbol.');
-            return;
-        }
-
-        if (!window.confirm("Are you sure you want to change your password?")) {
-            return;
-        }
-
-        try {
-            await changePassword(currentPassword, newPassword);
-            message.success('Password changed successfully');
-            navigate(`/${user.role.toLowerCase()}/profile`);
-        } catch (error) {
-            message.error(error.message || 'Failed to change password');
-        }
-    };
-
-    return (
-        <div className="edit-profile-container">
-            <Card className="profile-card">
-                <div className="profile-header">
-                    <Avatar size={64} src={user.avatar || <UserOutlined />} />
-                    <Title level={3} className="profile-name">Change Password</Title>
-                </div>
-
-                <div className="profile-details">
-                    <div className="profile-detail">
-                        <label className="detail-label">Current Password:</label>
-                        <Input.Password
-                            value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
-                            className="detail-input"
-                        />
-                    </div>
-                    <div className="profile-detail">
-                        <label className="detail-label">New Password:</label>
-                        <Input.Password
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            className="detail-input"
-                        />
-                    </div>
-                    <div className="profile-detail">
-                        <label className="detail-label">Confirm New Password:</label>
-                        <Input.Password
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="detail-input"
-                        />
-                    </div>
-                </div>
-
-                <div className="profile-button-group">
-                    <Button type="primary" onClick={handleChangePassword} className="save-button" loading={loading}>
-                        Save Changes
-                    </Button>
-                    <Button
-                        onClick={() => navigate(`/${user.role.toLowerCase()}/profile`)}
-                        className="profile-button"
-                    >
-                        Cancel
-                    </Button>
-                </div>
-            </Card>
+  return (
+    <div className="view-profile-container">
+      <Card className="profile-card">
+        <div className="profile-header">
+          <Avatar
+            size={64}
+            icon={!user.profilePictureUrl && <UserOutlined />}
+            src={user.profilePictureUrl}
+          />
+          <Title level={3} className="profile-name">Đổi mật khẩu</Title>
         </div>
-    );
+        <Form
+          form={passwordForm}
+          layout="vertical"
+          onFinish={handleSaveChangePassword}
+        >
+          <div className="profile-details">
+            <div className="profile-detail">
+              <Form.Item
+                label={<Text strong className="detail-label">Mật khẩu cũ</Text>}
+                name="oldPassword"
+                rules={[{ required: true, message: 'Vui lòng nhập mật khẩu cũ.' }]}
+              >
+                <Input.Password className="detail-input" />
+              </Form.Item>
+            </div>
+            <div className="profile-detail">
+              <Form.Item
+                label={<Text strong className="detail-label">Mật khẩu mới</Text>}
+                name="newPassword"
+                rules={[
+                  { required: true, message: 'Vui lòng nhập mật khẩu mới.' },
+                  {
+                    pattern: passwordRegex,
+                    message:
+                      'Mật khẩu mới phải có ít nhất 6 ký tự, bao gồm ít nhất 1 chữ in hoa, 1 ký tự đặc biệt (!@#$%^&*) và 1 số.',
+                  },
+                ]}
+              >
+                <Input.Password className="detail-input" />
+              </Form.Item>
+            </div>
+            <div className="profile-detail">
+              <Form.Item
+                label={<Text strong className="detail-label">Xác nhận mật khẩu mới</Text>}
+                name="confirmPassword"
+                dependencies={['newPassword']}
+                rules={[
+                  { required: true, message: 'Vui lòng nhập xác nhận mật khẩu.' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('newPassword') === value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('Mật khẩu mới và xác nhận mật khẩu không khớp.'));
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password className="detail-input" />
+              </Form.Item>
+            </div>
+          </div>
+          <div className="profile-button-group">
+            <Button
+              type="primary"
+              htmlType="submit"
+              className="save-button"
+            >
+              Lưu
+            </Button>
+            <Button
+              onClick={() => {
+                passwordForm.resetFields();
+                navigate(getProfileRoute());
+              }}
+            >
+              Hủy
+            </Button>
+          </div>
+        </Form>
+      </Card>
+    </div>
+  );
 };
 
 export default ChangePassword;
