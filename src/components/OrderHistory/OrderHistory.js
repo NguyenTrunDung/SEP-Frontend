@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Spin, Alert, Button, Input, Table, message, Tabs } from 'antd';
 import { EyeOutlined, CommentOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -12,6 +13,7 @@ import { useCreateFeedback, useFeedbacksByOrder, useDeleteFeedback, useUpdateFee
 import api from '../../services/api/config';
 import { environment } from '../../services/api/config';
 import { getImageUrlWithFallback } from '../../utils/imageUtils';
+import { ROLES } from '../../constants/roles';
 import './OrderHistory.css';
 
 const { Text } = Typography;
@@ -34,7 +36,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const [currentFeedbacks, setCurrentFeedbacks] = useState([]);
   const [editFeedback, setEditFeedback] = useState(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState('patientOrders');
+  const [activeTab, setActiveTab] = useState('nurseOrders');
 
   const { mutate: createFeedback } = useCreateFeedback();
   const { feedbacks: orderFeedbacks, refetch: refetchFeedbacks } = useFeedbacksByOrder(
@@ -78,7 +80,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                       price: item.price ?? 0,
                       quantity: item.Qty ?? item.quantity ?? 1,
                       subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
-                      imageUrl: item.imageUrl || item.food?.imageUrl || null, // Thêm imageUrl
+                      imageUrl: item.imageUrl || item.food?.imageUrl || null,
                     }))
                   : [];
                 const feedbackResponse = await api.get('/api/v1/Comment/By-Order', {
@@ -766,37 +768,39 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                   )}
                 </div>
               </TabPane>
-              <TabPane tab="Đơn hàng bệnh nhân" key="patientOrders">
-                <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                  {loading ? (
-                    <Spin style={{ display: 'block', textAlign: 'center', padding: '20px' }} />
-                  ) : error ? (
-                    <Alert message={error} type="error" showIcon style={{ marginBottom: '16px' }} />
-                  ) : filteredOrders.patient.length === 0 ? (
-                    <Text>{searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}</Text>
-                  ) : (
-                    <ReusableTableV2
-                      dataSource={getSortedOrders(filteredOrders.patient).map(order => ({ ...order, key: order.id }))}
-                      columns={overviewColumns('patientOrders')}
-                      loading={loading}
-                      listHeader="LỊCH SỬ ĐƠN HÀNG BỆNH NHÂN"
-                      emptyMessage={searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}
-                      pagination={{
-                        show: true,
-                        pageSizeOptions: [5, 10, 20],
-                        showTotal: true,
-                        showSizeChanger: true,
-                        total: filteredOrders.patient.length,
-                        showTotal: (total, range) =>
-                          `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} đơn hàng`,
-                      }}
-                      rowKey="id"
-                      className="order-history-table"
-                      onChange={(pagination, filters) => handleTableChange(pagination, filters, 'patientOrders')}
-                    />
-                  )}
-                </div>
-              </TabPane>
+              {user?.role === ROLES.NURSE && (
+                <TabPane tab="Đơn hàng bệnh nhân" key="patientOrders">
+                  <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                    {loading ? (
+                      <Spin style={{ display: 'block', textAlign: 'center', padding: '20px' }} />
+                    ) : error ? (
+                      <Alert message={error} type="error" showIcon style={{ marginBottom: '16px' }} />
+                    ) : filteredOrders.patient.length === 0 ? (
+                      <Text>{searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}</Text>
+                    ) : (
+                      <ReusableTableV2
+                        dataSource={getSortedOrders(filteredOrders.patient).map(order => ({ ...order, key: order.id }))}
+                        columns={overviewColumns('patientOrders')}
+                        loading={loading}
+                        listHeader="LỊCH SỬ ĐƠN HÀNG BỆNH NHÂN"
+                        emptyMessage={searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}
+                        pagination={{
+                          show: true,
+                          pageSizeOptions: [5, 10, 20],
+                          showTotal: true,
+                          showSizeChanger: true,
+                          total: filteredOrders.patient.length,
+                          showTotal: (total, range) =>
+                            `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} đơn hàng`,
+                        }}
+                        rowKey="id"
+                        className="order-history-table"
+                        onChange={(pagination, filters) => handleTableChange(pagination, filters, 'patientOrders')}
+                      />
+                    )}
+                  </div>
+                </TabPane>
+              )}
             </Tabs>
           </div>
         </div>
