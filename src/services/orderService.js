@@ -106,19 +106,21 @@ export const orderService = {
     return this.getOrdersByBranchWithFilters(branchId, otherFilters, options);
   },
 
-  async getOrderDetails(orderId, options = {}) {
+ async getOrderDetails(orderId, options = {}) {
     try {
       const response = await api.get(`/api/v1/orderdetails/order/${orderId}`, options);
       console.log(`🔍 Raw order details for order ${orderId}:`, response.data);
       const normalizedData = response.data.data.map(item => {
         const qty = item.Qty ?? item.quantity ?? item.qty ?? 1;
-        const food = item.food || {}; // Ensure food object exists
+        const food = item.food || {};
         console.log(`🔍 Normalizing item for order ${orderId}:`, { item, qty });
         return {
           ...item,
+          id: item.id || `item-${Math.random()}`,
           Qty: qty,
           foodName: item.foodName || item.FoodName || food.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
-          imageUrl: food.imageUrl || item.image || null, // Prioritize food.imageUrl
+          imageUrl: food.imageUrl || item.image || null,
+          price: item.price ?? 0,
           total: item.total ?? (item.price ?? 0) * qty,
         };
       });
@@ -127,6 +129,16 @@ export const orderService = {
     } catch (error) {
       console.error('Failed to fetch order details:', error);
       throw error;
+    }
+  },
+
+  async getFoodDetails(foodId, branchId) {
+    try {
+      const response = await api.get(`/api/v1/food/${foodId}/branch/${branchId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to fetch food details for foodId ${foodId}:`, error);
+      return {};
     }
   },
 
