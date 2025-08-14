@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Spin, Alert, Button, Input, Table, message, Tabs } from 'antd';
 import { EyeOutlined, CommentOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -11,6 +12,8 @@ import EditFeedbackModal from '../Feedback/EditFeedbackModal';
 import { useCreateFeedback, useFeedbacksByOrder, useDeleteFeedback, useUpdateFeedback } from '../../hooks/queries/useFeedback';
 import api from '../../services/api/config';
 import { environment } from '../../services/api/config';
+import { getImageUrlWithFallback } from '../../utils/imageUtils';
+import { ROLES } from '../../constants/roles';
 import './OrderHistory.css';
 
 const { Text } = Typography;
@@ -33,7 +36,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const [currentFeedbacks, setCurrentFeedbacks] = useState([]);
   const [editFeedback, setEditFeedback] = useState(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState('patientOrders');
+  const [activeTab, setActiveTab] = useState('nurseOrders');
 
   const { mutate: createFeedback } = useCreateFeedback();
   const { feedbacks: orderFeedbacks, refetch: refetchFeedbacks } = useFeedbacksByOrder(
@@ -70,7 +73,16 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               try {
                 const orderDetails = await orderService.getOrderDetails(order.id);
                 console.log(`🔍 Order ${order.id} details:`, orderDetails.data);
-                const items = Array.isArray(orderDetails.data) ? orderDetails.data : [];
+                const items = Array.isArray(orderDetails.data)
+                  ? orderDetails.data.map((item) => ({
+                      menuItemId: item.id || `item-${Math.random()}`,
+                      name: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
+                      price: item.price ?? 0,
+                      quantity: item.Qty ?? item.quantity ?? 1,
+                      subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
+                      imageUrl: item.imageUrl || item.food?.imageUrl || null,
+                    }))
+                  : [];
                 const feedbackResponse = await api.get('/api/v1/Comment/By-Order', {
                   params: { OrderId: order.id, branchId: order.branchId },
                 });
@@ -109,13 +121,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                   ...order,
                   orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
                   orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
-                  items: items.map((item) => ({
-                    menuItemId: item.id || `item-${Math.random()}`,
-                    name: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
-                    price: item.price ?? 0,
-                    quantity: item.Qty ?? item.quantity ?? 1,
-                    subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
-                  })),
+                  items,
                   feedbacks: normalizedFeedbacks,
                 };
               } catch (error) {
@@ -255,28 +261,67 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     console.log('🔍 Table change, tab:', tabKey, 'idFilter:', idFilter, 'statusFilter:', statusFilter);
   };
 
-  const handleViewDetails = (order) => {
-    setSelectedOrder(order);
-    setDetailModalVisible(true);
-    console.log('🔍 Viewing details for order:', order.id);
+  const handleViewDetails = async (order) => {
+    try {
+      const orderDetails = await orderService.getOrderDetails(order.id);
+      const detailedOrder = {
+        ...order,
+        orderDetails: Array.isArray(orderDetails.data)
+          ? orderDetails.data.map((item) => ({
+              ...item,
+              menuItemId: item.id || `item-${Math.random()}`,
+              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
+              price: item.price ?? 0,
+              quantity: item.Qty ?? item.quantity ?? 1,
+              subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
+              imageUrl: item.imageUrl || item.food?.imageUrl || null,
+            }))
+          : [],
+      };
+      setSelectedOrder(detailedOrder);
+      setDetailModalVisible(true);
+      console.log('🔍 Viewing details for order:', order.id, 'with orderDetails:', detailedOrder.orderDetails);
+    } catch (error) {
+      console.error('❌ Failed to fetch order details for view:', error);
+      message.error('Không thể tải chi tiết đơn hàng.');
+    }
   };
 
-  const handleFeedback = (order) => {
+  const handleFeedback = async (order) => {
     if (order.status !== 'completed') {
       message.error('Chỉ có thể đánh giá các đơn hàng đã hoàn thành.');
       console.log('🔍 Feedback blocked, order not completed:', order.id);
       return;
     }
-    setSelectedOrder(order);
-    const hasFeedback = Array.isArray(order.feedbacks) && order.feedbacks.length > 0;
-
-    if (hasFeedback) {
-      setCurrentFeedbacks(order.feedbacks);
-      setViewFeedbackVisible(true);
-      console.log('🔍 Viewing feedbacks for order:', order.id, 'feedback count:', order.feedbacks.length);
-    } else {
-      setFeedbackModalVisible(true);
-      console.log('🔍 Opening feedback modal for order:', order.id);
+    try {
+      const orderDetails = await orderService.getOrderDetails(order.id);
+      const detailedOrder = {
+        ...order,
+        orderDetails: Array.isArray(orderDetails.data)
+          ? orderDetails.data.map((item) => ({
+              ...item,
+              menuItemId: item.id || `item-${Math.random()}`,
+              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
+              price: item.price ?? 0,
+              quantity: item.Qty ?? item.quantity ?? 1,
+              subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
+              imageUrl: item.imageUrl || item.food?.imageUrl || null,
+            }))
+          : [],
+      };
+      setSelectedOrder(detailedOrder);
+      const hasFeedback = Array.isArray(order.feedbacks) && order.feedbacks.length > 0;
+      if (hasFeedback) {
+        setCurrentFeedbacks(order.feedbacks);
+        setViewFeedbackVisible(true);
+        console.log('🔍 Viewing feedbacks for order:', order.id, 'feedback count:', order.feedbacks.length);
+      } else {
+        setFeedbackModalVisible(true);
+        console.log('🔍 Opening feedback modal for order:', order.id);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch order details for feedback:', error);
+      message.error('Không thể tải chi tiết đơn hàng.');
     }
   };
 
@@ -599,7 +644,20 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       dataIndex: 'foodName',
       key: 'foodName',
       align: 'left',
-      render: (foodName, record) => foodName || record.name || 'Không xác định',
+      render: (foodName, record) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img
+            src={getImageUrlWithFallback(record.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production')}
+            alt={foodName || 'Món ăn'}
+            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px' }}
+            onError={(e) => {
+              e.target.src = '/images/com.jpg';
+              console.warn(`⚠️ Failed to load image: ${record.imageUrl}`);
+            }}
+          />
+          <Text>{foodName || record.name || 'Không xác định'}</Text>
+        </div>
+      ),
     },
     {
       title: 'Số lượng',
@@ -710,37 +768,39 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                   )}
                 </div>
               </TabPane>
-              <TabPane tab="Đơn hàng bệnh nhân" key="patientOrders">
-                <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                  {loading ? (
-                    <Spin style={{ display: 'block', textAlign: 'center', padding: '20px' }} />
-                  ) : error ? (
-                    <Alert message={error} type="error" showIcon style={{ marginBottom: '16px' }} />
-                  ) : filteredOrders.patient.length === 0 ? (
-                    <Text>{searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}</Text>
-                  ) : (
-                    <ReusableTableV2
-                      dataSource={getSortedOrders(filteredOrders.patient).map(order => ({ ...order, key: order.id }))}
-                      columns={overviewColumns('patientOrders')}
-                      loading={loading}
-                      listHeader="LỊCH SỬ ĐƠN HÀNG BỆNH NHÂN"
-                      emptyMessage={searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}
-                      pagination={{
-                        show: true,
-                        pageSizeOptions: [5, 10, 20],
-                        showTotal: true,
-                        showSizeChanger: true,
-                        total: filteredOrders.patient.length,
-                        showTotal: (total, range) =>
-                          `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} đơn hàng`,
-                      }}
-                      rowKey="id"
-                      className="order-history-table"
-                      onChange={(pagination, filters) => handleTableChange(pagination, filters, 'patientOrders')}
-                    />
-                  )}
-                </div>
-              </TabPane>
+              {user?.role === ROLES.NURSE && (
+                <TabPane tab="Đơn hàng bệnh nhân" key="patientOrders">
+                  <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                    {loading ? (
+                      <Spin style={{ display: 'block', textAlign: 'center', padding: '20px' }} />
+                    ) : error ? (
+                      <Alert message={error} type="error" showIcon style={{ marginBottom: '16px' }} />
+                    ) : filteredOrders.patient.length === 0 ? (
+                      <Text>{searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}</Text>
+                    ) : (
+                      <ReusableTableV2
+                        dataSource={getSortedOrders(filteredOrders.patient).map(order => ({ ...order, key: order.id }))}
+                        columns={overviewColumns('patientOrders')}
+                        loading={loading}
+                        listHeader="LỊCH SỬ ĐƠN HÀNG BỆNH NHÂN"
+                        emptyMessage={searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}
+                        pagination={{
+                          show: true,
+                          pageSizeOptions: [5, 10, 20],
+                          showTotal: true,
+                          showSizeChanger: true,
+                          total: filteredOrders.patient.length,
+                          showTotal: (total, range) =>
+                            `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} đơn hàng`,
+                        }}
+                        rowKey="id"
+                        className="order-history-table"
+                        onChange={(pagination, filters) => handleTableChange(pagination, filters, 'patientOrders')}
+                      />
+                    )}
+                  </div>
+                </TabPane>
+              )}
             </Tabs>
           </div>
         </div>
@@ -831,7 +891,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               </Text>
               <Table
                 columns={detailColumns}
-                dataSource={Array.isArray(selectedOrder.items) ? selectedOrder.items : []}
+                dataSource={Array.isArray(selectedOrder.orderDetails) ? selectedOrder.orderDetails : []}
                 pagination={false}
                 rowKey="menuItemId"
                 size="small"

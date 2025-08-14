@@ -731,7 +731,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                             <div style={{ marginBottom: 8 }}>
                               <Text>{feedback.content}</Text>
                             </div>
-                            {Array.isArray(feedback.images) && feedback.images.length > 0 && (
+                            {/* {Array.isArray(feedback.images) && feedback.images.length > 0 && (
                               <div style={{ marginBottom: 8 }}>
                                 <img
                                   src={feedback.images[0].url}
@@ -745,7 +745,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                                   }}
                                 />
                               </div>
-                            )}
+                            )} */}
                             <Text type="secondary" style={{ fontSize: 13 }}>
                               {new Date(feedback.timestamp).toLocaleString('vi-VN')}
                             </Text>

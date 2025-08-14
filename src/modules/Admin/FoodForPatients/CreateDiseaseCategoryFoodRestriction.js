@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Space, message, Select, InputNumber, Switch } from 'antd';
+import React, { useEffect } from 'react';
+import { Form, Input, Button, Space, Select, Switch } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
@@ -15,72 +15,76 @@ const CreateDiseaseCategoryFoodRestriction = ({
     onSubmit,
     initialValues = {},
 }) => {
-    const { form, loading: formLoading, handleSubmit, resetForm } = useAntForm();
+    const { form, loading: formLoading, handleSubmit } = useAntForm();
     const { diseaseCategories } = useDiseaseCategories();
     const { foods } = useFoods();
 
     useEffect(() => {
         if (open) {
-            // Reset form to initial values when modal opens
             form.setFieldsValue(initialValues);
-        } else if (!open) {
-            // Clean up when modal closes
-            resetForm();
-        }
-    }, [open, form, resetForm]); // Removed initialValues from dependencies
-
-    // Handle initialValues changes when modal is open
-    useEffect(() => {
-        if (open && initialValues) {
-            form.setFieldsValue(initialValues);
+        } else {
+            form.resetFields();
         }
     }, [open, initialValues, form]);
 
     const handleFormSubmit = async (values) => {
-        console.log('🚀 CreateDiseaseCategoryFoodRestriction - Form submit with values:', values);
-
+        console.log('🚀 Form submit with values:', values);
         const result = await handleSubmit(async (formData) => {
-            if (onSubmit) {
-                await onSubmit(formData);
-            }
+            await onSubmit?.(formData);
         });
 
         if (result.success) {
-            // Success message is handled in the mutation hooks
             handleCancel();
         }
     };
 
     const handleCancel = () => {
-        resetForm();
-        if (onCancel) {
-            onCancel();
-        }
-    };
-
-    // Helper function to get restriction level display
-    const getRestrictionLevelDisplay = (level) => {
-        switch (level) {
-            case 1:
-                return { text: 'Cảnh báo (Warning)', color: '#faad14' };
-            case 2:
-                return { text: 'Hạn chế (Restricted)', color: '#ff4d4f' };
-            case 3:
-                return { text: 'Cấm (Forbidden)', color: '#d32f2f' };
-            default:
-                return { text: 'Chọn mức độ', color: '#999' };
-        }
+        form.resetFields();
+        onCancel?.();
     };
 
     return (
         <ReusableModal
-            title="Thêm Hạn Chế Thực Phẩm Mới"
+            title={<span style={{ fontSize: '30px' }}>Thêm</span>}
             open={open}
             onCancel={handleCancel}
             footer={null}
-            width={700}
+            width={600}
             destroyOnClose
+            closable={false}
         >
+            <div style={{ position: 'absolute', top: 16, right: 24, zIndex: 1 }}>
+                <Space>
+                    <Button
+                        type="primary"
+                        onClick={() => form.submit()}
+                        loading={formLoading}
+                        style={{
+                            backgroundColor: '#52c41a',
+                            border: 'none',
+                            minWidth: 64,
+                            height: 32,
+                            fontSize: 14,
+                        }}
+                    >
+                        Lưu
+                    </Button>
+                    <Button
+                        onClick={handleCancel}
+                        style={{
+                            backgroundColor: '#ff4d4f',
+                            color: '#fff',
+                            border: 'none',
+                            minWidth: 64,
+                            height: 32,
+                            fontSize: 14,
+                        }}
+                    >
+                        X
+                    </Button>
+                </Space>
+            </div>
+
             <ReusableForm
                 form={form}
                 onFinish={handleFormSubmit}
@@ -94,11 +98,12 @@ const CreateDiseaseCategoryFoodRestriction = ({
 
                 <Form.Item
                     name="diseaseCategoryId"
-                    label="Danh mục bệnh"
                     rules={[{ required: true, message: 'Vui lòng chọn danh mục bệnh!' }]}
+                    className="floating-form-item"
                 >
                     <Select
                         placeholder="Chọn danh mục bệnh"
+                        className="floating-input"
                         options={diseaseCategories.map(category => ({
                             value: category.id,
                             label: category.name,
@@ -108,11 +113,12 @@ const CreateDiseaseCategoryFoodRestriction = ({
 
                 <Form.Item
                     name="foodId"
-                    label="Thực phẩm"
                     rules={[{ required: true, message: 'Vui lòng chọn thực phẩm!' }]}
+                    className="floating-form-item"
                 >
                     <Select
                         placeholder="Chọn thực phẩm"
+                        className="floating-input"
                         options={foods.map(food => ({
                             value: food.id,
                             label: food.name,
@@ -120,38 +126,25 @@ const CreateDiseaseCategoryFoodRestriction = ({
                     />
                 </Form.Item>
 
-                {/* <Form.Item
-                    name="restrictionLevel"
-                    label="Mức độ hạn chế"
-                    rules={[{ required: true, message: 'Vui lòng chọn mức độ hạn chế!' }]}
-                >
-                    <Select
-                        placeholder="Chọn mức độ hạn chế"
-                        options={[
-                            { value: 1, label: 'Cảnh báo (Warning)', color: '#faad14' },
-                            { value: 2, label: 'Hạn chế (Restricted)', color: '#ff4d4f' },
-                            { value: 3, label: 'Cấm (Forbidden)', color: '#d32f2f' },
-                        ]}
-                    />
-                </Form.Item> */}
-
                 <Form.Item
                     name="reason"
-                    label="Lý do hạn chế"
                     rules={[{ required: true, message: 'Vui lòng nhập lý do hạn chế!' }]}
+                    className="floating-form-item"
                 >
                     <TextArea
                         placeholder="Nhập lý do hạn chế thực phẩm này cho bệnh nhân"
+                        className="floating-input"
                         rows={4}
                     />
                 </Form.Item>
 
                 <Form.Item
                     name="alternativeRecommendations"
-                    label="Khuyến nghị thay thế"
+                    className="floating-form-item"
                 >
                     <TextArea
                         placeholder="Nhập các thực phẩm thay thế được khuyến nghị"
+                        className="floating-input"
                         rows={3}
                     />
                 </Form.Item>
@@ -160,6 +153,7 @@ const CreateDiseaseCategoryFoodRestriction = ({
                     name="requiresPhysicianOverride"
                     label="Yêu cầu bác sĩ phê duyệt"
                     valuePropName="checked"
+                    className="floating-form-item"
                 >
                     <Switch />
                 </Form.Item>
@@ -169,19 +163,9 @@ const CreateDiseaseCategoryFoodRestriction = ({
                     label="Trạng thái hoạt động"
                     valuePropName="checked"
                     initialValue={true}
+                    className="floating-form-item"
                 >
                     <Switch />
-                </Form.Item>
-
-                <Form.Item className="form-actions">
-                    <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                        <Button onClick={handleCancel} size="large">
-                            Hủy
-                        </Button>
-                        <Button type="primary" htmlType="submit" loading={formLoading} size="large">
-                            Lưu Hạn Chế
-                        </Button>
-                    </Space>
                 </Form.Item>
             </ReusableForm>
         </ReusableModal>
@@ -195,4 +179,4 @@ CreateDiseaseCategoryFoodRestriction.propTypes = {
     initialValues: PropTypes.object,
 };
 
-export default CreateDiseaseCategoryFoodRestriction; 
+export default CreateDiseaseCategoryFoodRestriction;

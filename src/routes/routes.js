@@ -141,6 +141,7 @@ const roleHomeRedirects = {
   [ROLES.MANAGER]: '/dashboard',
 
   [ROLES.NURSE]: '/nurse/home',          // Nurses go to nurse home interface
+  [ROLES.DOCTOR]: '/nurse/home', 
   [ROLES.PATIENT]: '/patient/home',
   [ROLES.STAFF]: '/dashboard',           // ✅ FIXED: Changed from /orders to /dashboard (safer default)
   [ROLES.CASHIER]: '/dashboard',         // ✅ FIXED: Changed from /orders to /dashboard (safer default)
@@ -535,7 +536,7 @@ const routes = [
   {
     path: '/nurse/profile',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+      <ProtectedRoute allowedRoles={[ROLES.NURSE, ROLES.DOCTOR]}>
         <DefaultLayout>
           <Profile />
         </DefaultLayout>
@@ -545,7 +546,7 @@ const routes = [
   {
     path: '/nurse/edit-profile/:id',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+      <ProtectedRoute allowedRoles={[ROLES.NURSE, ROLES.DOCTOR]}>
         <DefaultLayout>
           <EditProfile />
         </DefaultLayout>
@@ -555,7 +556,7 @@ const routes = [
   {
     path: '/nurse/change-password/:id',
     element: (
-      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+      <ProtectedRoute allowedRoles={[ROLES.NURSE, ROLES.DOCTOR]}>
         <DefaultLayout>
           <ChangePassword />
         </DefaultLayout>
