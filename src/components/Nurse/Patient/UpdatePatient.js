@@ -39,7 +39,6 @@ const UpdatePatient = ({
 
   useEffect(() => {
     if (initialValues) {
-      // Lấy danh sách ID nhóm bệnh từ initialValues
       let selectedDiseaseCategoryIds = [];
       if (Array.isArray(initialValues.diseaseCategoryIds) && initialValues.diseaseCategoryIds.length > 0) {
         selectedDiseaseCategoryIds = initialValues.diseaseCategoryIds.map(id => String(id));
@@ -53,7 +52,7 @@ const UpdatePatient = ({
         ...initialValues,
         dateOfBirth: initialValues.dateOfBirth ? moment(initialValues.dateOfBirth) : null,
         dischargeDate: initialValues.dischargeDate ? moment(initialValues.dischargeDate) : null,
-        diseaseCategories: selectedDiseaseCategoryIds, // Điền ID vào field diseaseCategories
+        diseaseCategories: selectedDiseaseCategoryIds,
         departmentId: initialValues.departmentId ? String(initialValues.departmentId) : null,
         isCurrentlyAdmitted: initialValues.isCurrentlyAdmitted || false,
       });
@@ -92,15 +91,20 @@ const UpdatePatient = ({
 
             if (values.diseaseCategories?.length > 0) {
               try {
-                await patientService.assignDiseaseCategories(
+                console.log('Calling updateDiseaseCategories for patientId:', initialValues.id);
+                await patientService.updateDiseaseCategories(
                   initialValues.id,
                   values.diseaseCategories,
                   currentBranchId
                 );
                 message.success('Cập nhật nhóm bệnh thành công');
               } catch (error) {
-                console.error('Cập nhật nhóm bệnh lỗi:', error);
-                message.warning('Cập nhật bệnh nhân thành công nhưng không cập nhật được nhóm bệnh');
+                console.error('Cập nhật nhóm bệnh lỗi:', {
+                  message: error.message,
+                  response: error.response?.data,
+                  status: error.response?.status,
+                });
+                message.warning(`Cập nhật bệnh nhân thành công nhưng không cập nhật được nhóm bệnh: ${error.response?.data?.message || error.message}`);
               }
             }
 
