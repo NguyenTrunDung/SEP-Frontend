@@ -7,8 +7,9 @@ import NurseLayout from '../NurseLayout';
 import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import PatientTable from '../Patient/PatientTable';
 import CreatePatient from '../Patient/CreatePatient';
-import { useMenus } from '../../../hooks/queries/useMenuQueries';
+import { useDiseaseCategoryFoodRestrictions } from '../../../hooks/queries/useDiseaseCategoryFoodRestrictions';
 import { useCreatePatientOrder } from '../../../hooks/queries/usePatientFoodQueries';
+import { foodService } from '../../../services/foodService';
 
 const { Title, Text } = Typography;
 
@@ -54,6 +55,8 @@ const PatientComponent = () => {
     }
   );
 
+  const { restrictions, isLoading: restrictionsLoading, error: restrictionsError } = useDiseaseCategoryFoodRestrictions(currentBranchId);
+
   const patients = useMemo(() => {
     if (!patientData) {
       console.warn('⚠️ patientData is undefined');
@@ -72,10 +75,6 @@ const PatientComponent = () => {
   const updatePatientMutation = useUpdatePatient();
   const deletePatientMutation = useDeletePatient();
   const createPatientOrderMutation = useCreatePatientOrder();
-  const { data: menuData, isLoading: menuLoading, error: menuError } = useMenus({
-    date: getFormattedDate(activeDay),
-    branchId: parseInt(currentBranchId, 10),
-  });
 
   const handleResetTable = useCallback(() => {
     setSelectedPatients(new Set());
@@ -145,12 +144,168 @@ const PatientComponent = () => {
       message.error('Không thể xóa bệnh nhân từ chi nhánh khác!');
       return;
     }
+
     try {
+      const patientDiseaseCategoryIds = record.diseaseCategoryIds?.length
+        ? record.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
+        : record.diseaseCategories?.length
+        ? record.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
+        : [];
+
+      if (!patientDiseaseCategoryIds.length) {
+        console.warn(`⚠️ No disease categories for patient ${record.id}`);
+        message.warning('Bệnh nhân không có nhóm bệnh, không tạo được đơn hàng tự động.');
+        await deletePatientMutation.mutateAsync({ patientId: record.id, branchId: parseInt(currentBranchId, 10) });
+        message.success('Xóa bệnh nhân thành công');
+        refetch();
+        return;
+      }
+
+      const allowedFoodIds = restrictions
+        ?.filter(restriction => patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId))
+        ?.map(restriction => restriction.foodId) || [];
+
+      if (!allowedFoodIds.length) {
+        console.warn(`⚠️ No allowed foods found for patient ${record.id}`);
+        message.warning('Không tìm thấy món ăn được phép, không tạo được đơn hàng tự động.');
+        await deletePatientMutation.mutateAsync({ patientId: record.id, branchId: parseInt(currentBranchId, 10) });
+        message.success('Xóa bệnh nhân thành công');
+        refetch();
+        return;
+      }
+
+      // Fetch full food details for allowed foods
+      const foodPromises = allowedFoodIds.map(foodId => foodService.getFood(foodId));
+      const foodResults = await Promise.allSettled(foodPromises);
+      const allowedFoods = foodResults
+        .filter(result => result.status === 'fulfilled' && result.value)
+        .map(result => ({
+          id: result.value.id,
+          name: result.value.name || `Thực phẩm ID: ${result.value.id}`,
+          priceForPatient: Number(result.value.priceForPatient || 0),
+          categoryId: result.value.categoryId || 'unknown',
+          description: result.value.description || 'No description available',
+          imageUrl: result.value.imageUrl || '/images/placeholder-food.png',
+        }));
+
+      if (!allowedFoods.length) {
+        console.warn(`⚠️ No valid food details fetched for patient ${record.id}`);
+        message.warning('Không lấy được chi tiết món ăn, không tạo được đơn hàng tự động.');
+        await deletePatientMutation.mutateAsync({ patientId: record.id, branchId: parseInt(currentBranchId, 10) });
+        message.success('Xóa bệnh nhân thành công');
+        refetch();
+        return;
+      }
+
+      const cartItems = allowedFoods.map(food => ({
+        foodId: Number(food.id),
+        quantity: 1,
+        note: '',
+        food: {
+          id: Number(food.id),
+          name: food.name,
+          priceForPatient: Number(food.priceForPatient || 0),
+          categoryId: Number(food.categoryId || 0),
+          description: food.description,
+          imageUrl: food.imageUrl,
+          branchId: Number(currentBranchId),
+          forPatient: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdBy: nurseId,
+          updatedBy: nurseId,
+        },
+      }));
+
+      const total = cartItems.reduce((sum, item) => sum + Number(item.food.priceForPatient || 0) * item.quantity, 0);
+
+      if (total <= 0) {
+        console.error(`❌ Invalid total for patient ${record.id}: ${total}`);
+        message.warning('Tổng giá trị đơn hàng không hợp lệ, không tạo được đơn hàng tự động.');
+        await deletePatientMutation.mutateAsync({ patientId: record.id, branchId: parseInt(currentBranchId, 10) });
+        message.success('Xóa bệnh nhân thành công');
+        refetch();
+        return;
+      }
+
+      const orderData = {
+        branchId: Number(currentBranchId),
+        userId: nurseId || 'NURSE_DEFAULT',
+        patientId: record.id,
+        isPatientOrder: true,
+        orderDate: new Date().toISOString(),
+        receiveDate: new Date().toISOString().split('T')[0],
+        receiveTime: '12:00',
+        receiveType: 'Giao tận nơi',
+        type: 'Patient',
+        status: 'Confirmed',
+        customerName: record.fullName || 'Unknown Patient',
+        customerPhone: record.phone || '0000000000',
+        customerAddress: `${record.roomNumber || ''} ${record.bedNumber || ''}`.trim() || 'Phòng bệnh nhân',
+        total: Number(total),
+        shippingFee: 0,
+        foodToolFee: 0,
+        paymentMethod: 3,
+        isPaid: true,
+        walletAmountUsed: 0,
+        code: `ORD${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+        note: `Đơn hàng tự động khi xóa bệnh nhân ${record.fullName} ngày ${new Date().toISOString().split('T')[0]}`,
+        locationId: null,
+        orderDetails: cartItems.map(item => ({
+          foodId: Number(item.foodId),
+          orderId: 0,
+          qty: Number(item.quantity),
+          price: Number(item.food.priceForPatient),
+          total: Number(item.food.priceForPatient) * item.quantity,
+          note: item.note || null,
+          foodName: item.food.name || 'Unknown Food',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          food: {
+            id: Number(item.foodId),
+            name: item.food.name || 'Unknown Food',
+            description: item.food.description || '',
+            categoryId: Number(item.food.categoryId || 0),
+            category: {
+              id: Number(item.food.categoryId || 0),
+              name: 'Món khác',
+              imageUrl: '',
+              sort: 0,
+              branchId: Number(currentBranchId),
+            },
+            imageUrl: item.food.imageUrl || '',
+            isSetDish: false,
+            isAddOn: false,
+            priceForGuest: Number(item.food.priceForPatient || 0),
+            priceForPatient: Number(item.food.priceForPatient || 0),
+            priceForStaff: Number(item.food.priceForPatient || 0),
+            sort: 0,
+            branchId: Number(currentBranchId),
+            forPatient: true,
+            diseaseCategoryId: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: nurseId || 'NURSE_DEFAULT',
+            updatedBy: nurseId || 'NURSE_DEFAULT',
+            image: item.food.imageUrl || '',
+            setDishDetails: '',
+          },
+        })),
+      };
+
+      console.log(`🚀 Creating auto-order for deleted patient ${record.id}:`, JSON.stringify(orderData, null, 2));
+
+      await createPatientOrderMutation.mutateAsync({ orderData, branchId: currentBranchId });
       await deletePatientMutation.mutateAsync({ patientId: record.id, branchId: parseInt(currentBranchId, 10) });
-      message.success('Xóa bệnh nhân thành công');
+      message.success(`Xóa bệnh nhân ${record.fullName} và tạo đơn hàng tự động thành công`);
       refetch();
     } catch (error) {
-      message.error(error.response?.data?.message || 'Lỗi khi xóa bệnh nhân!');
+      console.error('❌ Failed to process patient deletion and order creation:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data,
+      });
+      message.error(error.response?.data?.message || 'Lỗi khi xóa bệnh nhân hoặc tạo đơn hàng tự động!');
     }
   };
 
@@ -196,105 +351,61 @@ const PatientComponent = () => {
     setSelectedFoodsByPatient(prev => {
       const newFoodsByPatient = {
         ...prev,
-        [patientId]: Array.from(selectedFoods).map(foodId => {
-          const foodQuantity = quantity[`${patientId}-${foodId}`] || 1;
-          const foodNote = note[`${patientId}-${foodId}`] || '';
-
-          console.log(`🔍 Setting food ${foodId} for patient ${patientId}:`, {
-            foodId,
-            quantity: foodQuantity,
-            note: foodNote,
-            stateKey: `${patientId}-${foodId}`,
-            stateQuantity: quantity[`${patientId}-${foodId}`],
-            stateNote: note[`${patientId}-${foodId}`]
-          });
-
-          return {
-            foodId,
-            quantity: foodQuantity,
-            note: foodNote,
-          };
-        }),
+        [patientId]: Array.from(selectedFoods).map(foodId => ({
+          foodId,
+          quantity: quantity[`${patientId}-${foodId}`] || 1,
+          note: note[`${patientId}-${foodId}`] || '',
+        })),
       };
       console.log(`🔍 Updated selectedFoodsByPatient:`, newFoodsByPatient);
       return newFoodsByPatient;
     });
   }, [quantity, note]);
 
-  // Add callback to handle quantity changes from PatientTable
   const handleQuantityChange = useCallback((patientId, foodId, value) => {
     console.log(`🔍 handleQuantityChange called for patient ${patientId}, food ${foodId}, value:`, value);
-    console.log(`🔍 Current quantity state before update:`, quantity);
+    setQuantity(prev => ({
+      ...prev,
+      [`${patientId}-${foodId}`]: value || 1,
+    }));
+    setSelectedFoodsByPatient(prev => ({
+      ...prev,
+      [patientId]: (prev[patientId] || []).map(food =>
+        food.foodId === foodId ? { ...food, quantity: value || 1 } : food
+      ),
+    }));
+  }, []);
 
-    setQuantity(prev => {
-      const newState = {
-        ...prev,
-        [`${patientId}-${foodId}`]: value || 1,
-      };
-      console.log(`🔍 Updated quantity state:`, newState);
-      return newState;
-    });
-
-    // Update selectedFoodsByPatient with new quantity
-    setSelectedFoodsByPatient(prev => {
-      const patientFoods = prev[patientId] || [];
-      const updatedFoods = patientFoods.map(food =>
-        food.foodId === foodId
-          ? { ...food, quantity: value || 1 }
-          : food
-      );
-
-      const newState = {
-        ...prev,
-        [patientId]: updatedFoods,
-      };
-      console.log(`🔍 Updated selectedFoodsByPatient with new quantity:`, newState);
-      return newState;
-    });
-  }, [quantity]);
-
-  // Add callback to handle note changes from PatientTable
   const handleNoteChange = useCallback((patientId, foodId, value) => {
     console.log(`🔍 handleNoteChange called for patient ${patientId}, food ${foodId}, value:`, value);
-    console.log(`🔍 Current note state before update:`, note);
-
-    setNote(prev => {
-      const newState = {
-        ...prev,
-        [`${patientId}-${foodId}`]: value || '',
-      };
-      console.log(`🔍 Updated note state:`, newState);
-      return newState;
-    });
-
-    // Update selectedFoodsByPatient with new note
-    setSelectedFoodsByPatient(prev => {
-      const patientFoods = prev[patientId] || [];
-      const updatedFoods = patientFoods.map(food =>
-        food.foodId === foodId
-          ? { ...food, note: value || '' }
-          : food
-      );
-
-      const newState = {
-        ...prev,
-        [patientId]: updatedFoods,
-      };
-      console.log(`🔍 Updated selectedFoodsByPatient with new note:`, newState);
-      return newState;
-    });
-  }, [note]);
+    setNote(prev => ({
+      ...prev,
+      [`${patientId}-${foodId}`]: value || '',
+    }));
+    setSelectedFoodsByPatient(prev => ({
+      ...prev,
+      [patientId]: (prev[patientId] || []).map(food =>
+        food.foodId === foodId ? { ...food, note: value || '' } : food
+      ),
+    }));
+  }, []);
 
   const handleSelectAllAndOrder = async () => {
     if (!selectedPatients.size) {
-      message.error('Vui lòng chọn ít nhất một bệnh nhân với món ăn.');
+      message.error('Vui lòng chọn ít nhất một bệnh nhân.');
       console.error('❌ No patients selected:', selectedPatients);
       return;
     }
 
-    if (!menuData?.foods?.length) {
-      message.error('Không có thực đơn khả dụng.');
-      console.error('❌ No menu data available:', menuData);
+    if (restrictionsLoading) {
+      message.error('Đang tải danh sách món ăn, vui lòng thử lại sau.');
+      console.error('❌ Restrictions data is still loading');
+      return;
+    }
+
+    if (!restrictions?.length) {
+      message.error('Không có món ăn nào được phép trong hệ thống.');
+      console.error('❌ No restrictions data available:', restrictions);
       return;
     }
 
@@ -306,41 +417,64 @@ const PatientComponent = () => {
           return { patientId, status: 'failed', reason: 'Patient not found' };
         }
 
-        const selectedFoods = selectedFoodsByPatient[patientId] || [];
-        if (!selectedFoods.length) {
-          console.warn(`⚠️ No foods selected for patient ${patientId}`);
-          return { patientId, status: 'failed', reason: 'No foods selected' };
+        const patientDiseaseCategoryIds = patient.diseaseCategoryIds?.length
+          ? patient.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
+          : patient.diseaseCategories?.length
+          ? patient.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
+          : [];
+
+        if (!patientDiseaseCategoryIds.length) {
+          console.warn(`⚠️ No disease categories for patient ${patientId}`);
+          return { patientId, status: 'failed', reason: 'No disease categories' };
         }
 
-        const cartItems = selectedFoods.map(item => {
-          const food = menuData.foods.find(f => f.id === item.foodId);
-          if (!food) {
-            console.warn(`⚠️ Food not found: ${item.foodId}`);
-            return null;
-          }
+        const allowedFoodIds = restrictions
+          ?.filter(restriction => patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId))
+          ?.map(restriction => restriction.foodId) || [];
 
-          // Debug logging to see what values we're working with
-          console.log(`🔍 Creating cart item for food ${item.foodId}:`, {
-            itemQuantity: item.quantity,
-            itemNote: item.note,
-            stateQuantity: quantity[`${patientId}-${item.foodId}`],
-            stateNote: note[`${patientId}-${item.foodId}`],
-            finalQuantity: Number(item.quantity || 1),
-            finalNote: item.note || ''
-          });
-
-          return {
-            foodId: Number(food.id),
-            quantity: Number(item.quantity || 1),
-            note: item.note || '',
-            food,
-          };
-        }).filter(item => item !== null && item.foodId > 0 && item.quantity > 0);
-
-        if (!cartItems.length) {
-          console.error(`❌ No valid cart items for patient ${patientId}`);
-          return { patientId, status: 'failed', reason: 'No valid cart items' };
+        if (!allowedFoodIds.length) {
+          console.warn(`⚠️ No allowed foods found for patient ${patientId}`);
+          return { patientId, status: 'failed', reason: 'No allowed foods' };
         }
+
+        // Fetch full food details for allowed foods
+        const foodPromises = allowedFoodIds.map(foodId => foodService.getFood(foodId));
+        const foodResults = await Promise.allSettled(foodPromises);
+        const allowedFoods = foodResults
+          .filter(result => result.status === 'fulfilled' && result.value)
+          .map(result => ({
+            id: result.value.id,
+            name: result.value.name || `Thực phẩm ID: ${result.value.id}`,
+            priceForPatient: Number(result.value.priceForPatient || 0),
+            categoryId: result.value.categoryId || 'unknown',
+            description: result.value.description || 'No description available',
+            imageUrl: result.value.imageUrl || '/images/placeholder-food.png',
+          }));
+
+        if (!allowedFoods.length) {
+          console.warn(`⚠️ No valid food details fetched for patient ${patientId}`);
+          return { patientId, status: 'failed', reason: 'No valid food details' };
+        }
+
+        const cartItems = allowedFoods.map(food => ({
+          foodId: Number(food.id),
+          quantity: 1,
+          note: '',
+          food: {
+            id: Number(food.id),
+            name: food.name,
+            priceForPatient: Number(food.priceForPatient || 0),
+            categoryId: Number(food.categoryId || 0),
+            description: food.description,
+            imageUrl: food.imageUrl,
+            branchId: Number(currentBranchId),
+            forPatient: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: nurseId,
+            updatedBy: nurseId,
+          },
+        }));
 
         const total = cartItems.reduce((sum, item) => sum + Number(item.food.priceForPatient || 0) * item.quantity, 0);
 
@@ -366,7 +500,7 @@ const PatientComponent = () => {
           total: Number(total),
           shippingFee: 0,
           foodToolFee: 0,
-          paymentMethod: 3, // Free
+          paymentMethod: 3,
           isPaid: true,
           walletAmountUsed: 0,
           code: `ORD${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
@@ -389,17 +523,17 @@ const PatientComponent = () => {
               categoryId: Number(item.food.categoryId || 0),
               category: {
                 id: Number(item.food.categoryId || 0),
-                name: menuData.categories?.find(cat => cat.id === item.food.categoryId)?.name || 'Món khác',
-                imageUrl: menuData.categories?.find(cat => cat.id === item.food.categoryId)?.imageUrl || '',
+                name: 'Món khác',
+                imageUrl: '',
                 sort: 0,
                 branchId: Number(currentBranchId),
               },
               imageUrl: item.food.imageUrl || '',
               isSetDish: false,
               isAddOn: false,
-              priceForGuest: Number(item.food.priceForGuest || 0),
+              priceForGuest: Number(item.food.priceForPatient || 0),
               priceForPatient: Number(item.food.priceForPatient || 0),
-              priceForStaff: Number(item.food.priceForStaff || 0),
+              priceForStaff: Number(item.food.priceForPatient || 0),
               sort: 0,
               branchId: Number(currentBranchId),
               forPatient: true,
@@ -416,6 +550,7 @@ const PatientComponent = () => {
 
         console.log(`🚀 Sending order for patient ${patientId}:`, JSON.stringify(orderData, null, 2));
         await createPatientOrderMutation.mutateAsync({ orderData, branchId: currentBranchId });
+        message.success(`Đặt món thành công cho bệnh nhân ${patient.fullName}`);
         return { patientId, status: 'success' };
       });
 
@@ -426,9 +561,9 @@ const PatientComponent = () => {
         console.error('❌ Some patient orders failed:', failedOrders);
         message.error(`Lỗi khi đặt món cho ${failedOrders.length} bệnh nhân. Vui lòng kiểm tra log.`);
       } else {
-        message.success('Đặt món thành công cho các bệnh nhân đã chọn!');
-        handleResetTable(); // Reset table states
-        refetch(); // Refresh patient data
+        message.success('Đặt món thành công cho tất cả bệnh nhân đã chọn!');
+        handleResetTable();
+        refetch();
       }
     } catch (error) {
       console.error('❌ Failed to place patient orders:', {
@@ -502,15 +637,15 @@ const PatientComponent = () => {
     );
   }
 
-  if (menuError) {
-    console.error('❌ Menu fetch error:', menuError);
+  if (restrictionsError) {
+    console.error('❌ Restrictions fetch error:', restrictionsError);
     return (
       <ConfigProvider locale={locale}>
         <NurseLayout>
           <div className="p-6 bg-gray-50 min-h-screen">
             <Alert
-              message="Lỗi tải thực đơn"
-              description={menuError?.message || 'Không thể tải thực đơn cho ngày đã chọn.'}
+              message="Lỗi tải hạn chế thực phẩm"
+              description={restrictionsError?.message || 'Không thể tải danh sách món ăn được phép.'}
               type="error"
               showIcon
               className="mb-6 rounded-lg shadow-sm"
@@ -546,7 +681,7 @@ const PatientComponent = () => {
               type="primary"
               onClick={handleSelectAllAndOrder}
               loading={createPatientOrderMutation.isLoading}
-              disabled={menuLoading || !menuData?.foods?.length || !selectedPatients.size}
+              disabled={restrictionsLoading || !restrictions?.length || !selectedPatients.size}
             >
               Đặt món
             </Button>
@@ -563,8 +698,15 @@ const PatientComponent = () => {
             onViewDetail={handleViewDetail}
             onSelectPatient={handleSelectPatient}
             refetch={refetch}
-            resetTable={handleResetTable} // Pass reset function to PatientTable
-            foods={menuData?.foods || []}
+            resetTable={handleResetTable}
+            foods={restrictions?.map(r => ({
+              id: r.foodId,
+              name: r.foodName || `Thực phẩm ID: ${r.foodId}`,
+              priceForPatient: Number(r.priceForPatient || 0),
+              categoryId: r.diseaseCategoryId || 'unknown',
+              description: r.description || 'No description available',
+              imageUrl: r.imageUrl || '/images/placeholder-food.png',
+            })) || []}
             onQuantityChange={handleQuantityChange}
             onNoteChange={handleNoteChange}
           />

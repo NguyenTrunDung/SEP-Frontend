@@ -58,6 +58,7 @@ const KitchenView = () => {
         note: item.note || '',
         createdAt: order.orderDate,
         rowSpan: index === 0 ? order.orderDetails.length : 0,
+        showAction: index === 0, // Only show action button for the first item of each order
       };
     }) || []
   );
@@ -140,16 +141,17 @@ const KitchenView = () => {
       title: '',
       dataIndex: 'action',
       align: 'center',
-      render: (_, record) => (
-        <Button
-          shape="circle"
-          type="text"
-          className="check-button-hover"
-          icon={<span style={{ fontSize: 16 }}>✓</span>}
-          onClick={() => handleConfirmClick(record)}
-          disabled={isUpdating}
-        />
-      ),
+      render: (_, record) =>
+        record.showAction ? (
+          <Button
+            shape="circle"
+            type="text"
+            className="check-button-hover"
+            icon={<span style={{ fontSize: 16 }}>✓</span>}
+            onClick={() => handleConfirmClick(record)}
+            disabled={isUpdating}
+          />
+        ) : null,
     },
   ];
 
