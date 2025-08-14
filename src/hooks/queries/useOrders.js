@@ -269,7 +269,6 @@ export const useDeliveryOrders = (branchId, filters = {}, searchText = '', optio
   };
 };
 
-
 export const useDeleteOrder = (options = {}) => {
   const queryClient = useQueryClient();
   const currentBranchId = normalizeBranchId();

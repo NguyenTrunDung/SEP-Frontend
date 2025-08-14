@@ -100,24 +100,6 @@ const ViewFeedbackModal = ({ visible, onClose, feedbacks, selectedOrder, onDelet
                     <Text>{feedback.reply}</Text>
                   </div>
                 )}
-                {Array.isArray(feedback.images) && feedback.images.length > 0 && (
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                    {feedback.images.map((img, idx) => (
-                      <img
-                        key={idx}
-                        src={img.url}
-                        alt={`Feedback-${idx}`}
-                        style={{
-                          width: 80,
-                          height: 80,
-                          objectFit: 'cover',
-                          border: '1px solid #ddd',
-                          borderRadius: 4,
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
                 <Text type="secondary" style={{ fontSize: 13 }}>
                   {new Date(feedback.timestamp).toLocaleString('vi-VN', {
                     hour: '2-digit',
