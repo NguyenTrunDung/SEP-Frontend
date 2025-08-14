@@ -161,12 +161,15 @@ const OrdersTableV2 = () => {
             { dataIndex: 'customerName', title: 'Tên khách hàng', render: (text) => text || 'N/A', align: 'center' },
             {
               dataIndex: 'orderDate',
-              title: 'Thời gian đặt',
+              title: 'Ngày đặt',
               render: (date) =>
                 date ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span>{new Date(date).toLocaleTimeString('vi-VN', { timeStyle: 'short' })}</span>
-                    <span>{new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                    <span>{new Date(date).toLocaleDateString('vi-VN', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    })}</span>
                   </div>
                 ) : 'N/A',
               align: 'center',
