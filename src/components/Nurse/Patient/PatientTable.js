@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { message, Button, Typography, Checkbox, InputNumber, Input, Space, Form, Tooltip, Popconfirm, Alert, Spin } from 'antd';
+import { message, Button, Typography, Checkbox, InputNumber, Input, Space, Form, Tooltip, Popconfirm, Alert, Spin, Select } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import PropTypes from 'prop-types';
@@ -39,6 +39,7 @@ const PatientTable = ({
   const [patientOrders, setPatientOrders] = useState({});
   const [quantity, setQuantity] = useState({});
   const [note, setNote] = useState({});
+  const [mealTimeFilter, setMealTimeFilter] = useState({}); // Store mealTime filter per patient
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
@@ -124,7 +125,7 @@ const PatientTable = ({
     return targetDate.toISOString().split('T')[0];
   };
 
-  const allowedFoodsForPatient = (patient) => {
+  const allowedFoodsForPatient = (patient, selectedMealTime) => {
     if (!patient || (!patient.diseaseCategories?.length && !patient.diseaseCategoryIds?.length)) {
       return [];
     }
@@ -133,19 +134,23 @@ const PatientTable = ({
       : patient.diseaseCategoryIds?.length
         ? patient.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
         : [];
-    return restrictions
-      ?.filter(restriction => patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId))
-      ?.map(restriction => {
-        const food = foods.find(f => f.id === restriction.foodId) || {};
-        return {
-          id: restriction.foodId,
-          name: food.name || restriction.foodName || `Thực phẩm ID: ${restriction.foodId}`,
-          categoryId: food.categoryId || restriction.diseaseCategoryId || 'unknown',
-          priceForPatient: Number(food.priceForPatient || 0),
-          description: food.description || 'No description available',
-          imageUrl: food.imageUrl || '/images/placeholder-food.png',
-        };
-      }) || [];
+    
+    let allowedFoods = restrictions
+      ?.filter(restriction => 
+        patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId) &&
+        (!selectedMealTime || restriction.mealTime === selectedMealTime)
+      )
+      ?.map(restriction => ({
+        id: restriction.nutritionalMealCode, // Use nutritionalMealCode as ID
+        name: restriction.nutritionalMealName || `Thực phẩm ID: ${restriction.nutritionalMealCode}`,
+        categoryId: restriction.diseaseCategoryId || 'unknown',
+        priceForPatient: Number(restriction.price || 0),
+        description: restriction.description || 'No description available',
+        imageUrl: restriction.imageUrl || '/images/placeholder-food.png',
+        mealTime: restriction.mealTime, // Include mealTime
+      })) || [];
+
+    return Array.from(new Map(allowedFoods.map(food => [food.id, food])).values());
   };
 
   useEffect(() => {
@@ -197,20 +202,18 @@ const PatientTable = ({
             return;
           }
 
-          const allowedFoods = allowedFoodsForPatient(patientData);
+          const selectedMealTime = mealTimeFilter[patientId] || 'morning';
+          const allowedFoods = allowedFoodsForPatient(patientData, selectedMealTime);
+          
           if (!allowedFoods.length) {
-            console.warn(`⚠️ No allowed foods found for patient ${patientId}`);
+            console.warn(`⚠️ No allowed foods found for patient ${patientId} for mealTime ${selectedMealTime}`);
             newAllAvailableFoods[patientId] = [];
             newFilteredFoods[patientId] = [];
             return;
           }
 
-          const uniqueFoods = Array.from(
-            new Map(allowedFoods.map(food => [food.id, food])).values()
-          );
-
-          newAllAvailableFoods[patientId] = uniqueFoods;
-          newFilteredFoods[patientId] = uniqueFoods;
+          newAllAvailableFoods[patientId] = allowedFoods;
+          newFilteredFoods[patientId] = allowedFoods;
         });
 
         setAllAvailableFoods(newAllAvailableFoods);
@@ -246,7 +249,7 @@ const PatientTable = ({
         console.error('❌ Restrictions error:', restrictionsError);
       }
     }
-  }, [selectedPatients, diseaseCategories, restrictions, currentBranchId, categoriesLoading, restrictionsLoading, categoriesError, restrictionsError, dataSource, foods]);
+  }, [selectedPatients, diseaseCategories, restrictions, currentBranchId, categoriesLoading, restrictionsLoading, categoriesError, restrictionsError, dataSource, foods, mealTimeFilter]);
 
   const groupedFoods = useMemo(() => {
     const result = {};
@@ -303,10 +306,11 @@ const PatientTable = ({
 
     setSelectedPatients(prev => new Map(prev).set(record.id, patientData));
     setPatientOrders(prev => ({ ...prev, [record.id]: [] }));
+    setMealTimeFilter(prev => ({ ...prev, [record.id]: 'morning' })); // Default to morning
     console.log(`🔍 Added patient ${record.id} to selectedPatients:`, patientData);
   };
 
-  const handleCheckboxChange = (patientId, foodId) => (e) => {
+  const handleCheckboxChange = (patientId, foodId, mealTime) => (e) => {
     const currentSelectedFoods = selectedFoodsByPatient[patientId] || [];
     const newSelectedFoods = new Set(currentSelectedFoods.map(food => food.foodId));
 
@@ -316,17 +320,18 @@ const PatientTable = ({
       newSelectedFoods.delete(foodId);
     }
 
-    // Update local state for immediate UI feedback
+    // Update local state with mealTime
     setSelectedFoodsByPatient(prev => ({
       ...prev,
       [patientId]: Array.from(newSelectedFoods).map(foodId => ({
         foodId,
         quantity: quantity[`${patientId}-${foodId}`] || 1,
         note: note[`${patientId}-${foodId}`] || '',
+        mealTime: mealTime || (filteredFoods[patientId]?.find(f => f.id === foodId)?.mealTime || 'morning'),
       })),
     }));
 
-    console.log(`🔍 Checkbox changed for patient ${patientId}, food ${foodId}, selectedFoods:`, Array.from(newSelectedFoods));
+    console.log(`🔍 Checkbox changed for patient ${patientId}, food ${foodId}, mealTime ${mealTime}, selectedFoods:`, Array.from(newSelectedFoods));
 
     // Call parent callback with the Set of food IDs
     onSelectPatient(patientId, newSelectedFoods);
@@ -341,7 +346,15 @@ const PatientTable = ({
       [`${patientId}-${foodId}`]: newValue,
     }));
 
-    // Call parent callback to sync with PatientComponent state
+    // Update selectedFoodsByPatient with quantity
+    setSelectedFoodsByPatient(prev => ({
+      ...prev,
+      [patientId]: (prev[patientId] || []).map(food =>
+        food.foodId === foodId ? { ...food, quantity: newValue } : food
+      ),
+    }));
+
+    // Call parent callback
     if (onQuantityChange) {
       onQuantityChange(patientId, foodId, newValue);
     }
@@ -358,12 +371,39 @@ const PatientTable = ({
       [`${patientId}-${foodId}`]: newValue,
     }));
 
-    // Call parent callback to sync with PatientComponent state
+    // Update selectedFoodsByPatient with note
+    setSelectedFoodsByPatient(prev => ({
+      ...prev,
+      [patientId]: (prev[patientId] || []).map(food =>
+        food.foodId === foodId ? { ...food, note: newValue } : food
+      ),
+    }));
+
+    // Call parent callback
     if (onNoteChange) {
       onNoteChange(patientId, foodId, newValue);
     }
 
     console.log(`🔍 Note changed for patient ${patientId}, food ${foodId}:`, newValue);
+  };
+
+  const handleMealTimeChange = (patientId, value) => {
+    setMealTimeFilter(prev => ({
+      ...prev,
+      [patientId]: value,
+    }));
+
+    // Update filtered foods based on new mealTime
+    const patientData = dataSource.find(p => p.id === patientId);
+    if (patientData) {
+      const allowedFoods = allowedFoodsForPatient(patientData, value);
+      setFilteredFoods(prev => ({
+        ...prev,
+        [patientId]: allowedFoods,
+      }));
+    }
+
+    console.log(`🔍 Meal time changed for patient ${patientId}: ${value}`);
   };
 
   const handleEdit = (record) => {
@@ -436,6 +476,11 @@ const PatientTable = ({
         delete newState[record.id];
         return newState;
       });
+      setMealTimeFilter(prev => {
+        const newState = { ...prev };
+        delete newState[record.id];
+        return newState;
+      });
       onSelectPatient(record.id, new Set());
     }
   };
@@ -448,6 +493,7 @@ const PatientTable = ({
       setPatientOrders({});
       setQuantity({});
       setNote({});
+      setMealTimeFilter({});
       setExpandedRowKeys([]);
     }
   }, [resetTable]);
@@ -555,6 +601,12 @@ const PatientTable = ({
     showTotal: (total, range) => `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} mục`,
   };
 
+  const mealTimeOptions = [
+    { value: 'morning', label: 'Buổi sáng' },
+    { value: 'noon', label: 'Buổi trưa' },
+    { value: 'evening', label: 'Buổi tối' },
+  ];
+
   if (restrictionsError || categoriesError) {
     console.error('❌ Errors in PatientTable:', { restrictionsError, categoriesError });
     return (
@@ -623,11 +675,18 @@ const PatientTable = ({
                     <p>Đang tải danh sách món ăn...</p>
                   ) : filteredFoods[record.id]?.length === 0 ? (
                     <div>
-                      <p>Không có món ăn nào được phép cho bệnh nhân này.</p>
+                      <p>Không có món ăn nào được phép cho bệnh nhân này ở buổi ăn được chọn.</p>
                     </div>
                   ) : (
                     <div>
                       <div style={{ marginBottom: '16px' }}>
+                        <Select
+                          placeholder="Chọn buổi ăn"
+                          value={mealTimeFilter[record.id] || 'morning'}
+                          onChange={(value) => handleMealTimeChange(record.id, value)}
+                          style={{ width: 150, marginBottom: 16 }}
+                          options={mealTimeOptions}
+                        />
                         <div style={{ paddingLeft: 12, paddingTop: 8 }}>
                           {filteredFoods[record.id]?.map(food => (
                             <div
@@ -643,7 +702,7 @@ const PatientTable = ({
                               <div style={{ display: 'flex', alignItems: 'center', maxWidth: 180, flex: 1 }}>
                                 <Checkbox
                                   checked={selectedFoodsByPatient[record.id]?.some(item => item.foodId === food.id)}
-                                  onChange={handleCheckboxChange(record.id, food.id)}
+                                  onChange={handleCheckboxChange(record.id, food.id, food.mealTime)}
                                   style={{ marginRight: 6 }}
                                 />
                                 <span
@@ -672,98 +731,108 @@ const PatientTable = ({
                           ))}
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {patientOrders[record.id]?.length > 0 && (
-                    <>
-                      <Title level={5} style={{ marginTop: '24px', marginBottom: '16px', color: '#333' }}>
-                        Danh sách món ăn đã thêm
-                      </Title>
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                          gap: '16px',
-                        }}
-                      >
-                        {patientOrders[record.id].map(item => (
+                      {selectedFoodsByPatient[record.id]?.length > 0 && (
+                        <>
+                          <Title level={5} style={{ marginTop: '24px', marginBottom: '16px', color: '#333' }}>
+                            Danh sách món ăn đã thêm
+                          </Title>
                           <div
-                            key={item.foodId}
                             style={{
-                              border: '1px solid #e8e8e8',
-                              borderRadius: '8px',
-                              padding: '12px',
-                              background: '#fff',
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                              gap: '16px',
                             }}
                           >
-                            <div
-                              style={{
-                                position: 'absolute',
-                                top: 8,
-                                right: 8,
-                                backgroundColor: '#b4c80f',
-                                color: '#fff',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '14px',
-                              }}
-                            >
-                              x{item.quantity || 1}
-                            </div>
-                            <Title
-                              level={5}
-                              style={{
-                                marginBottom: '8px',
-                                fontSize: '16px',
-                                color: '#222',
-                              }}
-                            >
-                              {filteredFoods[record.id]?.find(f => f.id === item.foodId)?.name || 'Không xác định'}
-                            </Title>
-                            <div style={{ marginBottom: '8px' }}>
-                              <Text
-                                strong
-                                style={{ fontSize: '14px', color: '#b41400' }}
-                              >
-                                {filteredFoods[record.id]?.find(f => f.id === item.foodId)?.priceForPatient?.toLocaleString('vi-VN') || '0'}đ
-                              </Text>
-                            </div>
-                            {item.notes && (
-                              <Text
+                            {selectedFoodsByPatient[record.id].map(item => (
+                              <div
+                                key={item.foodId}
                                 style={{
-                                  fontSize: '12px',
-                                  color: '#666',
-                                  display: 'block',
-                                  whiteSpace: 'pre-wrap',
-                                  marginBottom: '8px',
+                                  border: '1px solid #e8e8e8',
+                                  borderRadius: '8px',
+                                  padding: '12px',
+                                  background: '#fff',
                                 }}
                               >
-                                Ghi chú: {item.notes}
-                              </Text>
-                            )}
-                            <Button
-                              type="text"
-                              danger
-                              size="small"
-                              onClick={() => {
-                                const newOrders = patientOrders[record.id].filter(f => f.foodId !== item.foodId);
-                                setPatientOrders(prev => ({ ...prev, [record.id]: newOrders }));
-                                const newSelectedFoods = new Set(selectedFoodsByPatient[record.id].map(item => item.foodId));
-                                newSelectedFoods.delete(item.foodId);
-                                setSelectedFoodsByPatient(prev => ({
-                                  ...prev,
-                                  [record.id]: prev[record.id].filter(foodItem => foodItem.foodId !== item.foodId),
-                                }));
-                                onSelectPatient(record.id, newSelectedFoods);
-                                message.success(`Đã xóa ${filteredFoods[record.id]?.find(f => f.id === item.foodId)?.name || 'món ăn'} khỏi danh sách`);
-                              }}
-                            >
-                              Xóa
-                            </Button>
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    top: 8,
+                                    right: 8,
+                                    backgroundColor: '#b4c80f',
+                                    color: '#fff',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '14px',
+                                  }}
+                                >
+                                  x{item.quantity || 1}
+                                </div>
+                                <Title
+                                  level={5}
+                                  style={{
+                                    marginBottom: '8px',
+                                    fontSize: '16px',
+                                    color: '#222',
+                                  }}
+                                >
+                                  {filteredFoods[record.id]?.find(f => f.id === item.foodId)?.name || 'Không xác định'}
+                                </Title>
+                                <div style={{ marginBottom: '8px' }}>
+                                  <Text
+                                    strong
+                                    style={{ fontSize: '14px', color: '#b41400' }}
+                                  >
+                                    {filteredFoods[record.id]?.find(f => f.id === item.foodId)?.priceForPatient?.toLocaleString('vi-VN') || '0'}đ
+                                  </Text>
+                                </div>
+                                <Text
+                                  style={{
+                                    fontSize: '12px',
+                                    color: '#666',
+                                    display: 'block',
+                                    marginBottom: '8px',
+                                  }}
+                                >
+                                  Buổi ăn: {mealTimeOptions.find(opt => opt.value === item.mealTime)?.label || 'Không xác định'}
+                                </Text>
+                                {item.note && (
+                                  <Text
+                                    style={{
+                                      fontSize: '12px',
+                                      color: '#666',
+                                      display: 'block',
+                                      whiteSpace: 'pre-wrap',
+                                      marginBottom: '8px',
+                                    }}
+                                  >
+                                    Ghi chú: {item.note}
+                                  </Text>
+                                )}
+                                <Button
+                                  type="text"
+                                  danger
+                                  size="small"
+                                  onClick={() => {
+                                    const newOrders = selectedFoodsByPatient[record.id].filter(f => f.foodId !== item.foodId);
+                                    setPatientOrders(prev => ({ ...prev, [record.id]: newOrders }));
+                                    const newSelectedFoods = new Set(selectedFoodsByPatient[record.id].map(item => item.foodId));
+                                    newSelectedFoods.delete(item.foodId);
+                                    setSelectedFoodsByPatient(prev => ({
+                                      ...prev,
+                                      [record.id]: prev[record.id].filter(foodItem => foodItem.foodId !== item.foodId),
+                                    }));
+                                    onSelectPatient(record.id, newSelectedFoods);
+                                    message.success(`Đã xóa ${filteredFoods[record.id]?.find(f => f.id === item.foodId)?.name || 'món ăn'} khỏi danh sách`);
+                                  }}
+                                >
+                                  Xóa
+                                </Button>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </>
+                        </>
+                      )}
+                    </div>
                   )}
                 </>
               </div>
@@ -839,11 +908,12 @@ PatientTable.propTypes = {
       priceForPatient: PropTypes.number,
       description: PropTypes.string,
       imageUrl: PropTypes.string,
+      mealTime: PropTypes.string, // Added mealTime
     })
   ),
   activeDay: PropTypes.string,
   setActiveDay: PropTypes.func,
-  resetTable: PropTypes.func, // Add resetTable to propTypes
+  resetTable: PropTypes.func,
   onQuantityChange: PropTypes.func,
   onNoteChange: PropTypes.func,
 };

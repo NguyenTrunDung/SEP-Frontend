@@ -149,8 +149,8 @@ const PatientComponent = () => {
       const patientDiseaseCategoryIds = record.diseaseCategoryIds?.length
         ? record.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
         : record.diseaseCategories?.length
-        ? record.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
-        : [];
+          ? record.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
+          : [];
 
       if (!patientDiseaseCategoryIds.length) {
         console.warn(`⚠️ No disease categories for patient ${record.id}`);
@@ -161,11 +161,19 @@ const PatientComponent = () => {
         return;
       }
 
-      const allowedFoodIds = restrictions
+      const allowedFoods = restrictions
         ?.filter(restriction => patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId))
-        ?.map(restriction => restriction.foodId) || [];
+        ?.map(restriction => ({
+          id: restriction.nutritionalMealCode,
+          name: restriction.nutritionalMealName || `Thực phẩm ID: ${restriction.nutritionalMealCode}`,
+          priceForPatient: Number(restriction.price || 0),
+          categoryId: restriction.diseaseCategoryId || 'unknown',
+          description: restriction.description || 'No description available',
+          imageUrl: restriction.imageUrl || '/images/placeholder-food.png',
+          mealTime: restriction.mealTime || 'morning',
+        })) || [];
 
-      if (!allowedFoodIds.length) {
+      if (!allowedFoods.length) {
         console.warn(`⚠️ No allowed foods found for patient ${record.id}`);
         message.warning('Không tìm thấy món ăn được phép, không tạo được đơn hàng tự động.');
         await deletePatientMutation.mutateAsync({ patientId: record.id, branchId: parseInt(currentBranchId, 10) });
@@ -174,35 +182,13 @@ const PatientComponent = () => {
         return;
       }
 
-      // Fetch full food details for allowed foods
-      const foodPromises = allowedFoodIds.map(foodId => foodService.getFood(foodId));
-      const foodResults = await Promise.allSettled(foodPromises);
-      const allowedFoods = foodResults
-        .filter(result => result.status === 'fulfilled' && result.value)
-        .map(result => ({
-          id: result.value.id,
-          name: result.value.name || `Thực phẩm ID: ${result.value.id}`,
-          priceForPatient: Number(result.value.priceForPatient || 0),
-          categoryId: result.value.categoryId || 'unknown',
-          description: result.value.description || 'No description available',
-          imageUrl: result.value.imageUrl || '/images/placeholder-food.png',
-        }));
-
-      if (!allowedFoods.length) {
-        console.warn(`⚠️ No valid food details fetched for patient ${record.id}`);
-        message.warning('Không lấy được chi tiết món ăn, không tạo được đơn hàng tự động.');
-        await deletePatientMutation.mutateAsync({ patientId: record.id, branchId: parseInt(currentBranchId, 10) });
-        message.success('Xóa bệnh nhân thành công');
-        refetch();
-        return;
-      }
-
       const cartItems = allowedFoods.map(food => ({
-        foodId: Number(food.id),
+        foodId: food.id,
         quantity: 1,
         note: '',
+        mealTime: food.mealTime,
         food: {
-          id: Number(food.id),
+          id: food.id,
           name: food.name,
           priceForPatient: Number(food.priceForPatient || 0),
           categoryId: Number(food.categoryId || 0),
@@ -258,6 +244,7 @@ const PatientComponent = () => {
           price: Number(item.food.priceForPatient),
           total: Number(item.food.priceForPatient) * item.quantity,
           note: item.note || null,
+          mealTime: item.mealTime, // Include mealTime
           foodName: item.food.name || 'Unknown Food',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -355,12 +342,14 @@ const PatientComponent = () => {
           foodId,
           quantity: quantity[`${patientId}-${foodId}`] || 1,
           note: note[`${patientId}-${foodId}`] || '',
+          mealTime: prev[patientId]?.find(f => f.foodId === foodId)?.mealTime || 
+                   restrictions.find(r => r.nutritionalMealCode === foodId)?.mealTime || 'morning',
         })),
       };
       console.log(`🔍 Updated selectedFoodsByPatient:`, newFoodsByPatient);
       return newFoodsByPatient;
     });
-  }, [quantity, note]);
+  }, [quantity, note, restrictions]);
 
   const handleQuantityChange = useCallback((patientId, foodId, value) => {
     console.log(`🔍 handleQuantityChange called for patient ${patientId}, food ${foodId}, value:`, value);
@@ -403,12 +392,6 @@ const PatientComponent = () => {
       return;
     }
 
-    if (!restrictions?.length) {
-      message.error('Không có món ăn nào được phép trong hệ thống.');
-      console.error('❌ No restrictions data available:', restrictions);
-      return;
-    }
-
     try {
       const orderPromises = Array.from(selectedPatients).map(async (patientId) => {
         const patient = patients.find(p => p.id === patientId);
@@ -417,39 +400,26 @@ const PatientComponent = () => {
           return { patientId, status: 'failed', reason: 'Patient not found' };
         }
 
-        const patientDiseaseCategoryIds = patient.diseaseCategoryIds?.length
-          ? patient.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
-          : patient.diseaseCategories?.length
-          ? patient.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
-          : [];
-
-        if (!patientDiseaseCategoryIds.length) {
-          console.warn(`⚠️ No disease categories for patient ${patientId}`);
-          return { patientId, status: 'failed', reason: 'No disease categories' };
+        const selectedFoods = selectedFoodsByPatient[patientId] || [];
+        if (!selectedFoods.length) {
+          console.warn(`⚠️ No selected foods for patient ${patientId}`);
+          return { patientId, status: 'failed', reason: 'No selected foods' };
         }
 
-        const allowedFoodIds = restrictions
-          ?.filter(restriction => patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId))
-          ?.map(restriction => restriction.foodId) || [];
-
-        if (!allowedFoodIds.length) {
-          console.warn(`⚠️ No allowed foods found for patient ${patientId}`);
-          return { patientId, status: 'failed', reason: 'No allowed foods' };
-        }
-
-        // Fetch full food details for allowed foods
-        const foodPromises = allowedFoodIds.map(foodId => foodService.getFood(foodId));
-        const foodResults = await Promise.allSettled(foodPromises);
-        const allowedFoods = foodResults
-          .filter(result => result.status === 'fulfilled' && result.value)
-          .map(result => ({
-            id: result.value.id,
-            name: result.value.name || `Thực phẩm ID: ${result.value.id}`,
-            priceForPatient: Number(result.value.priceForPatient || 0),
-            categoryId: result.value.categoryId || 'unknown',
-            description: result.value.description || 'No description available',
-            imageUrl: result.value.imageUrl || '/images/placeholder-food.png',
-          }));
+        const allowedFoods = selectedFoods.map(item => {
+          const restriction = restrictions.find(r => r.nutritionalMealCode === item.foodId);
+          return {
+            id: item.foodId,
+            name: restriction?.nutritionalMealName || `Thực phẩm ID: ${item.foodId}`,
+            priceForPatient: Number(restriction?.price || 0),
+            categoryId: restriction?.diseaseCategoryId || 'unknown',
+            description: restriction?.description || 'No description available',
+            imageUrl: restriction?.imageUrl || '/images/placeholder-food.png',
+            quantity: item.quantity || 1,
+            note: item.note || '',
+            mealTime: item.mealTime || 'morning',
+          };
+        });
 
         if (!allowedFoods.length) {
           console.warn(`⚠️ No valid food details fetched for patient ${patientId}`);
@@ -457,11 +427,12 @@ const PatientComponent = () => {
         }
 
         const cartItems = allowedFoods.map(food => ({
-          foodId: Number(food.id),
-          quantity: 1,
-          note: '',
+          foodId: food.id,
+          quantity: food.quantity,
+          note: food.note,
+          mealTime: food.mealTime,
           food: {
-            id: Number(food.id),
+            id: food.id,
             name: food.name,
             priceForPatient: Number(food.priceForPatient || 0),
             categoryId: Number(food.categoryId || 0),
@@ -490,12 +461,12 @@ const PatientComponent = () => {
           isPatientOrder: true,
           orderDate: new Date().toISOString(),
           receiveDate: getFormattedDate(activeDay),
-          receiveTime: '12:00',
+          receiveTime: '08:00',
           receiveType: 'Giao tận nơi',
           type: 'Patient',
-          status: 'Confirmed',
+          status: 'Pending',
           customerName: patient.fullName || 'Unknown Patient',
-          customerPhone: patient.phone || '0000000000',
+          customerPhone: patient.phone || '',
           customerAddress: `${patient.roomNumber || ''} ${patient.bedNumber || ''}`.trim() || 'Phòng bệnh nhân',
           total: Number(total),
           shippingFee: 0,
@@ -513,6 +484,7 @@ const PatientComponent = () => {
             price: Number(item.food.priceForPatient),
             total: Number(item.food.priceForPatient) * item.quantity,
             note: item.note || null,
+            mealTime: item.mealTime, // Include mealTime
             foodName: item.food.name || 'Unknown Food',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -700,12 +672,13 @@ const PatientComponent = () => {
             refetch={refetch}
             resetTable={handleResetTable}
             foods={restrictions?.map(r => ({
-              id: r.foodId,
-              name: r.foodName || `Thực phẩm ID: ${r.foodId}`,
-              priceForPatient: Number(r.priceForPatient || 0),
+              id: r.nutritionalMealCode,
+              name: r.nutritionalMealName || `Thực phẩm ID: ${r.nutritionalMealCode}`,
+              priceForPatient: Number(r.price || 0),
               categoryId: r.diseaseCategoryId || 'unknown',
               description: r.description || 'No description available',
               imageUrl: r.imageUrl || '/images/placeholder-food.png',
+              mealTime: r.mealTime || 'morning',
             })) || []}
             onQuantityChange={handleQuantityChange}
             onNoteChange={handleNoteChange}

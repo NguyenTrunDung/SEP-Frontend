@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { message } from 'antd';
-
 import { withPageWrapperV2 } from '../../../components/common/PageWrapperV2';
 import DiseaseCategoryFoodRestrictionsTable from './DiseaseCategoryFoodRestrictionsTable';
 import CreateDiseaseCategoryFoodRestriction from './CreateDiseaseCategoryFoodRestriction';
@@ -73,8 +72,8 @@ const FoodForPatientPage = () => {
                     id: formData.id,
                     restrictionData: {
                         diseaseCategoryId: formData.diseaseCategoryId,
-                        foodId: formData.foodId,
-                        // restrictionLevel: formData.restrictionLevel,
+                        nutritionalMealCode: formData.nutritionalMealCode,
+                        mealTime: formData.mealTime,
                         reason: formData.reason,
                         alternativeRecommendations: formData.alternativeRecommendations,
                         requiresPhysicianOverride: formData.requiresPhysicianOverride,
@@ -85,8 +84,8 @@ const FoodForPatientPage = () => {
                 // Create new restriction
                 await createRestrictionMutation.mutateAsync({
                     diseaseCategoryId: formData.diseaseCategoryId,
-                    foodId: formData.foodId,
-                    // restrictionLevel: formData.restrictionLevel,
+                    nutritionalMealCode: formData.nutritionalMealCode,
+                    mealTime: formData.mealTime,
                     reason: formData.reason,
                     alternativeRecommendations: formData.alternativeRecommendations,
                     requiresPhysicianOverride: formData.requiresPhysicianOverride,
@@ -140,7 +139,7 @@ const FoodForPatientPage = () => {
     return (
         <>
             <FoodForPatientPageWithWrapper
-                title="Quản Lý Món Ăn Cho Bệnh Nhân"
+                title="Quản Lý Món Ăn Dinh Dưỡng Cho Bệnh Nhân"
                 onAdd={handleAdd}
                 onRefresh={handleRefresh}
                 loading={isLoading}
@@ -148,8 +147,7 @@ const FoodForPatientPage = () => {
                 refreshButtonText="Làm mới"
                 showAddButton={true}
                 showRefreshButton={true}
-                showSearch={false} // Table has its own search
-                // Pass data and handlers to the wrapped component
+                showSearch={false}
                 restrictionsData={restrictions}
                 diseaseCategoriesData={diseaseCategories}
                 onEdit={handleEdit}

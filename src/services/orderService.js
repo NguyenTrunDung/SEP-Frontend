@@ -106,7 +106,7 @@ export const orderService = {
     return this.getOrdersByBranchWithFilters(branchId, otherFilters, options);
   },
 
- async getOrderDetails(orderId, options = {}) {
+  async getOrderDetails(orderId, options = {}) {
     try {
       const response = await api.get(`/api/v1/orderdetails/order/${orderId}`, options);
       console.log(`🔍 Raw order details for order ${orderId}:`, response.data);
@@ -203,12 +203,12 @@ export const orderService = {
         isPatientOrder: true,
         orderDate: orderData.orderDate || new Date().toISOString(),
         receiveDate: orderData.receiveDate ? new Date(orderData.receiveDate).toISOString() : null,
-        receiveTime: orderData.receiveTime || '12:00',
+        receiveTime: orderData.receiveTime || '08:00',
         receiveType: orderData.receiveMethod || 'Giao tận nơi',
         type: orderData.type || 'Patient',
-        status: orderData.status || 'Confirmed',
+        status: orderData.status || 'Pending',
         customerName: orderData.customerName || 'Unknown Patient',
-        customerPhone: orderData.customerPhone || '0000000000',
+        customerPhone: orderData.customerPhone || '',
         customerAddress: orderData.customerAddress || 'Phòng bệnh nhân',
         total: orderData.total || 0,
         shippingFee: orderData.shippingFee || 0,
