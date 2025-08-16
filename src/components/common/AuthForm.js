@@ -30,16 +30,6 @@ const AuthForm = ({
                 console.error('Login function is not available');
                 return;
             }
-            // Lưu trạng thái "Remember Me" nếu được chọn
-            if (values.remember) {
-                localStorage.setItem('rememberMe', 'true');
-                localStorage.setItem('rememberedEmail', values.email);
-                localStorage.setItem('rememberedPassword', values.password);
-            } else {
-                localStorage.removeItem('rememberMe');
-                localStorage.removeItem('rememberedEmail');
-                localStorage.removeItem('rememberedPassword');
-            }
 
             // Gọi login với loginType
             await login(values, loginType);
@@ -276,6 +266,8 @@ export const AuthFormPublic = ({
                 onFinish={handleSubmit}
                 layout="vertical"
                 requiredMark={false}
+                //onFinishFailed={onFinishFailed}
+                autoComplete="off"
                 size="large"
             >
                 {error && (

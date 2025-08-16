@@ -448,7 +448,18 @@ export const AuthProvider = ({ children }) => {
         try {
             console.log('🔐 Attempting login with:', credentials.email, 'Type:', loginType);
 
-            const authData = await authService.login(credentials);
+            // For public login, add branchId from localStorage
+            let loginCredentials = { ...credentials };
+
+            if (loginType === 'public') {
+                const selectedBranch = JSON.parse(localStorage.getItem('selectedBranch') || '{}');
+                if (selectedBranch.id) {
+                    loginCredentials.branchId = selectedBranch.id;
+                }
+            }
+
+
+            const authData = await authService.login(loginCredentials);
 
             const branchRoleName = authData.defaultBranch?.branchRoleName ||
                 (authData.userBranches && authData.userBranches.length > 0 ? authData.userBranches[0].branchRoleName : null);
