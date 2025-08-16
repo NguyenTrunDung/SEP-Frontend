@@ -8,10 +8,18 @@ export const authService = {
      */
     async login(credentials) {
         try {
-            const response = await api.post(environment.api.endpoints.authentication.login, {
+            // Prepare login data
+            const loginData = {
                 email: credentials.email,
                 password: credentials.password
-            });
+            };
+
+            // Add branchId only if it exists (for public login with branch selection)
+            if (credentials.branchId) {
+                loginData.branchId = credentials.branchId;
+            }
+
+            const response = await api.post(environment.api.endpoints.authentication.login, loginData);
 
             // Extract data from the new API response structure
             const { data } = response.data;
@@ -302,10 +310,10 @@ export const authService = {
         }
     },
 
-     /**
-     * Request password reset
-     * POST /api/v1/auth/forgot-password
-     */
+    /**
+    * Request password reset
+    * POST /api/v1/auth/forgot-password
+    */
     async forgotPassword(email) {
         try {
             const response = await api.post('/api/v1/auth/forgot-password', { email });

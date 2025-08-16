@@ -115,8 +115,40 @@ const Navbar = () => {
     console.log('Navbar - User data:', { user, role: user?.role, location: location.pathname });
   }, [user, location]);
 
+  // Add this function to validate user branch access
+  const validateUserBranchAccess = async (branchId) => {
+    if (!user) return true; // Guest users can select any branch
+
+    try {
+      // Check if user has access to this branch
+      const userBranches = user.userBranches || [];
+      const hasAccess = userBranches.some(ub => ub.branchId === branchId);
+
+      // Also check if user is system admin
+      if (user.isSystemAdmin) return true;
+
+      return hasAccess;
+    } catch (error) {
+      message.error('Error validating branch access:', error);
+      console.error('Error validating branch access:', error);
+      return false;
+    }
+  };
+
   const handleBranchSelect = async (branch) => {
     try {
+
+      // Check if user is logged in
+      if (user) {
+        // Validate if user has access to this branch
+        const hasAccess = await validateUserBranchAccess(branch.id);
+        if (!hasAccess) {
+          message.error('Bạn không có quyền truy cập chi nhánh này. Vui lòng chọn chi nhánh khác.');
+          return;
+        }
+      }
+
+
       console.log('🔄 Switching to branch:', branch);
       await switchBranchMutation.mutateAsync(branch.id);
       setSelectedBranch(branch);
@@ -295,7 +327,14 @@ const Navbar = () => {
   };
 
   const handleLoginClick = () => {
-    console.log('Opening login modal');
+    // Check if user has selected a branch first for public login
+    if (!selectedBranch) {
+      message.error('Vui lòng chọn chi nhánh trước khi đăng nhập');
+      setIsModalVisible(true); // Show branch selection modal
+      return;
+    }
+
+    console.log('Opening public login modal');
     setIsLoginModalVisible(true);
   };
 
