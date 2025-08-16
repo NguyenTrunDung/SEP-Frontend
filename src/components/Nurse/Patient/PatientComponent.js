@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ConfigProvider, Typography, Alert, message, Button, Modal } from 'antd';
+import { ConfigProvider, Typography, Alert, message, Button, Modal, DatePicker } from 'antd';
 import { usePatients, useCreatePatient, useUpdatePatient, useDeletePatient } from '../../../hooks/queries/usePatientQueries';
 import { useAuth } from '../../../context/AuthContext';
 import locale from 'antd/locale/vi_VN';
@@ -10,6 +10,7 @@ import CreatePatient from '../Patient/CreatePatient';
 import { useDiseaseCategoryFoodRestrictions } from '../../../hooks/queries/useDiseaseCategoryFoodRestrictions';
 import { useCreatePatientOrder } from '../../../hooks/queries/usePatientFoodQueries';
 import { foodService } from '../../../services/foodService';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
@@ -27,11 +28,12 @@ const getFormattedDate = (dayKey) => {
 
 const PatientComponent = () => {
   const [searchText, setSearchText] = useState('');
-  const today = new Date();
-  const currentDayOfWeek = today.getDay();
+  const today = dayjs();
+  const currentDayOfWeek = today.day();
   const defaultDay = currentDayOfWeek === 0 ? '7' : currentDayOfWeek.toString();
   const [activeDay, setActiveDay] = useState(defaultDay);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [receiveDate, setReceiveDate] = useState(today);
   const { user } = useAuth();
   const currentBranchId = localStorage.getItem('currentBranchId') || '1';
   const selectedBranchName = localStorage.getItem('selectedBranch')
@@ -161,19 +163,11 @@ const PatientComponent = () => {
         return;
       }
 
-      const allowedFoods = restrictions
+      const allowedFoodIds = restrictions
         ?.filter(restriction => patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId))
-        ?.map(restriction => ({
-          id: restriction.nutritionalMealCode,
-          name: restriction.nutritionalMealName || `Thực phẩm ID: ${restriction.nutritionalMealCode}`,
-          priceForPatient: Number(restriction.price || 0),
-          categoryId: restriction.diseaseCategoryId || 'unknown',
-          description: restriction.description || 'No description available',
-          imageUrl: restriction.imageUrl || '/images/placeholder-food.png',
-          mealTime: restriction.mealTime || 'morning',
-        })) || [];
+        ?.map(restriction => restriction.foodId) || [];
 
-      if (!allowedFoods.length) {
+      if (!allowedFoodIds.length) {
         console.warn(`⚠️ No allowed foods found for patient ${record.id}`);
         message.warning('Không tìm thấy món ăn được phép, không tạo được đơn hàng tự động.');
         await deletePatientMutation.mutateAsync({ patientId: record.id, branchId: parseInt(currentBranchId, 10) });
@@ -182,13 +176,34 @@ const PatientComponent = () => {
         return;
       }
 
+      const foodPromises = allowedFoodIds.map(foodId => foodService.getFood(foodId));
+      const foodResults = await Promise.allSettled(foodPromises);
+      const allowedFoods = foodResults
+        .filter(result => result.status === 'fulfilled' && result.value)
+        .map(result => ({
+          id: result.value.id,
+          name: result.value.name || `Thực phẩm ID: ${result.value.id}`,
+          priceForPatient: Number(result.value.priceForPatient || 0),
+          categoryId: result.value.categoryId || 'unknown',
+          description: result.value.description || 'No description available',
+          imageUrl: result.value.imageUrl || '/images/placeholder-food.png',
+        }));
+
+      if (!allowedFoods.length) {
+        console.warn(`⚠️ No valid food details fetched for patient ${record.id}`);
+        message.warning('Không lấy được chi tiết món ăn, không tạo được đơn hàng tự động.');
+        await deletePatientMutation.mutateAsync({ patientId: record.id, branchId: parseInt(currentBranchId, 10) });
+        message.success('Xóa bệnh nhân thành công');
+        refetch();
+        return;
+      }
+
       const cartItems = allowedFoods.map(food => ({
-        foodId: food.id,
+        foodId: Number(food.id),
         quantity: 1,
         note: '',
-        mealTime: food.mealTime,
         food: {
-          id: food.id,
+          id: Number(food.id),
           name: food.name,
           priceForPatient: Number(food.priceForPatient || 0),
           categoryId: Number(food.categoryId || 0),
@@ -220,7 +235,7 @@ const PatientComponent = () => {
         patientId: record.id,
         isPatientOrder: true,
         orderDate: new Date().toISOString(),
-        receiveDate: new Date().toISOString().split('T')[0],
+        receiveDate: receiveDate.format('YYYY-MM-DD'),
         receiveTime: '12:00',
         receiveType: 'Giao tận nơi',
         type: 'Patient',
@@ -235,7 +250,7 @@ const PatientComponent = () => {
         isPaid: true,
         walletAmountUsed: 0,
         code: `ORD${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
-        note: `Đơn hàng tự động khi xóa bệnh nhân ${record.fullName} ngày ${new Date().toISOString().split('T')[0]}`,
+        note: `Đơn hàng tự động khi xóa bệnh nhân ${record.fullName} ngày ${receiveDate.format('DD/MM/YYYY')}`,
         locationId: null,
         orderDetails: cartItems.map(item => ({
           foodId: Number(item.foodId),
@@ -244,7 +259,6 @@ const PatientComponent = () => {
           price: Number(item.food.priceForPatient),
           total: Number(item.food.priceForPatient) * item.quantity,
           note: item.note || null,
-          mealTime: item.mealTime, // Include mealTime
           foodName: item.food.name || 'Unknown Food',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -342,14 +356,12 @@ const PatientComponent = () => {
           foodId,
           quantity: quantity[`${patientId}-${foodId}`] || 1,
           note: note[`${patientId}-${foodId}`] || '',
-          mealTime: prev[patientId]?.find(f => f.foodId === foodId)?.mealTime || 
-                   restrictions.find(r => r.nutritionalMealCode === foodId)?.mealTime || 'morning',
         })),
       };
       console.log(`🔍 Updated selectedFoodsByPatient:`, newFoodsByPatient);
       return newFoodsByPatient;
     });
-  }, [quantity, note, restrictions]);
+  }, [quantity, note]);
 
   const handleQuantityChange = useCallback((patientId, foodId, value) => {
     console.log(`🔍 handleQuantityChange called for patient ${patientId}, food ${foodId}, value:`, value);
@@ -406,20 +418,20 @@ const PatientComponent = () => {
           return { patientId, status: 'failed', reason: 'No selected foods' };
         }
 
-        const allowedFoods = selectedFoods.map(item => {
-          const restriction = restrictions.find(r => r.nutritionalMealCode === item.foodId);
-          return {
-            id: item.foodId,
-            name: restriction?.nutritionalMealName || `Thực phẩm ID: ${item.foodId}`,
-            priceForPatient: Number(restriction?.price || 0),
-            categoryId: restriction?.diseaseCategoryId || 'unknown',
-            description: restriction?.description || 'No description available',
-            imageUrl: restriction?.imageUrl || '/images/placeholder-food.png',
-            quantity: item.quantity || 1,
-            note: item.note || '',
-            mealTime: item.mealTime || 'morning',
-          };
-        });
+        const foodPromises = selectedFoods.map(item => foodService.getFood(item.foodId));
+        const foodResults = await Promise.allSettled(foodPromises);
+        const allowedFoods = foodResults
+          .filter(result => result.status === 'fulfilled' && result.value)
+          .map((result, index) => ({
+            id: result.value.id,
+            name: result.value.name || `Thực phẩm ID: ${result.value.id}`,
+            priceForPatient: Number(result.value.priceForPatient || 0),
+            categoryId: result.value.categoryId || 'unknown',
+            description: result.value.description || 'No description available',
+            imageUrl: result.value.imageUrl || '/images/placeholder-food.png',
+            quantity: selectedFoods[index].quantity || 1,
+            note: selectedFoods[index].note || '',
+          }));
 
         if (!allowedFoods.length) {
           console.warn(`⚠️ No valid food details fetched for patient ${patientId}`);
@@ -427,12 +439,11 @@ const PatientComponent = () => {
         }
 
         const cartItems = allowedFoods.map(food => ({
-          foodId: food.id,
+          foodId: Number(food.id),
           quantity: food.quantity,
           note: food.note,
-          mealTime: food.mealTime,
           food: {
-            id: food.id,
+            id: Number(food.id),
             name: food.name,
             priceForPatient: Number(food.priceForPatient || 0),
             categoryId: Number(food.categoryId || 0),
@@ -460,7 +471,7 @@ const PatientComponent = () => {
           patientId: patientId,
           isPatientOrder: true,
           orderDate: new Date().toISOString(),
-          receiveDate: getFormattedDate(activeDay),
+          receiveDate: receiveDate.format('YYYY-MM-DD'),
           receiveTime: '08:00',
           receiveType: 'Giao tận nơi',
           type: 'Patient',
@@ -475,7 +486,7 @@ const PatientComponent = () => {
           isPaid: true,
           walletAmountUsed: 0,
           code: `ORD${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
-          note: `Đơn hàng tự động cho ${patient.fullName} ngày ${getFormattedDate(activeDay)}`,
+          note: `Đơn hàng tự động cho ${patient.fullName} ngày ${receiveDate.format('DD/MM/YYYY')}`,
           locationId: null,
           orderDetails: cartItems.map(item => ({
             foodId: Number(item.foodId),
@@ -484,7 +495,6 @@ const PatientComponent = () => {
             price: Number(item.food.priceForPatient),
             total: Number(item.food.priceForPatient) * item.quantity,
             note: item.note || null,
-            mealTime: item.mealTime, // Include mealTime
             foodName: item.food.name || 'Unknown Food',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -642,21 +652,43 @@ const PatientComponent = () => {
             placeholder: 'Tìm kiếm bệnh nhân',
           }}
         >
-          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <Button
-              type="primary"
-              onClick={handleAdd}
-            >
-              Thêm bệnh nhân
-            </Button>
-            <Button
-              type="primary"
-              onClick={handleSelectAllAndOrder}
-              loading={createPatientOrderMutation.isLoading}
-              disabled={restrictionsLoading || !restrictions?.length || !selectedPatients.size}
-            >
-              Đặt món
-            </Button>
+          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+            <div>
+              <Text strong style={{ marginRight: '8px' }}>Ngày giao hàng:</Text>
+              <DatePicker
+                value={receiveDate}
+                onChange={(date) => {
+                  if (date && date.isValid()) {
+                    setReceiveDate(date);
+                  } else {
+                    setReceiveDate(today);
+                  }
+                }}
+                format="DD/MM/YYYY"
+                disabledDate={(current) => current && current.isBefore(today, 'day')}
+                style={{ width: 150, height: 35 }}
+                allowClear={false}
+                showToday={true}
+                getPopupContainer={trigger => trigger.parentElement}
+              />
+            </div>
+            <div>
+              <Button
+                type="primary"
+                onClick={handleAdd}
+                style={{ marginRight: '8px' }}
+              >
+                Thêm bệnh nhân
+              </Button>
+              <Button
+                type="primary"
+                onClick={handleSelectAllAndOrder}
+                loading={createPatientOrderMutation.isLoading}
+                disabled={restrictionsLoading || !restrictions?.length || !selectedPatients.size}
+              >
+                Đặt món
+              </Button>
+            </div>
           </div>
           <PatientTable
             dataSource={filteredData}
@@ -672,13 +704,12 @@ const PatientComponent = () => {
             refetch={refetch}
             resetTable={handleResetTable}
             foods={restrictions?.map(r => ({
-              id: r.nutritionalMealCode,
-              name: r.nutritionalMealName || `Thực phẩm ID: ${r.nutritionalMealCode}`,
-              priceForPatient: Number(r.price || 0),
+              id: r.foodId,
+              name: r.foodName || `Thực phẩm ID: ${r.foodId}`,
+              priceForPatient: Number(r.priceForPatient || 0),
               categoryId: r.diseaseCategoryId || 'unknown',
               description: r.description || 'No description available',
               imageUrl: r.imageUrl || '/images/placeholder-food.png',
-              mealTime: r.mealTime || 'morning',
             })) || []}
             onQuantityChange={handleQuantityChange}
             onNoteChange={handleNoteChange}
