@@ -52,7 +52,7 @@ import BranchesPage from '../modules/Admin/Branch/BranchesPage.js';
 import DepartmentsPage from '../modules/Admin/Department/DepartmentsPage.js';
 
 import DeliveryStaff from '../modules/Admin/Shipper/DeliveryStaff.js'
-
+import PatientView from '../modules/Admin/Kitchen/PatientView.js';
 // Helper function to find any accessible route for user permissions
 const findAnyAccessibleRoute = (userPermissions) => {
   // Create a comprehensive permission-to-route mapping
@@ -73,6 +73,7 @@ const findAnyAccessibleRoute = (userPermissions) => {
     'users:view': '/admin/user-account',
     'users:roles': '/admin/group-user',
     'wallet:view': '/admin/user-management',
+    'patientorders:view': '/patient/orders',
   };
 
   // Find the first permission that has a corresponding route
@@ -102,6 +103,7 @@ const getSmartRedirectPath = (userRole, userPermissions) => {
     { permission: 'diseasecategories:view', route: '/disease-categories' },
     { permission: 'feedbacks:view', route: '/feedbacks' },
     { permission: 'delivery:view', route: '/shippers' },
+    { permission: 'patientorders:view', route: '/patient/orders' },
   ];
 
   // Find first route user has permission for
@@ -141,12 +143,13 @@ const roleHomeRedirects = {
   [ROLES.MANAGER]: '/dashboard',
 
   [ROLES.NURSE]: '/nurse/home',          // Nurses go to nurse home interface
-  [ROLES.DOCTOR]: '/nurse/home', 
+  [ROLES.DOCTOR]: '/nurse/home',
   [ROLES.PATIENT]: '/patient/home',
   [ROLES.STAFF]: '/dashboard',           // ✅ FIXED: Changed from /orders to /dashboard (safer default)
   [ROLES.CASHIER]: '/dashboard',         // ✅ FIXED: Changed from /orders to /dashboard (safer default)
   [ROLES.KITCHEN]: '/dashboard',         // ✅ FIXED: Changed from /orders to /dashboard (safer default)
-  [ROLES.GUEST]: '/'                     // Guests stay on home page
+  [ROLES.GUEST]: '/'
+  // Guests stay on home page
 };
 
 // Route config with layout and role protection
@@ -287,11 +290,11 @@ const routes = [
     ),
   },
   {
-    path: '/order-patients',
+    path: '/patient/orders',
     element: (
       <ProtectedRoute>
         <AdminLayout>
-          <OrderPatient />
+          <PatientView />
         </AdminLayout>
       </ProtectedRoute>
     ),
@@ -302,6 +305,16 @@ const routes = [
       <ProtectedRoute>
         <AdminLayout>
           <KitchenView />
+        </AdminLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/order-patients',
+    element: (
+      <ProtectedRoute>
+        <AdminLayout>
+          <PatientView />
         </AdminLayout>
       </ProtectedRoute>
     ),
