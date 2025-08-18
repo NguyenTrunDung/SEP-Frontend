@@ -11,10 +11,13 @@ import {
   TimePicker,
   message,
   Spin,
+  Collapse,
 } from 'antd';
 import moment from 'moment';
 import { useUpdateOrder, useDeleteOrder } from '../../../hooks/queries/useOrders';
 import { orderService } from '../../../services/orderService';
+
+const { Panel } = Collapse;
 
 const ViewPatientOrderDetail = ({
   open,
@@ -25,8 +28,8 @@ const ViewPatientOrderDetail = ({
   onStatusChange,
   isPatientView = true,
 }) => {
-  const [formData, setFormData] = useState({});
-  const [isLoadingPatientName, setIsLoadingPatientName] = useState(false);
+  const [groupedOrders, setGroupedOrders] = useState({});
+  const [isLoadingPatientNames, setIsLoadingPatientNames] = useState(false);
   const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
   const { mutate: deleteOrder, isLoading: isDeleting } = useDeleteOrder();
 
@@ -37,7 +40,7 @@ const ViewPatientOrderDetail = ({
         console.warn(`🔍 No valid patientId provided: ${patientId}, falling back to 'Không có'`);
         return 'Không có';
       }
-      setIsLoadingPatientName(true);
+      setIsLoadingPatientNames(true);
       console.log(`🔍 Fetching patient details for patientId: ${patientId}, branchId: ${branchId}`);
       const patientData = await orderService.getPatientDetails(patientId, branchId);
       console.log('🔍 API orderService.getPatientDetails response:', JSON.stringify(patientData, null, 2));
@@ -45,7 +48,6 @@ const ViewPatientOrderDetail = ({
         console.error('🔍 No patientData returned for patientId:', patientId);
         return 'Không có';
       }
-      // Handle various possible field names for patient name
       const patientName =
         patientData.patientName ||
         patientData.name ||
@@ -60,7 +62,7 @@ const ViewPatientOrderDetail = ({
       console.error(`❌ Failed to fetch patient name for patientId ${patientId}:`, error);
       return 'Không có';
     } finally {
-      setIsLoadingPatientName(false);
+      setIsLoadingPatientNames(false);
     }
   };
 
@@ -119,124 +121,75 @@ const ViewPatientOrderDetail = ({
     return 'Không xác định';
   };
 
-  // Helper function to safely parse Vietnamese time strings
-  const safeParseVietnameseTime = (timeString) => {
-    if (!timeString) return null;
-
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (timeRegex.test(timeString)) {
-      return moment(timeString, 'HH:mm');
-    }
-
-    if (typeof timeString === 'string') {
-      const numberMatch = timeString.match(/(\d+)/);
-      if (numberMatch) {
-        const number = parseInt(numberMatch[1]);
-        if (timeString.includes('phút')) {
-          const hours = Math.floor(number / 60);
-          const minutes = number % 60;
-          return moment(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`, 'HH:mm');
-        }
-        if (timeString.includes('giờ')) {
-          return moment(`${number.toString().padStart(2, '0')}:00`, 'HH:mm');
-        }
-      }
-    }
-
-    try {
-      const parsed = moment(timeString, ['HH:mm', 'H:mm', 'HH:mm:ss', 'H:mm:ss']);
-      if (parsed.isValid()) {
-        return parsed;
-      }
-    } catch (error) {
-      console.warn('Failed to parse time:', timeString, error);
-    }
-
-    return null;
-  };
-
   useEffect(() => {
-    const loadPatientName = async () => {
-      console.log('🔍 Order data received in ViewPatientOrderDetail:', JSON.stringify(orderData, null, 2));
-      console.log('🔍 isPatientView:', isPatientView);
-      console.log('🔍 Order details received:', JSON.stringify(orderDetails, null, 2));
-
-      // Check if orderData is null or undefined
-      if (!orderData || orderData === null) {
-        console.warn('🔍 orderData is null or undefined, setting default formData');
-        setFormData({
-          patientName: 'Không có',
-          customerPhone: 'Không có',
-          receiveDate: null,
-          receiveTime: null,
-          receiveType: 'Giao tận nơi',
-          customerAddress: 'Phòng bệnh nhân',
-          note: '',
-          getTools: false,
-          status: 'Đang chờ',
-          shippingFee: 0,
-          total: 0,
-          paymentMethod: 'Miễn phí',
-          mealSession: 'Không xác định',
-        });
+    const loadPatientNames = async () => {
+      if (!orderDetails || orderDetails.length === 0) {
+        console.warn('🔍 No orderDetails provided, setting empty groupedOrders');
+        setGroupedOrders({});
         return;
       }
 
-      console.log('🔍 Checking total, receiveDate, and patientId:', {
-        total: orderData.total,
-        receiveDate: orderData.receiveDate,
-        patientId: orderData.patientId,
-      });
+      console.log('🔍 Order details received:', JSON.stringify(orderDetails, null, 2));
+      const ordersWithPatientNames = await Promise.all(
+        orderDetails.map(async (order) => {
+          const patientName = await fetchPatientName(order.patientId, branchId);
+          return {
+            ...order,
+            patientName,
+            paymentMethod: normalizePaymentMethod(order.paymentMethod),
+            receiveType: normalizeReceiveType(order.receiveType),
+            status: normalizeStatus(order.status),
+            customerAddress: order.customerAddress || order.shippingAddress || 'Phòng bệnh nhân',
+            note: order.note || '',
+            getTools: order.getTools || false,
+            shippingFee: order.shippingFee || 0,
+            total: typeof order.total === 'number' ? order.total : 0,
+            receiveDate: order.receiveDate ? moment(order.receiveDate) : null,
+            mealSession: normalizeMealSession(order.mealSession),
+          };
+        })
+      );
 
-      const patientName = await fetchPatientName(orderData.patientId, branchId);
+      // Nhóm đơn hàng theo patientId
+      const groupedByPatient = ordersWithPatientNames.reduce((acc, order) => {
+        const patientId = order.patientId || 'Unknown';
+        if (!acc[patientId]) {
+          acc[patientId] = {
+            patientName: order.patientName,
+            orders: [],
+          };
+        }
+        acc[patientId].orders.push(order);
+        return acc;
+      }, {});
 
-      // Ensure total is a number and formatted correctly
-      const total = typeof orderData.total === 'number' ? orderData.total : 0;
-      // Parse receiveDate with moment, similar to ViewOrderDetail
-      const receiveDate = orderData.receiveDate ? moment(orderData.receiveDate) : null;
-
-      setFormData({
-        ...orderData,
-        patientName: patientName,
-        customerPhone: orderData.customerPhone || 'Không có',
-        paymentMethod: normalizePaymentMethod(orderData.paymentMethod),
-        receiveType: normalizeReceiveType(orderData.receiveType),
-        status: normalizeStatus(orderData.status),
-        customerAddress: orderData.customerAddress || orderData.shippingAddress || 'Phòng bệnh nhân',
-        note: orderData.note || '',
-        getTools: orderData.getTools || false,
-        shippingFee: orderData.shippingFee || 0,
-        total: total,
-        receiveDate: receiveDate,
-        mealSession: normalizeMealSession(orderData.mealSession),
-      });
-
-      console.log('🔍 Form data set:', JSON.stringify({
-        patientName: patientName,
-        status: normalizeStatus(orderData.status),
-        mealSession: normalizeMealSession(orderData.mealSession),
-        total: total,
-        receiveDate: receiveDate ? receiveDate.format('DD/MM/YYYY') : 'null',
-        orderDetails,
-      }, null, 2));
+      setGroupedOrders(groupedByPatient);
+      console.log('🔍 Grouped orders by patient:', JSON.stringify(groupedByPatient, null, 2));
     };
 
-    loadPatientName();
-  }, [orderData, orderDetails, branchId]);
+    loadPatientNames();
+  }, [orderDetails, branchId]);
 
-  const handleDeliverOrder = async () => {
-    if (!orderData?.id || !branchId) {
+  const handleDeliverOrder = async (orderId) => {
+    if (!orderId || !branchId) {
       message.error('Không thể cập nhật trạng thái do thiếu thông tin đơn hàng!');
       return;
     }
-    console.log('🔍 Form data in handleDeliverOrder:', JSON.stringify(formData, null, 2));
     try {
       await updateOrder({
-        orderId: orderData.id,
+        orderId,
         branchId,
         newStatus: 'Delivered',
       });
-      setFormData((prev) => ({ ...prev, status: 'Đang giao hàng' }));
+      setGroupedOrders((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((patientId) => {
+          updated[patientId].orders = updated[patientId].orders.map((order) =>
+            order.id === orderId ? { ...order, status: 'Đang giao hàng' } : order
+          );
+        });
+        return updated;
+      });
       message.success('Đơn hàng đã được chuyển sang trạng thái Shipper nhận đơn và đi giao!');
       onStatusChange?.();
     } catch (error) {
@@ -245,18 +198,26 @@ const ViewPatientOrderDetail = ({
     }
   };
 
-  const handleCompleteOrder = async () => {
-    if (!orderData?.id || !branchId) {
+  const handleCompleteOrder = async (orderId) => {
+    if (!orderId || !branchId) {
       message.error('Không thể hoàn thành do thiếu thông tin đơn hàng!');
       return;
     }
     try {
       await updateOrder({
-        orderId: orderData.id,
+        orderId,
         branchId,
         newStatus: 'Completed',
       });
-      setFormData((prev) => ({ ...prev, status: 'Hoàn thành' }));
+      setGroupedOrders((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((patientId) => {
+          updated[patientId].orders = updated[patientId].orders.map((order) =>
+            order.id === orderId ? { ...order, status: 'Hoàn thành' } : order
+          );
+        });
+        return updated;
+      });
       message.success('Đơn hàng đã được hoàn thành!');
       onStatusChange?.();
     } catch (error) {
@@ -265,18 +226,26 @@ const ViewPatientOrderDetail = ({
     }
   };
 
-  const handleConfirmOrder = async () => {
-    if (!orderData?.id || !branchId) {
+  const handleConfirmOrder = async (orderId) => {
+    if (!orderId || !branchId) {
       message.error('Không thể xác nhận do thiếu thông tin đơn hàng!');
       return;
     }
     try {
       await updateOrder({
-        orderId: orderData.id,
+        orderId,
         branchId,
         newStatus: 'Confirmed',
       });
-      setFormData((prev) => ({ ...prev, status: 'Đã xác nhận' }));
+      setGroupedOrders((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((patientId) => {
+          updated[patientId].orders = updated[patientId].orders.map((order) =>
+            order.id === orderId ? { ...order, status: 'Đã xác nhận' } : order
+          );
+        });
+        return updated;
+      });
       message.success('Đơn hàng đã được xác nhận!');
       onStatusChange?.();
     } catch (error) {
@@ -285,20 +254,27 @@ const ViewPatientOrderDetail = ({
     }
   };
 
-  const handleCancelOrder = async () => {
-    if (!orderData?.id || !branchId) {
+  const handleCancelOrder = async (orderId) => {
+    if (!orderId || !branchId) {
       message.error('Không thể hủy do thiếu thông tin đơn hàng!');
       return;
     }
     try {
       await deleteOrder({
-        orderId: orderData.id,
+        orderId,
         branchId,
       });
-      setFormData((prev) => ({ ...prev, status: 'Hủy' }));
+      setGroupedOrders((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((patientId) => {
+          updated[patientId].orders = updated[patientId].orders.map((order) =>
+            order.id === orderId ? { ...order, status: 'Hủy' } : order
+          );
+        });
+        return updated;
+      });
       message.success('Đã xóa đơn hàng!');
       onStatusChange?.();
-      onCancel?.();
     } catch (error) {
       console.error('Lỗi xóa đơn:', error);
       message.error('Xóa đơn hàng thất bại!');
@@ -323,9 +299,9 @@ const ViewPatientOrderDetail = ({
     },
     {
       title: 'SỐ LƯỢNG',
-      dataIndex: 'qty',
+      dataIndex: 'Qty',
       align: 'center',
-      key: 'qty',
+      key: 'Qty',
       render: (qty) => qty ?? 1,
     },
     { title: 'GHI CHÚ', dataIndex: 'note', key: 'note', render: (note) => note || '' },
@@ -338,7 +314,7 @@ const ViewPatientOrderDetail = ({
     },
   ];
 
-  if (!orderData || isLoadingPatientName) {
+  if (!orderData || isLoadingPatientNames) {
     return (
       <Modal
         open={open}
@@ -368,7 +344,7 @@ const ViewPatientOrderDetail = ({
     >
       <div className="order-detail-wrapper">
         <Row justify="space-between" align="middle">
-          <Col><h2 style={{ fontWeight: 600 }}>Xem chi tiết đơn hàng bệnh nhân</h2></Col>
+          <Col><h2 style={{ fontWeight: 600 }}>Chi tiết đơn hàng của y tá {orderData.userName || 'Không xác định'}</h2></Col>
           <Col>
             <Button
               danger
@@ -387,81 +363,102 @@ const ViewPatientOrderDetail = ({
           </Col>
         </Row>
 
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col span={6}>
-            <label className="floating-label">Tên bệnh nhân</label>
-            <Input value={formData.patientName || 'Không có'} disabled />
-          </Col>
-          <Col span={6}>
-            <label className="floating-label">Buổi ăn</label>
-            <Input value={formData.mealSession || 'Không xác định'} disabled />
-          </Col>
-          <Col span={6}>
-            <label className="floating-label">Ngày nhận</label>
-            <DatePicker
-              value={formData.receiveDate ? moment(formData.receiveDate) : null}
-              disabled
-              style={{ width: '100%' }}
-              format="DD/MM/YYYY"
-            />
-          </Col>
-          <Col span={6}>
-            <label className="floating-label">Ghi chú</label>
-            <Input value={formData.note || ''} disabled placeholder="Ghi chú" />
-          </Col>
-        </Row>
+        <Collapse accordion>
+          {Object.entries(groupedOrders).map(([patientId, { patientName, orders }]) => (
+            <Panel header={`Bệnh nhân: ${patientName}`} key={patientId}>
+              {orders.map((order) => (
+                <div key={order.id} style={{ marginBottom: 24 }}>
+                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                    <Col span={6}>
+                      <label className="floating-label">Mã đơn hàng</label>
+                      <Input value={order.id} disabled />
+                    </Col>
+                    <Col span={6}>
+                      <label className="floating-label">Buổi ăn</label>
+                      <Input value={order.mealSession || 'Không xác định'} disabled />
+                    </Col>
+                    <Col span={6}>
+                      <label className="floating-label">Ngày nhận</label>
+                      <DatePicker
+                        value={order.receiveDate ? moment(order.receiveDate) : null}
+                        disabled
+                        style={{ width: '100%' }}
+                        format="DD/MM/YYYY"
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <label className="floating-label">Ghi chú</label>
+                      <Input value={order.note || ''} disabled placeholder="Ghi chú" />
+                    </Col>
+                  </Row>
 
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col span={6}>
-            <label className="floating-label">Trạng thái</label>
-            <Input value={formData.status} disabled placeholder="Trạng thái" />
-          </Col>
-          <Col span={6}>
-            <label className="floating-label">Thành tiền</label>
-            <Input value={formData.total?.toLocaleString() || '0'} disabled />
-          </Col>
-        </Row>
+                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                    <Col span={6}>
+                      <label className="floating-label">Trạng thái</label>
+                      <Input value={order.status} disabled placeholder="Trạng thái" />
+                    </Col>
+                    <Col span={6}>
+                      <label className="floating-label">Thành tiền</label>
+                      <Input value={order.total?.toLocaleString() || '0'} disabled />
+                    </Col>
+                  </Row>
 
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }} align="middle">
-          <Col span={3}>
-            {formData.status === 'Đang chờ' ? (
-              <Button
-                type="primary"
-                style={{ width: '100%', backgroundColor: '#00B8A9', border: 'none' }}
-                onClick={handleConfirmOrder}
-                loading={isUpdating}
-              >
-                Xác Nhận
-              </Button>
-            ) : formData.status === 'Đã xác nhận' ? (
-              <Button
-                type="primary"
-                style={{ width: '100%', backgroundColor: '#0d8ce0', border: 'none' }}
-                onClick={handleDeliverOrder}
-                loading={isUpdating}
-              >
-                Giao hàng
-              </Button>
-            ) : formData.status === 'Đang giao hàng' ? (
-              <Button
-                type="primary"
-                style={{ width: '100%', backgroundColor: '#52c41a', border: 'none' }}
-                onClick={handleCompleteOrder}
-                loading={isUpdating}
-              >
-                Hoàn thành
-              </Button>
-            ) : null}
-          </Col>
-        </Row>
+                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }} align="middle">
+                    <Col span={3}>
+                      {order.status === 'Đang chờ' ? (
+                        <Button
+                          type="primary"
+                          style={{ width: '100%', backgroundColor: '#00B8A9', border: 'none' }}
+                          onClick={() => handleConfirmOrder(order.id)}
+                          loading={isUpdating}
+                        >
+                          Xác Nhận
+                        </Button>
+                      ) : order.status === 'Đã xác nhận' ? (
+                        <Button
+                          type="primary"
+                          style={{ width: '100%', backgroundColor: '#0d8ce0', border: 'none' }}
+                          onClick={() => handleDeliverOrder(order.id)}
+                          loading={isUpdating}
+                        >
+                          Giao hàng
+                        </Button>
+                      ) : order.status === 'Đang giao hàng' ? (
+                        <Button
+                          type="primary"
+                          style={{ width: '100%', backgroundColor: '#52c41a', border: 'none' }}
+                          onClick={() => handleCompleteOrder(order.id)}
+                          loading={isUpdating}
+                        >
+                          Hoàn thành
+                        </Button>
+                      ) : null}
+                    </Col>
+                    {/* <Col span={3}>
+                      <Button
+                        type="default"
+                        style={{ width: '100%', borderColor: '#ff4d4f', color: '#ff4d4f' }}
+                        onClick={() => handleCancelOrder(order.id)}
+                        loading={isDeleting}
+                      >
+                        Hủy
+                      </Button>
+                    </Col> */}
+                  </Row>
 
-        <Table
-          style={{ marginTop: 32 }}
-          columns={columns}
-          dataSource={orderDetails.map((item, index) => ({ ...item, key: index }))}
-          pagination={false}
-          bordered
-        />
+                  <Table
+                    style={{ marginTop: 16 }}
+                    columns={columns}
+                    dataSource={order.orderDetails.map((item, index) => ({ ...item, key: index }))}
+                    pagination={false}
+                    bordered
+                    title={() => <h3>Chi tiết món ăn</h3>}
+                  />
+                </div>
+              ))}
+            </Panel>
+          ))}
+        </Collapse>
       </div>
     </Modal>
   );

@@ -61,7 +61,8 @@ const PatientView = () => {
       const orderList = Array.isArray(orders) ? orders : (orders.data || []);
       console.log('🔍 Raw orders data:', JSON.stringify(orderList, null, 2));
       const fetchOrdersWithNurseNames = async () => {
-        const filtered = await Promise.all(
+        // Lấy tất cả đơn hàng và gán tên y tá
+        const ordersWithDetails = await Promise.all(
           orderList
             .filter(
               (order) =>
@@ -74,7 +75,7 @@ const PatientView = () => {
               return {
                 ...order,
                 userName: nurseName,
-                patientId: order.patientId || order.userId || 'Unknown', // Ensure patientId is included
+                patientId: order.patientId || order.userId || 'Unknown',
                 orderDate: order.orderDate || new Date().toISOString(),
                 total: order.total || 0,
                 receiveDate: order.receiveDate || null,
@@ -86,8 +87,26 @@ const PatientView = () => {
               };
             })
         );
-        setPatientOrdersData(filtered);
-        console.log('🔍 Filtered patient orders (Confirmed only):', JSON.stringify(filtered, null, 2));
+
+        // Gộp đơn hàng theo userId
+        const groupedByNurse = ordersWithDetails.reduce((acc, order) => {
+          const userId = order.userId || 'NURSE_DEFAULT';
+          if (!acc[userId]) {
+            acc[userId] = {
+              userId,
+              userName: order.userName,
+              branchId: order.branchId,
+              orders: [],
+            };
+          }
+          acc[userId].orders.push(order);
+          return acc;
+        }, {});
+
+        // Chuyển thành mảng để hiển thị trong bảng
+        const groupedData = Object.values(groupedByNurse);
+        setPatientOrdersData(groupedData);
+        console.log('🔍 Grouped patient orders by nurse:', JSON.stringify(groupedData, null, 2));
       };
       fetchOrdersWithNurseNames();
     }
@@ -99,35 +118,33 @@ const PatientView = () => {
       return;
     }
     try {
-      console.log('🔍 Fetching order details for order ID:', record.id);
-      console.log('🔍 Record data:', JSON.stringify(record, null, 2));
-      const orderDetails = await orderService.getOrderDetails(record.id);
-      console.log('🔍 Order details response:', JSON.stringify(orderDetails, null, 2));
-      if (!orderDetails?.data) {
-        throw new Error('Không có chi tiết đơn hàng từ API.');
-      }
-      const nurseName = await fetchNurseName(record.userId, record.branchId);
-      const updatedOrder = {
-        ...record,
-        patientId: record.patientId || record.userId || 'Unknown',
-        customerAddress: record.customerAddress || record.shippingAddress || 'Phòng bệnh nhân',
-        status: record.status || 'Confirmed',
-        total: record.total || 0,
-        receiveDate: record.receiveDate || null,
-        userName: nurseName,
-        orderDetails: orderDetails.data.map((item) => ({
-          ...item,
-          foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
-          Qty: item.Qty ?? item.quantity ?? 1,
-        })),
-      };
-      setViewOrder(updatedOrder);
-      console.log('🔍 Set viewOrder:', JSON.stringify(updatedOrder, null, 2));
+      console.log('🔍 Fetching orders for nurse:', record.userName);
+      // Lấy tất cả đơn hàng của y tá
+      const nurseOrders = record.orders;
+      const ordersWithDetails = await Promise.all(
+        nurseOrders.map(async (order) => {
+          const orderDetails = await orderService.getOrderDetails(order.id);
+          if (!orderDetails?.data) {
+            throw new Error(`Không có chi tiết đơn hàng cho ID ${order.id}`);
+          }
+          return {
+            ...order,
+            orderDetails: orderDetails.data.map((item) => ({
+              ...item,
+              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+              Qty: item.Qty ?? item.quantity ?? 1,
+            })),
+          };
+        })
+      );
+      // Gửi tất cả đơn hàng của y tá vào modal
+      setViewOrder({ userName: record.userName, orders: ordersWithDetails });
+      console.log('🔍 Set viewOrder with all orders for nurse:', JSON.stringify(ordersWithDetails, null, 2));
       showViewModal();
     } catch (error) {
       console.error('❌ Failed to fetch order details:', error);
       message.error('Không thể lấy chi tiết đơn hàng!');
-      setViewOrder({}); // Set to empty object instead of null
+      setViewOrder({});
     }
   };
 
@@ -145,33 +162,17 @@ const PatientView = () => {
     );
   }
 
-  const tableData = patientOrdersData.map((order) => ({
-    key: order.id,
-    id: order.id,
-    orderId: order.id,
-    orderTime: moment(order.orderDate).format('DD/MM/YYYY HH:mm'),
-    total: order.total || 0,
-    receiveDate: order.receiveDate || null,
-    userName: order.userName,
-    branchId: order.branchId,
-    patientId: order.patientId || 'Unknown', // Ensure patientId is included
+  const tableData = patientOrdersData.map((nurse) => ({
+    key: nurse.userId,
+    userId: nurse.userId,
+    userName: nurse.userName,
+    branchId: nurse.branchId,
+    orders: nurse.orders,
   }));
 
   const columns = [
     {
-      title: 'Mã Đơn Hàng',
-      dataIndex: 'orderId',
-      align: 'left',
-      render: (text) => <span>{text}</span>,
-    },
-    {
-      title: 'Ngày Đặt',
-      dataIndex: 'orderTime',
-      align: 'left',
-      render: (text) => <span>{text}</span>,
-    },
-    {
-      title: 'Tên Người Tạo',
+      title: 'Tên Y Tá',
       dataIndex: 'userName',
       align: 'left',
       render: (text) => <span>{text}</span>,
@@ -200,7 +201,7 @@ const PatientView = () => {
     showSizeChanger: true,
     total: tableData.length,
     showTotal: (total, range) =>
-      `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} đơn hàng`,
+      `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} y tá`,
   };
 
   return (
@@ -213,17 +214,16 @@ const PatientView = () => {
         loading={isLoading}
         resourceName="kitchen-orders"
         viewPermission={[]}
-       hideOnNoPermission={false}
-        // permissionFallback={<div>Bạn không có quyền xem đơn hàng bệnh nhân.</div>}
+        hideOnNoPermission={false}
       >
         {error && <div style={{ color: 'red', marginBottom: 16 }}>Lỗi: {error.message}</div>}
         <ReusableTableV2
           dataSource={tableData}
           columns={columns}
           rowKey="key"
-          listHeader="DANH SÁCH ĐƠN HÀNG BỆNH NHÂN (ĐÃ XÁC NHẬN)"
+          listHeader="DANH SÁCH Y TÁ CÓ ĐƠN HÀNG BỆNH NHÂN (ĐÃ XÁC NHẬN)"
           pagination={paginationConfig}
-          emptyMessage="Chưa có đơn hàng đã xác nhận nào."
+          emptyMessage="Chưa có y tá nào có đơn hàng đã xác nhận."
           loading={isLoading}
           resourceName="patient-orders"
           hideActionsOnNoPermission={true}
@@ -235,7 +235,7 @@ const PatientView = () => {
         onCancel={handleViewCancel}
         orderData={viewOrder || {}}
         branchId={branchId}
-        orderDetails={viewOrder?.orderDetails || []}
+        orderDetails={viewOrder?.orders || []}
         onStatusChange={handleStatusChange}
         isPatientView={true}
       />
