@@ -52,6 +52,7 @@ import BranchesPage from '../modules/Admin/Branch/BranchesPage.js';
 import DepartmentsPage from '../modules/Admin/Department/DepartmentsPage.js';
 
 import DeliveryStaff from '../modules/Admin/Shipper/DeliveryStaff.js'
+import CashierLayout from '../layouts/CashierLayout.js';
 
 // Helper function to find any accessible route for user permissions
 const findAnyAccessibleRoute = (userPermissions) => {
@@ -160,6 +161,16 @@ const routes = [
       </AuthRedirect>
     ),
   },
+
+{
+    path: '/a',
+    element: (
+      <AuthRedirect roleHomeRedirects={roleHomeRedirects} getSmartRedirectPath={getSmartRedirectPath}>
+        <CashierLayout/>
+      </AuthRedirect>
+    ),
+  },
+
 
   // Nurse public home route (for NURSE role)
   {
