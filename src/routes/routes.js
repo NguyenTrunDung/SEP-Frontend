@@ -73,7 +73,7 @@ const findAnyAccessibleRoute = (userPermissions) => {
     'users:view': '/admin/user-account',
     'users:roles': '/admin/group-user',
     'wallet:view': '/admin/user-management',
-    'patientorders:view': '/patient/orders',
+    'kitchenorders:view': 'kitchen-orders',
   };
 
   // Find the first permission that has a corresponding route
@@ -103,7 +103,7 @@ const getSmartRedirectPath = (userRole, userPermissions) => {
     { permission: 'diseasecategories:view', route: '/disease-categories' },
     { permission: 'feedbacks:view', route: '/feedbacks' },
     { permission: 'delivery:view', route: '/shippers' },
-    { permission: 'patientorders:view', route: '/patient/orders' },
+    { permission: 'kitchenorders:view', route: '/kitchen-orders' },
   ];
 
   // Find first route user has permission for
@@ -290,7 +290,7 @@ const routes = [
     ),
   },
   {
-    path: '/patient/orders',
+    path: '/kitchen-orders',
     element: (
       <ProtectedRoute>
         <AdminLayout>
@@ -309,16 +309,16 @@ const routes = [
       </ProtectedRoute>
     ),
   },
-  {
-    path: '/order-patients',
-    element: (
-      <ProtectedRoute>
-        <AdminLayout>
-          <PatientView />
-        </AdminLayout>
-      </ProtectedRoute>
-    ),
-  },
+  // {
+  //   path: '/order-patients',
+  //   element: (
+  //     <ProtectedRoute>
+  //       <AdminLayout>
+  //         <PatientView/>
+  //       </AdminLayout>
+  //     </ProtectedRoute>
+  //   ),
+  // },
   {
     path: '/feedbacks',
     element: (

@@ -205,7 +205,7 @@ export const ROLE_TO_PERMISSION_MAP = {
     ],
     [ROLES.KITCHEN]: [
         'kitchen:view', 'kitchen:status', 'kitchen:prepare', 'kitchen:complete',
-        'orders:view', 'foods:view'
+        'orders:view', 'foods:view', 'kitchenorders:view'
     ],
     [ROLES.NURSE]: [
         // Nurses have limited permissions and should use guest layout

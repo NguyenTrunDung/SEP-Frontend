@@ -141,7 +141,21 @@ export const orderService = {
       return {};
     }
   },
-
+async getUserDetails(userId, branchId) {
+  try {
+    const normalizedBranchId = normalizeBranchId(branchId);
+    const response = await api.get(`/api/v1/BranchUserManagement/${userId}/branch/${normalizedBranchId}`, {
+      headers: { 'X-Branch-Id': normalizedBranchId },
+    });
+    if (environment.features.enableLogging) {
+      console.log(`✅ Fetched user details for userId ${userId} in branch ${normalizedBranchId}:`, JSON.stringify(response.data, null, 2));
+    }
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Failed to fetch user details for userId ${userId} in branch ${branchId}:`, error);
+    throw error;
+  }
+},
   async createOrder(orderData, branchId, options = {}) {
     console.log('this._mapPaymentMethod(orderData.paymentMethod):', this._mapPaymentMethod(orderData.paymentMethod));
     try {
