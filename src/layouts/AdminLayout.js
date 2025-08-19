@@ -144,8 +144,8 @@ const AdminLayout = ({ children }) => {
       icon: <FireFilled style={{ fontSize: "18px" }} />,
       label: <Link to="/kitchens">Nhà bếp</Link>,
     },
-       // Kitchen
-     canAccess([PERMISSIONS.KITCHEN_VIEW]) && {
+    // Kitchen
+    canAccess([PERMISSIONS.ORDERS_VIEW]) && {
       key: "kitchen-orders",
       icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/kitchen-orders">Đơn hàng bệnh nhân</Link>,

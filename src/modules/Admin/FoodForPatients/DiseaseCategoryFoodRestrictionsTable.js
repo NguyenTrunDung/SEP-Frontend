@@ -182,18 +182,18 @@ const DiseaseCategoryFoodRestrictionsTable = ({
     const columns = [
         {
             title: 'TÊN MÓN ĂN',
-            dataIndex: 'nutritionalMealName',
-            key: 'nutritionalMealName',
-            sorter: (a, b) => a.nutritionalMealName.localeCompare(b.nutritionalMealName),
+            dataIndex: 'foodName',
+            key: 'foodName',
+            sorter: (a, b) => a.foodName.localeCompare(b.foodName),
             render: (name) => <span className="vietnamese-text">{name || '-'}</span>,
             align: 'center',
         },
         {
             title: 'GIÁ TIỀN',
-            dataIndex: 'price',
-            key: 'price',
-            sorter: (a, b) => a.price - b.price,
-            render: (price) => <span className="vietnamese-text">{price ? `${price.toLocaleString('vi-VN')} VNĐ` : '-'}</span>,
+            dataIndex: 'foodPrice',
+            key: 'foodPrice',
+            sorter: (a, b) => a.foodPrice - b.foodPrice,
+            render: (foodPrice) => <span className="vietnamese-text">{foodPrice ? `${foodPrice.toLocaleString('vi-VN')} VNĐ` : '-'}</span>,
             align: 'center',
         },
         {
