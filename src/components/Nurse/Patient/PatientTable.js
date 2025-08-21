@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { message, Button, Typography, Checkbox, InputNumber, Input, Space, Form, Tooltip, Popconfirm, Alert, Spin } from 'antd';
+import { message, Button, Typography, Checkbox, InputNumber, Input, Space, Form, Tooltip, Popconfirm, Alert, Spin, Select } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import PropTypes from 'prop-types';
@@ -9,10 +9,17 @@ import { useDepartments } from '../../../hooks/queries/useDepartments';
 import { ConfigProvider } from 'antd';
 import locale from 'antd/locale/vi_VN';
 import moment from 'moment';
+import 'moment/locale/vi';
 import UpdatePatient from './UpdatePatient';
 import PatientDetailPopup from './PatientDetailPopup';
 
+moment.locale('vi');
+
 const { Title, Text } = Typography;
+
+const getTodayDate = () => {
+  return moment().format('YYYY-MM-DD');
+};
 
 const PatientTable = ({
   dataSource = [],
@@ -25,11 +32,10 @@ const PatientTable = ({
   onSelectPatient,
   refetch,
   foods = [],
-  activeDay,
-  setActiveDay,
   resetTable,
   onQuantityChange,
   onNoteChange,
+  receiveDate,
 }) => {
   const [selectedPatients, setSelectedPatients] = useState(new Map());
   const [allAvailableFoods, setAllAvailableFoods] = useState({});
@@ -39,6 +45,7 @@ const PatientTable = ({
   const [patientOrders, setPatientOrders] = useState({});
   const [quantity, setQuantity] = useState({});
   const [note, setNote] = useState({});
+  const [mealTimeFilter, setMealTimeFilter] = useState({});
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
@@ -59,7 +66,8 @@ const PatientTable = ({
     console.log('🔍 restrictionsLoading:', restrictionsLoading);
     console.log('🔍 categoriesLoading:', categoriesLoading);
     console.log('🔍 dataSource:', dataSource);
-  }, [restrictions, diseaseCategories, foods, selectedPatients, restrictionsLoading, categoriesLoading, dataSource]);
+    console.log('🔍 receiveDate:', receiveDate);
+  }, [restrictions, diseaseCategories, foods, selectedPatients, restrictionsLoading, categoriesLoading, dataSource, receiveDate]);
 
   const enrichedDataSource = useMemo(() => {
     if (!Array.isArray(dataSource)) {
@@ -104,27 +112,18 @@ const PatientTable = ({
           .join(', ') || 'Không có nhóm bệnh';
       }
 
+      const isDischarged = patient.dischargeDate && moment(patient.dischargeDate).isBefore(moment(receiveDate), 'day');
+
       return {
         ...patient,
         departmentName: departments.find(dept => dept.id === patient.departmentId)?.name || 'Chưa xác định',
         diseaseCategoryNames,
+        isDischarged,
       };
     });
-  }, [dataSource, departments, diseaseCategories, categoriesLoading]);
+  }, [dataSource, departments, diseaseCategories, categoriesLoading, receiveDate]);
 
-  const getFormattedDate = (dayKey) => {
-    const today = new Date();
-    const currentDayOfWeek = today.getDay();
-    const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-    const baseDate = new Date(today);
-    baseDate.setDate(today.getDate() + mondayOffset);
-    const dayOffset = parseInt(dayKey, 10) - 1;
-    const targetDate = new Date(baseDate);
-    targetDate.setDate(baseDate.getDate() + dayOffset);
-    return targetDate.toISOString().split('T')[0];
-  };
-
-  const allowedFoodsForPatient = (patient) => {
+  const allowedFoodsForPatient = (patient, selectedMealTime) => {
     if (!patient || (!patient.diseaseCategories?.length && !patient.diseaseCategoryIds?.length)) {
       return [];
     }
@@ -133,19 +132,35 @@ const PatientTable = ({
       : patient.diseaseCategoryIds?.length
         ? patient.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
         : [];
-    return restrictions
-      ?.filter(restriction => patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId))
-      ?.map(restriction => {
-        const food = foods.find(f => f.id === restriction.foodId) || {};
-        return {
-          id: restriction.foodId,
-          name: food.name || restriction.foodName || `Thực phẩm ID: ${restriction.foodId}`,
-          categoryId: food.categoryId || restriction.diseaseCategoryId || 'unknown',
-          priceForPatient: Number(food.priceForPatient || 0),
-          description: food.description || 'No description available',
-          imageUrl: food.imageUrl || '/images/placeholder-food.png',
-        };
-      }) || [];
+
+    const currentHour = moment().hour();
+    let allowedMealTimes = ['morning', 'noon', 'evening'];
+    if (receiveDate === getTodayDate()) {
+      if (currentHour >= 12) {
+        allowedMealTimes = allowedMealTimes.filter(time => time !== 'morning');
+      }
+      if (currentHour >= 18) {
+        allowedMealTimes = allowedMealTimes.filter(time => time !== 'noon');
+      }
+    }
+
+    let allowedFoods = restrictions
+      ?.filter(restriction => 
+        patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId) &&
+        (!selectedMealTime || restriction.mealTime === selectedMealTime) &&
+        allowedMealTimes.includes(restriction.mealTime)
+      )
+      ?.map(restriction => ({
+        id: restriction.nutritionalMealCode,
+        name: restriction.nutritionalMealName || `Thực phẩm ID: ${restriction.nutritionalMealCode}`,
+        categoryId: restriction.diseaseCategoryId || 'unknown',
+        priceForPatient: Number(restriction.price || 0),
+        description: restriction.description || 'No description available',
+        imageUrl: restriction.imageUrl || '/images/placeholder-food.png',
+        mealTime: restriction.mealTime,
+      })) || [];
+
+    return Array.from(new Map(allowedFoods.map(food => [food.id, food])).values());
   };
 
   useEffect(() => {
@@ -184,6 +199,13 @@ const PatientTable = ({
             return;
           }
 
+          if (patientData.isDischarged) {
+            console.warn(`⚠️ Patient ${patientId} is discharged for receiveDate ${receiveDate}, skipping food fetch`);
+            newAllAvailableFoods[patientId] = [];
+            newFilteredFoods[patientId] = [];
+            return;
+          }
+
           const patientDiseaseCategoryIds = patientData.diseaseCategoryIds?.length
             ? patientData.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
             : patientData.diseaseCategories?.length
@@ -197,20 +219,18 @@ const PatientTable = ({
             return;
           }
 
-          const allowedFoods = allowedFoodsForPatient(patientData);
+          const selectedMealTime = mealTimeFilter[patientId] || (receiveDate === getTodayDate() && moment().hour() >= 18 ? 'evening' : receiveDate === getTodayDate() && moment().hour() >= 12 ? 'noon' : 'morning');
+          const allowedFoods = allowedFoodsForPatient(patientData, selectedMealTime);
+          
           if (!allowedFoods.length) {
-            console.warn(`⚠️ No allowed foods found for patient ${patientId}`);
+            console.warn(`⚠️ No allowed foods found for patient ${patientId} for mealTime ${selectedMealTime}`);
             newAllAvailableFoods[patientId] = [];
             newFilteredFoods[patientId] = [];
             return;
           }
 
-          const uniqueFoods = Array.from(
-            new Map(allowedFoods.map(food => [food.id, food])).values()
-          );
-
-          newAllAvailableFoods[patientId] = uniqueFoods;
-          newFilteredFoods[patientId] = uniqueFoods;
+          newAllAvailableFoods[patientId] = allowedFoods;
+          newFilteredFoods[patientId] = allowedFoods;
         });
 
         setAllAvailableFoods(newAllAvailableFoods);
@@ -246,7 +266,7 @@ const PatientTable = ({
         console.error('❌ Restrictions error:', restrictionsError);
       }
     }
-  }, [selectedPatients, diseaseCategories, restrictions, currentBranchId, categoriesLoading, restrictionsLoading, categoriesError, restrictionsError, dataSource, foods]);
+  }, [selectedPatients, diseaseCategories, restrictions, currentBranchId, categoriesLoading, restrictionsLoading, categoriesError, restrictionsError, dataSource, foods, mealTimeFilter, receiveDate]);
 
   const groupedFoods = useMemo(() => {
     const result = {};
@@ -285,6 +305,12 @@ const PatientTable = ({
       return;
     }
 
+    if (record.isDischarged) {
+      message.error('Không thể đặt món vì ngày giao hàng đã qua ngày xuất viện của bệnh nhân.');
+      console.warn(`⚠️ Attempted to add discharged patient ${record.id} to menu for receiveDate ${receiveDate}`);
+      return;
+    }
+
     const patientData = {
       id: record.id,
       fullName: record.fullName,
@@ -303,10 +329,17 @@ const PatientTable = ({
 
     setSelectedPatients(prev => new Map(prev).set(record.id, patientData));
     setPatientOrders(prev => ({ ...prev, [record.id]: [] }));
+    setMealTimeFilter(prev => ({ ...prev, [record.id]: receiveDate === getTodayDate() && moment().hour() >= 18 ? 'evening' : receiveDate === getTodayDate() && moment().hour() >= 12 ? 'noon' : 'morning' }));
     console.log(`🔍 Added patient ${record.id} to selectedPatients:`, patientData);
   };
 
-  const handleCheckboxChange = (patientId, foodId) => (e) => {
+  const handleCheckboxChange = (patientId, foodId, mealTime) => (e) => {
+    const patient = dataSource.find(p => p.id === patientId);
+    if (patient.isDischarged) {
+      message.error('Không thể chọn món vì ngày giao hàng đã qua ngày xuất viện của bệnh nhân.');
+      return;
+    }
+
     const currentSelectedFoods = selectedFoodsByPatient[patientId] || [];
     const newSelectedFoods = new Set(currentSelectedFoods.map(food => food.foodId));
 
@@ -316,32 +349,42 @@ const PatientTable = ({
       newSelectedFoods.delete(foodId);
     }
 
-    // Update local state for immediate UI feedback
     setSelectedFoodsByPatient(prev => ({
       ...prev,
       [patientId]: Array.from(newSelectedFoods).map(foodId => ({
         foodId,
         quantity: quantity[`${patientId}-${foodId}`] || 1,
         note: note[`${patientId}-${foodId}`] || '',
+        mealTime: mealTime || (filteredFoods[patientId]?.find(f => f.id === foodId)?.mealTime || 'morning'),
       })),
     }));
 
-    console.log(`🔍 Checkbox changed for patient ${patientId}, food ${foodId}, selectedFoods:`, Array.from(newSelectedFoods));
+    console.log(`🔍 Checkbox changed for patient ${patientId}, food ${foodId}, mealTime ${mealTime}, selectedFoods:`, Array.from(newSelectedFoods));
 
-    // Call parent callback with the Set of food IDs
     onSelectPatient(patientId, newSelectedFoods);
   };
 
   const handleQuantityChange = (patientId, foodId) => (value) => {
+    const patient = dataSource.find(p => p.id === patientId);
+    if (patient.isDischarged) {
+      message.error('Không thể thay đổi số lượng vì ngày giao hàng đã qua ngày xuất viện của bệnh nhân.');
+      return;
+    }
+
     const newValue = value || 1;
 
-    // Update local state for immediate UI feedback
     setQuantity(prev => ({
       ...prev,
       [`${patientId}-${foodId}`]: newValue,
     }));
 
-    // Call parent callback to sync with PatientComponent state
+    setSelectedFoodsByPatient(prev => ({
+      ...prev,
+      [patientId]: (prev[patientId] || []).map(food =>
+        food.foodId === foodId ? { ...food, quantity: newValue } : food
+      ),
+    }));
+
     if (onQuantityChange) {
       onQuantityChange(patientId, foodId, newValue);
     }
@@ -350,20 +393,55 @@ const PatientTable = ({
   };
 
   const handleNoteChange = (patientId, foodId) => (e) => {
+    const patient = dataSource.find(p => p.id === patientId);
+    if (patient.isDischarged) {
+      message.error('Không thể thêm ghi chú vì ngày giao hàng đã qua ngày xuất viện của bệnh nhân.');
+      return;
+    }
+
     const newValue = e.target.value || '';
 
-    // Update local state for immediate UI feedback
     setNote(prev => ({
       ...prev,
       [`${patientId}-${foodId}`]: newValue,
     }));
 
-    // Call parent callback to sync with PatientComponent state
+    setSelectedFoodsByPatient(prev => ({
+      ...prev,
+      [patientId]: (prev[patientId] || []).map(food =>
+        food.foodId === foodId ? { ...food, note: newValue } : food
+      ),
+    }));
+
     if (onNoteChange) {
       onNoteChange(patientId, foodId, newValue);
     }
 
     console.log(`🔍 Note changed for patient ${patientId}, food ${foodId}:`, newValue);
+  };
+
+  const handleMealTimeChange = (patientId, value) => {
+    const patient = dataSource.find(p => p.id === patientId);
+    if (patient.isDischarged) {
+      message.error('Không thể thay đổi buổi ăn vì ngày giao hàng đã qua ngày xuất viện của bệnh nhân.');
+      return;
+    }
+
+    setMealTimeFilter(prev => ({
+      ...prev,
+      [patientId]: value,
+    }));
+
+    const patientData = dataSource.find(p => p.id === patientId);
+    if (patientData) {
+      const allowedFoods = allowedFoodsForPatient(patientData, value);
+      setFilteredFoods(prev => ({
+        ...prev,
+        [patientId]: allowedFoods,
+      }));
+    }
+
+    console.log(`🔍 Meal time changed for patient ${patientId}: ${value}`);
   };
 
   const handleEdit = (record) => {
@@ -412,6 +490,11 @@ const PatientTable = ({
   };
 
   const handleExpandRow = (record) => {
+    if (record.isDischarged) {
+      message.error('Không thể đặt món vì ngày giao hàng đã qua ngày xuất viện của bệnh nhân.');
+      return;
+    }
+
     const newExpandedRowKeys = expandedRowKeys.includes(record.id)
       ? expandedRowKeys.filter(key => key !== record.id)
       : [...expandedRowKeys, record.id];
@@ -436,11 +519,15 @@ const PatientTable = ({
         delete newState[record.id];
         return newState;
       });
+      setMealTimeFilter(prev => {
+        const newState = { ...prev };
+        delete newState[record.id];
+        return newState;
+      });
       onSelectPatient(record.id, new Set());
     }
   };
 
-  // Reset table states when called from PatientComponent
   useEffect(() => {
     if (resetTable) {
       setSelectedPatients(new Map());
@@ -448,6 +535,7 @@ const PatientTable = ({
       setPatientOrders({});
       setQuantity({});
       setNote({});
+      setMealTimeFilter({});
       setExpandedRowKeys([]);
     }
   }, [resetTable]);
@@ -555,6 +643,12 @@ const PatientTable = ({
     showTotal: (total, range) => `Hiển thị từ ${range[0]} đến ${range[1]} trong tổng số ${total} mục`,
   };
 
+  const mealTimeOptions = [
+    { value: 'morning', label: 'Buổi sáng', disabled: receiveDate === getTodayDate() && moment().hour() >= 12 },
+    { value: 'noon', label: 'Buổi trưa', disabled: receiveDate === getTodayDate() && moment().hour() >= 18 },
+    { value: 'evening', label: 'Buổi tối' },
+  ];
+
   if (restrictionsError || categoriesError) {
     console.error('❌ Errors in PatientTable:', { restrictionsError, categoriesError });
     return (
@@ -606,28 +700,49 @@ const PatientTable = ({
             expandedRowKeys: expandedRowKeys,
             onExpandedRowsChange: setExpandedRowKeys,
             expandIcon: ({ expanded, onExpand, record }) => (
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleExpandRow(record);
-                }}
-                style={{ cursor: 'pointer', fontSize: '16px', width: '20px', display: 'inline-block' }}
-              >
-                {expanded ? '−' : '+'}
-              </Button>
+              <Tooltip title={record.isDischarged ? 'Không thể đặt món vì ngày giao hàng đã qua ngày xuất viện' : expanded ? 'Thu gọn' : 'Mở rộng để đặt món'}>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleExpandRow(record);
+                  }}
+                  style={{ cursor: record.isDischarged ? 'not-allowed' : 'pointer', fontSize: '16px', width: '20px', display: 'inline-block' }}
+                  disabled={record.isDischarged}
+                >
+                  {expanded ? '−' : '+'}
+                </Button>
+              </Tooltip>
             ),
             expandedRowRender: (record) => (
               <div style={{ padding: '16px', background: '#fafafa', borderRadius: '8px' }}>
                 <>
-                  {restrictionsLoading || categoriesLoading ? (
+                  <Text style={{ color: '#888', marginBottom: '8px', display: 'block' }}>
+                    Đặt món cho ngày {moment(receiveDate).format('DD/MM/YYYY')}
+                  </Text>
+                  {record.isDischarged ? (
+                    <Alert
+                      message="Không thể đặt món"
+                      description="Ngày giao hàng đã qua ngày xuất viện của bệnh nhân."
+                      type="warning"
+                      showIcon
+                    />
+                  ) : restrictionsLoading || categoriesLoading ? (
                     <p>Đang tải danh sách món ăn...</p>
                   ) : filteredFoods[record.id]?.length === 0 ? (
                     <div>
-                      <p>Không có món ăn nào được phép cho bệnh nhân này.</p>
+                      <p>Không có món ăn nào được phép cho bệnh nhân này ở buổi ăn được chọn.</p>
                     </div>
                   ) : (
                     <div>
                       <div style={{ marginBottom: '16px' }}>
+                        <Select
+                          placeholder="Chọn buổi ăn"
+                          value={mealTimeFilter[record.id] || (receiveDate === getTodayDate() && moment().hour() >= 18 ? 'evening' : receiveDate === getTodayDate() && moment().hour() >= 12 ? 'noon' : 'morning')}
+                          onChange={(value) => handleMealTimeChange(record.id, value)}
+                          style={{ width: 150, marginBottom: 16 }}
+                          options={mealTimeOptions}
+                          disabled={record.isDischarged}
+                        />
                         <div style={{ paddingLeft: 12, paddingTop: 8 }}>
                           {filteredFoods[record.id]?.map(food => (
                             <div
@@ -643,8 +758,9 @@ const PatientTable = ({
                               <div style={{ display: 'flex', alignItems: 'center', maxWidth: 180, flex: 1 }}>
                                 <Checkbox
                                   checked={selectedFoodsByPatient[record.id]?.some(item => item.foodId === food.id)}
-                                  onChange={handleCheckboxChange(record.id, food.id)}
+                                  onChange={handleCheckboxChange(record.id, food.id, food.mealTime)}
                                   style={{ marginRight: 6 }}
+                                  disabled={record.isDischarged}
                                 />
                                 <span
                                   style={{
@@ -661,109 +777,122 @@ const PatientTable = ({
                                 value={quantity[`${record.id}-${food.id}`] || 1}
                                 onChange={handleQuantityChange(record.id, food.id)}
                                 style={{ width: 60 }}
+                                disabled={record.isDischarged}
                               />
                               <Input
                                 value={note[`${record.id}-${food.id}`] || ''}
                                 onChange={handleNoteChange(record.id, food.id)}
                                 placeholder="Ghi chú..."
                                 style={{ width: 500 }}
+                                disabled={record.isDischarged}
                               />
                             </div>
                           ))}
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {patientOrders[record.id]?.length > 0 && (
-                    <>
-                      <Title level={5} style={{ marginTop: '24px', marginBottom: '16px', color: '#333' }}>
-                        Danh sách món ăn đã thêm
-                      </Title>
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                          gap: '16px',
-                        }}
-                      >
-                        {patientOrders[record.id].map(item => (
+                      {selectedFoodsByPatient[record.id]?.length > 0 && (
+                        <>
+                          <Title level={5} style={{ marginTop: '24px', marginBottom: '16px', color: '#333' }}>
+                            Danh sách món ăn đã thêm
+                          </Title>
                           <div
-                            key={item.foodId}
                             style={{
-                              border: '1px solid #e8e8e8',
-                              borderRadius: '8px',
-                              padding: '12px',
-                              background: '#fff',
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                              gap: '16px',
                             }}
                           >
-                            <div
-                              style={{
-                                position: 'absolute',
-                                top: 8,
-                                right: 8,
-                                backgroundColor: '#b4c80f',
-                                color: '#fff',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '14px',
-                              }}
-                            >
-                              x{item.quantity || 1}
-                            </div>
-                            <Title
-                              level={5}
-                              style={{
-                                marginBottom: '8px',
-                                fontSize: '16px',
-                                color: '#222',
-                              }}
-                            >
-                              {filteredFoods[record.id]?.find(f => f.id === item.foodId)?.name || 'Không xác định'}
-                            </Title>
-                            <div style={{ marginBottom: '8px' }}>
-                              <Text
-                                strong
-                                style={{ fontSize: '14px', color: '#b41400' }}
-                              >
-                                {filteredFoods[record.id]?.find(f => f.id === item.foodId)?.priceForPatient?.toLocaleString('vi-VN') || '0'}đ
-                              </Text>
-                            </div>
-                            {item.notes && (
-                              <Text
+                            {selectedFoodsByPatient[record.id].map(item => (
+                              <div
+                                key={item.foodId}
                                 style={{
-                                  fontSize: '12px',
-                                  color: '#666',
-                                  display: 'block',
-                                  whiteSpace: 'pre-wrap',
-                                  marginBottom: '8px',
+                                  border: '1px solid #e8e8e8',
+                                  borderRadius: '8px',
+                                  padding: '12px',
+                                  background: '#fff',
                                 }}
                               >
-                                Ghi chú: {item.notes}
-                              </Text>
-                            )}
-                            <Button
-                              type="text"
-                              danger
-                              size="small"
-                              onClick={() => {
-                                const newOrders = patientOrders[record.id].filter(f => f.foodId !== item.foodId);
-                                setPatientOrders(prev => ({ ...prev, [record.id]: newOrders }));
-                                const newSelectedFoods = new Set(selectedFoodsByPatient[record.id].map(item => item.foodId));
-                                newSelectedFoods.delete(item.foodId);
-                                setSelectedFoodsByPatient(prev => ({
-                                  ...prev,
-                                  [record.id]: prev[record.id].filter(foodItem => foodItem.foodId !== item.foodId),
-                                }));
-                                onSelectPatient(record.id, newSelectedFoods);
-                                message.success(`Đã xóa ${filteredFoods[record.id]?.find(f => f.id === item.foodId)?.name || 'món ăn'} khỏi danh sách`);
-                              }}
-                            >
-                              Xóa
-                            </Button>
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    top: 8,
+                                    right: 8,
+                                    backgroundColor: '#b4c80f',
+                                    color: '#fff',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '14px',
+                                  }}
+                                >
+                                  x{item.quantity || 1}
+                                </div>
+                                <Title
+                                  level={5}
+                                  style={{
+                                    marginBottom: '8px',
+                                    fontSize: '16px',
+                                    color: '#222',
+                                  }}
+                                >
+                                  {filteredFoods[record.id]?.find(f => f.id === item.foodId)?.name || 'Không xác định'}
+                                </Title>
+                                <div style={{ marginBottom: '8px' }}>
+                                  <Text
+                                    strong
+                                    style={{ fontSize: '14px', color: '#b41400' }}
+                                  >
+                                    {filteredFoods[record.id]?.find(f => f.id === item.foodId)?.priceForPatient?.toLocaleString('vi-VN') || '0'}đ
+                                  </Text>
+                                </div>
+                                <Text
+                                  style={{
+                                    fontSize: '12px',
+                                    color: '#666',
+                                    display: 'block',
+                                    marginBottom: '8px',
+                                  }}
+                                >
+                                  Buổi ăn: {mealTimeOptions.find(opt => opt.value === item.mealTime)?.label || 'Không xác định'}
+                                </Text>
+                                {item.note && (
+                                  <Text
+                                    style={{
+                                      fontSize: '12px',
+                                      color: '#666',
+                                      display: 'block',
+                                      whiteSpace: 'pre-wrap',
+                                      marginBottom: '8px',
+                                    }}
+                                  >
+                                    Ghi chú: {item.note}
+                                  </Text>
+                                )}
+                                <Button
+                                  type="text"
+                                  danger
+                                  size="small"
+                                  onClick={() => {
+                                    const newOrders = selectedFoodsByPatient[record.id].filter(f => f.foodId !== item.foodId);
+                                    setPatientOrders(prev => ({ ...prev, [record.id]: newOrders }));
+                                    const newSelectedFoods = new Set(selectedFoodsByPatient[record.id].map(item => item.foodId));
+                                    newSelectedFoods.delete(item.foodId);
+                                    setSelectedFoodsByPatient(prev => ({
+                                      ...prev,
+                                      [record.id]: prev[record.id].filter(foodItem => foodItem.foodId !== item.foodId),
+                                    }));
+                                    onSelectPatient(record.id, newSelectedFoods);
+                                    message.success(`Đã xóa ${filteredFoods[record.id]?.find(f => f.id === item.foodId)?.name || 'món ăn'} khỏi danh sách`);
+                                  }}
+                                  disabled={record.isDischarged}
+                                >
+                                  Xóa
+                                </Button>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </>
+                        </>
+                      )}
+                    </div>
                   )}
                 </>
               </div>
@@ -839,13 +968,13 @@ PatientTable.propTypes = {
       priceForPatient: PropTypes.number,
       description: PropTypes.string,
       imageUrl: PropTypes.string,
+      mealTime: PropTypes.string,
     })
   ),
-  activeDay: PropTypes.string,
-  setActiveDay: PropTypes.func,
-  resetTable: PropTypes.func, // Add resetTable to propTypes
+  resetTable: PropTypes.func,
   onQuantityChange: PropTypes.func,
   onNoteChange: PropTypes.func,
+  receiveDate: PropTypes.string.isRequired,
 };
 
 export default PatientTable;

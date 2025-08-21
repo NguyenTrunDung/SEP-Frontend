@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Spin, Alert, Button, Input, Table, message, Tabs } from 'antd';
 import { EyeOutlined, CommentOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -46,6 +45,15 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   );
   const { mutateAsync: deleteFeedback } = useDeleteFeedback();
   const { mutateAsync: updateFeedback } = useUpdateFeedback();
+
+  // Helper function to derive mealTime from orderDate if not provided
+  const deriveMealTime = (orderDate) => {
+    if (!orderDate) return 'Không xác định';
+    const hour = new Date(orderDate).getHours();
+    if (hour >= 5 && hour < 11) return 'Sáng';
+    if (hour >= 11 && hour < 17) return 'Trưa';
+    return 'Tối';
+  };
 
   useEffect(() => {
     console.log('🔍 OrderHistoryModal mounted or updated, visible:', visible, 'user:', user?.id);
@@ -123,6 +131,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                   orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
                   items,
                   feedbacks: normalizedFeedbacks,
+                  mealTime: order.mealTime || deriveMealTime(order.orderDate), // Add mealTime, fall back to derived value
                 };
               } catch (error) {
                 if (environment.features.enableLogging) {
@@ -134,6 +143,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                   orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
                   items: [],
                   feedbacks: [],
+                  mealTime: deriveMealTime(order.orderDate), // Add mealTime for failed fetches
                 };
               }
             }
@@ -141,6 +151,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               ...order,
               orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
               feedbacks: [],
+              mealTime: deriveMealTime(order.orderDate), // Add mealTime for non-user orders
             };
           })
         );
@@ -153,6 +164,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
             ...order,
             status: order.status?.toLowerCase() || 'unknown',
             role: order.isPatientOrder ? 'patient' : (order.role || (user.role === 'NURSE' ? 'nurse' : 'patient')),
+            mealTime: order.mealTime || deriveMealTime(order.orderDate), // Ensure mealTime is included
           }));
 
         if (normalizedOrders.length === 0) {
@@ -162,7 +174,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         } else {
           if (environment.features.enableLogging) {
             console.log('🔍 Filtered orders for userId:', user.id, 'Count:', normalizedOrders.length);
-            console.log('🔍 Order details:', JSON.stringify(normalizedOrders.map((o) => ({ id: o.id, orderDate: o.orderDate, orderTypeDisplay: o.orderTypeDisplay, items: o.items, feedbacks: o.feedbacks })), null, 2));
+            console.log('🔍 Order details:', JSON.stringify(normalizedOrders.map((o) => ({ id: o.id, orderDate: o.orderDate, orderTypeDisplay: o.orderTypeDisplay, items: o.items, feedbacks: o.feedbacks, mealTime: o.mealTime })), null, 2));
           }
         }
 
@@ -201,7 +213,8 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           (item.foodName || item.name || '').toLowerCase().includes(search.toLowerCase())
         )) ||
         (order.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
-        (order.status === 'completed' ? 'Hoàn thành' : order.status === 'pending' ? 'Đang chờ' : order.status || '').toLowerCase().includes(search.toLowerCase())
+        (order.status === 'completed' ? 'Hoàn thành' : order.status === 'pending' ? 'Đang chờ' : order.status || '').toLowerCase().includes(search.toLowerCase()) ||
+        (order.mealTime || '').toLowerCase().includes(search.toLowerCase()) // Add mealTime to search
       );
     } else {
       if (idFilter) {
@@ -548,18 +561,30 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           },
         ]
       : []),
-    {
-      title: 'Món ăn',
-      dataIndex: 'items',
-      key: 'items',
-      render: (items) => (
-        <span>
-          {Array.isArray(items) && items.length > 0
-            ? items.map((item) => item.foodName || item.name || 'Không xác định').join(', ')
-            : 'Không có món ăn'}
-        </span>
-      ),
-    },
+    // {
+    //   title: 'Món ăn',
+    //   dataIndex: 'items',
+    //   key: 'items',
+    //   render: (items) => (
+    //     <span>
+    //       {Array.isArray(items) && items.length > 0
+    //         ? items.map((item) => item.foodName || item.name || 'Không xác định').join(', ')
+    //         : 'Không có món ăn'}
+    //     </span>
+    //   ),
+    // },
+    // {
+    //   title: 'Buổi ăn',
+    //   dataIndex: 'mealTime',
+    //   key: 'mealTime',
+    //   render: (mealTime) => mealTime || 'Không xác định',
+    //   filters: [
+    //     { text: 'Sáng', value: 'Sáng' },
+    //     { text: 'Trưa', value: 'Trưa' },
+    //     { text: 'Tối', value: 'Tối' },
+    //   ],
+    //   onFilter: (value, record) => record.mealTime === value,
+    // },
     {
       title: 'Thời gian đặt',
       dataIndex: 'orderDate',
@@ -715,7 +740,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           <div style={{ padding: '16px', background: '#fff' }}>
             <div className="reusable-table-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
               <Search
-                placeholder="Tìm kiếm theo mã đơn, tên món ăn, tên bệnh nhân hoặc trạng thái"
+                placeholder="Tìm kiếm theo mã đơn, tên món ăn, tên bệnh nhân, trạng thái hoặc buổi ăn"
                 onSearch={handleSearch}
                 value={searchText}
                 onChange={(e) => handleSearch(e.target.value)}
@@ -848,6 +873,10 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                 <Text style={{ fontWeight: 500 }}>
                   {selectedOrder.orderTypeDisplay || (selectedOrder.isPatientOrder ? 'Đơn hàng bệnh nhân' : selectedOrder.type || 'Y tá')}
                 </Text>
+              </div>
+              <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
+                <Text style={{ fontWeight: 400 }}>Buổi ăn: </Text>
+                <Text style={{ fontWeight: 500 }}>{selectedOrder.mealTime || 'Không xác định'}</Text>
               </div>
               <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
                 <Text style={{ fontWeight: 400 }}>Thời gian đặt: </Text>

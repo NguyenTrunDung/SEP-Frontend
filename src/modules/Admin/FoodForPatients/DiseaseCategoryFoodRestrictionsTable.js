@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Button, Input, Tooltip, Popconfirm, Modal, Descriptions, Spin, message, Select, Tag } from 'antd';
 import { EditOutlined, DeleteOutlined, SearchOutlined, EyeOutlined, FilterOutlined } from '@ant-design/icons';
-
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import PropTypes from 'prop-types';
 
@@ -12,12 +11,13 @@ const DiseaseCategoryFoodRestrictionsTable = ({
     onDelete,
     className,
     diseaseCategories = [],
+    nutritionalMeals = [],
     ...rest
 }) => {
     const [searchText, setSearchText] = useState('');
     const [debouncedSearchText, setDebouncedSearchText] = useState('');
     const [selectedDiseaseCategory, setSelectedDiseaseCategory] = useState(null);
-    // const [selectedRestrictionLevel, setSelectedRestrictionLevel] = useState(null);
+    const [selectedMealTime, setSelectedMealTime] = useState(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedRestriction, setSelectedRestriction] = useState(null);
     const [modalLoading, setModalLoading] = useState(false);
@@ -27,9 +27,10 @@ const DiseaseCategoryFoodRestrictionsTable = ({
     useMemo(() => {
         console.log('🔍 DiseaseCategoryFoodRestrictions dataSource:', dataSource);
         console.log('🔍 DiseaseCategories:', diseaseCategories);
-    }, [dataSource, diseaseCategories]);
+        console.log('🔍 NutritionalMeals:', nutritionalMeals);
+    }, [dataSource, diseaseCategories, nutritionalMeals]);
 
-    // Debounce search text to avoid excessive message notifications
+    // Debounce search text
     useEffect(() => {
         if (searchTimeoutRef.current) {
             clearTimeout(searchTimeoutRef.current);
@@ -46,20 +47,9 @@ const DiseaseCategoryFoodRestrictionsTable = ({
         };
     }, [searchText]);
 
-    // Extract unique restriction levels for filter dropdown
-    // const restrictionLevelOptions = useMemo(() => {
-    //     const levels = [
-    //         { value: null, label: 'Tất cả mức độ' },
-    //         { value: 1, label: 'Cảnh báo (Warning)', color: '#faad14' },
-    //         { value: 2, label: 'Hạn chế (Restricted)', color: '#ff4d4f' },
-    //         { value: 3, label: 'Cấm (Forbidden)', color: '#d32f2f' },
-    //     ];
-    //     return levels;
-    // }, []);
-
     // Create disease category options for filter
     const diseaseCategoryOptions = useMemo(() => {
-        const options = [
+        return [
             { value: null, label: 'Tất cả danh mục bệnh' },
             ...diseaseCategories.map(category => ({
                 value: category.id,
@@ -67,8 +57,17 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                 color: category.colorCode
             }))
         ];
-        return options;
     }, [diseaseCategories]);
+
+    // Create meal time options for filter
+    const mealTimeOptions = useMemo(() => {
+        return [
+            { value: null, label: 'Tất cả buổi ăn' },
+            { value: 'morning', label: 'Buổi sáng' },
+            { value: 'noon', label: 'Buổi trưa' },
+            { value: 'evening', label: 'Buổi tối' },
+        ];
+    }, []);
 
     const filteredData = useMemo(() => {
         let filtered = dataSource;
@@ -76,7 +75,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
         // Filter by search text
         if (searchText) {
             filtered = filtered.filter(item =>
-                item.foodName?.toLowerCase().includes(searchText.toLowerCase()) ||
+                item.nutritionalMealName?.toLowerCase().includes(searchText.toLowerCase()) ||
                 item.diseaseCategoryName?.toLowerCase().includes(searchText.toLowerCase()) ||
                 item.reason?.toLowerCase().includes(searchText.toLowerCase())
             );
@@ -87,32 +86,32 @@ const DiseaseCategoryFoodRestrictionsTable = ({
             filtered = filtered.filter(item => item.diseaseCategoryId === selectedDiseaseCategory);
         }
 
-        // Filter by restriction level
-        // if (selectedRestrictionLevel !== null) {
-        //     filtered = filtered.filter(item => item.restrictionLevel === selectedRestrictionLevel);
-        // }
+        // Filter by meal time
+        if (selectedMealTime !== null) {
+            filtered = filtered.filter(item => item.mealTime === selectedMealTime);
+        }
 
         return filtered;
-    }, [dataSource, searchText, selectedDiseaseCategory]);
+    }, [dataSource, searchText, selectedDiseaseCategory, selectedMealTime]);
 
     // Handle debounced search notifications
     useEffect(() => {
         if (debouncedSearchText && debouncedSearchText.trim()) {
             const searchResults = dataSource.filter(item => {
-                let matches = item.foodName?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
+                let matches = item.nutritionalMealName?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
                     item.diseaseCategoryName?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
                     item.reason?.toLowerCase().includes(debouncedSearchText.toLowerCase());
 
                 if (selectedDiseaseCategory !== null) {
                     matches = matches && item.diseaseCategoryId === selectedDiseaseCategory;
                 }
-                // if (selectedRestrictionLevel !== null) {
-                //     matches = matches && item.restrictionLevel === selectedRestrictionLevel;
-                // }
+                if (selectedMealTime !== null) {
+                    matches = matches && item.mealTime === selectedMealTime;
+                }
                 return matches;
             });
         }
-    }, [debouncedSearchText, dataSource, selectedDiseaseCategory]);
+    }, [debouncedSearchText, dataSource, selectedDiseaseCategory, selectedMealTime]);
 
     const handleEdit = (record) => {
         console.log('✏️ Editing restriction:', record);
@@ -126,7 +125,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
         if (onDelete) {
             onDelete(record);
         } else {
-            message.success(`Đã xóa hạn chế thực phẩm cho ${record.foodName}`);
+            message.success(`Đã xóa hạn chế thực phẩm cho ${record.nutritionalMealName}`);
         }
     };
 
@@ -162,45 +161,54 @@ const DiseaseCategoryFoodRestrictionsTable = ({
         }
     };
 
-    // const handleRestrictionLevelFilter = (value) => {
-    //     setSelectedRestrictionLevel(value);
-    //     if (value !== null) {
-    //         const levelName = restrictionLevelOptions.find(option => option.value === value)?.label;
-    //         message.info(`Lọc theo mức độ: ${levelName}`);
-    //     } else {
-    //         message.info('Đã xóa bộ lọc mức độ');
-    //     }
-    // };
+    const handleMealTimeFilter = (value) => {
+        setSelectedMealTime(value);
+        if (value !== null) {
+            const mealTimeName = mealTimeOptions.find(option => option.value === value)?.label;
+            message.info(`Lọc theo buổi ăn: ${mealTimeName}`);
+        } else {
+            message.info('Đã xóa bộ lọc buổi ăn');
+        }
+    };
 
     const clearAllFilters = () => {
         setSearchText('');
         setDebouncedSearchText('');
         setSelectedDiseaseCategory(null);
-        // setSelectedRestrictionLevel(null);
+        setSelectedMealTime(null);
         message.success('Đã xóa tất cả bộ lọc');
     };
 
-    // Helper function to get restriction level display
-    // const getRestrictionLevelDisplay = (level) => {
-    //     switch (level) {
-    //         case 1:
-    //             return { text: 'Cảnh báo', color: '#faad14' };
-    //         case 2:
-    //             return { text: 'Hạn chế', color: '#ff4d4f' };
-    //         case 3:
-    //             return { text: 'Cấm', color: '#d32f2f' };
-    //         default:
-    //             return { text: 'Không xác định', color: '#999' };
-    //     }
-    // };
-
     const columns = [
         {
-            title: 'THỰC PHẨM',
-            dataIndex: 'foodName',
-            key: 'foodName',
-            sorter: (a, b) => a.foodName.localeCompare(b.foodName),
-            render: (foodName) => <span className="vietnamese-text">{foodName || '-'}</span>,
+            title: 'TÊN MÓN ĂN',
+            dataIndex: 'nutritionalMealName',
+            key: 'nutritionalMealName',
+            sorter: (a, b) => a.nutritionalMealName.localeCompare(b.nutritionalMealName),
+            render: (name) => <span className="vietnamese-text">{name || '-'}</span>,
+            align: 'center',
+        },
+        {
+            title: 'GIÁ TIỀN',
+            dataIndex: 'price',
+            key: 'price',
+            sorter: (a, b) => a.price - b.price,
+            render: (price) => <span className="vietnamese-text">{price ? `${price.toLocaleString('vi-VN')} VNĐ` : '-'}</span>,
+            align: 'center',
+        },
+        {
+            title: 'BUỔI ĂN',
+            dataIndex: 'mealTime',
+            key: 'mealTime',
+            sorter: (a, b) => a.mealTime.localeCompare(b.mealTime),
+            render: (mealTime) => {
+                const mealTimeDisplay = {
+                    morning: 'Buổi sáng',
+                    noon: 'Buổi trưa',
+                    evening: 'Buổi tối',
+                }[mealTime] || '-';
+                return <span className="vietnamese-text">{mealTimeDisplay}</span>;
+            },
             align: 'center',
         },
         {
@@ -212,30 +220,11 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                 return (
                     <div>
                         <span className="vietnamese-text">{diseaseCategoryName || 'Chưa chọn danh mục'}</span>
-                        {/* {category?.code && (
-                            <Tag color={category.colorCode} style={{ marginLeft: 4 }}>
-                                {category.code}
-                            </Tag>
-                        )} */}
                     </div>
                 );
             },
             align: 'center',
         },
-        // {
-        //     title: 'MỨC ĐỘ HẠN CHẾ',
-        //     dataIndex: 'restrictionLevel',
-        //     key: 'restrictionLevel',
-        //     sorter: (a, b) => a.restrictionLevel - b.restrictionLevel,
-        //     render: (restrictionLevel) => {
-        //         const levelInfo = getRestrictionLevelDisplay(restrictionLevel);
-        //         return (
-        //             <Tag color={levelInfo.color}>
-        //                 {levelInfo.text}
-        //             </Tag>
-        //         );
-        //     },
-        // },
         {
             title: 'LÝ DO',
             dataIndex: 'reason',
@@ -246,7 +235,6 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                 </span>
             ),
             align: 'center',
-
         },
         {
             title: 'TRẠNG THÁI',
@@ -283,7 +271,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                     <Tooltip title="Xóa">
                         <Popconfirm
                             title="Xóa hạn chế thực phẩm"
-                            description={`Bạn có chắc chắn muốn xóa hạn chế cho ${record.foodName}?`}
+                            description={`Bạn có chắc chắn muốn xóa hạn chế cho ${record.nutritionalMealName}?`}
                             onConfirm={() => handleDelete(record)}
                             okText="Xóa"
                             cancelText="Hủy"
@@ -315,7 +303,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <SearchOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
                         <Input
-                            placeholder="Tìm kiếm theo tên thực phẩm, danh mục bệnh..."
+                            placeholder="Tìm kiếm theo tên món ăn, danh mục bệnh..."
                             value={searchText}
                             onChange={handleSearch}
                             style={{ width: 300 }}
@@ -341,21 +329,21 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                         />
                     </div>
 
-                    {/* Restriction Level Filter */}
-                    {/* <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <FilterOutlined style={{ fontSize: '16px', color: '#faad14' }} />
+                    {/* Meal Time Filter */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FilterOutlined style={{ fontSize: '16px', color: '#52c41a' }} />
                         <Select
-                            placeholder="Lọc theo mức độ"
-                            value={selectedRestrictionLevel}
-                            onChange={handleRestrictionLevelFilter}
+                            placeholder="Lọc theo buổi ăn"
+                            value={selectedMealTime}
+                            onChange={handleMealTimeFilter}
                             style={{ width: 150 }}
                             allowClear
-                            options={restrictionLevelOptions}
+                            options={mealTimeOptions}
                         />
-                    </div> */}
+                    </div>
 
                     {/* Clear All Filters Button */}
-                    {(searchText || selectedDiseaseCategory !== null) && (
+                    {(searchText || selectedDiseaseCategory !== null || selectedMealTime !== null) && (
                         <Button
                             size="small"
                             onClick={clearAllFilters}
@@ -401,17 +389,22 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                 ) : selectedRestriction ? (
                     <div className="restriction-detail-content">
                         <Descriptions column={1} bordered>
-                            <Descriptions.Item label="Thực phẩm">
-                                {selectedRestriction.foodName || '-'}
+                            <Descriptions.Item label="Tên món ăn">
+                                {selectedRestriction.nutritionalMealName || '-'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Giá tiền">
+                                {selectedRestriction.price ? `${selectedRestriction.price.toLocaleString('vi-VN')} VNĐ` : '-'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Buổi ăn">
+                                {{
+                                    morning: 'Buổi sáng',
+                                    noon: 'Buổi trưa',
+                                    evening: 'Buổi tối',
+                                }[selectedRestriction.mealTime] || '-'}
                             </Descriptions.Item>
                             <Descriptions.Item label="Danh mục bệnh">
                                 {selectedRestriction.diseaseCategoryName || '-'}
                             </Descriptions.Item>
-                            {/* <Descriptions.Item label="Mức độ hạn chế">
-                                <Tag color={selectedRestriction.restrictionLevelColorCode}>
-                                    {selectedRestriction.restrictionLevelDisplay}
-                                </Tag>
-                            </Descriptions.Item> */}
                             <Descriptions.Item label="Lý do">
                                 {selectedRestriction.reason || 'Không có'}
                             </Descriptions.Item>
@@ -445,8 +438,10 @@ DiseaseCategoryFoodRestrictionsTable.propTypes = {
             id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
             branchId: PropTypes.number.isRequired,
             diseaseCategoryId: PropTypes.number.isRequired,
-            foodId: PropTypes.number.isRequired,
-            // restrictionLevel: PropTypes.number.isRequired,
+            nutritionalMealCode: PropTypes.string.isRequired, // Vẫn cần cho API
+            nutritionalMealName: PropTypes.string,
+            price: PropTypes.number,
+            mealTime: PropTypes.string,
             reason: PropTypes.string,
             alternativeRecommendations: PropTypes.string,
             isActive: PropTypes.bool.isRequired,
@@ -457,13 +452,6 @@ DiseaseCategoryFoodRestrictionsTable.propTypes = {
             lastModifiedBy: PropTypes.string,
             branchName: PropTypes.string,
             diseaseCategoryName: PropTypes.string,
-            diseaseCategoryCode: PropTypes.string,
-            foodName: PropTypes.string,
-            foodPrice: PropTypes.number,
-            // restrictionLevelName: PropTypes.string,
-            // restrictionLevelColor: PropTypes.string,
-            // restrictionLevelDisplay: PropTypes.string,
-            // restrictionLevelColorCode: PropTypes.string,
         })
     ),
     loading: PropTypes.bool,
@@ -478,6 +466,13 @@ DiseaseCategoryFoodRestrictionsTable.propTypes = {
             colorCode: PropTypes.string,
         })
     ),
+    nutritionalMeals: PropTypes.arrayOf(
+        PropTypes.shape({
+            code: PropTypes.string.isRequired,
+            name: PropTypes.string.isRequired,
+            price: PropTypes.number.isRequired,
+        })
+    ),
 };
 
-export default DiseaseCategoryFoodRestrictionsTable; 
+export default DiseaseCategoryFoodRestrictionsTable;

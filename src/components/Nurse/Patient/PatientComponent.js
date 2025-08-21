@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ConfigProvider, Typography, Alert, message, Button, Modal } from 'antd';
+import { ConfigProvider, Typography, Alert, message, Button, Modal, DatePicker } from 'antd';
 import { usePatients, useCreatePatient, useUpdatePatient, useDeletePatient } from '../../../hooks/queries/usePatientQueries';
 import { useAuth } from '../../../context/AuthContext';
 import locale from 'antd/locale/vi_VN';
@@ -10,6 +10,7 @@ import CreatePatient from '../Patient/CreatePatient';
 import { useDiseaseCategoryFoodRestrictions } from '../../../hooks/queries/useDiseaseCategoryFoodRestrictions';
 import { useCreatePatientOrder } from '../../../hooks/queries/usePatientFoodQueries';
 import { foodService } from '../../../services/foodService';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
@@ -27,11 +28,12 @@ const getFormattedDate = (dayKey) => {
 
 const PatientComponent = () => {
   const [searchText, setSearchText] = useState('');
-  const today = new Date();
-  const currentDayOfWeek = today.getDay();
+  const today = dayjs();
+  const currentDayOfWeek = today.day();
   const defaultDay = currentDayOfWeek === 0 ? '7' : currentDayOfWeek.toString();
   const [activeDay, setActiveDay] = useState(defaultDay);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [receiveDate, setReceiveDate] = useState(today);
   const { user } = useAuth();
   const currentBranchId = localStorage.getItem('currentBranchId') || '1';
   const selectedBranchName = localStorage.getItem('selectedBranch')
@@ -149,8 +151,8 @@ const PatientComponent = () => {
       const patientDiseaseCategoryIds = record.diseaseCategoryIds?.length
         ? record.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
         : record.diseaseCategories?.length
-        ? record.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
-        : [];
+          ? record.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
+          : [];
 
       if (!patientDiseaseCategoryIds.length) {
         console.warn(`⚠️ No disease categories for patient ${record.id}`);
@@ -174,7 +176,6 @@ const PatientComponent = () => {
         return;
       }
 
-      // Fetch full food details for allowed foods
       const foodPromises = allowedFoodIds.map(foodId => foodService.getFood(foodId));
       const foodResults = await Promise.allSettled(foodPromises);
       const allowedFoods = foodResults
@@ -234,7 +235,7 @@ const PatientComponent = () => {
         patientId: record.id,
         isPatientOrder: true,
         orderDate: new Date().toISOString(),
-        receiveDate: new Date().toISOString().split('T')[0],
+        receiveDate: receiveDate.format('YYYY-MM-DD'),
         receiveTime: '12:00',
         receiveType: 'Giao tận nơi',
         type: 'Patient',
@@ -249,7 +250,7 @@ const PatientComponent = () => {
         isPaid: true,
         walletAmountUsed: 0,
         code: `ORD${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
-        note: `Đơn hàng tự động khi xóa bệnh nhân ${record.fullName} ngày ${new Date().toISOString().split('T')[0]}`,
+        note: `Đơn hàng tự động khi xóa bệnh nhân ${record.fullName} ngày ${receiveDate.format('DD/MM/YYYY')}`,
         locationId: null,
         orderDetails: cartItems.map(item => ({
           foodId: Number(item.foodId),
@@ -403,12 +404,6 @@ const PatientComponent = () => {
       return;
     }
 
-    if (!restrictions?.length) {
-      message.error('Không có món ăn nào được phép trong hệ thống.');
-      console.error('❌ No restrictions data available:', restrictions);
-      return;
-    }
-
     try {
       const orderPromises = Array.from(selectedPatients).map(async (patientId) => {
         const patient = patients.find(p => p.id === patientId);
@@ -417,38 +412,25 @@ const PatientComponent = () => {
           return { patientId, status: 'failed', reason: 'Patient not found' };
         }
 
-        const patientDiseaseCategoryIds = patient.diseaseCategoryIds?.length
-          ? patient.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
-          : patient.diseaseCategories?.length
-          ? patient.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
-          : [];
-
-        if (!patientDiseaseCategoryIds.length) {
-          console.warn(`⚠️ No disease categories for patient ${patientId}`);
-          return { patientId, status: 'failed', reason: 'No disease categories' };
+        const selectedFoods = selectedFoodsByPatient[patientId] || [];
+        if (!selectedFoods.length) {
+          console.warn(`⚠️ No selected foods for patient ${patientId}`);
+          return { patientId, status: 'failed', reason: 'No selected foods' };
         }
 
-        const allowedFoodIds = restrictions
-          ?.filter(restriction => patientDiseaseCategoryIds.includes(restriction.diseaseCategoryId))
-          ?.map(restriction => restriction.foodId) || [];
-
-        if (!allowedFoodIds.length) {
-          console.warn(`⚠️ No allowed foods found for patient ${patientId}`);
-          return { patientId, status: 'failed', reason: 'No allowed foods' };
-        }
-
-        // Fetch full food details for allowed foods
-        const foodPromises = allowedFoodIds.map(foodId => foodService.getFood(foodId));
+        const foodPromises = selectedFoods.map(item => foodService.getFood(item.foodId));
         const foodResults = await Promise.allSettled(foodPromises);
         const allowedFoods = foodResults
           .filter(result => result.status === 'fulfilled' && result.value)
-          .map(result => ({
+          .map((result, index) => ({
             id: result.value.id,
             name: result.value.name || `Thực phẩm ID: ${result.value.id}`,
             priceForPatient: Number(result.value.priceForPatient || 0),
             categoryId: result.value.categoryId || 'unknown',
             description: result.value.description || 'No description available',
             imageUrl: result.value.imageUrl || '/images/placeholder-food.png',
+            quantity: selectedFoods[index].quantity || 1,
+            note: selectedFoods[index].note || '',
           }));
 
         if (!allowedFoods.length) {
@@ -458,8 +440,8 @@ const PatientComponent = () => {
 
         const cartItems = allowedFoods.map(food => ({
           foodId: Number(food.id),
-          quantity: 1,
-          note: '',
+          quantity: food.quantity,
+          note: food.note,
           food: {
             id: Number(food.id),
             name: food.name,
@@ -489,13 +471,13 @@ const PatientComponent = () => {
           patientId: patientId,
           isPatientOrder: true,
           orderDate: new Date().toISOString(),
-          receiveDate: getFormattedDate(activeDay),
-          receiveTime: '12:00',
+          receiveDate: receiveDate.format('YYYY-MM-DD'),
+          receiveTime: '08:00',
           receiveType: 'Giao tận nơi',
           type: 'Patient',
-          status: 'Confirmed',
+          status: 'Pending',
           customerName: patient.fullName || 'Unknown Patient',
-          customerPhone: patient.phone || '0000000000',
+          customerPhone: patient.phone || '',
           customerAddress: `${patient.roomNumber || ''} ${patient.bedNumber || ''}`.trim() || 'Phòng bệnh nhân',
           total: Number(total),
           shippingFee: 0,
@@ -504,7 +486,7 @@ const PatientComponent = () => {
           isPaid: true,
           walletAmountUsed: 0,
           code: `ORD${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
-          note: `Đơn hàng tự động cho ${patient.fullName} ngày ${getFormattedDate(activeDay)}`,
+          note: `Đơn hàng tự động cho ${patient.fullName} ngày ${receiveDate.format('DD/MM/YYYY')}`,
           locationId: null,
           orderDetails: cartItems.map(item => ({
             foodId: Number(item.foodId),
@@ -670,21 +652,43 @@ const PatientComponent = () => {
             placeholder: 'Tìm kiếm bệnh nhân',
           }}
         >
-          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <Button
-              type="primary"
-              onClick={handleAdd}
-            >
-              Thêm bệnh nhân
-            </Button>
-            <Button
-              type="primary"
-              onClick={handleSelectAllAndOrder}
-              loading={createPatientOrderMutation.isLoading}
-              disabled={restrictionsLoading || !restrictions?.length || !selectedPatients.size}
-            >
-              Đặt món
-            </Button>
+          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+            <div>
+              <Text strong style={{ marginRight: '8px' }}>Ngày giao hàng:</Text>
+              <DatePicker
+                value={receiveDate}
+                onChange={(date) => {
+                  if (date && date.isValid()) {
+                    setReceiveDate(date);
+                  } else {
+                    setReceiveDate(today);
+                  }
+                }}
+                format="DD/MM/YYYY"
+                disabledDate={(current) => current && current.isBefore(today, 'day')}
+                style={{ width: 150, height: 35 }}
+                allowClear={false}
+                showToday={true}
+                getPopupContainer={trigger => trigger.parentElement}
+              />
+            </div>
+            <div>
+              <Button
+                type="primary"
+                onClick={handleAdd}
+                style={{ marginRight: '8px' }}
+              >
+                Thêm bệnh nhân
+              </Button>
+              <Button
+                type="primary"
+                onClick={handleSelectAllAndOrder}
+                loading={createPatientOrderMutation.isLoading}
+                disabled={restrictionsLoading || !restrictions?.length || !selectedPatients.size}
+              >
+                Đặt món
+              </Button>
+            </div>
           </div>
           <PatientTable
             dataSource={filteredData}
