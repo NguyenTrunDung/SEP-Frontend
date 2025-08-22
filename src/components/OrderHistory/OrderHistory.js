@@ -56,31 +56,17 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   };
 
   useEffect(() => {
-    console.log('🔍 OrderHistoryModal mounted or updated, visible:', visible, 'user:', user?.id);
     const fetchOrders = async () => {
-      if (!visible || !user) {
-        if (environment.features?.enableLogging) {
-          console.log('🔍 Không có user hoặc modal không hiển thị');
-        }
-        return;
-      }
+      if (!visible || !user) return;
 
       setLoading(true);
       try {
-        if (environment.features.enableLogging) {
-          console.log('🔍 Fetching orders for userId:', user.id);
-        }
         const userOrders = await orderService.filterOrders({ userId: user.id });
-        if (environment.features.enableLogging) {
-          console.log('🔍 API Response (filterOrders):', JSON.stringify(userOrders, null, 2));
-        }
-
         const detailedOrders = await Promise.all(
           (userOrders.data || []).map(async (order) => {
             if (order.userId === user.id || order.userId === String(user.id)) {
               try {
                 const orderDetails = await orderService.getOrderDetails(order.id);
-                console.log(`🔍 Order ${order.id} details:`, orderDetails.data);
                 const items = Array.isArray(orderDetails.data)
                   ? orderDetails.data.map((item) => ({
                       menuItemId: item.id || `item-${Math.random()}`,
@@ -131,19 +117,16 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                   orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
                   items,
                   feedbacks: normalizedFeedbacks,
-                  mealTime: order.mealTime || deriveMealTime(order.orderDate), // Add mealTime, fall back to derived value
+                  mealTime: order.mealTime || deriveMealTime(order.orderDate),
                 };
               } catch (error) {
-                if (environment.features.enableLogging) {
-                  console.error(`❌ Failed to fetch details for order ${order.id}:`, error);
-                }
                 return {
                   ...order,
                   orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
                   orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
                   items: [],
                   feedbacks: [],
-                  mealTime: deriveMealTime(order.orderDate), // Add mealTime for failed fetches
+                  mealTime: deriveMealTime(order.orderDate),
                 };
               }
             }
@@ -151,7 +134,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               ...order,
               orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
               feedbacks: [],
-              mealTime: deriveMealTime(order.orderDate), // Add mealTime for non-user orders
+              mealTime: deriveMealTime(order.orderDate),
             };
           })
         );
@@ -164,19 +147,8 @@ const OrderHistoryModal = ({ visible, onClose }) => {
             ...order,
             status: order.status?.toLowerCase() || 'unknown',
             role: order.isPatientOrder ? 'patient' : (order.role || (user.role === 'NURSE' ? 'nurse' : 'patient')),
-            mealTime: order.mealTime || deriveMealTime(order.orderDate), // Ensure mealTime is included
+            mealTime: order.mealTime || deriveMealTime(order.orderDate),
           }));
-
-        if (normalizedOrders.length === 0) {
-          if (environment.features.enableLogging) {
-            console.warn('⚠️ No orders found for userId:', user.id);
-          }
-        } else {
-          if (environment.features.enableLogging) {
-            console.log('🔍 Filtered orders for userId:', user.id, 'Count:', normalizedOrders.length);
-            console.log('🔍 Order details:', JSON.stringify(normalizedOrders.map((o) => ({ id: o.id, orderDate: o.orderDate, orderTypeDisplay: o.orderTypeDisplay, items: o.items, feedbacks: o.feedbacks, mealTime: o.mealTime })), null, 2));
-          }
-        }
 
         const patientOrders = normalizedOrders.filter(order => order.role === 'patient');
         const nurseOrders = normalizedOrders.filter(order => order.role === 'nurse');
@@ -186,17 +158,12 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           patient: patientOrders,
           nurse: nurseOrders,
         });
-        console.log('🔍 Set orders, patient count:', patientOrders.length, 'nurse count:', nurseOrders.length);
         setError(null);
       } catch (err) {
         const errorMessage = err.response?.data?.message || 'Không thể tải lịch sử đơn hàng. Vui lòng thử lại.';
         setError(errorMessage);
-        if (environment.features.enableLogging) {
-          console.error('❌ Error fetching orders:', err.response?.data || err.message);
-        }
       } finally {
         setLoading(false);
-        console.log('🔍 Fetch orders completed, loading:', false);
       }
     };
 
@@ -214,7 +181,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         )) ||
         (order.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
         (order.status === 'completed' ? 'Hoàn thành' : order.status === 'pending' ? 'Đang chờ' : order.status || '').toLowerCase().includes(search.toLowerCase()) ||
-        (order.mealTime || '').toLowerCase().includes(search.toLowerCase()) // Add mealTime to search
+        (order.mealTime || '').toLowerCase().includes(search.toLowerCase())
       );
     } else {
       if (idFilter) {
@@ -225,7 +192,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       }
     }
 
-    console.log('🔍 Applied filters, result count:', filtered.length);
     return filtered;
   };
 
@@ -239,7 +205,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       patient: filteredPatient,
       nurse: filteredNurse,
     });
-    console.log('🔍 Search triggered, value:', value, 'patient results:', filteredPatient.length, 'nurse results:', filteredNurse.length);
     if (value) {
       message.info(`Tìm kiếm: ${value}`);
     } else {
@@ -255,7 +220,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       patient: orders.filter(o => o.role === 'patient'),
       nurse: orders.filter(o => o.role === 'nurse'),
     });
-    console.log('🔍 Reset filters, patient orders:', orders.filter(o => o.role === 'patient').length, 'nurse orders:', orders.filter(o => o.role === 'nurse').length);
     message.info('Đã làm mới danh sách đơn hàng');
   };
 
@@ -271,7 +235,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       patient: tabKey === 'patientOrders' ? filteredPatient : filteredOrders.patient,
       nurse: tabKey === 'nurseOrders' ? filteredNurse : filteredOrders.nurse,
     });
-    console.log('🔍 Table change, tab:', tabKey, 'idFilter:', idFilter, 'statusFilter:', statusFilter);
   };
 
   const handleViewDetails = async (order) => {
@@ -293,9 +256,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       };
       setSelectedOrder(detailedOrder);
       setDetailModalVisible(true);
-      console.log('🔍 Viewing details for order:', order.id, 'with orderDetails:', detailedOrder.orderDetails);
     } catch (error) {
-      console.error('❌ Failed to fetch order details for view:', error);
       message.error('Không thể tải chi tiết đơn hàng.');
     }
   };
@@ -303,7 +264,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const handleFeedback = async (order) => {
     if (order.status !== 'completed') {
       message.error('Chỉ có thể đánh giá các đơn hàng đã hoàn thành.');
-      console.log('🔍 Feedback blocked, order not completed:', order.id);
       return;
     }
     try {
@@ -327,13 +287,10 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       if (hasFeedback) {
         setCurrentFeedbacks(order.feedbacks);
         setViewFeedbackVisible(true);
-        console.log('🔍 Viewing feedbacks for order:', order.id, 'feedback count:', order.feedbacks.length);
       } else {
         setFeedbackModalVisible(true);
-        console.log('🔍 Opening feedback modal for order:', order.id);
       }
     } catch (error) {
-      console.error('❌ Failed to fetch order details for feedback:', error);
       message.error('Không thể tải chi tiết đơn hàng.');
     }
   };
@@ -341,19 +298,16 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const handleCloseDetailModal = () => {
     setDetailModalVisible(false);
     setSelectedOrder(null);
-    console.log('🔍 Detail modal closed');
   };
 
   const handleFeedbackSubmit = (values) => {
     if (selectedOrder.status !== 'completed') {
       message.error('Không thể gửi đánh giá cho đơn hàng chưa hoàn thành.');
-      console.log('🔍 Feedback submit blocked, order not completed:', selectedOrder.id);
       return;
     }
 
     if (!values.rating || !values.content) {
       message.error('Vui lòng nhập đầy đủ số sao và nhận xét.');
-      console.log('🔍 Feedback submit failed, missing rating or content');
       return;
     }
 
@@ -364,10 +318,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       BranchId: selectedOrder.branchId,
       UserId: user.id || 'current-user-id',
     };
-
-    if (environment.features.enableLogging) {
-      console.log('🔍 Submitting feedback:', jsonData);
-    }
 
     createFeedback(
       { feedbackData: jsonData, branchId: selectedOrder.branchId },
@@ -391,12 +341,9 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           message.success('Gửi đánh giá thành công!');
           setFeedbackModalVisible(false);
           setViewFeedbackVisible(true);
-          console.log('🔍 Feedback submitted successfully for order:', selectedOrder.id);
         },
         onError: (error) => {
-          if (environment.features.enableLogging) {
-            console.error('❌ Failed to submit feedback:', error);
-          }
+          message.error('Gửi đánh giá thất bại.');
         }
       }
     );
@@ -404,11 +351,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
 
   const handleDeleteFeedback = async (feedbackId) => {
     try {
-      if (environment.features.enableLogging) {
-        console.log('🔍 Deleting feedback:', feedbackId);
-      }
       await deleteFeedback(feedbackId);
-      
       const updatedOrders = orders.map((order) => {
         if (order.id === selectedOrder.id) {
           const updatedFeedbacks = order.feedbacks?.filter(fb => fb.id !== feedbackId) || [];
@@ -424,47 +367,33 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       });
       setCurrentFeedbacks(currentFeedbacks.filter(fb => fb.id !== feedbackId));
       message.success('Xóa đánh giá thành công!');
-      console.log('🔍 Feedback deleted successfully, feedbackId:', feedbackId);
       if (currentFeedbacks.length === 1) {
         setViewFeedbackVisible(false);
         setSelectedOrder(null);
-        console.log('🔍 Feedback view closed after last feedback deleted');
       }
     } catch (error) {
-      if (environment.features.enableLogging) {
-        console.error('❌ Failed to delete feedback:', error);
-      }
       message.error(error.response?.data?.message || 'Xóa đánh giá thất bại');
     }
   };
 
   const getSortedOrders = (orders) => {
-    const sorted = [...orders].sort((a, b) => {
+    return [...orders].sort((a, b) => {
       try {
         return new Date(b.orderDate) - new Date(a.orderDate);
       } catch {
         return 0;
       }
     });
-    console.log('🔍 Sorted orders, count:', sorted.length);
-    return sorted;
   };
 
   const handleEditFeedback = (feedback) => {
-    if (environment.features.enableLogging) {
-      console.log('🔍 Opening edit modal for feedback:', feedback);
-    }
     setEditFeedback(feedback);
     setEditModalVisible(true);
     setViewFeedbackVisible(false);
-    console.log('🔍 Edit feedback modal opened, feedbackId:', feedback.id);
   };
 
   const handleUpdateFeedback = async (updatedFeedback) => {
     try {
-      if (environment.features.enableLogging) {
-        console.log('🔍 Updating feedback:', updatedFeedback);
-      }
       if (!updatedFeedback.rating || !updatedFeedback.content) {
         throw new Error('Vui lòng nhập đầy đủ số sao và nhận xét.');
       }
@@ -477,10 +406,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         CommentLines: updatedFeedback.content,
         Reply: updatedFeedback.reply || null,
       };
-
-      if (environment.features.enableLogging) {
-        console.log('🔍 Feedback data to send:', feedbackData);
-      }
 
       await updateFeedback({ id: updatedFeedback.id, feedbackData, branchId: selectedOrder.branchId });
 
@@ -512,11 +437,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       setEditModalVisible(false);
       setEditFeedback(null);
       setViewFeedbackVisible(true);
-      console.log('🔍 Feedback updated successfully, feedbackId:', updatedFeedback.id);
     } catch (error) {
-      if (environment.features.enableLogging) {
-        console.error('❌ Failed to update feedback:', error);
-      }
       message.error(error.message || error.response?.data?.message || 'Cập nhật đánh giá thất bại');
     }
   };
@@ -526,6 +447,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       title: 'Mã đơn hàng',
       dataIndex: 'id',
       key: 'id',
+      width: '15%',
       filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
         <div style={{ padding: 8 }}>
           <Input
@@ -550,6 +472,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       ),
       onFilter: (value, record) => String(record.id || '').toLowerCase().includes(value.toLowerCase()),
       filteredValue: filterId ? [filterId] : null,
+      responsive: ['xs', 'sm', 'md', 'lg'], // Ensure visible on all screen sizes
     },
     ...(tabKey === 'patientOrders'
       ? [
@@ -557,47 +480,23 @@ const OrderHistoryModal = ({ visible, onClose }) => {
             title: 'Tên bệnh nhân',
             dataIndex: 'customerName',
             key: 'customerName',
+            width: '20%',
             render: (customerName) => customerName || 'Không xác định',
+            responsive: ['sm', 'md', 'lg'], // Hide on extra small screens
           },
         ]
       : []),
-    // {
-    //   title: 'Món ăn',
-    //   dataIndex: 'items',
-    //   key: 'items',
-    //   render: (items) => (
-    //     <span>
-    //       {Array.isArray(items) && items.length > 0
-    //         ? items.map((item) => item.foodName || item.name || 'Không xác định').join(', ')
-    //         : 'Không có món ăn'}
-    //     </span>
-    //   ),
-    // },
-    // {
-    //   title: 'Buổi ăn',
-    //   dataIndex: 'mealTime',
-    //   key: 'mealTime',
-    //   render: (mealTime) => mealTime || 'Không xác định',
-    //   filters: [
-    //     { text: 'Sáng', value: 'Sáng' },
-    //     { text: 'Trưa', value: 'Trưa' },
-    //     { text: 'Tối', value: 'Tối' },
-    //   ],
-    //   onFilter: (value, record) => record.mealTime === value,
-    // },
     {
       title: 'Thời gian đặt',
       dataIndex: 'orderDate',
       key: 'orderDate',
+      width: '20%',
       sorter: (a, b) => {
         try {
           const dateA = new Date(a.orderDate);
           const dateB = new Date(b.orderDate);
           return dateA.valueOf() - dateB.valueOf();
         } catch (error) {
-          if (environment.features.enableLogging) {
-            console.warn('⚠️ Date sorting error:', error);
-          }
           return 0;
         }
       },
@@ -605,17 +504,21 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         orderDate
           ? new Date(orderDate).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
           : 'N/A',
+      responsive: ['xs', 'sm', 'md', 'lg'],
     },
     {
       title: 'Tổng thanh toán',
       dataIndex: 'total',
       key: 'total',
+      width: '15%',
       render: (total) => formatAmount(total || 0),
+      responsive: ['xs', 'sm', 'md', 'lg'],
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
+      width: '15%',
       render: (status) => (
         {
           pending: 'Đang chờ',
@@ -635,10 +538,12 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       ],
       onFilter: (value, record) => record.status?.toLowerCase() === value,
       filteredValue: filterStatus ? [filterStatus] : null,
+      responsive: ['xs', 'sm', 'md', 'lg'],
     },
     {
       title: '',
       key: 'action',
+      width: '15%',
       render: (_, record) => (
         <div className="action-buttons">
           <Button
@@ -660,6 +565,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           />
         </div>
       ),
+      responsive: ['xs', 'sm', 'md', 'lg'],
     },
   ];
 
@@ -669,41 +575,48 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       dataIndex: 'foodName',
       key: 'foodName',
       align: 'left',
+      width: '40%',
       render: (foodName, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <img
             src={getImageUrlWithFallback(record.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production')}
             alt={foodName || 'Món ăn'}
-            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px' }}
+            className="food-image"
             onError={(e) => {
               e.target.src = '/images/com.jpg';
-              console.warn(`⚠️ Failed to load image: ${record.imageUrl}`);
             }}
           />
           <Text>{foodName || record.name || 'Không xác định'}</Text>
         </div>
       ),
+      responsive: ['xs', 'sm', 'md', 'lg'],
     },
     {
       title: 'Số lượng',
       dataIndex: 'quantity',
       key: 'quantity',
       align: 'left',
+      width: '20%',
       render: (quantity) => quantity ?? 1,
+      responsive: ['xs', 'sm', 'md', 'lg'],
     },
     {
       title: 'Đơn giá',
       dataIndex: 'price',
       key: 'price',
       align: 'left',
+      width: '20%',
       render: (price) => formatAmount(price ?? 0),
+      responsive: ['sm', 'md', 'lg'], // Hide on extra small screens
     },
     {
       title: 'Thành tiền',
       dataIndex: 'subtotal',
       key: 'subtotal',
       align: 'left',
+      width: '20%',
       render: (subtotal, record) => formatAmount(record.total ?? subtotal ?? 0),
+      responsive: ['xs', 'sm', 'md', 'lg'],
     },
   ];
 
@@ -714,62 +627,56 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         onCancel={onClose}
         footer={null}
         centered
-        width={860}
-        closeIcon={<span style={{ color: '#000', fontSize: '26px', fontWeight: 400 }}>×</span>}
+        width="90vw"
+        className="order-history-modal"
+        closeIcon={<span className="custom-close-icon">×</span>}
         styles={{
           content: { padding: 0, borderRadius: 8 },
           body: { padding: 0 },
           header: { display: 'none' },
         }}
       >
-        <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
-          <div
-            style={{
-              backgroundColor: '#b4c80f',
-              color: '#000',
-              padding: '12px 20px',
-              fontSize: '18px',
-              fontWeight: 400,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
+        <div className="modal-content">
+          <div className="modal-header">
             Lịch sử đơn hàng
           </div>
-          <div style={{ padding: '16px', background: '#fff' }}>
-            <div className="reusable-table-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <div className="modal-body">
+            <div className="reusable-table-header">
               <Search
                 placeholder="Tìm kiếm theo mã đơn, tên món ăn, tên bệnh nhân, trạng thái hoặc buổi ăn"
                 onSearch={handleSearch}
                 value={searchText}
                 onChange={(e) => handleSearch(e.target.value)}
-                style={{ width: 300 }}
                 allowClear
+                className="search-input"
               />
               <Button
                 icon={<ReloadOutlined />}
                 onClick={handleReset}
                 size="middle"
-                style={{ display: 'flex', alignItems: 'center' }}
+                className="reset-button"
               >
                 Làm mới
               </Button>
               {searchText && (
-                <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>
+                <span className="search-results">
                   {activeTab === 'patientOrders' ? filteredOrders.patient.length : filteredOrders.nurse.length} kết quả
                 </span>
               )}
             </div>
-            <Tabs activeKey={activeTab} onChange={(key) => { setActiveTab(key); console.log('🔍 Tab changed to:', key); }}>
+            <Tabs
+              activeKey={activeTab}
+              onChange={(key) => setActiveTab(key)}
+              className="order-tabs"
+            >
               <TabPane tab="Đơn hàng của tôi" key="nurseOrders">
-                <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                <div className="table-container">
                   {loading ? (
-                    <Spin style={{ display: 'block', textAlign: 'center', padding: '20px' }} />
+                    <Spin className="loading-spinner" />
                   ) : error ? (
-                    <Alert message={error} type="error" showIcon style={{ marginBottom: '16px' }} />
+                    <Alert message={error} type="error" showIcon className="error-alert" />
                   ) : filteredOrders.nurse.length === 0 ? (
-                    <Text>{searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}</Text>
+                    <Text className="empty-text">{searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}</Text>
                   ) : (
                     <ReusableTableV2
                       dataSource={getSortedOrders(filteredOrders.nurse).map(order => ({ ...order, key: order.id }))}
@@ -795,13 +702,13 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               </TabPane>
               {user?.role === ROLES.NURSE && (
                 <TabPane tab="Đơn hàng bệnh nhân" key="patientOrders">
-                  <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                  <div className="table-container">
                     {loading ? (
-                      <Spin style={{ display: 'block', textAlign: 'center', padding: '20px' }} />
+                      <Spin className="loading-spinner" />
                     ) : error ? (
-                      <Alert message={error} type="error" showIcon style={{ marginBottom: '16px' }} />
+                      <Alert message={error} type="error" showIcon className="error-alert" />
                     ) : filteredOrders.patient.length === 0 ? (
-                      <Text>{searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}</Text>
+                      <Text className="empty-text">{searchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Chưa có đơn hàng nào.'}</Text>
                     ) : (
                       <ReusableTableV2
                         dataSource={getSortedOrders(filteredOrders.patient).map(order => ({ ...order, key: order.id }))}
@@ -835,8 +742,9 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         onCancel={handleCloseDetailModal}
         footer={null}
         centered
-        width={600}
-        closeIcon={<span style={{ color: '#000', fontSize: '26px', fontWeight: 400 }}>×</span>}
+        width="80vw"
+        className="order-detail-modal"
+        closeIcon={<span className="custom-close-icon">×</span>}
         styles={{
           content: { padding: 0, borderRadius: 8 },
           body: { padding: 0 },
@@ -844,65 +752,52 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         }}
       >
         {selectedOrder && (
-          <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
-            <div
-              style={{
-                backgroundColor: '#b4c80f',
-                color: '#000',
-                padding: '12px 20px',
-                fontSize: '18px',
-                fontWeight: 400,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
+          <div className="modal-content">
+            <div className="modal-header">
               Chi tiết đơn hàng
             </div>
-            <div style={{ padding: '16px', background: '#fff' }}>
-              <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
-                <Text style={{ fontWeight: 400 }}>Mã đơn hàng: </Text>
-                <Text style={{ fontWeight: 500 }}>{selectedOrder.id || 'Không xác định'}</Text>
+            <div className="modal-body">
+              <div className="order-detail-item">
+                <Text className="detail-label">Mã đơn hàng: </Text>
+                <Text className="detail-value">{selectedOrder.id || 'Không xác định'}</Text>
               </div>
-              <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
-                <Text style={{ fontWeight: 400 }}>Người đặt: </Text>
-                <Text style={{ fontWeight: 500 }}>{selectedOrder.customerName || 'Không xác định'}</Text>
+              <div className="order-detail-item">
+                <Text className="detail-label">Người đặt: </Text>
+                <Text className="detail-value">{selectedOrder.customerName || 'Không xác định'}</Text>
               </div>
-              <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
-                <Text style={{ fontWeight: 400 }}>Loại đơn hàng: </Text>
-                <Text style={{ fontWeight: 500 }}>
+              <div className="order-detail-item">
+                <Text className="detail-label">Loại đơn hàng: </Text>
+                <Text className="detail-value">
                   {selectedOrder.orderTypeDisplay || (selectedOrder.isPatientOrder ? 'Đơn hàng bệnh nhân' : selectedOrder.type || 'Y tá')}
                 </Text>
               </div>
-              <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
-                <Text style={{ fontWeight: 400 }}>Buổi ăn: </Text>
-                <Text style={{ fontWeight: 500 }}>{selectedOrder.mealTime || 'Không xác định'}</Text>
+              <div className="order-detail-item">
+                <Text className="detail-label">Buổi ăn: </Text>
+                <Text className="detail-value">{selectedOrder.mealTime || 'Không xác định'}</Text>
               </div>
-              <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
-                <Text style={{ fontWeight: 400 }}>Thời gian đặt: </Text>
-                <Text style={{ fontWeight: 500 }}>
+              <div className="order-detail-item">
+                <Text className="detail-label">Thời gian đặt: </Text>
+                <Text className="detail-value">
                   {selectedOrder.orderDate
                     ? new Date(selectedOrder.orderDate).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
                     : 'N/A'}
                 </Text>
               </div>
-              <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
-                <Text style={{ fontWeight: 400 }}>Thời gian cập nhật: </Text>
-                <Text style={{ fontWeight: 500 }}>
+              <div className="order-detail-item">
+                <Text className="detail-label">Thời gian cập nhật: </Text>
+                <Text className="detail-value">
                   {selectedOrder.updatedAt
                     ? new Date(selectedOrder.updatedAt).toLocaleString('vi-VN', { timeStyle: 'short' })
                     : 'N/A'}
                 </Text>
               </div>
-              <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
-                <Text style={{ fontWeight: 400 }}>Tổng thanh toán: </Text>
-                <Text style={{ fontWeight: 700 }}>
-                  {formatAmount(selectedOrder.total || 0)}
-                </Text>
+              <div className="order-detail-item">
+                <Text className="detail-label">Tổng thanh toán: </Text>
+                <Text className="detail-value total">{formatAmount(selectedOrder.total || 0)}</Text>
               </div>
-              <div style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>
-                <Text style={{ fontWeight: 400 }}>Trạng thái đơn hàng: </Text>
-                <Text style={{ fontWeight: 500 }}>
+              <div className="order-detail-item">
+                <Text className="detail-label">Trạng thái đơn hàng: </Text>
+                <Text className="detail-value">
                   {
                     {
                       pending: 'Đang chờ',
@@ -915,9 +810,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                   }
                 </Text>
               </div>
-              <Text style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '8px' }}>
-                Chi tiết món ăn:
-              </Text>
+              <Text className="detail-section-title">Chi tiết món ăn:</Text>
               <Table
                 columns={detailColumns}
                 dataSource={Array.isArray(selectedOrder.orderDetails) ? selectedOrder.orderDetails : []}
@@ -925,8 +818,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                 rowKey="menuItemId"
                 size="small"
                 bordered
-                style={{ marginTop: '8px' }}
-                headStyle={{ backgroundColor: '#f0f0f0', fontWeight: 500 }}
+                className="detail-table"
               />
             </div>
           </div>
@@ -937,7 +829,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         onClose={() => {
           setFeedbackModalVisible(false);
           setSelectedOrder(null);
-          console.log('🔍 Feedback modal closed');
         }}
         selectedOrder={selectedOrder}
         onSubmit={handleFeedbackSubmit}
@@ -947,7 +838,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         onClose={() => {
           setViewFeedbackVisible(false);
           setSelectedOrder(null);
-          console.log('🔍 View feedback modal closed');
         }}
         selectedOrder={selectedOrder}
         feedbacks={currentFeedbacks}
@@ -960,7 +850,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           setEditModalVisible(false);
           setEditFeedback(null);
           setSelectedOrder(null);
-          console.log('🔍 Edit feedback modal closed');
         }}
         selectedOrder={selectedOrder}
         feedback={editFeedback}

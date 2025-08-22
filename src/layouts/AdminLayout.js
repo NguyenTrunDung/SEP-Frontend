@@ -1,6 +1,5 @@
-import React, { useMemo } from "react";
-import { Layout, Menu, Typography } from "antd";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import React, { useMemo, useState, useEffect } from "react";
+import { Layout, Menu, Typography, Button } from "antd";
 import {
   DashboardOutlined,
   UserOutlined,
@@ -16,8 +15,11 @@ import {
   CommentOutlined,
   GlobalOutlined,
   TeamOutlined,
-  TruckOutlined
+  TruckOutlined,
+  MenuUnfoldOutlined,
+  MenuFoldOutlined,
 } from "@ant-design/icons";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { ROLES } from "../constants/roles";
@@ -34,40 +36,50 @@ const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // State for sidebar collapse
+  const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  // Handle window resize to toggle mobile view
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      setCollapsed(mobile);
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize();
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const handleLogout = async () => {
     try {
       await logout();
-      // Navigate based on original login type for better UX
-      const redirectPath = loginType === 'internal' ? '/login' : '/';
+      const redirectPath = loginType === "internal" ? "/login" : "/";
       navigate(redirectPath);
     } catch (error) {
-      console.error('❌ AdminLayout logout failed:', error);
-      const redirectPath = loginType === 'internal' ? '/login' : '/';
+      console.error("❌ AdminLayout logout failed:", error);
+      const redirectPath = loginType === "internal" ? "/login" : "/";
       navigate(redirectPath);
     }
   };
 
-  // Helper function to check if user has required role (kept for backwards compatibility)
-  const hasRequiredRole = React.useCallback((allowedRoles) => {
-    return user?.role && allowedRoles.includes(user.role);
-  }, [user?.role]);
+  const hasRequiredRole = React.useCallback(
+    (allowedRoles) => {
+      return user?.role && allowedRoles.includes(user.role);
+    },
+    [user?.role]
+  );
 
-  // Helper function to check permission-based access
   const canAccess = (requiredPermissions = []) => {
-    // System admins can access everything
     if (isSystemAdmin) return true;
-
-    // If no permissions required, allow access
     if (requiredPermissions.length === 0) return true;
-
-    // Check if user has any of the required permissions
     return requiredPermissions.some((permission) => hasPermission(permission));
   };
 
-  // Map routes to menu keys for active state persistence
   const getSelectedMenuKey = useMemo(() => {
     const pathname = location.pathname;
-
     const menuKeys = {
       "/dashboard": ["dashboard"],
       "/orders": ["orders"],
@@ -95,18 +107,22 @@ const AdminLayout = ({ children }) => {
     return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])
       ? ["dashboard"]
       : hasRequiredRole([ROLES.CASHIER])
-        ? ["cashier"]
-        : hasRequiredRole([ROLES.STAFF, ROLES.NURSE])
-          ? ["orders"]
-          : hasRequiredRole([ROLES.KITCHEN])
-            ? ["kitchen"]
-            : []);
+      ? ["cashier"]
+      : hasRequiredRole([ROLES.STAFF, ROLES.NURSE])
+      ? ["orders"]
+      : hasRequiredRole([ROLES.KITCHEN])
+      ? ["kitchen"]
+      : []);
   }, [location.pathname, hasRequiredRole]);
 
   const siderStyle = {
     background: "#fff",
     borderRight: "1px solid #f0f0f0",
     boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
+    position: isMobile ? "fixed" : "relative",
+    height: "100vh",
+    zIndex: 1000,
+    transition: "all 0.3s",
   };
 
   const logoStyle = {
@@ -122,56 +138,68 @@ const AdminLayout = ({ children }) => {
     fontWeight: "500",
   };
 
-  // Permission-based menu items
+  const headerStyle = {
+    background: "#fff",
+    padding: "0 16px",
+    borderBottom: "1px solid #f0f0f0",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: "64px", // Fixed height for consistency
+    lineHeight: "64px",
+    width: "100%",
+  };
+
+  const leftHeaderStyle = {
+    display: "flex",
+    alignItems: "center",
+    flexShrink: 0,
+    gap: "8px",
+  };
+
+  const rightHeaderStyle = {
+    display: "flex",
+    alignItems: "center",
+    flexShrink: 0,
+  };
+
   const menuItems = [
-    // Dashboard
     canAccess([PERMISSIONS.OVERVIEW_VIEW]) && {
       key: "dashboard",
       icon: <DashboardOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/dashboard">Thống kê</Link>,
     },
-
-    // Orders Management
     canAccess([PERMISSIONS.ORDERS_VIEW]) && {
       key: "orders",
       icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/orders">Đơn hàng</Link>,
     },
-
-    // Kitchen
     canAccess([PERMISSIONS.KITCHEN_VIEW]) && {
       key: "kitchen",
       icon: <FireFilled style={{ fontSize: "18px" }} />,
       label: <Link to="/kitchens">Nhà bếp</Link>,
     },
-       // Kitchen
-     canAccess([PERMISSIONS.KITCHEN_VIEW]) && {
+    canAccess([PERMISSIONS.KITCHEN_VIEW]) && {
       key: "kitchen-orders",
       icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/kitchen-orders">Đơn hàng bệnh nhân</Link>,
     },
-    // Shippers
     canAccess([PERMISSIONS.DELIVERY_VIEW]) && {
       key: "shippers",
       icon: <TruckOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/shippers">Nhân viên giao hàng</Link>,
     },
-
-    // Menus
     canAccess([PERMISSIONS.MENUS_VIEW]) && {
       key: "menus",
       icon: <MenuOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/menus">Thực đơn</Link>,
     },
-
-    // Feedbacks
     canAccess([PERMISSIONS.FEEDBACKS_VIEW]) && {
       key: "feedbacks",
       icon: <CommentOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/feedbacks">Đánh giá</Link>,
     },
-
-    // Food Management
     canAccess([PERMISSIONS.FOODS_VIEW, PERMISSIONS.FOODCATEGORIES_VIEW]) && {
       key: "food-management",
       icon: <CoffeeOutlined style={{ fontSize: "18px" }} />,
@@ -194,10 +222,7 @@ const AdminLayout = ({ children }) => {
         },
       ].filter(Boolean),
     },
-
-    // System Settings - Only show if user has any relevant permissions
     (() => {
-      // Check if user has any system-related permissions
       const hasSystemPermissions = canAccess([PERMISSIONS.SYSTEM_SETTINGS]);
       const hasUserPermissions = canAccess([PERMISSIONS.USERS_VIEW, PERMISSIONS.WALLET_VIEW, PERMISSIONS.USERS_ROLES]);
       const hasCategoryPermissions = canAccess([
@@ -205,18 +230,14 @@ const AdminLayout = ({ children }) => {
         PERMISSIONS.AREAS_VIEW,
         PERMISSIONS.LOCATIONS_VIEW,
         PERMISSIONS.DEPARTMENTS_VIEW,
-        PERMISSIONS.DISEASECATEGORIES_VIEW
+        PERMISSIONS.DISEASECATEGORIES_VIEW,
       ]);
 
-      // Only show System Settings if user has any relevant permissions
       if (!hasSystemPermissions && !hasUserPermissions && !hasCategoryPermissions) {
         return false;
       }
 
-      // Build the System Settings menu
       const systemChildren = [];
-
-      // User Management Group - Only show if user has user-related permissions
       const userManagementChildren = [
         canAccess([PERMISSIONS.WALLET_VIEW]) && {
           key: "user-management",
@@ -244,7 +265,6 @@ const AdminLayout = ({ children }) => {
         });
       }
 
-      // Categories Group - Only show if user has category-related permissions
       const categoryChildren = [
         canAccess([PERMISSIONS.BRANCHES_VIEW]) && {
           key: "branches",
@@ -282,29 +302,68 @@ const AdminLayout = ({ children }) => {
         });
       }
 
-      // Only return the menu item if there are children to show
-      return systemChildren.length > 0 ? {
-        key: "settings",
-        icon: <SettingOutlined style={{ fontSize: "18px" }} />,
-        label: "Cài đặt hệ thống",
-        children: systemChildren,
-      } : false;
+      return systemChildren.length > 0
+        ? {
+            key: "settings",
+            icon: <SettingOutlined style={{ fontSize: "18px" }} />,
+            label: "Cài đặt hệ thống",
+            children: systemChildren,
+          }
+        : false;
     })(),
   ].filter(Boolean);
 
+  const toggleCollapsed = () => {
+    setCollapsed(!collapsed);
+  };
+
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      <Sider width={280} theme="light" style={siderStyle}>
+      {/* Overlay for mobile when sidebar is open */}
+      {isMobile && !collapsed && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            zIndex: 999,
+          }}
+          onClick={toggleCollapsed}
+        />
+      )}
+
+      <Sider
+        width={280}
+        theme="light"
+        style={siderStyle}
+        collapsible
+        collapsed={collapsed}
+        collapsedWidth={isMobile ? 0 : 80}
+        trigger={null}
+      >
         <div style={logoStyle}>
           <Title
             level={3}
-            style={{ margin: 0, color: "#1890ff", fontSize: "20px" }}
+            style={{
+              margin: 0,
+              color: "#1890ff",
+              fontSize: collapsed ? "16px" : "20px",
+            }}
           >
-            🏥 Hệ Thống Quản Lý
+            <img
+              src="/images/lg.png"
+              alt="Logo"
+              style={{ height: 'clamp(50px, 10vw, 80px)', maxHeight: '50px', objectFit: 'contain' }}
+            /> {collapsed ? "" : "Hệ Thống Quản Lý"}
           </Title>
-          <Text style={{ color: "#666", fontSize: "14px" }}>
-            Căn tin Bệnh viện
-          </Text>
+          {!collapsed && (
+            <Text style={{ color: "#666", fontSize: "14px" }}>
+              Căn tin Bệnh viện
+            </Text>
+          )}
         </div>
 
         <Menu
@@ -316,20 +375,31 @@ const AdminLayout = ({ children }) => {
       </Sider>
 
       <Layout>
-        <Header
-          style={{
-            background: "#fff",
-            padding: "0 24px",
-            borderBottom: "1px solid #f0f0f0",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          {/* Branch Switcher - Only for System Admin */}
-          {isSystemAdmin ? <BranchSwitcher /> : <div />}
-          <UserHeader onLogout={handleLogout} />
+        <Header style={headerStyle}>
+          <div style={leftHeaderStyle}>
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={toggleCollapsed}
+              style={{ marginRight: 8 }}
+            />
+            {isSystemAdmin ? <BranchSwitcher /> : <div />}
+          </div>
+          <div style={rightHeaderStyle}>
+            <UserHeader
+              onLogout={handleLogout}
+              style={{
+                flexShrink: 0,
+                gap: isMobile ? "8px" : "12px",
+              }}
+              greetingStyle={{
+                fontSize: isMobile ? "12px" : "15px",
+                color: "#666",
+              }}
+              avatarSize={isMobile ? "small" : "default"}
+              showGreeting={!isMobile} // Hide greeting text on mobile to save space
+            />
+          </div>
         </Header>
 
         <Content style={{ margin: "24px 16px 0" }}>

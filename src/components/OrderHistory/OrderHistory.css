@@ -1,4 +1,76 @@
-/* OrderHistory.css */
+/* General Reset and Base Styles */
+.order-history-modal,
+.order-detail-modal {
+  max-width: 90vw;
+  margin: 0 auto;
+}
+
+.modal-content {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.modal-header {
+  background-color: #b4c80f;
+  color: #000;
+  padding: 12px 20px;
+  font-size: 1.125rem;
+  font-weight: 400;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-body {
+  padding: 16px;
+  background: #fff;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.custom-close-icon {
+  color: #000;
+  font-size: 1.625rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+/* Search and Header */
+.reusable-table-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 300px;
+}
+
+.reset-button {
+  display: flex;
+  align-items: center;
+}
+
+.search-results {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Tabs */
+.order-tabs .ant-tabs-nav {
+  margin-bottom: 16px;
+}
+
+.order-tabs .ant-tabs-tab {
+  font-size: 0.875rem;
+  padding: 8px 16px;
+}
+
+/* Table */
 .order-history-table .ant-table {
   text-align: left;
 }
@@ -6,4 +78,199 @@
 .order-history-table .ant-table-thead > tr > th,
 .order-history-table .ant-table-tbody > tr > td {
   text-align: left !important;
+  padding: 8px !important;
+  font-size: 0.875rem;
+}
+
+.table-container {
+  max-height: 60vh;
+  overflow-x: auto;
+}
+
+.detail-table .ant-table-thead > tr > th {
+  background-color: #f0f0f0;
+  font-weight: 500;
+}
+
+.food-image {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  padding: 4px;
+}
+
+.loading-spinner {
+  display: block;
+  text-align: center;
+  padding: 20px;
+}
+
+.error-alert {
+  margin-bottom: 16px;
+}
+
+.empty-text {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+/* Order Detail Modal */
+.order-detail-item {
+  display: flex;
+  font-size: 0.8125rem;
+  margin-bottom: 8px;
+}
+
+.detail-label {
+  font-weight: 400;
+  flex: 0 0 120px;
+}
+
+.detail-value {
+  font-weight: 500;
+}
+
+.detail-value.total {
+  font-weight: 700;
+}
+
+.detail-section-title {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+/* Media Queries for Responsiveness */
+@media screen and (max-width: 768px) {
+  .order-history-modal {
+    width: 95vw;
+  }
+
+  .order-detail-modal {
+    width: 95vw;
+  }
+
+  .modal-header {
+    font-size: 1rem;
+    padding: 10px 16px;
+  }
+
+  .modal-body {
+    padding: 12px;
+  }
+
+  .reusable-table-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-input {
+    max-width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .reset-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .search-results {
+    font-size: 0.75rem;
+    text-align: center;
+  }
+
+  .order-tabs .ant-tabs-tab {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+  }
+
+  .order-history-table .ant-table-thead > tr > th,
+  .order-history-table .ant-table-tbody > tr > td {
+    font-size: 0.75rem;
+    padding: 6px !important;
+  }
+
+  .food-image {
+    width: 40px;
+    height: 40px;
+  }
+
+  .order-detail-item {
+    font-size: 0.75rem;
+  }
+
+  .detail-label {
+    flex: 0 0 100px;
+  }
+
+  .detail-section-title {
+    font-size: 0.75rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .order-history-modal,
+  .order-detail-modal {
+    width: 100vw;
+  }
+
+  .modal-header {
+    font-size: 0.875rem;
+    padding: 8px 12px;
+  }
+
+  .custom-close-icon {
+    font-size: 1.25rem;
+  }
+
+  .modal-body {
+    padding: 8px;
+    max-height: 80vh;
+  }
+
+  .order-tabs .ant-tabs-tab {
+    font-size: 0.6875rem;
+    padding: 4px 8px;
+  }
+
+  .order-history-table .ant-table-thead > tr > th,
+  .order-history-table .ant-table-tbody > tr > td {
+    font-size: 0.6875rem;
+    padding: 4px !important;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .action-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .food-image {
+    width: 30px;
+    height: 30px;
+  }
+
+  .order-detail-item {
+    font-size: 0.6875rem;
+    flex-direction: column;
+  }
+
+  .detail-label {
+    flex: none;
+    margin-bottom: 2px;
+  }
 }

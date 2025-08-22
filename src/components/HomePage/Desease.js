@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { ChevronLeft, ChevronRight, Heart, Activity, Brain, Zap } from "lucide-react"
 
-
 const healthData = [
   {
     id: 1,
@@ -41,7 +40,7 @@ const healthData = [
   },
   {
     id: 3,
-    title: "Đột Quỵ",
+    title: "Đột QuỴ",
     icon: <Brain className="w-6 h-6" />,
     image: "/images/benh3.jpg",
     description:
@@ -80,7 +79,6 @@ export default function HealthCarousel() {
     setCurrentSlide((prev) => (prev - 1 + healthData.length) % healthData.length)
   }
 
-
   const goToSlide = (index) => {
     setCurrentSlide(index)
   }
@@ -103,6 +101,7 @@ export default function HealthCarousel() {
           margin: "0 auto",
           position: "relative",
           width: "100%",
+          padding: "0 1rem",
         }}
         onMouseEnter={() => setIsAutoPlaying(false)}
         onMouseLeave={() => setIsAutoPlaying(true)}
@@ -122,18 +121,18 @@ export default function HealthCarousel() {
               gap: "0.75rem",
               background: "rgba(255, 255, 255, 0.9)",
               backdropFilter: "blur(20px)",
-              padding: "1rem 2rem",
+              padding: "0.75rem 1.5rem",
               borderRadius: "1.5rem",
               boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
               border: "1px solid rgba(255, 255, 255, 0.2)",
               marginBottom: "0.5rem",
             }}
           >
-            <Zap className="w-8 h-8 text-lime-500" />
+            <Zap className="w-6 h-6 text-lime-500" />
             <h1
               style={{
                 margin: "0",
-                fontSize: "2rem",
+                fontSize: "clamp(1.5rem, 5vw, 1.75rem)",
                 fontWeight: "800",
                 background: "linear-gradient(135deg, #65a30d, #84cc16)",
                 WebkitBackgroundClip: "text",
@@ -146,7 +145,7 @@ export default function HealthCarousel() {
           </div>
           <p
             style={{
-              fontSize: "1rem",
+              fontSize: "clamp(0.875rem, 3vw, 1rem)",
               color: "#6b7280",
               margin: "0",
               fontWeight: "500",
@@ -173,7 +172,6 @@ export default function HealthCarousel() {
             style={{
               position: "relative",
               height: "auto",
-              minHeight: "650px",
               overflow: "hidden",
             }}
           >
@@ -191,20 +189,20 @@ export default function HealthCarousel() {
                   style={{
                     minWidth: "100%",
                     display: "flex",
-                    padding: "2rem",
-                    gap: "2rem",
+                    flexDirection: window.innerWidth < 768 ? "column" : "row",
+                    padding: "clamp(1rem, 3vw, 1.5rem)",
+                    gap: "clamp(1rem, 3vw, 2rem)",
                     alignItems: "flex-start",
                     background: `linear-gradient(135deg, ${index === currentSlide ? "rgba(255, 255, 255, 0.9)" : "rgba(255, 255, 255, 0.7)"
                       }, rgba(255, 255, 255, 0.5))`,
                     transition: "background 0.8s ease",
-                    minHeight: "650px",
                   }}
                 >
                   {/* Content Section */}
                   <div
                     style={{
                       flex: "1",
-                      maxWidth: "65%",
+                      maxWidth: window.innerWidth < 768 ? "100%" : "65%",
                       display: "flex",
                       flexDirection: "column",
                       height: "100%",
@@ -215,13 +213,13 @@ export default function HealthCarousel() {
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "1rem",
-                        marginBottom: "1.5rem",
+                        gap: "clamp(0.5rem, 2vw, 1rem)",
+                        marginBottom: "clamp(1rem, 2vw, 1.5rem)",
                       }}
                     >
                       <div
                         style={{
-                          padding: "0.75rem",
+                          padding: "clamp(0.5rem, 2vw, 0.75rem)",
                           borderRadius: "1rem",
                           background: `linear-gradient(135deg, ${item.gradient.replace("from-", "").replace("to-", ", ")})`,
                           color: "white",
@@ -232,7 +230,7 @@ export default function HealthCarousel() {
                       </div>
                       <h2
                         style={{
-                          fontSize: "2rem",
+                          fontSize: "clamp(1.5rem, 4vw, 1.75rem)",
                           fontWeight: "900",
                           color: "#1f2937",
                           margin: "0",
@@ -248,16 +246,16 @@ export default function HealthCarousel() {
                       style={{
                         background: "rgba(255, 255, 255, 0.8)",
                         backdropFilter: "blur(10px)",
-                        padding: "1.5rem",
+                        padding: "clamp(1rem, 3vw, 1.5rem)",
                         borderRadius: "1rem",
-                        marginBottom: "1.5rem",
+                        marginBottom: "clamp(1rem, 2vw, 1.5rem)",
                         border: "1px solid rgba(255, 255, 255, 0.3)",
                         boxShadow: "0 10px 30px rgba(0, 0, 0, 0.05)",
                       }}
                     >
                       <p
                         style={{
-                          fontSize: "1rem",
+                          fontSize: "clamp(0.875rem, 2.5vw, 1rem)",
                           lineHeight: "1.7",
                           color: "#374151",
                           margin: "0",
@@ -272,9 +270,9 @@ export default function HealthCarousel() {
                     <div
                       style={{
                         background: `linear-gradient(135deg, ${item.gradient.replace("from-", "rgba(").replace("to-", ", rgba(").replace("400", "400, 0.1)").replace("500", "500, 0.1)")})`,
-                        padding: "1.5rem",
+                        padding: "clamp(1rem, 3vw, 1.5rem)",
                         borderRadius: "1rem",
-                        marginBottom: "1.5rem",
+                        marginBottom: "clamp(1rem, 2vw, 1.5rem)",
                         border: "1px solid rgba(132, 204, 22, 0.2)",
                         position: "relative",
                         overflow: "hidden",
@@ -292,7 +290,7 @@ export default function HealthCarousel() {
                       />
                       <h3
                         style={{
-                          fontSize: "1.1rem",
+                          fontSize: "clamp(1rem, 2.5vw, 1.1rem)",
                           fontWeight: "700",
                           color: "#365314",
                           marginBottom: "0.75rem",
@@ -305,7 +303,7 @@ export default function HealthCarousel() {
                       </h3>
                       <p
                         style={{
-                          fontSize: "0.95rem",
+                          fontSize: "clamp(0.8rem, 2.5vw, 0.95rem)",
                           lineHeight: "1.6",
                           color: "#365314",
                           margin: "0",
@@ -320,10 +318,10 @@ export default function HealthCarousel() {
                     <div style={{ flex: "1" }}>
                       <h3
                         style={{
-                          fontSize: "1.2rem",
+                          fontSize: "clamp(1rem, 3vw, 1.2rem)",
                           fontWeight: "700",
                           color: "#1f2937",
-                          marginBottom: "1rem",
+                          marginBottom: "clamp(0.75rem, 2vw, 1rem)",
                         }}
                       >
                         🥗 Các thành phần nên có trong món ăn
@@ -331,8 +329,8 @@ export default function HealthCarousel() {
                       <div
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "repeat(2, 1fr)",
-                          gap: "0.75rem",
+                          gridTemplateColumns: window.innerWidth < 768 ? "1fr" : "repeat(2, 1fr)",
+                          gap: "clamp(0.5rem, 2vw, 0.75rem)",
                         }}
                       >
                         {item.nutrients.map((nutrient, idx) => (
@@ -343,7 +341,7 @@ export default function HealthCarousel() {
                               backdropFilter: "blur(10px)",
                               border: "1px solid rgba(132, 204, 22, 0.2)",
                               borderRadius: "0.75rem",
-                              padding: "1rem",
+                              padding: "clamp(0.75rem, 2vw, 1rem)",
                               transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                               cursor: "pointer",
                               position: "relative",
@@ -364,16 +362,16 @@ export default function HealthCarousel() {
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "0.75rem",
+                                gap: "clamp(0.5rem, 2vw, 0.75rem)",
                               }}
                             >
-                              <span style={{ fontSize: "1.25rem" }}>{nutrient.icon}</span>
+                              <span style={{ fontSize: "clamp(1rem, 3vw, 1.25rem)" }}>{nutrient.icon}</span>
                               <div>
                                 <div
                                   style={{
                                     fontWeight: "700",
                                     color: "#1f2937",
-                                    fontSize: "0.9rem",
+                                    fontSize: "clamp(0.8rem, 2.5vw, 0.9rem)",
                                     marginBottom: "0.25rem",
                                   }}
                                 >
@@ -382,7 +380,7 @@ export default function HealthCarousel() {
                                 <div
                                   style={{
                                     color: "#6b7280",
-                                    fontSize: "0.8rem",
+                                    fontSize: "clamp(0.7rem, 2vw, 0.8rem)",
                                     fontWeight: "500",
                                   }}
                                 >
@@ -399,11 +397,11 @@ export default function HealthCarousel() {
                   {/* Image Section */}
                   <div
                     style={{
-                      flex: "0 0 300px",
+                      flex: window.innerWidth < 768 ? "0 0 100%" : "0 0 clamp(200px, 30vw, 300px)",
                       display: "flex",
                       justifyContent: "center",
-                      alignItems: "flex-start",
-                      paddingTop: "2rem",
+                      alignItems: "center",
+                      paddingTop: window.innerWidth < 768 ? "1rem" : "2rem",
                     }}
                   >
                     <div
@@ -416,6 +414,9 @@ export default function HealthCarousel() {
                         background: "rgba(255, 255, 255, 0.1)",
                         backdropFilter: "blur(10px)",
                         border: "1px solid rgba(255, 255, 255, 0.2)",
+                        width: "100%",
+                        maxWidth: "clamp(200px, 30vw, 300px)",
+                        height: "auto", // Để tự điều chỉnh theo ảnh
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = "scale(1.05) rotate(1deg)"
@@ -424,18 +425,19 @@ export default function HealthCarousel() {
                         e.currentTarget.style.transform = "scale(1) rotate(0deg)"
                       }}
                     >
-                      <img
-                        src={item.image || "/placeholder.svg"}
-                        alt={item.title}
-                        width={300}
-                        height={400}
-                        style={{
-                          objectFit: "cover",
-                          display: "block",
-                          borderRadius: "1rem",
-                        }}
-                      />
-
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          style={{
+                            width: "100%",
+                            height: "auto", // Để ảnh tự điều chỉnh chiều cao
+                            objectFit: "contain", // Đảm bảo hiện toàn bộ ảnh
+                            display: "block",
+                            borderRadius: "1rem",
+                          }}
+                        />
+                      )}
                       <div
                         style={{
                           position: "absolute",
@@ -455,15 +457,15 @@ export default function HealthCarousel() {
             onClick={prevSlide}
             style={{
               position: "absolute",
-              left: "1.5rem",
+              left: "clamp(0.5rem, 2vw, 1rem)",
               top: "50%",
               transform: "translateY(-50%)",
               background: "rgba(255, 255, 255, 0.9)",
               backdropFilter: "blur(20px)",
               border: "1px solid rgba(255, 255, 255, 0.3)",
               borderRadius: "50%",
-              width: "50px",
-              height: "50px",
+              width: "clamp(40px, 10vw, 50px)",
+              height: "clamp(40px, 10vw, 50px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -483,22 +485,22 @@ export default function HealthCarousel() {
               e.currentTarget.style.boxShadow = "0 10px 30px rgba(0, 0, 0, 0.1)"
             }}
           >
-            <ChevronLeft size={24} color="#374151" />
+            <ChevronLeft size={window.innerWidth < 768 ? 20 : 24} color="#374151" />
           </button>
 
           <button
             onClick={nextSlide}
             style={{
               position: "absolute",
-              right: "1.5rem",
+              right: "clamp(0.5rem, 2vw, 1rem)",
               top: "50%",
               transform: "translateY(-50%)",
               background: "rgba(255, 255, 255, 0.9)",
               backdropFilter: "blur(20px)",
               border: "1px solid rgba(255, 255, 255, 0.3)",
               borderRadius: "50%",
-              width: "50px",
-              height: "50px",
+              width: "clamp(40px, 10vw, 50px)",
+              height: "clamp(40px, 10vw, 50px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -518,7 +520,7 @@ export default function HealthCarousel() {
               e.currentTarget.style.boxShadow = "0 10px 30px rgba(0, 0, 0, 0.1)"
             }}
           >
-            <ChevronRight size={24} color="#374151" />
+            <ChevronRight size={window.innerWidth < 768 ? 20 : 24} color="#374151" />
           </button>
         </div>
 
@@ -528,8 +530,8 @@ export default function HealthCarousel() {
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            gap: "1rem",
-            marginTop: "1.5rem",
+            gap: "clamp(0.5rem, 2vw, 1rem)",
+            marginTop: "clamp(1rem, 2vw, 1.5rem)",
           }}
         >
           {healthData.map((_, index) => (
@@ -537,8 +539,8 @@ export default function HealthCarousel() {
               key={index}
               onClick={() => goToSlide(index)}
               style={{
-                width: currentSlide === index ? "3rem" : "1rem",
-                height: "1rem",
+                width: currentSlide === index ? "clamp(2rem, 5vw, 3rem)" : "clamp(0.75rem, 2vw, 1rem)",
+                height: "clamp(0.75rem, 2vw, 1rem)",
                 borderRadius: "0.5rem",
                 border: "none",
                 background:
@@ -556,7 +558,7 @@ export default function HealthCarousel() {
         {/* Modern Progress Bar */}
         <div
           style={{
-            marginTop: "1rem",
+            marginTop: "clamp(0.75rem, 2vw, 1rem)",
             height: "6px",
             backgroundColor: "rgba(255, 255, 255, 0.3)",
             borderRadius: "3px",
