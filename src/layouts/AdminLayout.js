@@ -89,7 +89,7 @@ const AdminLayout = ({ children }) => {
       "/branches": ["branches"],
       "/departments": ["departments"],
       "/shippers": ["shippers"],
-      "/kitchen-orders": ["kitchen-orders"],
+      "/order-patients": ["order-patients"],
     };
 
     return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])
@@ -137,6 +137,12 @@ const AdminLayout = ({ children }) => {
       icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
       label: <Link to="/orders">Đơn hàng</Link>,
     },
+    // OrderPatients
+    canAccess([PERMISSIONS.ORDERPATIENTS_VIEW]) && {
+      key: "order-patients",
+      icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
+      label: <Link to="/order-patients">Đơn hàng bệnh nhân</Link>,
+    },
 
     // Kitchen
     canAccess([PERMISSIONS.KITCHEN_VIEW]) && {
@@ -144,12 +150,7 @@ const AdminLayout = ({ children }) => {
       icon: <FireFilled style={{ fontSize: "18px" }} />,
       label: <Link to="/kitchens">Nhà bếp</Link>,
     },
-    // Kitchen
-    canAccess([PERMISSIONS.ORDERS_VIEW]) && {
-      key: "kitchen-orders",
-      icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
-      label: <Link to="/kitchen-orders">Đơn hàng bệnh nhân</Link>,
-    },
+
     // Shippers
     canAccess([PERMISSIONS.DELIVERY_VIEW]) && {
       key: "shippers",

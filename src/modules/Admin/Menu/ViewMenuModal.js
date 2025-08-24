@@ -5,7 +5,7 @@ import { useMenu } from '../../../hooks/queries/useMenuQueries';
 import { useBranches } from '../../../hooks/queries/userBranchesQueries';
 import { useAuth } from '../../../context/AuthContext';
 import { FoodImage } from '../../../components/common/ImageDisplay';
-import dayjs from 'dayjs';
+import { useTimezone } from '../../../hooks/useTimezone';
 import PropTypes from 'prop-types';
 
 /**
@@ -13,6 +13,8 @@ import PropTypes from 'prop-types';
  * Uses real API data from useMenu hook
  */
 const ViewMenuModal = ({ open, onCancel, menuId }) => {
+    const { format } = useTimezone();
+
     // Fetch menu details using the useMenu hook
     const {
         data: menuData,
@@ -41,7 +43,7 @@ const ViewMenuModal = ({ open, onCancel, menuId }) => {
     // Format date for display
     const formatDate = (dateString) => {
         if (!dateString) return '-';
-        return dayjs(dateString).format('DD/MM/YYYY');
+        return format.date(dateString, 'DD/MM/YYYY');
     };
 
     // Format time for display
@@ -368,10 +370,10 @@ const ViewMenuModal = ({ open, onCancel, menuId }) => {
                             color: '#666'
                         }}>
                             <span>
-                                Tạo lúc: {menuData.createdAt ? dayjs(menuData.createdAt).format('DD/MM/YYYY HH:mm:ss') : 'N/A'}
+                                Tạo lúc: {menuData.createdAt ? format.dateTime(menuData.createdAt, 'DD/MM/YYYY HH:mm:ss') : 'N/A'}
                             </span>
                             <span>
-                                Cập nhật lúc: {menuData.updatedAt ? dayjs(menuData.updatedAt).format('DD/MM/YYYY HH:mm:ss') : 'N/A'}
+                                Cập nhật lúc: {menuData.updatedAt ? format.dateTime(menuData.updatedAt, 'DD/MM/YYYY HH:mm:ss') : 'N/A'}
                             </span>
                         </div>
                         {(menuData.createdBy || menuData.updatedBy) && (

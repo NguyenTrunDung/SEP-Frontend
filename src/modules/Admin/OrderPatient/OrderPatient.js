@@ -12,12 +12,14 @@ import { orderService } from '../../../services/orderService';
 import moment from 'moment';
 import './OrderPatient.css';
 import { PERMISSIONS } from '../../../constants/permissions';
+import { useTimezone } from '../../../hooks/useTimezone';
 
 const OrderPatientTableV2 = () => {
     const [searchText, setSearchText] = useState('');
+    const { convert } = useTimezone();
     const [filters, setFilters] = useState({
-        startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
-        endOrderDate: moment().format('YYYY-MM-DD'),
+        startOrderDate: convert.toDatePicker(new Date()).startOf('month').format('YYYY-MM-DD'),
+        endOrderDate: convert.toDatePicker(new Date()).format('YYYY-MM-DD'),
         status: null,
         isPaid: null,
         isOrderPatient: true, // Filter cho đơn hàng bệnh nhân
@@ -84,8 +86,8 @@ const OrderPatientTableV2 = () => {
 
     const handleClearFilters = () => {
         setFilters({
-            startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
-            endOrderDate: moment().format('YYYY-MM-DD'),
+            startOrderDate: convert.toDatePicker(new Date()).startOf('month').format('YYYY-MM-DD'),
+            endOrderDate: convert.toDatePicker(new Date()).format('YYYY-MM-DD'),
             status: null,
             isPaid: null,
             isOrderPatient: true, // Luôn giữ filter này

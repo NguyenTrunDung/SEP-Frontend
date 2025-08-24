@@ -16,6 +16,7 @@ import {
 import moment from 'moment';
 import './ViewOrderPatientDetail.css';
 import { useUpdateOrder } from '../../../hooks/queries/useOrders';
+import { useTimezone } from '../../../hooks/useTimezone';
 
 const { Option } = Select;
 
@@ -29,6 +30,7 @@ const OrderPatientDetails = ({
 }) => {
     const [formData, setFormData] = useState({});
     const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
+    const { format, convert } = useTimezone();
 
     useEffect(() => {
         if (orderData) {
@@ -114,7 +116,7 @@ const OrderPatientDetails = ({
             title: 'GIÁ TIỀN',
             dataIndex: 'price',
             key: 'price',
-            render: (val) => val?.toLocaleString() || '0'
+            render: (val) => format.currency(val) || '0'
         },
         {
             title: 'SỐ LƯỢNG',
@@ -127,7 +129,7 @@ const OrderPatientDetails = ({
             title: 'TIỀN',
             dataIndex: 'total',
             key: 'total',
-            render: (val) => val?.toLocaleString() || '0'
+            render: (val) => format.currency(val) || '0'
         },
     ];
 
@@ -175,7 +177,7 @@ const OrderPatientDetails = ({
                     <Col span={6}>
                         <label className="floating-label">Ngày nhận</label>
                         <DatePicker
-                            value={formData.receiveDate ? moment(formData.receiveDate) : null}
+                            value={formData.receiveDate ? convert.toDatePicker(formData.receiveDate) : null}
                             disabled
                             style={{ width: '100%' }}
                             format="DD/MM/YYYY"
@@ -184,7 +186,7 @@ const OrderPatientDetails = ({
                     <Col span={6}>
                         <label className="floating-label">Thời gian nhận</label>
                         <TimePicker
-                            value={formData.receiveTime ? moment(formData.receiveTime, 'HH:mm') : null}
+                            value={formData.receiveTime ? convert.timeForPicker(formData.receiveTime) : null}
                             disabled
                             style={{ width: '100%' }}
                             format="HH:mm"

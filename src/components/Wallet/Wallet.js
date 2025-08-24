@@ -3,7 +3,9 @@ import { Modal, Table, Spin, message } from 'antd';
 import { walletService } from '../../services/walletService';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../constants/roles';
+import { useTimezone } from '../../hooks/useTimezone';
 
+// Legacy format function for compatibility (can be removed after full migration)
 const formatDateTime = (date) => {
   const formatted = new Date(date).toLocaleString('vi-VN', {
     day: '2-digit',
@@ -29,6 +31,7 @@ const formatAmount = (amount) => {
 
 const Wallet = ({ visible, onClose }) => {
   const { user } = useAuth();
+  const { format } = useTimezone();
   const [transactions, setTransactions] = useState([]);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -68,9 +71,9 @@ const Wallet = ({ visible, onClose }) => {
 
         console.log('✅ Combined transactions:', combinedTransactions);
         setTransactions(combinedTransactions);
-        const latestBalance = depositData.length > 0 ? depositData[0].balanceAfter : balanceData;
-        console.log('💰 Using balance:', latestBalance);
-        setBalance(latestBalance);
+        // Always use balance returned from walletService.getWalletBalance (API field: data.balance)
+        console.log('💰 Using balance from API:', balanceData);
+        setBalance(balanceData);
       } catch (error) {
         console.error('❌ Error fetching wallet data:', error.message, error.response?.data);
         let errorMessage = 'Không thể tải dữ liệu ví. Vui lòng thử lại sau.';
@@ -94,7 +97,7 @@ const Wallet = ({ visible, onClose }) => {
     .filter(tx => tx.transactionType === 'DEPOSIT')
     .map(tx => ({
       key: tx.id || `deposit-${tx.createdAt}`,
-      time: formatDateTime(tx.createdAt),
+      time: format.dateTime(tx.createdAt, 'DD/MM/YYYY HH:mm'),
       amount: formatAmount(tx.amount),
       note: tx.description || '-',
     }));

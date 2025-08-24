@@ -13,9 +13,10 @@ import {
   Spin,
   Collapse,
 } from 'antd';
-import moment from 'moment';
+import moment from 'moment-timezone';
 import { useUpdateOrder, useDeleteOrder } from '../../../hooks/queries/useOrders';
 import { orderService } from '../../../services/orderService';
+import { useTimezone } from '../../../hooks/useTimezone';
 
 const { Panel } = Collapse;
 
@@ -28,42 +29,67 @@ const ViewPatientOrderDetail = ({
   onStatusChange,
   isPatientView = true,
 }) => {
+  const { format, convert } = useTimezone();
   const [groupedOrders, setGroupedOrders] = useState({});
-  const [isLoadingPatientNames, setIsLoadingPatientNames] = useState(false);
   const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
   const { mutate: deleteOrder, isLoading: isDeleting } = useDeleteOrder();
 
-  // Fetch patient name from patientId
-  const fetchPatientName = async (patientId, branchId) => {
-    try {
-      if (!patientId || patientId === 'Unknown' || patientId === 'NURSE_DEFAULT') {
-        console.warn(`🔍 No valid patientId provided: ${patientId}, falling back to 'Không có'`);
-        return 'Không có';
+  // Extract patient information from order details instead of making separate API calls
+  const extractPatientInfo = (order, allOrders = []) => {
+    console.log('🔍 Extracting patient info from order:', order.id);
+
+    // First, try to get patient info from the current order's orderDetails
+    if (order.orderDetails && order.orderDetails.length > 0) {
+      const firstOrderDetail = order.orderDetails[0];
+      console.log('🔍 First order detail:', firstOrderDetail);
+
+      if (firstOrderDetail.patientInfo) {
+        console.log('🔍 Found patientInfo in current order:', firstOrderDetail.patientInfo);
+        return {
+          patientName: firstOrderDetail.patientInfo.fullName || 'Không có',
+          roomNumber: firstOrderDetail.patientInfo.roomNumber || 'Không có',
+          bedNumber: firstOrderDetail.patientInfo.bedNumber || 'Không có',
+          departmentName: firstOrderDetail.patientInfo.departmentName || 'Không có',
+          medicalRecordNumber: firstOrderDetail.patientInfo.medicalRecordNumber || 'Không có'
+        };
+      } else {
+        console.log('🔍 No patientInfo in current order, checking other orders for same patient');
       }
-      setIsLoadingPatientNames(true);
-      console.log(`🔍 Fetching patient details for patientId: ${patientId}, branchId: ${branchId}`);
-      const patientData = await orderService.getPatientDetails(patientId, branchId);
-      console.log('🔍 API orderService.getPatientDetails response:', JSON.stringify(patientData, null, 2));
-      if (!patientData) {
-        console.error('🔍 No patientData returned for patientId:', patientId);
-        return 'Không có';
-      }
-      const patientName =
-        patientData.patientName ||
-        patientData.name ||
-        (patientData.firstName && patientData.lastName
-          ? `${patientData.firstName} ${patientData.lastName}`
-          : patientData.firstName || patientData.lastName) ||
-        patientData.fullName ||
-        'Không có';
-      console.log(`🔍 Fetched patient name for patientId ${patientId}: ${patientName}`);
-      return patientName.trim() || 'Không có';
-    } catch (error) {
-      console.error(`❌ Failed to fetch patient name for patientId ${patientId}:`, error);
-      return 'Không có';
-    } finally {
-      setIsLoadingPatientNames(false);
     }
+
+    // If current order doesn't have patient info, try to find it from other orders of the same patient
+    if (allOrders.length > 0 && order.patientId) {
+      const otherOrders = allOrders.filter(o =>
+        o.id !== order.id &&
+        o.patientId === order.patientId &&
+        o.orderDetails &&
+        o.orderDetails.length > 0
+      );
+
+      for (const otherOrder of otherOrders) {
+        const firstDetail = otherOrder.orderDetails[0];
+        if (firstDetail && firstDetail.patientInfo) {
+          console.log('🔍 Found patientInfo in other order:', firstDetail.patientInfo);
+          return {
+            patientName: firstDetail.patientInfo.fullName || 'Không có',
+            roomNumber: firstDetail.patientInfo.roomNumber || 'Không có',
+            bedNumber: firstDetail.patientInfo.bedNumber || 'Không có',
+            departmentName: firstDetail.patientInfo.departmentName || 'Không có',
+            medicalRecordNumber: firstDetail.patientInfo.medicalRecordNumber || 'Không có'
+          };
+        }
+      }
+    }
+
+    // Fallback to the old method if patient info is not available
+    console.log('🔍 Using fallback values - no patient info found');
+    return {
+      patientName: 'Không có',
+      roomNumber: 'Không có',
+      bedNumber: 'Không có',
+      departmentName: 'Không có',
+      medicalRecordNumber: 'Không có'
+    };
   };
 
   // Normalize paymentMethod to string
@@ -130,25 +156,27 @@ const ViewPatientOrderDetail = ({
       }
 
       console.log('🔍 Order details received:', JSON.stringify(orderDetails, null, 2));
-      const ordersWithPatientNames = await Promise.all(
-        orderDetails.map(async (order) => {
-          const patientName = await fetchPatientName(order.patientId, branchId);
-          return {
-            ...order,
-            patientName,
-            paymentMethod: normalizePaymentMethod(order.paymentMethod),
-            receiveType: normalizeReceiveType(order.receiveType),
-            status: normalizeStatus(order.status),
-            customerAddress: order.customerAddress || order.shippingAddress || 'Phòng bệnh nhân',
-            note: order.note || '',
-            getTools: order.getTools || false,
-            shippingFee: order.shippingFee || 0,
-            total: typeof order.total === 'number' ? order.total : 0,
-            receiveDate: order.receiveDate ? moment(order.receiveDate) : null,
-            mealSession: normalizeMealSession(order.mealSession),
-          };
-        })
-      );
+      const ordersWithPatientNames = orderDetails.map((order) => {
+        const patientInfo = extractPatientInfo(order, orderDetails); // Pass all orders to extractPatientInfo
+        return {
+          ...order,
+          patientName: patientInfo.patientName,
+          roomNumber: patientInfo.roomNumber,
+          bedNumber: patientInfo.bedNumber,
+          departmentName: patientInfo.departmentName,
+          medicalRecordNumber: patientInfo.medicalRecordNumber,
+          paymentMethod: normalizePaymentMethod(order.paymentMethod),
+          receiveType: normalizeReceiveType(order.receiveType),
+          status: normalizeStatus(order.status),
+          customerAddress: order.customerAddress || order.shippingAddress || 'Phòng bệnh nhân',
+          note: order.note || '',
+          getTools: order.getTools || false,
+          shippingFee: order.shippingFee || 0,
+          total: typeof order.total === 'number' ? order.total : 0,
+          receiveDate: order.receiveDate ? convert.toDatePicker(order.receiveDate) : null,
+          mealSession: normalizeMealSession(order.mealSession),
+        };
+      });
 
       // Nhóm đơn hàng theo patientId
       const groupedByPatient = ordersWithPatientNames.reduce((acc, order) => {
@@ -156,6 +184,10 @@ const ViewPatientOrderDetail = ({
         if (!acc[patientId]) {
           acc[patientId] = {
             patientName: order.patientName,
+            roomNumber: order.roomNumber,
+            bedNumber: order.bedNumber,
+            departmentName: order.departmentName,
+            medicalRecordNumber: order.medicalRecordNumber,
             orders: [],
           };
         }
@@ -168,7 +200,7 @@ const ViewPatientOrderDetail = ({
     };
 
     loadPatientNames();
-  }, [orderDetails, branchId]);
+  }, [orderDetails, branchId, convert]);
 
   const handleDeliverOrder = async (orderId) => {
     if (!orderId || !branchId) {
@@ -295,7 +327,7 @@ const ViewPatientOrderDetail = ({
       dataIndex: 'price',
       align: 'center',
       key: 'price',
-      render: (val) => val?.toLocaleString() || '0',
+      render: (val) => format.currency(val) || '0',
     },
     {
       title: 'SỐ LƯỢNG',
@@ -310,11 +342,11 @@ const ViewPatientOrderDetail = ({
       dataIndex: 'total',
       align: 'center',
       key: 'total',
-      render: (val) => val?.toLocaleString() || '0',
+      render: (val) => format.currency(val) || '0',
     },
   ];
 
-  if (!orderData || isLoadingPatientNames) {
+  if (!orderData) {
     return (
       <Modal
         open={open}
@@ -364,8 +396,24 @@ const ViewPatientOrderDetail = ({
         </Row>
 
         <Collapse accordion>
-          {Object.entries(groupedOrders).map(([patientId, { patientName, orders }]) => (
-            <Panel header={`Bệnh nhân: ${patientName}`} key={patientId}>
+          {Object.entries(groupedOrders).map(([patientId, { patientName, roomNumber, bedNumber, departmentName, medicalRecordNumber, orders }]) => (
+            <Panel header={`Bệnh nhân: ${patientName} - Phòng: ${roomNumber} - Giường: ${bedNumber} - Khoa: ${departmentName}`} key={patientId}>
+              <div style={{ marginBottom: 16, padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
+                <Row gutter={[16, 8]}>
+                  <Col span={6}>
+                    <strong>Mã bệnh nhân:</strong> {medicalRecordNumber}
+                  </Col>
+                  <Col span={6}>
+                    <strong>Phòng:</strong> {roomNumber}
+                  </Col>
+                  <Col span={6}>
+                    <strong>Giường:</strong> {bedNumber}
+                  </Col>
+                  <Col span={6}>
+                    <strong>Khoa:</strong> {departmentName}
+                  </Col>
+                </Row>
+              </div>
               {orders.map((order) => (
                 <div key={order.id} style={{ marginBottom: 24 }}>
                   <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -380,7 +428,7 @@ const ViewPatientOrderDetail = ({
                     <Col span={6}>
                       <label className="floating-label">Ngày nhận</label>
                       <DatePicker
-                        value={order.receiveDate ? moment(order.receiveDate) : null}
+                        value={order.receiveDate ? convert.toDatePicker(order.receiveDate) : null}
                         disabled
                         style={{ width: '100%' }}
                         format="DD/MM/YYYY"
@@ -399,7 +447,7 @@ const ViewPatientOrderDetail = ({
                     </Col>
                     <Col span={6}>
                       <label className="floating-label">Thành tiền</label>
-                      <Input value={order.total?.toLocaleString() || '0'} disabled />
+                      <Input value={format.currency(order.total) || '0'} disabled />
                     </Col>
                   </Row>
 

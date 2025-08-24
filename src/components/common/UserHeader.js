@@ -37,6 +37,8 @@ const UserHeader = ({
 
   if (user?.email) {
     localStorage.setItem('userEmail', user.email);
+    localStorage.setItem('userDepartmentId', user.departmentId);
+
   }
 
   const handleLogout = async () => {
