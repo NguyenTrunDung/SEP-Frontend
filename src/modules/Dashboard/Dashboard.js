@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Card, Row, Col, Statistic, DatePicker, Typography, Select, Button } from 'antd';
+import { Card, Row, Col, Statistic, DatePicker, Typography, Select, Button, Table } from 'antd';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Legend } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { useOrders } from '../../hooks/queries/useOrders';
@@ -304,6 +304,156 @@ const Dashboard = ({ branchId = '1' }) => {
     };
   }, [orders, orderLabels, chartType, revenues, dateRange]);
 
+  // New useMemo hook for most ordered dishes
+  const mostOrderedDishes = useMemo(() => {
+    try {
+      console.group('Most Ordered Dishes Calculation');
+      console.log('Raw orders data:', JSON.stringify(orders, null, 2));
+      
+      // Validate orders data
+      if (!orders || !Array.isArray(orders)) {
+        console.warn('Invalid orders data: not an array');
+        return [];
+      }
+
+      const completedOrders = orders.filter(order => {
+        // More robust order status checking
+        const validStatuses = ['Completed', 'completed', 'COMPLETED'];
+        return validStatuses.includes(order.status);
+      });
+
+      console.log('Completed orders:', JSON.stringify(completedOrders, null, 2));
+
+      // Advanced dish quantity extraction
+      const processDishQuantities = (orders) => {
+        const dishDetails = {};
+
+        orders.forEach((order, orderIndex) => {
+          if (!order.orderDetails || !Array.isArray(order.orderDetails)) {
+            console.warn(`Order ${order.id || orderIndex} has no valid order details`);
+            return;
+          }
+
+          order.orderDetails.forEach((item, itemIndex) => {
+            // Comprehensive dish name extraction
+            const dishName = 
+              item.foodName || 
+              item.name || 
+              item.foodTitle || 
+              item.title || 
+              item.dishName || 
+              'Unnamed Dish';
+
+            console.group(`Analyzing Dish: ${dishName}`);
+            console.log('Full Item Details:', JSON.stringify(item, null, 2));
+
+            // Advanced quantity extraction methods
+            const extractQuantity = () => {
+              // Method 1: Direct numeric fields
+              const numericFields = [
+                'Qty', 
+                'quantity', 
+                'amount', 
+                'count', 
+                'servings'
+              ];
+
+              for (let field of numericFields) {
+                if (typeof item[field] === 'number' && item[field] > 0) {
+                  console.log(`Using ${field}: ${item[field]}`);
+                  return item[field];
+                }
+              }
+
+              // Method 2: Parse string quantities
+              const stringFields = [
+                'Qty', 
+                'quantity', 
+                'amount', 
+                'count', 
+                'servings'
+              ];
+
+              for (let field of stringFields) {
+                if (typeof item[field] === 'string') {
+                  const parsedValue = parseInt(item[field], 10);
+                  if (!isNaN(parsedValue) && parsedValue > 0) {
+                    console.log(`Parsed ${field} from string: ${parsedValue}`);
+                    return parsedValue;
+                  }
+                }
+              }
+
+              // Method 3: Check for explicit quantity in nested objects
+              if (item.quantity && typeof item.quantity === 'object') {
+                const nestedNumericFields = ['value', 'amount', 'count'];
+                for (let nestedField of nestedNumericFields) {
+                  if (typeof item.quantity[nestedField] === 'number' && item.quantity[nestedField] > 0) {
+                    console.log(`Using nested quantity ${nestedField}: ${item.quantity[nestedField]}`);
+                    return item.quantity[nestedField];
+                  }
+                }
+              }
+
+              // Fallback to 1 if no quantity found
+              console.log('Defaulting to 1 - No valid quantity found');
+              return 1;
+            };
+
+            // Calculate safe quantity
+            const safeQuantity = extractQuantity();
+
+            console.log(`Calculated Quantity for ${dishName}: ${safeQuantity}`);
+            console.groupEnd();
+
+            // Aggregate quantities
+            if (!dishDetails[dishName]) {
+              dishDetails[dishName] = {
+                totalQuantity: 0,
+                orderCount: 0,
+                itemDetails: []
+              };
+            }
+
+            dishDetails[dishName].totalQuantity += safeQuantity;
+            dishDetails[dishName].orderCount++;
+            dishDetails[dishName].itemDetails.push({
+              orderId: order.id,
+              quantity: safeQuantity,
+              rawItem: item
+            });
+          });
+        });
+
+        return dishDetails;
+      };
+
+      // Process dish quantities
+      const dishQuantities = processDishQuantities(completedOrders);
+
+      console.log('Detailed Dish Quantities:', JSON.stringify(dishQuantities, null, 2));
+
+      // Sort and get top dishes
+      const sortedDishes = Object.entries(dishQuantities)
+        .map(([name, details]) => ({
+          name, 
+          quantity: details.totalQuantity,
+          orderCount: details.orderCount,
+          details: details.itemDetails
+        }))
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 3);
+
+      console.log('Sorted Dishes:', JSON.stringify(sortedDishes, null, 2));
+      console.groupEnd();
+
+      return sortedDishes.length > 0 ? sortedDishes : [];
+    } catch (error) {
+      console.error('Error in mostOrderedDishes calculation:', error);
+      return [];
+    }
+  }, [orders]);
+
   // Hàm xuất file Excel
   const exportToExcel = () => {
     const completedOrders = orders?.filter(order => order.status === 'Completed') || [];
@@ -559,6 +709,152 @@ const Dashboard = ({ branchId = '1' }) => {
           </>
         )}
       </div>
+   {/* Dish Statistics Section */}
+<div style={{ marginTop: 32 }}>
+  <Title level={4} style={{ marginBottom: 16, fontSize: 34 }}>
+    Số món ăn bán được
+  </Title>
+  <Card>
+    {mostOrderedDishes.length > 0 ? (
+      <Row gutter={[16, 16]}>
+        {/* Biểu đồ */}
+        <Col span={16}>
+          <Bar 
+            data={{
+              labels: mostOrderedDishes.map(dish => dish.name),
+              datasets: [{
+                label: 'Số lượng',
+                data: mostOrderedDishes.map(dish => dish.quantity),
+                backgroundColor: '#FFD700',
+                borderColor: '#DAA520',
+                borderWidth: 1,
+                borderRadius: 10,
+                barPercentage: 0.04,
+              }]
+            }}
+            options={{
+              responsive: true,
+              plugins: {
+                legend: { 
+                  display: true, 
+                  position: 'top' 
+                },
+                title: {
+                  display: true,
+                  text: 'Biểu đồ số món ăn bán được',
+                  font: {
+                    size: 20,
+                    weight: 'bold'
+                  },
+                  color: '#333',
+                  padding: { top: 10, bottom: 20 }
+                },
+                tooltip: {
+                  callbacks: {
+                    label: (context) => {
+                      const value = context.parsed.y;
+                      return value === 0 
+                        ? 'Không có đơn hàng' 
+                        : `${context.dataset.label}: ${value}`;
+                    }
+                  }
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: 'Số lượng'
+                  },
+                  ticks: { 
+                    stepSize: 1, 
+                    color: '#000' 
+                  },
+                  grid: { color: '#e0e0e0' }
+                },
+                x: { 
+                  ticks: { 
+                    color: '#666',
+                    font: {
+                      style: 'italic',
+                      size: 14 // 👈 chữ in nghiêng to hơn
+                    },
+                    minRotation: 45,
+                    maxRotation: 45,
+                    autoSkip: false
+                  } 
+                }
+              }
+            }}
+          />
+          <p style={{ 
+            textAlign: 'center', 
+            marginTop: 12, 
+            fontStyle: 'italic', 
+            color: '#666',
+            fontSize: 14 
+          }}>
+            Biểu đồ hiển thị số món ăn bán được
+          </p>
+        </Col>
+
+        {/* Bảng */}
+        <Col span={8}>
+          <Table 
+            dataSource={mostOrderedDishes.map((dish, index) => ({
+              ...dish,
+              key: index
+            }))} 
+            columns={[
+              {
+                title: <span style={{ fontSize: 20 }}>Tên Món</span>,
+                dataIndex: 'name',
+                key: 'name',
+                render: (text) => (
+                  <div style={{ fontSize: 19, textAlign: 'left' }}>
+                    {text}
+                  </div>
+                ),
+                width: '50%'
+              },
+              {
+                title: <span style={{ fontSize: 20 }}>Số Lượng</span>,
+                dataIndex: 'quantity',
+                key: 'quantity',
+                align: 'center',
+                width: '50%',
+                render: (quantity) => (
+                  <span style={{ fontSize: 19, display: 'block', textAlign: 'center' }}>
+                    {quantity.toLocaleString()}
+                  </span>
+                )
+              }
+            ]}
+            pagination={false}
+            size="small"
+            bordered={false}
+            showHeader={true}
+            style={{ 
+              width: '100%',
+              border: '1px solid #f0f0f0'
+            }}
+          />
+        </Col>
+      </Row>
+    ) : (
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '20px', 
+        color: '#666' 
+      }}>
+        Không có dữ liệu về các món ăn được bán
+      </div>
+    )}
+  </Card>
+</div>
+
+
     </div>
   );
 };
