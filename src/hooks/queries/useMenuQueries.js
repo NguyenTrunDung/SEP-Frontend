@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { environment } from '../../services/api/config';
 import { menuService } from '../../services/menuService';
 import { getFilteredMenus } from '../../mocks/menuData';
+import moment from 'moment-timezone';
 
 // Query keys for menu-related queries
 export const MENU_KEYS = {
@@ -241,9 +242,13 @@ export const useCreateMenu = () => {
 
       // Optimistically add the new menu to the list
       if (previousMenus) {
+        // Get current Vietnam time for consistent timestamps
+        // This ensures createdAt/updatedAt match the Vietnam timezone and prevent date mismatches
+        const now = moment.tz('Asia/Ho_Chi_Minh');
+
         const optimisticMenu = {
           id: Date.now(), // Temporary ID
-          name: newMenuData.name || `Menu ${new Date().toLocaleDateString('vi-VN')}`,
+          name: newMenuData.name || `Menu ${now.format('DD/MM/YYYY')}`,
           date: newMenuData.date,
           isTime: newMenuData.isTime || false,
           timeFrom: newMenuData.timeFrom,
@@ -251,8 +256,8 @@ export const useCreateMenu = () => {
           timeOfDay: newMenuData.timeOfDay,
           branchId: newMenuData.branchId || currentBranchId,
           details: newMenuData.details || [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
           // Mark as optimistic for potential rollback
           _isOptimistic: true
         };

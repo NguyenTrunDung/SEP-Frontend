@@ -3,6 +3,7 @@ import { Button, Input, Tooltip, Popconfirm, Modal, Descriptions, Spin, message,
 import { EditOutlined, DeleteOutlined, SearchOutlined, EyeOutlined, FilterOutlined } from '@ant-design/icons';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import PropTypes from 'prop-types';
+import { useTimezone } from '../../../hooks/useTimezone';
 
 const DiseaseCategoryFoodRestrictionsTable = ({
     dataSource = [],
@@ -14,6 +15,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
     nutritionalMeals = [],
     ...rest
 }) => {
+    const { format } = useTimezone();
     const [searchText, setSearchText] = useState('');
     const [debouncedSearchText, setDebouncedSearchText] = useState('');
     const [selectedDiseaseCategory, setSelectedDiseaseCategory] = useState(null);
@@ -182,18 +184,18 @@ const DiseaseCategoryFoodRestrictionsTable = ({
     const columns = [
         {
             title: 'TÊN MÓN ĂN',
-            dataIndex: 'nutritionalMealName',
-            key: 'nutritionalMealName',
-            sorter: (a, b) => a.nutritionalMealName.localeCompare(b.nutritionalMealName),
+            dataIndex: 'foodName',
+            key: 'foodName',
+            sorter: (a, b) => a.foodName.localeCompare(b.foodName),
             render: (name) => <span className="vietnamese-text">{name || '-'}</span>,
             align: 'center',
         },
         {
             title: 'GIÁ TIỀN',
-            dataIndex: 'price',
-            key: 'price',
-            sorter: (a, b) => a.price - b.price,
-            render: (price) => <span className="vietnamese-text">{price ? `${price.toLocaleString('vi-VN')} VNĐ` : '-'}</span>,
+            dataIndex: 'foodPrice',
+            key: 'foodPrice',
+            sorter: (a, b) => a.foodPrice - b.foodPrice,
+            render: (foodPrice) => <span className="vietnamese-text">{foodPrice ? `${format.currency(foodPrice)} VNĐ` : '-'}</span>,
             align: 'center',
         },
         {
@@ -393,7 +395,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                                 {selectedRestriction.nutritionalMealName || '-'}
                             </Descriptions.Item>
                             <Descriptions.Item label="Giá tiền">
-                                {selectedRestriction.price ? `${selectedRestriction.price.toLocaleString('vi-VN')} VNĐ` : '-'}
+                                {selectedRestriction.price ? `${format.currency(selectedRestriction.price)} VNĐ` : '-'}
                             </Descriptions.Item>
                             <Descriptions.Item label="Buổi ăn">
                                 {{

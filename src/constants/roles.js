@@ -27,13 +27,13 @@ export const BACKEND_IDENTITY_ROLES = {
 // Branch role names (Vietnamese names from branchRoleName field)
 export const BRANCH_ROLE_NAMES = {
     ADMIN_SYSTEM: 'Admin System',
-    BRANCH_MANAGER: 'Quản lý chi nhánh',
+    BRANCH_MANAGER: 'Quản lý hệ thống',
     MANAGER: 'Quản lý',
     CASHIER: 'Thu Ngân',
     STAFF: 'Nhân viên',
     KITCHEN: 'Nhà bếp',
-    NURSE: 'Y tá',
-    DOCTOR: 'Bác sĩ',
+    NURSE: 'Điều dưỡng trưởng',
+    DOCTOR: 'Khách hàng',
 };
 
 // Map backend Identity roles + Branch roles to frontend role constants

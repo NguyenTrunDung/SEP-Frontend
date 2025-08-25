@@ -46,7 +46,7 @@ const normalizePatientData = (data) => {
   return [];
 };
 
-const fetchPatients = async (filters = {}, departments = []) => {
+const fetchPatients = async (filters, departments) => {
   const USE_REAL_API = !environment.features.enableMockData;
 
   try {
@@ -61,7 +61,7 @@ const fetchPatients = async (filters = {}, departments = []) => {
         patients = normalizePatientData(response.data);
       }
     } else {
-      console.log('🔧 Sử dụng dữ liệu giả lập cho bệnh nhân', { filters });
+      console.log('�� Sử dụng dữ liệu giả lập cho bệnh nhân', { filters });
       patients = await getFilteredPatients(filters);
     }
 
@@ -79,6 +79,10 @@ const fetchPatients = async (filters = {}, departments = []) => {
     }));
   } catch (error) {
     console.error('❌ Error fetching patients:', error);
+    // Return empty array for 404 errors instead of throwing
+    if (error.response?.status === 404) {
+      return [];
+    }
     throw error;
   }
 };

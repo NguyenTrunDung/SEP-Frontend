@@ -14,6 +14,7 @@ import {
 import moment from 'moment';
 import './ViewOrderDetail.css';
 import { useUpdateOrder, useDeleteOrder } from '../../../hooks/queries/useOrders';
+import { useTimezone } from '../../../hooks/useTimezone';
 
 const ViewOrderDetail = ({
   open,
@@ -26,6 +27,7 @@ const ViewOrderDetail = ({
   const [formData, setFormData] = useState({});
   const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
   const { mutate: deleteOrder, isLoading: isDeleting } = useDeleteOrder();
+  const { format, convert } = useTimezone();
 
   // Normalize paymentMethod to string
   const normalizePaymentMethod = (paymentMethod) => {
@@ -289,7 +291,7 @@ const ViewOrderDetail = ({
           <Col xs={24} sm={12} md={6}>
             <label className="floating-label">Ngày nhận</label>
             <DatePicker
-              value={formData.receiveDate ? moment(formData.receiveDate) : null}
+              value={formData.receiveDate ? convert.toDatePicker(formData.receiveDate) : null}
               disabled
               style={{ width: '100%' }}
               format="DD/MM/YYYY"

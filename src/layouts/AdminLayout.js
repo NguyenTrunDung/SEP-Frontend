@@ -101,7 +101,7 @@ const AdminLayout = ({ children }) => {
       "/branches": ["branches"],
       "/departments": ["departments"],
       "/shippers": ["shippers"],
-      "/kitchen-orders": ["kitchen-orders"],
+      "/order-patients": ["order-patients"],
     };
 
     return menuKeys[pathname] || (hasRequiredRole([ROLES.ADMIN, ROLES.BRANCH_MANAGER, ROLES.MANAGER])

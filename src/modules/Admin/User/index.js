@@ -10,6 +10,7 @@ import environment from '../../../config/environment';
 import { fetchUserWalletList, depositToWallet, createUser, updateWallet, deleteUserWallet } from '../../../services/userWalletService';
 import PageWrapperV2 from '../../../components/common/PageWrapperV2';
 import { PERMISSIONS } from '../../../constants/permissions';
+import { useTimezone } from '../../../hooks/useTimezone';
 
 // const initialUsers = [
 //     {
@@ -31,6 +32,7 @@ import { PERMISSIONS } from '../../../constants/permissions';
 // ];
 
 const UserManagement = () => {
+    const { format } = useTimezone();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -163,7 +165,7 @@ const UserManagement = () => {
                 createdBy: localStorage.getItem('rememberedEmail') || '',
                 branchId: Number(localStorage.getItem('currentBranchId'))
             });
-            message.success(`Nạp ${values.amount.toLocaleString('vi-VN')} thành công!`);
+            message.success(`Nạp ${format.currency(values.amount)} thành công!`);
             loadUserWalletList();
         } catch (err) {
             message.error('Nạp tiền thất bại!');

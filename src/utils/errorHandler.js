@@ -1,4 +1,5 @@
-import dayjs from 'dayjs';
+import { message } from 'antd';
+import { formatDateForDisplay } from './timezoneUtils';
 
 /**
  * Enhanced API Error Handler Utility
@@ -27,8 +28,8 @@ export const handleMenuApiError = (error, options = {}) => {
     if (error.response?.status === 409) {
         // Conflict error - typically duplicate dates for menus
         if (entityType === 'menu' && date) {
-            const formattedDate = dayjs(date).format('DD/MM/YYYY');
-            return `Đã có menu cho ${formattedDate}! Vui lòng chọn ngày khác hoặc chỉnh sửa menu hiện có.`;
+            const formattedDate = formatMenuDateError(date);
+            return formattedDate;
         }
         return `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} đã tồn tại! Vui lòng thử với thông tin khác.`;
     }
@@ -203,13 +204,23 @@ export const handleFormSubmissionError = (error, formData = {}, action = 'lưu d
     if (error.response?.status === 409) {
         // For menu forms, extract date information if available
         if (formData.date) {
-            const formattedDate = dayjs(formData.date).format('DD/MM/YYYY');
-            return `Đã có dữ liệu cho ${formattedDate}! Vui lòng chọn ngày khác.`;
+            const formattedDate = formatDataDateError(formData);
+            return formattedDate;
         }
         return 'Dữ liệu đã tồn tại! Vui lòng kiểm tra lại thông tin.';
     }
 
     return handleApiError(error, { action, entityType: 'form' });
+};
+
+export const formatMenuDateError = (date) => {
+    const formattedDate = formatDateForDisplay(date, 'DD/MM/YYYY');
+    return `Đã có menu cho ${formattedDate}! Vui lòng chọn ngày khác hoặc chỉnh sửa menu hiện có.`;
+};
+
+export const formatDataDateError = (formData) => {
+    const formattedDate = formatDateForDisplay(formData.date, 'DD/MM/YYYY');
+    return `Đã có dữ liệu cho ${formattedDate}! Vui lòng chọn ngày khác.`;
 };
 
 export default {

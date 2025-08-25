@@ -3,10 +3,35 @@ import environment from '../config/environment';
 
 export const patientService = {
   async getPatientsByBranch(branchId) {
-    const response = await api.get('/api/v1/Patient/with-disease-categories-by-branch', {
-      params: { branchId: parseInt(branchId, 10) },
-    });
-    return response.data;
+    // Get departmentId from localStorage (stored during login)
+    const userDepartmentId = localStorage.getItem('userDepartmentId');
+
+    const params = { branchId: parseInt(branchId, 10) };
+
+    // Add departmentId filter if available
+    if (userDepartmentId) {
+      params.departmentId = parseInt(userDepartmentId, 10);
+    }
+
+    try {
+      const response = await api.get('/api/v1/Patient/with-disease-categories-by-branch', {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      // Handle 404 "Patients not found" specifically
+      if (error.response?.status === 404) {
+        // Return empty array with a message for 404
+        return {
+          data: [],
+          message: 'Không tìm thấy bệnh nhân nào trong khoa của bạn',
+          status: 'success',
+          totalCount: 0
+        };
+      }
+      // Re-throw other errors
+      throw error;
+    }
   },
 
   async searchPatients(searchTerm, branchId) {

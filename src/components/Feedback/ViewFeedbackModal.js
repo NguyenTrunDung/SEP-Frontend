@@ -1,11 +1,13 @@
 import React from 'react';
-import { Modal, Typography, Rate, Avatar, Popconfirm } from 'antd';
-import { getImageUrlWithFallback } from '../../utils/imageUtils';
+import { Modal, Typography, Avatar, Rate, Popconfirm, Button } from 'antd';
 import { EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
+import { getImageUrlWithFallback } from '../../utils/imageUtils';
+import { useTimezone } from '../../hooks/useTimezone';
 
 const { Text } = Typography;
 
 const ViewFeedbackModal = ({ visible, onClose, feedbacks, selectedOrder, onDelete, onEdit }) => {
+  const { format } = useTimezone();
   const hasItems = selectedOrder && Array.isArray(selectedOrder.orderDetails) && selectedOrder.orderDetails.length > 0;
 
   return (

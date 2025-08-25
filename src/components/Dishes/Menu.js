@@ -1,40 +1,48 @@
 import locale from 'antd/locale/vi_VN';
 import React, { useState, useEffect, useRef } from 'react';
-import { ConfigProvider, Typography, Tabs, Spin, Alert, Layout, Button, message, Modal, Image, Input, Select, Rate, Avatar, Popconfirm } from 'antd';
+import { ConfigProvider, Typography, Tabs, Spin, Alert, Layout, Button, message, Modal, Image, Input, Rate, Avatar } from 'antd';
 import PropTypes from 'prop-types';
 import { UserOutlined } from '@ant-design/icons';
 import { mockFoodCategories, getMenuById } from '../../mocks/menuData';
-import { useMenus, useMenuCategories } from '../../hooks/queries/useMenuQueries';
+import { useMenus } from '../../hooks/queries/useMenuQueries';
 import { useFeedbacksByFood } from '../../hooks/queries/useFeedback';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useCart } from '../../context/CartContext';
 import { getImageUrl, getImageUrlWithFallback } from '../../utils/imageUtils';
 import environment from '../../config/environment';
 import './Menu.css';
+import { useTimezone } from '../../hooks/useTimezone';
 
 const { Content } = Layout;
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
-const { Option } = Select;
-
-// Hàm tạo danh sách các ngày trong tuần bằng tiếng Việt
-const getVietnameseDays = () => {
-  const formatter = new Intl.DateTimeFormat('vi-VN', { weekday: 'long' });
-  const days = [];
-  const baseDate = new Date(2025, 0, 6); // Bắt đầu từ thứ Hai (ngày 6/1/2025)
-
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(baseDate);
-    date.setDate(baseDate.getDate() + i);
-    const dayName = formatter.format(date);
-    days.push(dayName.charAt(0).toUpperCase() + dayName.slice(1));
-  }
-
-  return days;
-};
 
 const MenuComponent = ({ activeKey, onTabChange }) => {
+  const { format } = useTimezone();
+
+  // Hàm tạo danh sách các ngày trong tuần bằng tiếng Việt
+  const getVietnameseDays = () => {
+    const days = [];
+    const today = new Date();
+
+    // Find the start of the current week (Monday)
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // Adjust for Sunday
+
+    const mondayDate = new Date(today);
+    mondayDate.setDate(today.getDate() + mondayOffset);
+
+    // Generate 7 days starting from Monday
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(mondayDate);
+      date.setDate(mondayDate.getDate() + i);
+      const dayName = format.date(date, 'dddd');
+      days.push(dayName.charAt(0).toUpperCase() + dayName.slice(1));
+    }
+
+    return days;
+  };
+
   const vietnameseDays = getVietnameseDays();
 
   return (
@@ -135,16 +143,96 @@ const CategoryCircles = ({ categories, selectedCategory, onCategorySelect, dateL
 
 const MenuPage = ({ onCartUpdate, onShowCart }) => {
   const { cartItems, setCartItems } = useCart();
-  const location = useLocation();
-  const navigate = useNavigate();
   console.log('MenuPage context:', { cartItems, setCartItems: typeof setCartItems });
 
+  const { format } = useTimezone();
+
   const getFormattedDate = (dayKey) => {
-    const dayOffset = parseInt(dayKey) - 1;
-    const date = new Date();
-    const currentDayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
-    date.setDate(date.getDate() + (dayOffset - currentDayIndex));
-    return date.toISOString().split('T')[0];
+    const dayOffset = parseInt(dayKey) - 1; // Convert 1-7 to 0-6
+
+    // Get current date using timezone utilities
+    const today = new Date();
+
+    // Find the start of the current week (Monday)
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // Adjust for Sunday
+
+    const mondayDate = new Date(today);
+    mondayDate.setDate(today.getDate() + mondayOffset);
+
+    // Calculate the target date by adding the day offset to Monday
+    const targetDate = new Date(mondayDate);
+    targetDate.setDate(mondayDate.getDate() + dayOffset);
+
+    // Format the date using timezone utilities for consistency
+    const formattedDate = format.date(targetDate, 'YYYY-MM-DD');
+
+    // Debug logging for date calculations
+    if (environment.features.enableLogging) {
+      console.log(`📅 Date calculation for day ${dayKey}:`, {
+        today: today.toISOString(),
+        currentDay,
+        mondayOffset,
+        mondayDate: mondayDate.toISOString(),
+        dayOffset,
+        targetDate: targetDate.toISOString(),
+        formattedDate
+      });
+    }
+
+    return formattedDate;
+  };
+
+  // Helper function to get current week dates for debugging
+  const getCurrentWeekDates = () => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+
+    const mondayDate = new Date(today);
+    mondayDate.setDate(today.getDate() + mondayOffset);
+
+    const weekDates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(mondayDate);
+      date.setDate(mondayDate.getDate() + i);
+      weekDates.push({
+        dayIndex: i + 1,
+        date: date.toISOString().split('T')[0],
+        dayName: format.date(date, 'dddd'),
+        isToday: date.toDateString() === today.toDateString()
+      });
+    }
+
+    return weekDates;
+  };
+
+  /**
+   * Date Calculation Logic:
+   * - Day keys: 1 = Monday, 2 = Tuesday, ..., 7 = Sunday
+   * - We find the current week's Monday and calculate dates from there
+   * - This ensures the displayed week always matches the current calendar week
+   * - No more hardcoded dates or incorrect week calculations
+   */
+
+  // Validation function to ensure current date is correct
+  const validateCurrentDate = () => {
+    const today = new Date();
+    const currentWeekDates = getCurrentWeekDates();
+    const todayInWeek = currentWeekDates.find(day => day.isToday);
+
+    if (environment.features.enableLogging) {
+      console.log('✅ Date validation:', {
+        currentDate: today.toISOString(),
+        currentDateFormatted: format.date(today, 'DD/MM/YYYY'),
+        currentWeekDates: currentWeekDates.map(d => `${d.dayIndex}: ${d.date} (${d.dayName})`),
+        todayInWeek: todayInWeek ? `${todayInWeek.dayIndex}: ${todayInWeek.date} (${todayInWeek.dayName})` : 'Not found',
+        activeDay,
+        activeDayDate: getFormattedDate(activeDay)
+      });
+    }
+
+    return todayInWeek;
   };
 
   const currentDate = new Date();
@@ -189,9 +277,23 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   const {
     data: menuData,
     isLoading: loading,
-    error,
-    refetch: refreshMenus
+    error
   } = useMenus({ date: getFormattedDate(activeDay), branchId: currentBranchId });
+
+  // Debug logging for current week dates
+  useEffect(() => {
+    if (environment.features.enableLogging) {
+      const weekDates = getCurrentWeekDates();
+      console.log('📅 Current week dates:', weekDates);
+      console.log('🎯 Active day:', activeDay);
+      console.log('📅 Formatted date for active day:', getFormattedDate(activeDay));
+    }
+  }, [activeDay]);
+
+  // Validate current date on component mount
+  useEffect(() => {
+    validateCurrentDate();
+  }, []);
 
 
   // Fetch feedbacks for the selected food
@@ -253,10 +355,8 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
   const formatDisplayDate = (dateStr) => {
     try {
       const date = new Date(dateStr);
-      const weekdayFormatter = new Intl.DateTimeFormat('vi-VN', { weekday: 'long' });
-      const dateFormatter = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const weekday = weekdayFormatter.format(date).toUpperCase();
-      const formattedDate = dateFormatter.format(date);
+      const weekday = format.date(date, 'dddd').toUpperCase();
+      const formattedDate = format.date(date, 'DD/MM/YYYY');
       return `Thực đơn ${weekday} - ${formattedDate}`;
     } catch (error) {
       console.warn('Date formatting error:', error);
@@ -747,7 +847,7 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                               </div>
                             )} */}
                             <Text type="secondary" style={{ fontSize: 13 }}>
-                              {new Date(feedback.timestamp).toLocaleString('vi-VN')}
+                              {format.dateTime(feedback.timestamp, 'DD/MM/YYYY HH:mm')}
                             </Text>
                           </div>
                         </div>

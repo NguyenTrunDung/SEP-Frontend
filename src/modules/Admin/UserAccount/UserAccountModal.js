@@ -1,29 +1,63 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Form, Input, Select, Button, Space } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
+import { useDepartments } from '../../../hooks/queries/useDepartments';
+import environment from '../../../config/environment';
 
 const UserAccountModal = ({ visible, onCancel, onOk, initialValues = {}, isEdit = false, groupOptions = [] }) => {
     const { form, handleSubmit, resetForm } = useAntForm();
+    const [selectedGroupId, setSelectedGroupId] = useState(null);
+
+    // Get current branch ID for department fetching
+    const currentBranchId = environment.multiTenant.getCurrentBranchId() || '1';
+
+    // Fetch departments using the hook
+    const { departments, isLoading: departmentsLoading } = useDepartments(currentBranchId);
+
+    // Check if selected group is "Điều dưỡng trưởng"
+    const isNursingManagerGroup = selectedGroupId && groupOptions.find(g => g.value === selectedGroupId)?.label === 'Điều dưỡng trưởng';
 
     useEffect(() => {
         if (visible) {
-            form.setFieldsValue(initialValues);
+            // Set the selected group ID first
+            if (initialValues.groupId) {
+                setSelectedGroupId(initialValues.groupId);
+            }
+
             window.__userAccountModalForm__ = form;
         } else {
             resetForm();
+            setSelectedGroupId(null);
             if (window.__userAccountModalForm__ === form) {
                 window.__userAccountModalForm__ = undefined;
             }
         }
-    }, [visible, initialValues, form, resetForm]);
+    }, [visible, initialValues.groupId, form, resetForm]);
+
+    // Initialize form values after selectedGroupId is set and component is mounted
+    useEffect(() => {
+        if (visible && selectedGroupId && Object.keys(initialValues).length > 0) {
+            // Use requestAnimationFrame to ensure DOM is ready
+            requestAnimationFrame(() => {
+                form.setFieldsValue(initialValues);
+            });
+        }
+    }, [visible, selectedGroupId, initialValues, form]);
 
     const handleFormSubmit = async (values) => {
         try {
+            // Ensure departmentId is included in the values when submitting
+            const formData = {
+                ...values,
+                // Always include departmentId if it exists, even if it's null/undefined
+                departmentId: values.departmentId || null
+            };
+
             await handleSubmit(async () => {
                 if (onOk) {
-                    await onOk(values);
+                    await onOk(formData);
                 }
             });
         } catch (error) {
@@ -35,6 +69,12 @@ const UserAccountModal = ({ visible, onCancel, onOk, initialValues = {}, isEdit 
                 },
             ]);
         }
+    };
+
+    const handleGroupChange = (groupId) => {
+        setSelectedGroupId(groupId);
+        // Clear department field when group changes
+        form.setFieldsValue({ departmentId: undefined });
     };
 
     return (
@@ -143,7 +183,12 @@ const UserAccountModal = ({ visible, onCancel, onOk, initialValues = {}, isEdit 
                         rules={[{ required: true, message: 'Chọn nhóm người dùng!' }]}
                         className="floating-form-item"
                     >
-                        <Select className="floating-input" placeholder="Chọn nhóm người dùng" options={groupOptions} />
+                        <Select
+                            className="floating-input"
+                            placeholder="Chọn nhóm người dùng"
+                            options={groupOptions}
+                            onChange={handleGroupChange}
+                        />
                     </Form.Item>
                     <Form.Item
                         // label="Email"
@@ -158,6 +203,35 @@ const UserAccountModal = ({ visible, onCancel, onOk, initialValues = {}, isEdit 
                         <Input className="floating-input" placeholder="Nhập Email" />
                     </Form.Item>
                 </div>
+
+                {/* Department selection - only show for "Điều dưỡng trưởng" group */}
+                {isNursingManagerGroup && (
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                        <Form.Item
+                            // label="Phòng ban"
+                            name="departmentId"
+                            style={{ flex: 1 }}
+                            rules={[{ required: true, message: 'Chọn phòng ban!' }]}
+                            className="floating-form-item"
+                        >
+                            <Select
+                                className="floating-input"
+                                placeholder="Chọn phòng ban"
+                                options={departments.map(dept => ({
+                                    value: dept.id,
+                                    label: dept.name
+                                }))}
+                                loading={departmentsLoading}
+                                showSearch
+                                filterOption={(input, option) =>
+                                    option.label.toLowerCase().includes(input.toLowerCase())
+                                }
+                            />
+                        </Form.Item>
+                        <div style={{ flex: 1 }}></div> {/* Spacer to maintain layout */}
+                    </div>
+                )}
+
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                     <Form.Item
                         // label="Số điện thoại"

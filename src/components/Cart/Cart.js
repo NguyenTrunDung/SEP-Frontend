@@ -3,6 +3,7 @@ import { Modal, Button, Typography, message, Input } from 'antd';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { useTimezone } from '../../hooks/useTimezone';
 
 const { Text } = Typography;
 
@@ -18,6 +19,7 @@ const CartModal = ({
   handleCartUpdate,
 }) => {
   const navigate = useNavigate();
+  const { format } = useTimezone();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
   const [quantity, setQuantity] = useState(1);

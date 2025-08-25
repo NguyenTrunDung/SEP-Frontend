@@ -10,13 +10,16 @@ import moment from 'moment';
 import { EyeOutlined } from '@ant-design/icons';
 import './DeliveryStaff.css';
 import { PERMISSIONS } from '../../../constants/permissions';
+import { useTimezone } from '../../../hooks/useTimezone';
 
 const DeliveryStaffView = () => {
   const queryClient = useQueryClient();
   const branchId = environment.multiTenant.getCurrentBranchId() || '1';
+  const { format, convert } = useTimezone();
+
   const [filters, setFilters] = useState({
-    startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
-    endOrderDate: moment().format('YYYY-MM-DD'),
+    startOrderDate: convert.toDatePicker(new Date()).startOf('month').format('YYYY-MM-DD'),
+    endOrderDate: convert.toDatePicker(new Date()).format('YYYY-MM-DD'),
     status: 'Delivered', // Match database casing
   });
   const [searchText, setSearchText] = useState('');
@@ -126,7 +129,7 @@ const DeliveryStaffView = () => {
       title: 'NGÀY NHẬN',
       dataIndex: 'receiveDate',
       align: 'left',
-      render: (date) => (date ? new Date(date).toLocaleDateString('vi-VN') : 'N/A'),
+      render: (date) => (date ? format.date(date, 'DD/MM/YYYY') : 'N/A'),
     },
     {
       title: 'SỐ ĐIỆN THOẠI',
@@ -179,7 +182,7 @@ const DeliveryStaffView = () => {
       dataIndex: 'price',
       align: 'center',
       key: 'price',
-      render: (val) => val?.toLocaleString() || '0',
+      render: (val) => format.currency(val) || '0',
     },
     {
       title: 'SỐ LƯỢNG',
@@ -194,7 +197,7 @@ const DeliveryStaffView = () => {
       dataIndex: 'total',
       align: 'center',
       key: 'total',
-      render: (val) => val?.toLocaleString() || '0',
+      render: (val) => format.currency(val) || '0',
     },
   ];
 
