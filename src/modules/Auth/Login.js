@@ -31,7 +31,7 @@ const Login = () => {
                         </Title>
                         <div className="avatar-wrapper">
                             <Image
-                                src="/images/mo.jpg" // Added leading slash for consistent path
+                                src="/images/lgin.jpg" // Added leading slash for consistent path
                                 alt="Background"
                                 preview={false}
                                 className="login-bg"
