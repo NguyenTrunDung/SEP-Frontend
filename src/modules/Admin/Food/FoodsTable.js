@@ -7,6 +7,7 @@ import PropTypes from 'prop-types';
 import { foodService } from '../../../services/foodService';
 import * as XLSX from 'xlsx';
 import { PERMISSIONS } from '../../../constants/permissions';
+import { useTimezone } from '../../../hooks/useTimezone';
 
 const FoodsTable = ({
   dataSource = [],
@@ -16,6 +17,7 @@ const FoodsTable = ({
   className,
   ...rest
 }) => {
+  const { format } = useTimezone();
   const [searchText, setSearchText] = useState('');
   const [debouncedSearchText, setDebouncedSearchText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -164,9 +166,9 @@ const FoodsTable = ({
       const exportData = filteredData.map(food => ({
         'Tên món ăn': food.name || '-',
         'Danh mục': food.category?.name || 'Chưa chọn danh mục',
-        'Giá cho khách': food.priceForGuest ? `${food.priceForGuest.toLocaleString('vi-VN')} VNĐ` : '0 VNĐ',
-        'Giá cho bệnh nhân': food.priceForPatient ? `${food.priceForPatient.toLocaleString('vi-VN')} VNĐ` : '0 VNĐ',
-        'Giá cho nhân viên': food.priceForStaff ? `${food.priceForStaff.toLocaleString('vi-VN')} VNĐ` : '0 VNĐ',
+        'Giá cho khách': food.priceForGuest ? format.currency(food.priceForGuest) : '0 VNĐ',
+        'Giá cho bệnh nhân': food.priceForPatient ? format.currency(food.priceForPatient) : '0 VNĐ',
+        'Giá cho nhân viên': food.priceForStaff ? format.currency(food.priceForStaff) : '0 VNĐ',
         'Mô tả': food.description || 'Không có',
         'Là món kèm': food.isAddOn ? 'Có' : 'Không',
         'Là món chính': food.isSetDish ? 'Có' : 'Không',
@@ -236,7 +238,7 @@ const FoodsTable = ({
       key: 'priceForGuest',
       sorter: (a, b) => a.priceForGuest - b.priceForGuest,
       render: (price) => (
-        <span className="vietnamese-text">{price ? `${price.toLocaleString('vi-VN')} VNĐ` : '0 VNĐ'}</span>
+        <span className="vietnamese-text">{price ? format.currency(price) : '0 VNĐ'}</span>
       ),
     },
     {
@@ -396,17 +398,17 @@ const FoodsTable = ({
               </Descriptions.Item>
               <Descriptions.Item label="Giá cho khách">
                 {selectedFood.priceForGuest
-                  ? `${selectedFood.priceForGuest.toLocaleString('vi-VN')} VNĐ`
+                  ? format.currency(selectedFood.priceForGuest)
                   : '0 VNĐ'}
               </Descriptions.Item>
               <Descriptions.Item label="Giá cho bệnh nhân">
                 {selectedFood.priceForPatient
-                  ? `${selectedFood.priceForPatient.toLocaleString('vi-VN')} VNĐ`
+                  ? format.currency(selectedFood.priceForPatient)
                   : '0 VNĐ'}
               </Descriptions.Item>
               <Descriptions.Item label="Giá cho nhân viên">
                 {selectedFood.priceForStaff
-                  ? `${selectedFood.priceForStaff.toLocaleString('vi-VN')} VNĐ`
+                  ? format.currency(selectedFood.priceForStaff)
                   : '0 VNĐ'}
               </Descriptions.Item>
               <Descriptions.Item label="Thứ tự sắp xếp">

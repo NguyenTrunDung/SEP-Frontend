@@ -132,6 +132,34 @@ export const orderService = {
     }
   },
 
+  async getOrderDetailsWithPatientInfo(orderId, options = {}) {
+    try {
+      const response = await api.get(`/api/v1/orderdetails/order/${orderId}/with-patient-info`, options);
+      console.log(`🔍 Raw order details with patient info for order ${orderId}:`, response.data);
+      const normalizedData = response.data.data.map(item => {
+        const qty = item.Qty ?? item.quantity ?? item.qty ?? 1;
+        const food = item.food || {};
+        console.log(`🔍 Normalizing item with patient info for order ${orderId}:`, { item, qty });
+        return {
+          ...item,
+          id: item.id || `item-${Math.random()}`,
+          Qty: qty,
+          foodName: item.foodName || item.FoodName || food.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+          imageUrl: food.imageUrl || item.image || null,
+          price: item.price ?? 0,
+          total: item.total ?? (item.price ?? 0) * qty,
+          // Include patient information if available
+          patientInfo: item.patientInfo || null,
+        };
+      });
+      console.log(`🔍 Normalized order details with patient info for order ${orderId}:`, normalizedData);
+      return { ...response.data, data: normalizedData };
+    } catch (error) {
+      console.error('Failed to fetch order details with patient info:', error);
+      throw error;
+    }
+  },
+
   async getFoodDetails(foodId, branchId) {
     try {
       const response = await api.get(`/api/v1/food/${foodId}/branch/${branchId}`);
@@ -141,21 +169,21 @@ export const orderService = {
       return {};
     }
   },
-async getUserDetails(userId, branchId) {
-  try {
-    const normalizedBranchId = normalizeBranchId(branchId);
-    const response = await api.get(`/api/v1/BranchUserManagement/${userId}/branch/${normalizedBranchId}`, {
-      headers: { 'X-Branch-Id': normalizedBranchId },
-    });
-    if (environment.features.enableLogging) {
-      console.log(`✅ Fetched user details for userId ${userId} in branch ${normalizedBranchId}:`, JSON.stringify(response.data, null, 2));
+  async getUserDetails(userId, branchId) {
+    try {
+      const normalizedBranchId = normalizeBranchId(branchId);
+      const response = await api.get(`/api/v1/BranchUserManagement/${userId}/branch/${normalizedBranchId}`, {
+        headers: { 'X-Branch-Id': normalizedBranchId },
+      });
+      if (environment.features.enableLogging) {
+        console.log(`✅ Fetched user details for userId ${userId} in branch ${normalizedBranchId}:`, JSON.stringify(response.data, null, 2));
+      }
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Failed to fetch user details for userId ${userId} in branch ${branchId}:`, error);
+      throw error;
     }
-    return response.data;
-  } catch (error) {
-    console.error(`❌ Failed to fetch user details for userId ${userId} in branch ${branchId}:`, error);
-    throw error;
-  }
-},
+  },
   async createOrder(orderData, branchId, options = {}) {
     console.log('this._mapPaymentMethod(orderData.paymentMethod):', this._mapPaymentMethod(orderData.paymentMethod));
     try {
@@ -458,6 +486,34 @@ async getUserDetails(userId, branchId) {
     }
   },
 
+  async getPatientDetails(patientId, branchId) {
+    try {
+      if (!patientId || patientId === 'Unknown' || patientId === 'NURSE_DEFAULT') {
+        console.warn(`🔍 No valid patientId provided: ${patientId}, returning null`);
+        return null;
+      }
+
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Fetching patient details for patientId: ${patientId}, branchId: ${branchId}`);
+      }
+
+      // Use the existing Patient API endpoint to get patient details
+      const response = await api.get(`/api/v1/patient`, {
+        params: { id: patientId },
+        headers: branchId ? { 'X-Branch-Id': branchId } : {},
+      });
+
+      if (environment.features.enableLogging) {
+        console.log(`✅ Fetched patient details for patientId ${patientId}:`, JSON.stringify(response.data, null, 2));
+      }
+
+      return response.data.data; // Return the patient data from the API response
+    } catch (error) {
+      console.error(`❌ Failed to fetch patient details for patientId ${patientId}:`, error);
+      // Return null instead of throwing to allow graceful fallback in the UI
+      return null;
+    }
+  },
 
   _mapPaymentMethod(paymentMethod) {
     const paymentMap = {

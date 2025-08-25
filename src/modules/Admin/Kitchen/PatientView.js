@@ -10,12 +10,14 @@ import environment from '../../../config/environment';
 import PERMISSIONS from '../../../constants/permissions';
 import { orderService } from '../../../services/orderService';
 import moment from 'moment';
+import { useTimezone } from '../../../hooks/useTimezone';
 
 const PatientView = () => {
   const branchId = environment.multiTenant.getCurrentBranchId();
   const [patientOrdersData, setPatientOrdersData] = useState([]);
   const [viewOrder, setViewOrder] = useState(null);
   const { open: viewOpen, showModal: showViewModal, handleCancel: handleViewCancel } = useAntModal();
+  const { format } = useTimezone();
 
   const { orders, isLoading, error, refetch } = useOrders(
     branchId,
@@ -123,7 +125,8 @@ const PatientView = () => {
       const nurseOrders = record.orders;
       const ordersWithDetails = await Promise.all(
         nurseOrders.map(async (order) => {
-          const orderDetails = await orderService.getOrderDetails(order.id);
+          // Use the enhanced endpoint that includes patient information
+          const orderDetails = await orderService.getOrderDetailsWithPatientInfo(order.id);
           if (!orderDetails?.data) {
             throw new Error(`Không có chi tiết đơn hàng cho ID ${order.id}`);
           }

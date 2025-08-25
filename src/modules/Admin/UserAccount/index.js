@@ -52,6 +52,7 @@ const UserAccount = () => {
             lastName: u.lastName,
             phone: u.phoneNumber,
             userName: u.userName,
+            departmentId: u.departmentId, // Include departmentId from API response
           }));
           setUsers(mapped);
           message.success('Lấy danh sách tài khoản thành công!');
@@ -114,6 +115,8 @@ const UserAccount = () => {
           branchRoleId: values.groupId,
           phoneNumber: values.phone,
           isActive: editingUser.status,
+          // Add departmentId if it exists (for "Điều dưỡng trưởng" group)
+          ...(values.departmentId && { departmentId: values.departmentId }),
         };
         await updateUserAccount(editingUser.id, payload);
         message.success('Cập nhật tài khoản thành công!');
@@ -134,6 +137,8 @@ const UserAccount = () => {
           branchRoleId: values.groupId,
           phoneNumber: values.phone,
           createdBy: localStorage.getItem('userEmail'),
+          // Add departmentId if it exists (for "Điều dưỡng trưởng" group)
+          ...(values.departmentId && { departmentId: values.departmentId }),
         };
         await createUserAccount(userAccountPayload);
         message.success('Thêm tài khoản thành công!');
@@ -176,6 +181,7 @@ const UserAccount = () => {
             lastName: u.lastName,
             phone: u.phoneNumber,
             userName: u.userName,
+            departmentId: u.departmentId, // Include departmentId from API response
           }));
           setUsers(mapped);
           setSearchText('');
@@ -348,7 +354,11 @@ const UserAccount = () => {
         visible={modalVisible}
         onCancel={closeModal}
         onOk={handleModalOk}
-        initialValues={editingUser ? { ...editingUser, phone: editingUser.phone || editingUser.phoneNumber } : {}}
+        initialValues={editingUser ? {
+          ...editingUser,
+          phone: editingUser.phone || editingUser.phoneNumber,
+          departmentId: editingUser.departmentId // Include departmentId for editing
+        } : {}}
         isEdit={!!editingUser}
         groupOptions={groupOptions || []}
       />

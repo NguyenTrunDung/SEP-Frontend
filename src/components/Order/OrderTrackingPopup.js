@@ -5,10 +5,12 @@ import { useOrders } from '../../hooks/queries/useOrders';
 import { orderService } from '../../services/orderService';
 import { formatAmount, formatDateTime } from '../../mocks/orderTrackingData';
 import './Order.css';
+import { useTimezone } from '../../hooks/useTimezone';
 
 const { Text } = Typography;
 
 const OrderTrackingPopup = ({ visible, onClose }) => {
+  const { format } = useTimezone();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
@@ -204,10 +206,10 @@ const OrderTrackingPopup = ({ visible, onClose }) => {
         {order && (
           <>
             <Text style={{ display: 'block', marginBottom: 4 }}>
-              Thời gian đặt: <b>{formatDateTime(new Date(order.orderDate || order.createdAt))}</b>
+              Thời gian đặt: <b>{format.dateTime(order.orderDate || order.createdAt, 'DD/MM/YYYY HH:mm')}</b>
             </Text>
             <Text style={{ display: 'block', marginBottom: 4 }}>
-              Thời gian hẹn giao: <b>{formatDateTime(new Date(order.receiveDate || order.updatedAt))}</b>
+              Thời gian hẹn giao: <b>{format.dateTime(order.receiveDate || order.updatedAt, 'DD/MM/YYYY HH:mm')}</b>
             </Text>
             <Text style={{ display: 'block', marginBottom: 4 }}>
               Tổng thanh toán: <b>{order.total != null ? formatAmount(order.total) : 'N/A'}</b>

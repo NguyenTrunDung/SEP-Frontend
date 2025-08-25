@@ -18,6 +18,7 @@ import PropTypes from 'prop-types';
 import dayjs from 'dayjs';
 import locale from 'antd/locale/vi_VN';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
+import { useTimezone } from '../../../hooks/useTimezone';
 
 const MenuTable = ({
     dataSource = [],
@@ -29,13 +30,14 @@ const MenuTable = ({
     className,
     ...rest
 }) => {
+    const { format } = useTimezone();
     const [selectedDate, setSelectedDate] = useState(null);
 
     const transformedData = useMemo(() => {
         return dataSource.map(menu => ({
             id: menu.id,
             menuId: menu.id,
-            date: menu.date ? dayjs(menu.date).format('DD/MM/YYYY') : '-',
+            date: menu.date ? format.date(menu.date, 'DD/MM/YYYY') : '-',
             serviceTime: menu.isTime || false,
             startTime: menu.timeFrom || null,
             endTime: menu.timeTo || null,
@@ -46,19 +48,19 @@ const MenuTable = ({
             createdAt: menu.createdAt,
             updatedAt: menu.updatedAt
         }));
-    }, [dataSource]);
+    }, [dataSource, format]);
 
     const filteredData = useMemo(() => {
         if (!selectedDate) return transformedData;
-        const selectedDateStr = selectedDate.format('DD/MM/YYYY');
+        const selectedDateStr = format.date(selectedDate, 'DD/MM/YYYY');
         return transformedData.filter(item => item.date === selectedDateStr);
-    }, [transformedData, selectedDate]);
+    }, [transformedData, selectedDate, format]);
 
     const handleDateChange = (date) => {
         try {
             setSelectedDate(date);
             if (date && dayjs.isDayjs(date)) {
-                const formattedDate = date.format('DD/MM/YYYY');
+                const formattedDate = format.date(date, 'DD/MM/YYYY');
                 message.info(`Lọc menu theo ngày: ${formattedDate}`);
             } else {
                 message.info('Đã xóa bộ lọc ngày');
@@ -89,11 +91,9 @@ const MenuTable = ({
             width: 120,
             sorter: (a, b) => {
                 try {
-                    const dateA = dayjs(a.date, 'DD/MM/YYYY');
-                    const dateB = dayjs(b.date, 'DD/MM/YYYY');
-                    return dateA.isValid() && dateB.isValid()
-                        ? dateA.valueOf() - dateB.valueOf()
-                        : 0;
+                    const dateA = format.parseDate(a.date, 'DD/MM/YYYY');
+                    const dateB = format.parseDate(b.date, 'DD/MM/YYYY');
+                    return dateA && dateB ? dateA.valueOf() - dateB.valueOf() : 0;
                 } catch {
                     return 0;
                 }

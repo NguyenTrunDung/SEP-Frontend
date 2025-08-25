@@ -37,7 +37,7 @@ const Login = () => {
                                 className="login-bg"
                             />
                             <Image
-                                src="https://dussmannfood.superweb.xyz/assets/auth-v2-login-illustration-light-C4sKfRS1.png"
+                                src="/images/lgin.jpg"
                                 alt="Avatar"
                                 preview={false}
                                 className="login-avatar"

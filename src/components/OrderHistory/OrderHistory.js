@@ -14,6 +14,7 @@ import { environment } from '../../services/api/config';
 import { getImageUrlWithFallback } from '../../utils/imageUtils';
 import { ROLES } from '../../constants/roles';
 import './OrderHistory.css';
+import { useTimezone } from '../../hooks/useTimezone';
 
 const { Text } = Typography;
 const { Search } = Input;
@@ -21,6 +22,7 @@ const { TabPane } = Tabs;
 
 const OrderHistoryModal = ({ visible, onClose }) => {
   const { user } = useAuth();
+  const { format } = useTimezone();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState({ patient: [], nurse: [] });
   const [loading, setLoading] = useState(false);
@@ -49,7 +51,8 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   // Helper function to derive mealTime from orderDate if not provided
   const deriveMealTime = (orderDate) => {
     if (!orderDate) return 'Không xác định';
-    const hour = new Date(orderDate).getHours();
+    const date = new Date(orderDate);
+    const hour = date.getHours();
     if (hour >= 5 && hour < 11) return 'Sáng';
     if (hour >= 11 && hour < 17) return 'Trưa';
     return 'Tối';
@@ -83,13 +86,13 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                 console.log(`🔍 Order ${order.id} details:`, orderDetails.data);
                 const items = Array.isArray(orderDetails.data)
                   ? orderDetails.data.map((item) => ({
-                      menuItemId: item.id || `item-${Math.random()}`,
-                      name: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
-                      price: item.price ?? 0,
-                      quantity: item.Qty ?? item.quantity ?? 1,
-                      subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
-                      imageUrl: item.imageUrl || item.food?.imageUrl || null,
-                    }))
+                    menuItemId: item.id || `item-${Math.random()}`,
+                    name: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
+                    price: item.price ?? 0,
+                    quantity: item.Qty ?? item.quantity ?? 1,
+                    subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
+                    imageUrl: item.imageUrl || item.food?.imageUrl || null,
+                  }))
                   : [];
                 const feedbackResponse = await api.get('/api/v1/Comment/By-Order', {
                   params: { OrderId: order.id, branchId: order.branchId },
@@ -281,14 +284,14 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         ...order,
         orderDetails: Array.isArray(orderDetails.data)
           ? orderDetails.data.map((item) => ({
-              ...item,
-              menuItemId: item.id || `item-${Math.random()}`,
-              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
-              price: item.price ?? 0,
-              quantity: item.Qty ?? item.quantity ?? 1,
-              subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
-              imageUrl: item.imageUrl || item.food?.imageUrl || null,
-            }))
+            ...item,
+            menuItemId: item.id || `item-${Math.random()}`,
+            foodName: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
+            price: item.price ?? 0,
+            quantity: item.Qty ?? item.quantity ?? 1,
+            subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
+            imageUrl: item.imageUrl || item.food?.imageUrl || null,
+          }))
           : [],
       };
       setSelectedOrder(detailedOrder);
@@ -312,14 +315,14 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         ...order,
         orderDetails: Array.isArray(orderDetails.data)
           ? orderDetails.data.map((item) => ({
-              ...item,
-              menuItemId: item.id || `item-${Math.random()}`,
-              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
-              price: item.price ?? 0,
-              quantity: item.Qty ?? item.quantity ?? 1,
-              subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
-              imageUrl: item.imageUrl || item.food?.imageUrl || null,
-            }))
+            ...item,
+            menuItemId: item.id || `item-${Math.random()}`,
+            foodName: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
+            price: item.price ?? 0,
+            quantity: item.Qty ?? item.quantity ?? 1,
+            subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
+            imageUrl: item.imageUrl || item.food?.imageUrl || null,
+          }))
           : [],
       };
       setSelectedOrder(detailedOrder);
@@ -408,7 +411,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         console.log('🔍 Deleting feedback:', feedbackId);
       }
       await deleteFeedback(feedbackId);
-      
+
       const updatedOrders = orders.map((order) => {
         if (order.id === selectedOrder.id) {
           const updatedFeedbacks = order.feedbacks?.filter(fb => fb.id !== feedbackId) || [];
@@ -553,13 +556,13 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     },
     ...(tabKey === 'patientOrders'
       ? [
-          {
-            title: 'Tên bệnh nhân',
-            dataIndex: 'customerName',
-            key: 'customerName',
-            render: (customerName) => customerName || 'Không xác định',
-          },
-        ]
+        {
+          title: 'Tên bệnh nhân',
+          dataIndex: 'customerName',
+          key: 'customerName',
+          render: (customerName) => customerName || 'Không xác định',
+        },
+      ]
       : []),
     // {
     //   title: 'Món ăn',
@@ -780,7 +783,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                       pagination={{
                         show: true,
                         pageSizeOptions: [5, 10, 20],
-                        showTotal: true,
                         showSizeChanger: true,
                         total: filteredOrders.nurse.length,
                         showTotal: (total, range) =>
@@ -812,7 +814,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                         pagination={{
                           show: true,
                           pageSizeOptions: [5, 10, 20],
-                          showTotal: true,
                           showSizeChanger: true,
                           total: filteredOrders.patient.length,
                           showTotal: (total, range) =>

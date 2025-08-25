@@ -52,7 +52,10 @@ const PatientComponent = () => {
       enabled: !!currentBranchId,
       onError: (err) => {
         console.error('❌ Patient fetch error:', err);
-        message.error(err?.response?.data?.message || 'Không thể tải danh sách bệnh nhân');
+        // Don't show error message for 404 "Patients not found"
+        if (err?.response?.status !== 404) {
+          message.error(err?.response?.data?.message || 'Không thể tải danh sách bệnh nhân');
+        }
       },
     }
   );
@@ -71,6 +74,29 @@ const PatientComponent = () => {
     return patientData;
   }, [patientData]);
 
+
+  // Add this after the patients useMemo
+  const noPatientsMessage = useMemo(() => {
+    if (isFetching) return null;
+    if (patients.length === 0) {
+      return (
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ fontSize: '16px', color: '#666', marginBottom: '8px' }}>
+            �� Không có bệnh nhân nào trong khoa của bạn
+          </div>
+          <div style={{ fontSize: '14px', color: '#999' }}>
+            Có thể do:
+          </div>
+          <ul style={{ textAlign: 'left', display: 'inline-block', fontSize: '14px', color: '#999' }}>
+            <li>Chưa có bệnh nhân nào được phân công cho khoa</li>
+            <li>Bệnh nhân đã được xuất viện</li>
+            <li>Vui lòng kiểm tra lại thông tin khoa</li>
+          </ul>
+        </div>
+      );
+    }
+    return null;
+  }, [patients.length, isFetching]);
   console.log('🔍 patients:', patients);
 
   const createPatientMutation = useCreatePatient();
@@ -690,6 +716,7 @@ const PatientComponent = () => {
               </Button>
             </div>
           </div>
+          {noPatientsMessage}
           <PatientTable
             dataSource={filteredData}
             loading={isFetching && !patients.length}
