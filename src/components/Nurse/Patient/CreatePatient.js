@@ -86,11 +86,11 @@ const CreatePatient = ({
           onCancel();
           refetch();
         },
-        onError: (error) => {
-          message.error(
-            error?.response?.data?.message || 'Lỗi khi tạo bệnh nhân'
-          );
-        },
+        // onError: (error) => {
+        //   message.error(
+        //     error?.response?.data?.message || 'Lỗi khi tạo bệnh nhân'
+        //   );
+        // },
       });
     } catch (error) {
       console.error('Validation or mutation failed:', error);

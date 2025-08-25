@@ -31,6 +31,7 @@ const ViewPatientOrderDetail = ({
 }) => {
   const { format, convert } = useTimezone();
   const [groupedOrders, setGroupedOrders] = useState({});
+  const [isLoadingPatientNames, setIsLoadingPatientNames] = useState(false); // Added state for loading patient names
   const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
   const { mutate: deleteOrder, isLoading: isDeleting } = useDeleteOrder();
 
@@ -99,40 +100,6 @@ const ViewPatientOrderDetail = ({
     } finally {
       setIsLoadingPatientNames(false);
     }
-
-    // If current order doesn't have patient info, try to find it from other orders of the same patient
-    if (allOrders.length > 0 && order.patientId) {
-      const otherOrders = allOrders.filter(o =>
-        o.id !== order.id &&
-        o.patientId === order.patientId &&
-        o.orderDetails &&
-        o.orderDetails.length > 0
-      );
-
-      for (const otherOrder of otherOrders) {
-        const firstDetail = otherOrder.orderDetails[0];
-        if (firstDetail && firstDetail.patientInfo) {
-          console.log('🔍 Found patientInfo in other order:', firstDetail.patientInfo);
-          return {
-            patientName: firstDetail.patientInfo.fullName || 'Không có',
-            roomNumber: firstDetail.patientInfo.roomNumber || 'Không có',
-            bedNumber: firstDetail.patientInfo.bedNumber || 'Không có',
-            departmentName: firstDetail.patientInfo.departmentName || 'Không có',
-            medicalRecordNumber: firstDetail.patientInfo.medicalRecordNumber || 'Không có'
-          };
-        }
-      }
-    }
-
-    // Fallback to the old method if patient info is not available
-    console.log('🔍 Using fallback values - no patient info found');
-    return {
-      patientName: 'Không có',
-      roomNumber: 'Không có',
-      bedNumber: 'Không có',
-      departmentName: 'Không có',
-      medicalRecordNumber: 'Không có'
-    };
   };
 
   useEffect(() => {
@@ -396,6 +363,7 @@ const ViewPatientOrderDetail = ({
                           </Button>
                         </Col>
                       )}
+                      {/* Uncomment if you want to enable the Cancel button */}
                       {/* {['Đang chờ', 'Đã xác nhận'].includes(order.status) && (
                         <Col xs={9} sm={6} md={3}>
                           <Button

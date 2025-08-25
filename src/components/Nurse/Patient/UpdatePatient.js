@@ -16,7 +16,6 @@ import ReusableModal from '../../../components/common/ReusableModal';
 import PropTypes from 'prop-types';
 import moment from 'moment';
 import locale from 'antd/locale/vi_VN';
-import { patientService } from '../../../services/patientService';
 import './UpdatePatient.css';
 
 const { Option } = Select;
@@ -65,6 +64,10 @@ const UpdatePatient = ({
       const birthYear = new Date().getFullYear() - parseInt(values.age || 0, 10);
       const dateOfBirth = moment(`${birthYear}-01-01`).format('YYYY-MM-DD');
 
+      // Lấy danh sách nhóm bệnh và phòng ban ban đầu để giữ nguyên
+      const initialDiseaseCategoryIds = (initialValues.diseaseCategoryIds || initialValues.diseaseCategories?.map(dc => String(dc.diseaseCategoryId || dc.id)) || []).map(id => parseInt(id, 10));
+      const initialDepartmentId = initialValues.departmentId ? parseInt(initialValues.departmentId, 10) : null;
+
       const payload = {
         id: values.medicalRecordNumber.trim(),
         fullName: values.fullName.trim(),
@@ -78,8 +81,8 @@ const UpdatePatient = ({
         notes: values.notes?.trim() || '',
         requiresDietarySupervision: values.isCurrentlyAdmitted || false,
         externalSystemId: '',
-        diseaseCategoryIds: values.diseaseCategories?.map(id => parseInt(id, 10)) || [],
-        departmentId: values.departmentId ? parseInt(values.departmentId, 10) : null,
+        diseaseCategoryIds: initialDiseaseCategoryIds, // Giữ nguyên danh sách nhóm bệnh ban đầu
+        departmentId: initialDepartmentId, // Giữ nguyên phòng ban ban đầu
         isActive: true,
       };
 
@@ -88,39 +91,15 @@ const UpdatePatient = ({
         {
           onSuccess: async (response) => {
             message.success('Cập nhật bệnh nhân thành công');
-
-            if (values.diseaseCategories?.length > 0) {
-              try {
-                console.log('Calling updateDiseaseCategories for patientId:', initialValues.id);
-                await patientService.updateDiseaseCategories(
-                  initialValues.id,
-                  values.diseaseCategories,
-                  currentBranchId
-                );
-                message.success('Cập nhật nhóm bệnh thành công');
-              } catch (error) {
-                console.error('Cập nhật nhóm bệnh lỗi:', {
-                  message: error.message,
-                  response: error.response?.data,
-                  status: error.response?.status,
-                });
-                message.warning(`Cập nhật bệnh nhân thành công nhưng không cập nhật được nhóm bệnh: ${error.response?.data?.message || error.message}`);
-              }
-            }
-
             form.resetFields();
             if (externalSubmit) externalSubmit(payload);
             onCancel();
             refetch();
           },
-          onError: (error) => {
-            message.error(error?.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân');
-          },
         }
       );
     } catch (error) {
       console.error('Validation or mutation failed:', error);
-      message.error(`Lỗi khi cập nhật bệnh nhân: ${error.message || 'Không xác định'}`);
     }
   };
 
@@ -258,6 +237,7 @@ const UpdatePatient = ({
               placeholder="Chọn phòng ban"
               loading={departmentsLoading}
               allowClear
+              disabled
               onFocus={() => setFocus('departmentId')}
               onBlur={() => setFocus('')}
             >
@@ -328,6 +308,7 @@ const UpdatePatient = ({
               placeholder="Chọn nhóm bệnh"
               loading={categoriesLoading}
               allowClear
+              disabled
               onFocus={() => setFocus('diseaseCategories')}
               onBlur={() => setFocus('')}
             >

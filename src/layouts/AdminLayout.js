@@ -180,11 +180,11 @@ const AdminLayout = ({ children }) => {
       icon: <FireFilled style={{ fontSize: "18px" }} />,
       label: <Link to="/kitchens">Nhà bếp</Link>,
     },
-    canAccess([PERMISSIONS.KITCHEN_VIEW]) && {
-      key: "kitchen-orders",
-      icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
-      label: <Link to="/kitchen-orders">Đơn hàng bệnh nhân</Link>,
-    },
+    // canAccess([PERMISSIONS.KITCHEN_VIEW]) && {
+    //   key: "kitchen-orders",
+    //   icon: <ShoppingOutlined style={{ fontSize: "18px" }} />,
+    //   label: <Link to="/kitchen-orders">Đơn hàng bệnh nhân</Link>,
+    // },
     canAccess([PERMISSIONS.DELIVERY_VIEW]) && {
       key: "shippers",
       icon: <TruckOutlined style={{ fontSize: "18px" }} />,

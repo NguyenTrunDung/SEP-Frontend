@@ -137,6 +137,7 @@ const Navbar = () => {
 
   const handleBranchSelect = async (branch) => {
     try {
+
       // Check if user is logged in
       if (user) {
         // Validate if user has access to this branch
@@ -146,6 +147,7 @@ const Navbar = () => {
           return;
         }
       }
+
 
       console.log('🔄 Switching to branch:', branch);
       await switchBranchMutation.mutateAsync(branch.id);
@@ -190,6 +192,7 @@ const Navbar = () => {
     }
   };
 
+
   useEffect(() => {
     const currentPath = location.pathname;
     console.log('Current path:', currentPath);
@@ -200,8 +203,6 @@ const Navbar = () => {
       newActiveKey = 'contact';
     } else if (currentPath.includes('/nurse/patient')) {
       newActiveKey = 'staff';
-    } else if (currentPath.includes('/nurse/patient-order')) {
-      newActiveKey = 'patient-order';
     } else if (currentPath.includes('/menu') || location.hash === '#menu') {
       newActiveKey = 'menu';
     }
@@ -403,9 +404,9 @@ const Navbar = () => {
     { key: 'cart', label: 'GIỎ HÀNG' },
     ...(user?.role === ROLES.NURSE
       ? [
-          { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
-          { key: 'patient-order', label: 'ĐẶT HÀNG BỆNH NHÂN', route: '/nurse/patient-order' },
-        ]
+        { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
+        { key: 'patient-order', label: 'ĐẶT MÓN BỆNH NHÂN', route: '/nurse/patient-order' },
+      ]
       : user?.role === ROLES.GUEST
         ? []
         : []
@@ -820,6 +821,7 @@ const Navbar = () => {
           centered
           width={500}
           destroyOnClose
+
           closeIcon={<CloseOutlined style={{ color: '#000', fontSize: '20px' }} />}
           styles={{
             content: { padding: 0, borderRadius: 8, overflow: 'hidden' },
