@@ -113,6 +113,12 @@ const OrderPatientDetails = ({
             render: (foodName, record) => foodName || record.name || `Món ăn ID ${record.foodId || 'Unknown'}`,
         },
         {
+            title: 'BUỔI ĂN',
+            dataIndex: 'mealTime',
+            key: 'mealTime',
+            render: (mealTime) => mealTime || 'Chưa chọn'
+        },
+        {
             title: 'GIÁ TIỀN',
             dataIndex: 'price',
             key: 'price',
