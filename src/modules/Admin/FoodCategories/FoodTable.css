@@ -1,0 +1,106 @@
+.reusable-table-container {
+  width: 100%;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.reusable-table-header {
+  margin-bottom: 1rem;
+}
+
+.header-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0; /* Ngăn search container co lại */
+}
+
+.search-icon {
+  font-size: 1rem;
+  color: #1890ff;
+}
+
+.search-results {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.drag-toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.drag-toggle-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Table responsiveness */
+.ant-table {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Mobile devices (≤ 576px) */
+@media (max-width: 576px) {
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-container {
+    flex-direction: row; /* Giữ search input và icon ngang hàng */
+    width: 100%;
+    max-width: 300px; /* Đảm bảo search input không vượt quá 300px */
+  }
+
+  .search-results {
+    font-size: 0.75rem;
+  }
+
+  .drag-toggle-container {
+    width: 100%;
+    justify-content: flex-start;
+    margin-top: 0.5rem; /* Thêm khoảng cách khi stack */
+  }
+
+  .drag-toggle-label {
+    font-size: 0.75rem;
+  }
+}
+
+/* Tablet devices (≤ 768px) */
+@media (max-width: 768px) {
+  .search-icon {
+    font-size: 0.9rem;
+  }
+
+  .search-results,
+  .drag-toggle-label {
+    font-size: 0.8rem;
+  }
+}
+
+/* Đảm bảo kích thước tối thiểu cho hàng table để dễ thao tác trên mobile */
+.ant-table-row {
+  min-height: 48px; /* Tốt cho drag-and-drop trên touchscreen */
+}
+
+/* Khi màn hình nhỏ hơn 300px + padding, thêm scroll ngang cho header */
+@media (max-width: 360px) {
+  .reusable-table-header {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

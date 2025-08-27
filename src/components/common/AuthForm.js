@@ -259,7 +259,10 @@ export const AuthFormPublic = ({
             label: 'Mật khẩu',
             rules: [
                 { required: true, message: 'Vui lòng nhập mật khẩu!' },
-                { min: 6, message: 'Vui lòng nhập mật khẩu hợp lệ!' },
+                { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự!' },
+                { pattern: /^[A-Z].*$/, message: 'Mật khẩu phải bắt đầu bằng chữ in hoa!' },
+                { pattern: /[0-9]/, message: 'Mật khẩu phải chứa ít nhất 1 số!' },
+                { pattern: /[!@#$%^&*(),.?":{}|<>]/, message: 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt!' }
             ],
             component: <Input.Password size="large" placeholder="Mật khẩu" />
         }
