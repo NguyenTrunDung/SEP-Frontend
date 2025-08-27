@@ -28,7 +28,7 @@ const UserHeader = ({
 
   // Debug logging (enable only when needed for troubleshooting)
   // console.log('UserHeader - Debug info:', {
-  //   user: user ? { email: user.email, role: user.role } : null,
+  //   user: user ? { email: user.email, role: user.role, profilePictureUrl: user.profilePictureUrl } : null,
   //   hasToken: !!token,
   //   isAuthenticated,
   //   loading,
@@ -38,7 +38,6 @@ const UserHeader = ({
   if (user?.email) {
     localStorage.setItem('userEmail', user.email);
     localStorage.setItem('userDepartmentId', user.departmentId);
-
   }
 
   const handleLogout = async () => {
@@ -187,6 +186,7 @@ const UserHeader = ({
       {useCustomModal || onAvatarClick ? (
         <Avatar
           size={avatarSize}
+          src={user?.profilePictureUrl} // Use profilePictureUrl from user
           icon={<UserOutlined />}
           onClick={onAvatarClick || (() => navigate(getProfileRoute()))}
           style={{
@@ -206,6 +206,7 @@ const UserHeader = ({
         >
           <Avatar
             size={avatarSize}
+            src={user?.profilePictureUrl} // Use profilePictureUrl from user
             icon={<UserOutlined />}
             style={{
               backgroundColor: '#1890ff',

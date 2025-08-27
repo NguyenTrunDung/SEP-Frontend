@@ -65,6 +65,7 @@ const OrderPatientTableV2 = () => {
                 orderDetails: orderDetails.data.map((item) => ({
                     ...item,
                     foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+                    mealTime: item.mealTime || 'Chưa chọn' // Add this line to ensure mealTime is present
                 })),
             });
             showViewModal();
