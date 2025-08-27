@@ -22,8 +22,8 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                 prevFormDataRef.current &&
                 prevFormDataRef.current.id === formData.id &&
                 prevFormDataRef.current.diseaseCategoryId === formData.diseaseCategoryId &&
-                prevFormDataRef.current.nutritionalMealName === formData.nutritionalMealName &&
-                prevFormDataRef.current.price === formData.price &&
+                prevFormDataRef.current.nutritionalMealName === (formData.name || formData.nutritionalMealName) &&
+                prevFormDataRef.current.price === (formData.price || formData.foodPrice) &&
                 prevFormDataRef.current.mealTime === formData.mealTime &&
                 prevFormDataRef.current.reason === formData.reason &&
                 prevFormDataRef.current.alternativeRecommendations === formData.alternativeRecommendations &&
@@ -34,12 +34,18 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                 return;
             }
             console.log('🔄 Setting form data:', formData);
+
+            // Convert comma-separated mealTime string to array for frontend
+            const mealTimeArray = formData.mealTime
+                ? formData.mealTime.split(',').map(mt => mt.trim())
+                : [];
+
             form.setFieldsValue({
                 id: formData.id,
                 diseaseCategoryId: formData.diseaseCategoryId,
-                nutritionalMealName: formData.nutritionalMealName,
-                price: formData.price,
-                mealTime: formData.mealTime,
+                nutritionalMealName: formData.name || formData.nutritionalMealName, // Map from Name field, fallback to old field
+                price: formData.price || formData.foodPrice, // Map from Price field, fallback to old field
+                mealTime: mealTimeArray,
                 reason: formData.reason,
                 alternativeRecommendations: formData.alternativeRecommendations,
                 requiresPhysicianOverride: formData.requiresPhysicianOverride || false,
@@ -54,51 +60,57 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
 
     const handleFormSubmit = async (values) => {
         try {
-            // Tạo hoặc cập nhật món ăn mới
-            const mealData = {
-                name: values.nutritionalMealName,
-                price: values.price,
-                branchId: values.branchId || 1, // Giả định branchId nếu không có
-            };
-            const mealResponse = await diseaseCategoryFoodRestrictionService.createNutritionalMeal(mealData);
-            const nutritionalMealCode = mealResponse.data.code;
+            // Convert mealTime array to comma-separated string for backend
+            const mealTimeString = Array.isArray(values.mealTime)
+                ? values.mealTime.join(',')
+                : values.mealTime;
 
+            // For editing, we need to update the existing restriction
+            // Since we're not creating a new food, we'll update the restriction directly
             const updateDto = {
                 id: values.id,
                 diseaseCategoryId: values.diseaseCategoryId,
-                nutritionalMealCode,
-                mealTime: values.mealTime,
+                name: values.nutritionalMealName, // Map to Name field for backend
+                price: values.price, // Map to Price field for backend
+                mealTime: mealTimeString,
                 reason: values.reason?.trim(),
                 alternativeRecommendations: values.alternativeRecommendations?.trim(),
                 requiresPhysicianOverride: values.requiresPhysicianOverride,
                 isActive: values.isActive,
             };
 
-            if (!updateDto.diseaseCategoryId) {
+            console.log('🔍 Validation - updateDto:', updateDto);
+            console.log('🔍 Validation - values:', values);
+            console.log('🔍 Validation - nutritionalMealName:', values.nutritionalMealName);
+            console.log('🔍 Validation - price:', values.price);
+            console.log('🔍 Validation - mealTime:', values.mealTime);
+            console.log('🔍 Validation - reason:', values.reason);
+
+            if (!values.diseaseCategoryId) {
                 form.setFields([
                     { name: 'diseaseCategoryId', errors: ['Vui lòng chọn danh mục bệnh!'] },
                 ]);
                 return;
             }
-            if (!updateDto.nutritionalMealName) {
+            if (!values.nutritionalMealName || values.nutritionalMealName.trim() === '') {
                 form.setFields([
                     { name: 'nutritionalMealName', errors: ['Vui lòng nhập tên món ăn!'] },
                 ]);
                 return;
             }
-            if (updateDto.price === undefined || updateDto.price === null) {
+            if (values.price === undefined || values.price === null || values.price === '') {
                 form.setFields([
                     { name: 'price', errors: ['Vui lòng nhập giá tiền!'] },
                 ]);
                 return;
             }
-            if (!updateDto.mealTime) {
+            if (!values.mealTime || (Array.isArray(values.mealTime) && values.mealTime.length === 0)) {
                 form.setFields([
                     { name: 'mealTime', errors: ['Vui lòng chọn buổi ăn!'] },
                 ]);
                 return;
             }
-            if (!updateDto.reason) {
+            if (!values.reason || values.reason.trim() === '') {
                 form.setFields([
                     { name: 'reason', errors: ['Vui lòng nhập lý do hạn chế!'] },
                 ]);
@@ -106,7 +118,9 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
             }
 
             console.log('🔍 Submitting food restriction update:', updateDto);
+            console.log('🔍 Form validation passed, calling onSubmit...');
             await onSubmit(updateDto);
+            console.log('🔍 onSubmit completed successfully');
             handleCancel();
         } catch (error) {
             const errorMessage = error.response?.data?.message || 'Lỗi khi cập nhật món ăn hoặc hạn chế thực phẩm!';
@@ -244,9 +258,9 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                         placeholder="Chọn buổi ăn"
                         style={{ width: '100%' }}
                         options={[
-                            { value: 'morning', label: 'Buổi sáng' },
-                            { value: 'noon', label: 'Buổi trưa' },
-                            { value: 'evening', label: 'Buổi tối' },
+                            { value: 'Sáng', label: 'Buổi sáng' },
+                            { value: 'Trưa', label: 'Buổi trưa' },
+                            { value: 'Tối', label: 'Buổi tối' },
                         ]}
                     />
                 </Form.Item>

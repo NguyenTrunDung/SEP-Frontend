@@ -130,7 +130,6 @@ export const useCreatePatient = () => {
       queryClient.invalidateQueries({
         queryKey: PATIENT_KEYS.byBranch(branchId),
       });
-      message.success('Tạo bệnh nhân thành công');
     },
     onError: (error) => {
       console.error('Create patient mutation error:', error);

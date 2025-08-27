@@ -11,15 +11,15 @@ import { useOrders, ORDER_QUERY_KEYS } from '../../../hooks/queries/useOrders';
 import { useGlobalErrorHandler } from '../../../hooks/useGlobalErrorHandler';
 import { environment } from '../../../services/api/config';
 import { orderService } from '../../../services/orderService';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import './Order.css';
 import { PERMISSIONS } from '../../../constants/permissions';
 
 const OrdersTableV2 = () => {
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({
-    startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
-    endOrderDate: moment().format('YYYY-MM-DD'),
+    startOrderDate: dayjs().startOf('month').format('YYYY-MM-DD'),
+    endOrderDate: dayjs().format('YYYY-MM-DD'),
     status: 'Pending',
     isPaid: true,
   });
@@ -203,8 +203,8 @@ const OrdersTableV2 = () => {
 
   const handleClearFilters = () => {
     setFilters({
-      startOrderDate: moment().startOf('month').format('YYYY-MM-DD'),
-      endOrderDate: moment().format('YYYY-MM-DD'),
+      startOrderDate: dayjs().startOf('month').format('YYYY-MM-DD'),
+      endOrderDate: dayjs().format('YYYY-MM-DD'),
       status: null,
       isPaid: null,
     });

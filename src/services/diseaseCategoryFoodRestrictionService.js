@@ -176,4 +176,45 @@ export const diseaseCategoryFoodRestrictionService = {
             throw error;
         }
     },
+
+    /**
+     * Create a new nutritional meal specifically for disease category restrictions
+     * @param {Object} mealData - The meal data with name, price, branchId
+     * @returns {Promise<Object>} API response containing the created nutritional meal
+     */
+    async createNutritionalMeal(mealData) {
+        try {
+            if (environment.features.enableLogging) {
+                console.log('🔍 diseaseCategoryFoodRestrictionService.createNutritionalMeal - creating:', mealData);
+            }
+
+            const currentBranchId = mealData.branchId || environment.multiTenant.getCurrentBranchId() || '1';
+
+            // Prepare nutritional meal data for the restrictions controller
+            const nutritionalMealData = {
+                diseaseCategoryId: mealData.diseaseCategoryId,
+                name: mealData.name,
+                price: mealData.price, // Changed from foodPrice to price to match backend DTO
+                description: `Nutritional meal for disease category restrictions`,
+                reason: mealData.reason,
+                alternativeRecommendations: mealData.alternativeRecommendations,
+                isActive: mealData.isActive !== undefined ? mealData.isActive : true,
+                requiresPhysicianOverride: mealData.requiresPhysicianOverride || false,
+                mealTime: mealData.mealTime
+            };
+
+            const response = await api.post('/api/v1/DiseaseCategoryFoodRestrictions/create-nutritional-meal', nutritionalMealData);
+
+            if (environment.features.enableLogging) {
+                console.log('✅ Created nutritional meal:', response.data);
+            }
+
+            return response.data;
+        } catch (error) {
+            if (environment.features.enableLogging) {
+                console.error('❌ Failed to create nutritional meal:', error.response?.data?.message || error.message);
+            }
+            throw error;
+        }
+    },
 }; 

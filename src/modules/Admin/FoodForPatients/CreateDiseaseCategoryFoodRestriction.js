@@ -12,7 +12,6 @@ const { TextArea } = Input;
 const CreateDiseaseCategoryFoodRestriction = ({
     open,
     onCancel,
-    onSubmit,
     initialValues = {},
 }) => {
     const { form, loading: formLoading, handleSubmit } = useAntForm();
@@ -30,20 +29,27 @@ const CreateDiseaseCategoryFoodRestriction = ({
         console.log('🚀 Form submit with values:', values);
         const result = await handleSubmit(async (formData) => {
             try {
-                // Tạo món ăn mới
+                // Convert mealTime array to comma-separated string for backend
+                const mealTimeString = Array.isArray(formData.mealTime)
+                    ? formData.mealTime.join(',')
+                    : formData.mealTime;
+
+                // Tạo món ăn dinh dưỡng trực tiếp thông qua endpoint create-nutritional-meal
                 const mealData = {
+                    diseaseCategoryId: formData.diseaseCategoryId,
                     name: formData.nutritionalMealName,
                     price: formData.price,
-                    branchId: formData.branchId || 1, // Giả định branchId nếu không có
+                    reason: formData.reason,
+                    alternativeRecommendations: formData.alternativeRecommendations,
+                    requiresPhysicianOverride: formData.requiresPhysicianOverride || false,
+                    isActive: formData.isActive !== undefined ? formData.isActive : true,
+                    mealTime: mealTimeString
                 };
-                const mealResponse = await diseaseCategoryFoodRestrictionService.createNutritionalMeal(mealData);
-                const nutritionalMealCode = mealResponse.data.code;
 
-                // Tạo hạn chế thực phẩm với nutritionalMealCode
-                await onSubmit?.({
-                    ...formData,
-                    nutritionalMealCode,
-                });
+                await diseaseCategoryFoodRestrictionService.createNutritionalMeal(mealData);
+
+                // Close modal after successful creation
+                handleCancel();
             } catch (error) {
                 const errorMessage = error.response?.data?.message || 'Lỗi khi tạo món ăn hoặc hạn chế thực phẩm!';
                 message.error(errorMessage);
@@ -169,9 +175,9 @@ const CreateDiseaseCategoryFoodRestriction = ({
                         placeholder="Chọn buổi ăn"
                         className="floating-input"
                         options={[
-                            { value: 'morning', label: 'Buổi sáng' },
-                            { value: 'noon', label: 'Buổi trưa' },
-                            { value: 'evening', label: 'Buổi tối' },
+                            { value: 'Sáng', label: 'Buổi sáng' },
+                            { value: 'Trưa', label: 'Buổi trưa' },
+                            { value: 'Tối', label: 'Buổi tối' },
                         ]}
                     />
                 </Form.Item>
@@ -225,7 +231,6 @@ const CreateDiseaseCategoryFoodRestriction = ({
 CreateDiseaseCategoryFoodRestriction.propTypes = {
     open: PropTypes.bool.isRequired,
     onCancel: PropTypes.func.isRequired,
-    onSubmit: PropTypes.func.isRequired,
     initialValues: PropTypes.object,
 };
 

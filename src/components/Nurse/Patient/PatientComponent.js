@@ -79,10 +79,14 @@ const PatientComponent = () => {
     //     fullName: formData.fullName.trim(),
     //     medicalRecordNumber: formData.medicalRecordNumber.trim(),
     //     gender: formData.gender,
-    //     dateOfBirth: formData.dateOfBirth?.format('YYYY-MM-DD') || null,
+    //     dateOfBirth: formData.dateOfBirth && typeof formData.dateOfBirth.format === 'function'
+    //       ? formData.dateOfBirth.format('YYYY-MM-DD')
+    //       : formData.dateOfBirth || null,
     //     roomNumber: formData.roomNumber?.trim() || '',
     //     bedNumber: formData.bedNumber?.trim() || '',
-    //     admissionDate: formData.admissionDate?.format('YYYY-MM-DD') || null,
+    //     admissionDate: formData.admissionDate && typeof formData.admissionDate.format === 'function'
+    //       ? formData.admissionDate.format('YYYY-MM-DD')
+    //       : formData.admissionDate || null,
     //     attendingPhysician: formData.attendingPhysician?.trim() || '',
     //     requiresDietarySupervision: formData.requiresDietarySupervision || false,
     //     notes: formData.notes?.trim() || '',
@@ -92,32 +96,17 @@ const PatientComponent = () => {
     //   };
 
     //   await createPatientMutation.mutateAsync({ patientData: payload, branchId: parseInt(currentBranchId, 10) });
-    //   message.success('Tạo bệnh nhân thành công');
+    //   //message.success('Tạo bệnh nhân thành công');
     //   setIsCreateModalVisible(false);
     //   refetch();
     // } catch (err) {
     //   message.error(err?.response?.data?.message || 'Lỗi khi tạo bệnh nhân!');
     // }
 
-    const payload = {
-      id: formData.medicalRecordNumber.trim(),
-      fullName: formData.fullName.trim(),
-      medicalRecordNumber: formData.medicalRecordNumber.trim(),
-      gender: formData.gender,
-      dateOfBirth: formData.dateOfBirth?.format('YYYY-MM-DD') || null,
-      roomNumber: formData.roomNumber?.trim() || '',
-      bedNumber: formData.bedNumber?.trim() || '',
-      admissionDate: formData.admissionDate?.format('YYYY-MM-DD') || null,
-      attendingPhysician: formData.attendingPhysician?.trim() || '',
-      requiresDietarySupervision: formData.requiresDietarySupervision || false,
-      notes: formData.notes?.trim() || '',
-      branchId: parseInt(currentBranchId, 10),
-      diseaseCategoryIds: formData.diseaseCategories || [],
-      departmentId: formData.departmentId ? parseInt(formData.departmentId, 10) : null,
-    };
+    // CreatePatient.js already handles the API call, so we just need to handle the response
+    console.log('🔍 handleCreate - Received response from CreatePatient:', formData);
 
-    await createPatientMutation.mutateAsync({ patientData: payload, branchId: parseInt(currentBranchId, 10) });
-    //message.success('Tạo bệnh nhân thành công');
+    // Close the modal and refresh the data
     setIsCreateModalVisible(false);
     refetch();
   };
