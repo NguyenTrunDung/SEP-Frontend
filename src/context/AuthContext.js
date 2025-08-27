@@ -299,6 +299,20 @@ export const AuthProvider = ({ children }) => {
                                             : ['User']
                                     };
 
+                                    // Restore departmentId from persisted userData if available
+                                    try {
+                                        if (!('departmentId' in userFromToken) || userFromToken.departmentId == null) {
+                                            const storedUserRaw = localStorage.getItem('userData');
+                                            if (storedUserRaw) {
+                                                const storedUser = JSON.parse(storedUserRaw);
+                                                if (storedUser && storedUser.departmentId != null) {
+                                                    userFromToken.departmentId = storedUser.departmentId;
+                                                    localStorage.setItem('userDepartmentId', String(storedUser.departmentId));
+                                                }
+                                            }
+                                        }
+                                    } catch (_) { /* ignore */ }
+
                                     dispatch({
                                         type: 'UPDATE_USER',
                                         payload: userFromToken,
@@ -327,6 +341,20 @@ export const AuthProvider = ({ children }) => {
                                         ? [payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']]
                                         : ['User']
                                 };
+
+                                // Restore departmentId from persisted userData if missing
+                                try {
+                                    if (!('departmentId' in userFromToken) || userFromToken.departmentId == null) {
+                                        const storedUserRaw = localStorage.getItem('userData');
+                                        if (storedUserRaw) {
+                                            const storedUser = JSON.parse(storedUserRaw);
+                                            if (storedUser && storedUser.departmentId != null) {
+                                                userFromToken.departmentId = storedUser.departmentId;
+                                                localStorage.setItem('userDepartmentId', String(storedUser.departmentId));
+                                            }
+                                        }
+                                    }
+                                } catch (_) { /* ignore */ }
 
                                 // Map backend roles to frontend role
                                 const storedUserBranches = authService.getUserBranches();

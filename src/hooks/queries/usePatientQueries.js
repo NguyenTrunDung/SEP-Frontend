@@ -126,10 +126,10 @@ export const useCreatePatient = () => {
       queryClient.invalidateQueries({
         queryKey: PATIENT_KEYS.byBranch(branchId),
       });
-      message.success('Tạo bệnh nhân thành công');
+      //  message.success('Tạo bệnh nhân thành công');
     },
     onError: (error) => {
-      message.error('Lỗi khi tạo bệnh nhân: ' + error.message);
+      //message.error('Lỗi khi tạo bệnh nhân: ' + error.message);
     },
   });
 };

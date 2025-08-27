@@ -85,12 +85,7 @@ const CreatePatient = ({
           if (externalSubmit) externalSubmit(response.data);
           onCancel();
           refetch();
-        },
-        onError: (error) => {
-          message.error(
-            error?.response?.data?.message || 'Lỗi khi tạo bệnh nhân'
-          );
-        },
+        }
       });
     } catch (error) {
       console.error('Validation or mutation failed:', error);

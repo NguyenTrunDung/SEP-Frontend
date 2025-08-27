@@ -3,8 +3,20 @@ import environment from '../config/environment';
 
 export const patientService = {
   async getPatientsByBranch(branchId) {
-    // Get departmentId from localStorage (stored during login)
-    const userDepartmentId = localStorage.getItem('userDepartmentId');
+    // Resolve departmentId from reliable sources on reload
+    let userDepartmentId = localStorage.getItem('userDepartmentId');
+    if (!userDepartmentId) {
+      try {
+        const userRaw = localStorage.getItem('userData');
+        if (userRaw) {
+          const user = JSON.parse(userRaw);
+          if (user && user.departmentId != null) {
+            userDepartmentId = String(user.departmentId);
+            localStorage.setItem('userDepartmentId', userDepartmentId);
+          }
+        }
+      } catch (_) { /* ignore */ }
+    }
 
     const params = { branchId: parseInt(branchId, 10) };
 

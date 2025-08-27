@@ -1,3 +1,4 @@
+import { message } from 'antd';
 import api, { environment } from './api/config';
 import { jwtDecode } from 'jwt-decode';
 
@@ -59,6 +60,18 @@ export const authService = {
                 console.log('👑 System Admin:', isSystemAdmin);
             }
 
+            // Persist user info needed across reloads
+            try {
+                if (user) {
+                    localStorage.setItem('userData', JSON.stringify(user));
+                    if (user.departmentId !== undefined && user.departmentId !== null) {
+                        localStorage.setItem('userDepartmentId', String(user.departmentId));
+                    }
+                }
+            } catch (e) {
+                // noop: best-effort persistence
+            }
+
             return {
                 accessToken,
                 refreshToken,
@@ -72,8 +85,10 @@ export const authService = {
             };
         } catch (error) {
             if (environment.features.enableLogging) {
-                console.error('❌ Login failed:', error.response?.data?.message || error.message);
+                console.error('❌ Login failed in service:', error.response?.data?.message || error.message);
             }
+
+            message.error(error.response?.data?.message || error.message, 5);
             throw error;
         }
     },
