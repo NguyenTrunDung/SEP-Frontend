@@ -878,13 +878,13 @@ const Navbar = () => {
                     }
                   }}
                 />
-                <Button
+                {/* <Button
                   type="link"
                   onClick={handleForgotPasswordClick}
                   style={{ marginTop: '16px', width: '100%', textAlign: 'center' }}
                 >
                   Quên mật khẩu?
-                </Button>
+                </Button> */}
               </ConfigProvider>
             </div>
           </Card>

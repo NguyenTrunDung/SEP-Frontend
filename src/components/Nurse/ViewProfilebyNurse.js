@@ -18,6 +18,8 @@ const ProfilePopup = ({ visible, onClose }) => {
   const navigate = useNavigate();
   const [isEditProfileModalVisible, setIsEditProfileModalVisible] = useState(false);
   const [isChangePasswordModalVisible, setIsChangePasswordModalVisible] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null); // State for image preview
+  const [selectedFile, setSelectedFile] = useState(null); // State for the selected file
   const [profileForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
   const { departments, isLoading: isDepartmentsLoading } = useDepartments();
@@ -27,9 +29,10 @@ const ProfilePopup = ({ visible, onClose }) => {
       profileForm.setFieldsValue({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
-        profilePictureUrl: user.profilePictureUrl || null,
         departmentId: user.departmentId || '',
       });
+      // Set initial preview image from user profile
+      setPreviewImage(user.profilePictureUrl || null);
     }
   }, [user, profileForm]);
 
@@ -67,14 +70,15 @@ const ProfilePopup = ({ visible, onClose }) => {
     (e) => {
       const file = e.target.files[0];
       if (file) {
+        setSelectedFile(file); // Store the file for submission
         const reader = new FileReader();
         reader.onloadend = () => {
-          profileForm.setFieldsValue({ profilePictureUrl: reader.result });
+          setPreviewImage(reader.result); // Set Data URL for preview
         };
         reader.readAsDataURL(file);
       }
     },
-    [profileForm]
+    []
   );
 
   const handleSaveEditProfile = async (values) => {
@@ -84,35 +88,54 @@ const ProfilePopup = ({ visible, onClose }) => {
     }
 
     try {
+      // Prepare profile data
       const updatedUser = {
         firstName: values.firstName.trim(),
         lastName: values.lastName.trim(),
-        profilePictureUrl: values.profilePictureUrl,
+        // Only include profilePictureUrl if a new file was selected
+        profilePictureUrl: selectedFile ? await uploadImage(selectedFile) : user.profilePictureUrl,
       };
 
+      // Update profile via authService
       await authService.editProfile(updatedUser);
 
+      // Update department if changed
       if (values.departmentId && values.departmentId !== user.departmentId) {
         await departmentService.updateUserDepartment(user.id, values.departmentId);
       }
 
+      // Fetch updated user data
       const updatedUserData = await authService.getProfile();
 
+      // Update user context
       updateUser({
         ...user,
         ...updatedUserData,
         departmentId: values.departmentId,
         firstName: values.firstName.trim(),
         lastName: values.lastName.trim(),
-        profilePictureUrl: values.profilePictureUrl,
+        profilePictureUrl: updatedUser.profilePictureUrl,
       });
 
       message.success('Cập nhật hồ sơ thành công!');
       setIsEditProfileModalVisible(false);
+      setSelectedFile(null); // Clear selected file
       onClose();
     } catch (error) {
       message.error(error.response?.data?.message || 'Cập nhật hồ sơ thất bại.');
     }
+  };
+
+  // Mock function for image upload (replace with your actual upload logic)
+  const uploadImage = async (file) => {
+    // Example: Upload file to server and return URL
+    // This is a placeholder; implement your actual file upload logic
+    const formData = new FormData();
+    formData.append('file', file);
+    // Example API call (replace with your actual endpoint)
+    // const response = await api.post('/api/upload', formData);
+    // return response.data.url;
+    return URL.createObjectURL(file); // Temporary URL for demo purposes
   };
 
   const handleSaveChangePassword = async (values) => {
@@ -239,6 +262,8 @@ const ProfilePopup = ({ visible, onClose }) => {
         open={isEditProfileModalVisible}
         onCancel={() => {
           profileForm.resetFields();
+          setPreviewImage(user?.profilePictureUrl || null);
+          setSelectedFile(null);
           setIsEditProfileModalVisible(false);
         }}
         footer={null}
@@ -258,7 +283,7 @@ const ProfilePopup = ({ visible, onClose }) => {
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
               <Avatar
                 size={64}
-                src={profileForm.getFieldValue('profilePictureUrl')}
+                src={previewImage}
                 icon={<UserOutlined />}
                 style={{ backgroundColor: '#1890ff' }}
               />
@@ -311,7 +336,7 @@ const ProfilePopup = ({ visible, onClose }) => {
               </Form.Item>
               <Form.Item
                 label={<Text strong>Avatar</Text>}
-                name="profilePictureUrl"
+                name="avatar"
               >
                 <Input
                   type="file"
@@ -338,6 +363,8 @@ const ProfilePopup = ({ visible, onClose }) => {
                 <Button
                   onClick={() => {
                     profileForm.resetFields();
+                    setPreviewImage(user?.profilePictureUrl || null);
+                    setSelectedFile(null);
                     setIsEditProfileModalVisible(false);
                   }}
                   style={{

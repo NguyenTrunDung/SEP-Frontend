@@ -31,11 +31,11 @@ const ViewPatientOrderDetail = ({
 }) => {
   const { format, convert } = useTimezone();
   const [groupedOrders, setGroupedOrders] = useState({});
-  const [isLoadingPatientNames, setIsLoadingPatientNames] = useState(false); // Added state for loading patient names
+  const [isLoadingPatientNames, setIsLoadingPatientNames] = useState(false);
   const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
   const { mutate: deleteOrder, isLoading: isDeleting } = useDeleteOrder();
 
-  // Normalize functions
+  // Normalize functions (unchanged)
   const normalizePaymentMethod = (paymentMethod) => {
     const numberToStringMap = { '1': 'Wallet', '2': 'VNPay', '3': 'Miễn phí' };
     if (typeof paymentMethod === 'number' || numberToStringMap[paymentMethod]) {
@@ -67,7 +67,7 @@ const ViewPatientOrderDetail = ({
       'snack': 'Bữa phụ',
     }[mealSession?.toLowerCase()] || 'Không xác định');
 
-  // Fetch patient name
+  // Fetch patient name (unchanged)
   const fetchPatientName = async (patientId, branchId) => {
     if (!patientId || patientId === 'Unknown' || patientId === 'NURSE_DEFAULT') {
       console.warn(`🔍 No valid patientId provided: ${patientId}, falling back to 'Không có'`);
@@ -193,6 +193,14 @@ const ViewPatientOrderDetail = ({
       render: (foodName, record) => foodName || record.name || `Món ăn ID ${record.foodId || 'Unknown'}`,
     },
     {
+      title: 'BUỔI ĂN',
+      dataIndex: 'mealSession',
+      key: 'mealSession',
+      align: 'center',
+      render: (_, record) => record.mealSession || 'Không xác định',
+      width: 120,
+    },
+    {
       title: 'GIÁ TIỀN',
       dataIndex: 'price',
       align: 'center',
@@ -297,10 +305,6 @@ const ViewPatientOrderDetail = ({
                         <Input value={order.id} disabled />
                       </Col>
                       <Col xs={24} sm={12} md={6}>
-                        <label className="floating-label">Buổi ăn</label>
-                        <Input value={order.mealSession || 'Không xác định'} disabled />
-                      </Col>
-                      <Col xs={24} sm={12} md={6}>
                         <label className="floating-label">Ngày nhận</label>
                         <DatePicker
                           value={order.receiveDate}
@@ -386,7 +390,11 @@ const ViewPatientOrderDetail = ({
                     <Table
                       style={{ marginTop: 16 }}
                       columns={columns}
-                      dataSource={order.orderDetails.map((item, index) => ({ ...item, key: index }))}
+                      dataSource={order.orderDetails.map((item, index) => ({
+                        ...item,
+                        key: index,
+                        mealSession: order.mealSession, // Pass mealSession to table row
+                      }))}
                       pagination={false}
                       bordered
                       scroll={{ x: 'max-content' }}

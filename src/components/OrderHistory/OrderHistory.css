@@ -1,13 +1,15 @@
 /* General Reset and Base Styles */
 .order-history-modal,
 .order-detail-modal {
-  max-width: 90vw;
+  max-width: 98vw;
+  width: 98vw;
   margin: 0 auto;
 }
 
 .modal-content {
-  border-radius: 8px;
+  border-radius: 5px;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .modal-header {
@@ -22,18 +24,18 @@
 }
 
 .modal-body {
-  padding: 16px;
+  padding: 6px;
   background: #fff;
-  max-height: 70vh;
-  overflow-y: auto;
+  max-height: 85vh;
+  /* overflow-y: auto; */
 }
 
-.custom-close-icon {
+/* .custom-close-icon {
   color: #000;
   font-size: 1.625rem;
   font-weight: 400;
   cursor: pointer;
-}
+} */
 
 /* Search and Header */
 .reusable-table-header {
@@ -78,8 +80,9 @@
 .order-history-table .ant-table-thead > tr > th,
 .order-history-table .ant-table-tbody > tr > td {
   text-align: left !important;
-  padding: 8px !important;
-  font-size: 0.875rem;
+  padding: 10px !important;
+  font-size: 1rem;
+  line-height: 1.3;
 }
 
 .table-container {
@@ -88,8 +91,10 @@
 }
 
 .detail-table .ant-table-thead > tr > th {
-  background-color: #f0f0f0;
-  font-weight: 500;
+  background-color: #f5f5f5;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 10px !important;
 }
 
 .food-image {
@@ -126,17 +131,23 @@
 /* Order Detail Modal */
 .order-detail-item {
   display: flex;
-  font-size: 0.8125rem;
+  font-size: 1rem;
   margin-bottom: 8px;
+  line-height: 1.3;
+  padding: 4px 0;
 }
 
 .detail-label {
-  font-weight: 400;
-  flex: 0 0 120px;
+  font-weight: 600;
+  flex: 0 0 180px;
+  color: #333;
+  margin-right: 12px;
 }
 
 .detail-value {
   font-weight: 500;
+  color: #000;
+  flex-grow: 1;
 }
 
 .detail-value.total {
@@ -150,14 +161,55 @@
   margin-bottom: 8px;
 }
 
-/* Media Queries for Responsiveness */
-@media screen and (max-width: 768px) {
-  .order-history-modal {
-    width: 95vw;
-  }
+/* Additional cleanup to ensure no underlines */
+.order-history-table .ant-table-tbody > tr {
+  border-bottom: none !important;
+}
 
+.detail-table .ant-table-tbody > tr {
+  border-bottom: none !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom: none !important;
+}
+
+.order-detail-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background-color: #b4c80f;
+  position: relative;
+}
+
+.order-detail-modal .modal-header .order-id {
+  position: absolute;
+  left: 20px;
+  font-size: 0.9rem;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.order-detail-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-left: 120px; /* Adjust to make space for order ID */
+}
+
+.custom-close-icon {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+  .order-history-modal,
   .order-detail-modal {
-    width: 95vw;
+    width: 98vw;
   }
 
   .modal-header {
@@ -166,7 +218,8 @@
   }
 
   .modal-body {
-    padding: 12px;
+    padding: 16px;
+    max-height: 90vh;
   }
 
   .reusable-table-header {
@@ -196,8 +249,9 @@
 
   .order-history-table .ant-table-thead > tr > th,
   .order-history-table .ant-table-tbody > tr > td {
-    font-size: 0.75rem;
-    padding: 6px !important;
+    font-size: 0.95rem;
+    padding: 8px !important;
+    line-height: 1.2;
   }
 
   .food-image {
@@ -206,15 +260,33 @@
   }
 
   .order-detail-item {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+    line-height: 1.2;
+    padding: 2px 0;
   }
 
   .detail-label {
-    flex: 0 0 100px;
+    flex: 0 0 130px;
+    margin-right: 8px;
   }
 
   .detail-section-title {
     font-size: 0.75rem;
+  }
+
+  .order-detail-modal .modal-header .order-id {
+    font-size: 0.8rem;
+    left: 16px;
+  }
+
+  .order-detail-modal .modal-header h2 {
+    font-size: 1rem;
+    margin-left: 100px;
+  }
+
+  .order-detail-modal .modal-header {
+    padding: 10px 16px;
   }
 }
 
@@ -272,5 +344,19 @@
   .detail-label {
     flex: none;
     margin-bottom: 2px;
+  }
+
+  .order-detail-modal .modal-header .order-id {
+    font-size: 0.75rem;
+    left: 12px;
+  }
+
+  .order-detail-modal .modal-header h2 {
+    font-size: 0.9rem;
+    margin-left: 80px;
+  }
+
+  .order-detail-modal .modal-header {
+    padding: 8px 12px;
   }
 }

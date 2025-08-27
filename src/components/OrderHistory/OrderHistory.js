@@ -55,7 +55,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     const hour = date.getHours();
     if (hour >= 5 && hour < 11) return 'Sáng';
     if (hour >= 11 && hour < 17) return 'Trưa';
-    return 'Tối';
+    return 'Chiều';
   };
 
   useEffect(() => {
@@ -475,19 +475,19 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       ),
       onFilter: (value, record) => String(record.id || '').toLowerCase().includes(value.toLowerCase()),
       filteredValue: filterId ? [filterId] : null,
-      responsive: ['xs', 'sm', 'md', 'lg'], // Ensure visible on all screen sizes
+      responsive: ['xs', 'sm', 'md', 'lg'],
     },
     ...(tabKey === 'patientOrders'
       ? [
-          {
-            title: 'Tên bệnh nhân',
-            dataIndex: 'customerName',
-            key: 'customerName',
-            width: '20%',
-            render: (customerName) => customerName || 'Không xác định',
-            responsive: ['sm', 'md', 'lg'], // Hide on extra small screens
-          },
-        ]
+        {
+          title: 'Tên bệnh nhân',
+          dataIndex: 'customerName',
+          key: 'customerName',
+          width: '20%',
+          render: (customerName) => customerName || 'Không xác định',
+          responsive: ['sm', 'md', 'lg'],
+        },
+      ]
       : []),
     {
       title: 'Thời gian đặt',
@@ -578,7 +578,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       dataIndex: 'foodName',
       key: 'foodName',
       align: 'left',
-      width: '40%',
+      width: '35%',
       render: (foodName, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <img
@@ -595,11 +595,20 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       responsive: ['xs', 'sm', 'md', 'lg'],
     },
     {
+      title: 'Buổi ăn',
+      dataIndex: 'mealTime',
+      key: 'mealTime',
+      align: 'left',
+      width: '15%',
+      render: (_, record) => selectedOrder?.mealTime || 'Không xác định',
+      responsive: ['xs', 'sm', 'md', 'lg'],
+    },
+    {
       title: 'Số lượng',
       dataIndex: 'quantity',
       key: 'quantity',
       align: 'left',
-      width: '20%',
+      width: '15%',
       render: (quantity) => quantity ?? 1,
       responsive: ['xs', 'sm', 'md', 'lg'],
     },
@@ -608,9 +617,9 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       dataIndex: 'price',
       key: 'price',
       align: 'left',
-      width: '20%',
+      width: '15%',
       render: (price) => formatAmount(price ?? 0),
-      responsive: ['sm', 'md', 'lg'], // Hide on extra small screens
+      responsive: ['sm', 'md', 'lg'],
     },
     {
       title: 'Thành tiền',
@@ -630,13 +639,11 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         onCancel={onClose}
         footer={null}
         centered
-        width="90vw"
-        className="order-history-modal"
-        closeIcon={<span className="custom-close-icon">×</span>}
+        width="70vw"
+        closeIcon={<span style={{ color: '#000', fontSize: '24px' }}>×</span>}
         styles={{
-          content: { padding: 0, borderRadius: 8 },
+          content: { padding: 0, borderRadius: '8px' },
           body: { padding: 0 },
-          header: { display: 'none' },
         }}
       >
         <div className="modal-content">
@@ -743,13 +750,11 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         onCancel={handleCloseDetailModal}
         footer={null}
         centered
-        width="80vw"
-        className="order-detail-modal"
-        closeIcon={<span className="custom-close-icon">×</span>}
+        width="40vw"
+        closeIcon={<span style={{ color: '#000', fontSize: '24px' }}>×</span>}
         styles={{
-          content: { padding: 0, borderRadius: 8 },
+          content: { padding: 0, borderRadius: '4px' },
           body: { padding: 0 },
-          header: { display: 'none' },
         }}
       >
         {selectedOrder && (
@@ -771,10 +776,6 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                 <Text className="detail-value">
                   {selectedOrder.orderTypeDisplay || (selectedOrder.isPatientOrder ? 'Đơn hàng bệnh nhân' : selectedOrder.type || 'Y tá')}
                 </Text>
-              </div>
-              <div className="order-detail-item">
-                <Text className="detail-label">Buổi ăn: </Text>
-                <Text className="detail-value">{selectedOrder.mealTime || 'Không xác định'}</Text>
               </div>
               <div className="order-detail-item">
                 <Text className="detail-label">Thời gian đặt: </Text>
