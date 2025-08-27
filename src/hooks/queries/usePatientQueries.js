@@ -116,20 +116,25 @@ export const useCreatePatient = () => {
     mutationFn: ({ patientData, branchId }) =>
       patientService.createPatient(patientData, branchId),
     onSuccess: (data, { branchId }) => {
+      // Handle different response structures
+      const patientData = data.data || data;
       const newPatient = {
-        ...data.data,
-        departmentName: departments.find(dept => dept.id === data.data.departmentId)?.name || 'Chưa xác định',
+        ...patientData,
+        departmentName: departments.find(dept => dept.id === patientData.departmentId)?.name || 'Chưa xác định',
       };
+
       queryClient.setQueryData(PATIENT_KEYS.byBranch(branchId), (oldData) => {
         return oldData ? [...oldData, newPatient] : [newPatient];
       });
+
       queryClient.invalidateQueries({
         queryKey: PATIENT_KEYS.byBranch(branchId),
       });
-      //  message.success('Tạo bệnh nhân thành công');
+      message.success('Tạo bệnh nhân thành công');
     },
     onError: (error) => {
-      //message.error('Lỗi khi tạo bệnh nhân: ' + error.message);
+      console.error('Create patient mutation error:', error);
+      message.error('Lỗi khi tạo bệnh nhân: ' + error.message);
     },
   });
 };
