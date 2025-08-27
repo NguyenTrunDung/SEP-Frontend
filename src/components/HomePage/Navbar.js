@@ -417,6 +417,7 @@ const Navbar = () => {
     ...(user?.role === ROLES.NURSE
       ? [
         { key: 'staff', label: 'BỆNH NHÂN', route: '/nurse/patient' },
+        { key: 'patient-order', label: 'ĐẶT MÓN BỆNH NHÂN', route: '/nurse/patient-order' },
       ]
       : user?.role === ROLES.GUEST
         ? []
@@ -889,13 +890,13 @@ const Navbar = () => {
                     }
                   }}
                 />
-                <Button
+                {/* <Button
                   type="link"
                   onClick={handleForgotPasswordClick}
                   style={{ marginTop: '16px', width: '100%', textAlign: 'center' }}
                 >
                   Quên mật khẩu?
-                </Button>
+                </Button> */}
               </ConfigProvider>
             </div>
           </Card>

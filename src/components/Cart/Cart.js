@@ -56,25 +56,21 @@ const CartModal = ({
   const handleUpdateCart = () => {
     if (!selectedMenuItem) return;
 
-    if (cartId) {
-      const updatedItems = cartItems.map((item) =>
-        item.cartId === cartId ? { ...item, quantity, note } : item
-      );
-      setCartItems(updatedItems);
-      message.success(`${selectedMenuItem.dishName} đã được cập nhật trong giỏ hàng!`);
-    } else {
-      const newItem = {
-        ...selectedMenuItem,
-        quantity,
-        cartId: uuidv4(),
-        FoodId: selectedMenuItem.ID,
-        note,
-        BranchId: selectedBranch?.ID,
-      };
-      const updatedItems = [...cartItems, newItem];
-      setCartItems(updatedItems);
-      message.success(`${selectedMenuItem.dishName} đã được thêm vào giỏ hàng!`);
-    }
+    const newItem = {
+      ...selectedMenuItem,
+      quantity,
+      cartId: cartId || uuidv4(),
+      FoodId: selectedMenuItem.ID,
+      note,
+      BranchId: selectedBranch?.ID,
+    };
+
+    const updatedItems = cartId
+      ? cartItems.map((item) => (item.cartId === cartId ? { ...item, quantity, note } : item))
+      : [...cartItems, newItem];
+
+    setCartItems(updatedItems);
+    message.success(`${selectedMenuItem.dishName} đã được ${cartId ? 'cập nhật' : 'thêm'} vào giỏ hàng!`);
     setIsEditModalVisible(false);
     setIsCartModalVisible(true);
     setSelectedMenuItem(null);
@@ -89,18 +85,17 @@ const CartModal = ({
       message.error('Giỏ hàng của bạn đang trống.');
       return;
     }
-    const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const total = cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
     const shippingFee = paymentDetails.receiveMethod === 'Giao tận nơi' ? 5000 : 0;
 
-    // Validate cart items have required properties for API
-    const validatedCartItems = cartItems.map(item => ({
-      ...item,
+    const validatedCartItems = cartItems.map((item) => ({
       FoodId: item.FoodId || item.ID,
-      dishName: item.dishName || item.name,
+      dishName: item.dishName || item.name || 'Unknown Dish',
       price: Number(item.price) || 0,
       quantity: Number(item.quantity) || 1,
       note: item.note || null,
-      cartId: item.cartId
+      cartId: item.cartId,
     }));
 
     setPaymentDetails({
@@ -116,16 +111,18 @@ const CartModal = ({
   return (
     <>
       <Modal
-        key={cartItems.length}
         open={isCartModalVisible}
         title={
-          <div style={{
-            backgroundColor: '#b4c80f',
-            color: '#000',
-            textAlign: 'left',
-            padding: '10px',
-            borderRadius: '4px 4px 0 0'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#b4c80f',
+              color: '#000',
+              padding: '12px',
+              borderRadius: '4px 4px 0 0',
+              fontSize: '18px',
+              fontWeight: 'bold',
+            }}
+          >
             Giỏ hàng
           </div>
         }
@@ -137,88 +134,66 @@ const CartModal = ({
           setCartId(null);
         }}
         footer={
-          cartItems.length === 0
-            ? null
-            : [
-              <div
-                key="footer"
+          cartItems.length === 0 ? null : (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', padding: '10px 0' }}>
+              <Button
+                onClick={() => {
+                  setIsCartModalVisible(false);
+                  navigate('/#menu');
+                  setTimeout(() => {
+                    const section = document.getElementById('menu');
+                    if (section) {
+                      const headerHeight = 139;
+                      const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
+                      window.scrollTo({ top: sectionPosition - headerHeight, behavior: 'smooth' });
+                    }
+                  }, 100);
+                }}
                 style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  gap: '16px',
-                  padding: '10px 0',
+                  backgroundColor: '#b4c80f',
+                  color: '#000',
+                  border: 'none',
+                  padding: '10px 24px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  flex: 1,
+                  maxWidth: '200px',
                 }}
               >
-                <Button
-                  key="menu"
-                  onClick={() => {
-                    setIsCartModalVisible(false);
-                    navigate('/#menu');
-                    setTimeout(() => {
-                      const section = document.getElementById('menu');
-                      if (section) {
-                        const headerHeight = 139;
-                        const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
-                        window.scrollTo({
-                          top: sectionPosition - headerHeight,
-                          behavior: 'smooth',
-                        });
-                      }
-                    }, 100);
-                  }}
-                  style={{
-                    backgroundColor: '#b4c80f',
-                    color: '#000',
-                    border: 'none',
-                    padding: '15px 100px',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '400',
-                  }}
-                >
-                  Thêm Món
-                </Button>,
-                <Button
-                  key="checkout"
-                  type="primary"
-                  onClick={handleGoToCart}
-                  style={{
-                    backgroundColor: '#b4c80f',
-                    color: '#000',
-                    border: 'none',
-                    padding: '15px 80px',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '400',
-                  }}
-                >
-                  Tiến Hành Đặt Món
-                </Button>
-              </div>,
-            ]
+                Thêm Món
+              </Button>
+              <Button
+                type="primary"
+                onClick={handleGoToCart}
+                style={{
+                  backgroundColor: '#b4c80f',
+                  color: '#000',
+                  border: 'none',
+                  padding: '10px 24px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  flex: 1,
+                  maxWidth: '200px',
+                }}
+              >
+                Tiến Hành Đặt Món
+              </Button>
+            </div>
+          )
         }
-        width="min(100vw, 600px)"
+        width="min(90vw, 600px)"
         centered
-        style={{ padding: 0, margin: 0 }}
-        modalRender={(node) => <div style={{ margin: 0, padding: 0 }}>{node}</div>}
         styles={{
           mask: { background: 'rgba(0, 0, 0, 0.6)' },
-          content: { padding: 0, margin: 0, borderRadius: 5 },
-          body: { padding: '16px', background: '#fff' },
+          content: { padding: 0, borderRadius: '8px' },
+          body: { padding: '16px', background: '#fff', maxHeight: '70vh', overflowY: 'auto' },
         }}
       >
         {cartItems.length === 0 ? (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              minHeight: '100px',
-            }}
-          >
-            <Text style={{ fontSize: '16px', color: '#666' }}>
-              Giỏ hàng của bạn đang trống.
-            </Text>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100px' }}>
+            <Text style={{ fontSize: '16px', color: '#666' }}>Giỏ hàng của bạn đang trống.</Text>
           </div>
         ) : (
           <div>
@@ -228,43 +203,41 @@ const CartModal = ({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  marginBottom: 16,
+                  marginBottom: '16px',
                   borderBottom: '1px solid #ddd',
-                  paddingBottom: 8,
+                  paddingBottom: '8px',
+                  gap: '12px',
                 }}
               >
                 <img
                   src={item.image || 'https://via.placeholder.com/50x50?text=No+Image'}
-                  alt={item.dishName}
+                  alt={item.dishName || 'Unknown Dish'}
                   style={{
-                    width: 50,
-                    height: 50,
+                    width: '50px',
+                    height: '50px',
                     objectFit: 'cover',
-                    borderRadius: 4,
-                    marginRight: 16,
+                    borderRadius: '4px',
+                    flexShrink: 0,
                   }}
                 />
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}>
-                    <Text strong>{item.dishName}</Text>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text strong style={{ fontSize: '14px' }}>{item.dishName || 'Unknown Dish'}</Text>
+                    <div style={{ display: 'flex', gap: '8px' }}>
                       <Button
                         type="text"
                         danger
                         icon={<DeleteOutlined />}
                         onClick={() => handleRemoveCartItem(item.cartId)}
                         style={{
-                          backgroundColor: 'red',
-                          borderColor: 'red',
+                          backgroundColor: '#ff4d4f',
                           color: '#fff',
-                          borderRadius: '100%',
-                          width: '26px',
-                          height: '26px',
-                          marginRight: '8px',
+                          borderRadius: '50%',
+                          width: '28px',
+                          height: '28px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
                       />
                       <Button
@@ -273,50 +246,42 @@ const CartModal = ({
                         onClick={() => handleEditCartItem(item.cartId)}
                         style={{
                           backgroundColor: '#b4c80f',
-                          borderColor: '#b4c80f',
                           color: '#000',
-                          borderRadius: '100%',
-                          width: '26px',
-                          height: '26px',
-                          marginRight: '8px',
+                          borderRadius: '50%',
+                          width: '28px',
+                          height: '28px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
                       />
                     </div>
                   </div>
                   {item.note && (
-                    <Text style={{
-                      color: '#999',
-                      fontStyle: 'italic',
-                      display: 'block',
-                      marginTop: 4,
-                    }}>
+                    <Text style={{ color: '#999', fontStyle: 'italic', fontSize: '12px', display: 'block', marginTop: '4px' }}>
                       Ghi chú: {item.note}
                     </Text>
                   )}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginTop: 8,
-                  }}>
-                    <Text>
-                      {format.currency(item.price * item.quantity)} đ
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                    <Text style={{ fontSize: '14px' }}>
+                      {((Number(item.price) || 0) * (Number(item.quantity) || 1)).toLocaleString('vi-VN')} đ
                     </Text>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Button
                         style={{
                           backgroundColor: '#b4c80f',
-                          borderColor: '#b4c80f',
                           color: '#000',
-                          borderRadius: '100%',
-                          width: '26px',
-                          height: '26px',
-                          marginRight: '8px',
+                          borderRadius: '50%',
+                          width: '28px',
+                          height: '28px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
                         onClick={() => {
                           const updatedItems = cartItems.map((cartItem) =>
                             cartItem.cartId === item.cartId
-                              ? { ...cartItem, quantity: Math.max(1, cartItem.quantity - 1) }
+                              ? { ...cartItem, quantity: Math.max(1, Number(cartItem.quantity) - 1) }
                               : cartItem
                           );
                           setCartItems(updatedItems);
@@ -326,21 +291,22 @@ const CartModal = ({
                       >
                         -
                       </Button>
-                      <span style={{ fontSize: '16px', margin: '0 8px' }}>{item.quantity}</span>
+                      <span style={{ fontSize: '14px' }}>{item.quantity}</span>
                       <Button
                         style={{
                           backgroundColor: '#b4c80f',
-                          borderColor: '#b4c80f',
                           color: '#000',
-                          borderRadius: '100%',
-                          width: '26px',
-                          height: '26px',
-                          marginLeft: '8px',
+                          borderRadius: '50%',
+                          width: '28px',
+                          height: '28px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
                         onClick={() => {
                           const updatedItems = cartItems.map((cartItem) =>
                             cartItem.cartId === item.cartId
-                              ? { ...cartItem, quantity: cartItem.quantity + 1 }
+                              ? { ...cartItem, quantity: Number(cartItem.quantity) + 1 }
                               : cartItem
                           );
                           setCartItems(updatedItems);
@@ -355,15 +321,10 @@ const CartModal = ({
                 </div>
               </div>
             ))}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginTop: 16,
-            }}>
-              <Text strong style={{ color: 'black' }}>Tạm tính:</Text>
-              <Text style={{ color: 'red' }}>
-                {format.currency(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0))} đ
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+              <Text strong style={{ fontSize: '16px' }}>Tạm tính:</Text>
+              <Text style={{ color: '#ff4d4f', fontSize: '16px', fontWeight: 'bold' }}>
+                {cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0).toLocaleString('vi-VN')} đ
               </Text>
             </div>
           </div>
@@ -381,18 +342,12 @@ const CartModal = ({
           setCartId(null);
         }}
         footer={null}
-        width={600}
+        width="min(90vw, 600px)"
         centered
-        closeIcon={<span style={{ color: '#000', fontSize: '26px' }}>×</span>}
+        closeIcon={<span style={{ color: '#000', fontSize: '24px' }}>×</span>}
         styles={{
-          content: {
-            padding: 0,
-            background: '#fff',
-            borderRadius: '8px',
-          },
-          body: {
-            padding: 0,
-          },
+          content: { padding: 0, borderRadius: '8px' },
+          body: { padding: 0 },
         }}
       >
         <div style={{ borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
@@ -402,62 +357,32 @@ const CartModal = ({
               color: '#000',
               padding: '12px 16px',
               fontSize: '18px',
+              fontWeight: 'bold',
             }}
           >
             Cập nhật giỏ hàng
           </div>
           <img
             src={selectedMenuItem?.image || 'https://via.placeholder.com/600x250?text=No+Image'}
-            alt={selectedMenuItem?.dishName}
+            alt={selectedMenuItem?.dishName || 'Unknown Dish'}
             style={{
               width: '100%',
-              maxHeight: '250px',
+              maxHeight: '200px',
               objectFit: 'cover',
               display: 'block',
             }}
           />
           <div style={{ padding: '16px' }}>
-            <Text
-              style={{
-                display: 'block',
-                fontSize: '15px',
-                fontWeight: 'bold',
-                color: '#333',
-                marginBottom: '8px',
-              }}
-            >
+            <Text style={{ display: 'block', fontSize: '16px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>
               {selectedMenuItem?.dishName || 'Không có tên'}
             </Text>
-            <Text
-              style={{
-                display: 'block',
-                fontSize: '15px',
-                color: '#555',
-                marginBottom: '8px',
-              }}
-            >
+            <Text style={{ display: 'block', fontSize: '14px', color: '#555', marginBottom: '8px' }}>
               {selectedMenuItem?.description || 'Không có mô tả'}
             </Text>
-            <Text
-              style={{
-                display: 'block',
-                fontSize: '15px',
-                fontWeight: 'bold',
-                color: '#ff0000',
-                marginBottom: '8px',
-              }}
-            >
-              {format.currency(selectedMenuItem?.price) || '0'} đ
+            <Text style={{ display: 'block', fontSize: '16px', fontWeight: 'bold', color: '#ff4d4f', marginBottom: '12px' }}>
+              {(Number(selectedMenuItem?.price) || 0).toLocaleString('vi-VN')} đ
             </Text>
-            <Text
-              style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                color: '#333',
-                marginBottom: '8px',
-              }}
-            >
+            <Text style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>
               Ghi chú:
             </Text>
             <Input.TextArea
@@ -465,38 +390,41 @@ const CartModal = ({
               onChange={(e) => setNote(e.target.value)}
               placeholder="Ghi chú..."
               style={{
-                marginBottom: '20px',
-                height: '115px',
+                marginBottom: '16px',
+                height: '100px',
                 resize: 'none',
+                fontSize: '14px',
               }}
             />
-            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
               <Button
                 style={{
                   backgroundColor: '#b4c80f',
-                  borderColor: '#b4c80f',
                   color: '#000',
                   borderRadius: '50%',
-                  width: '36px',
-                  height: '36px',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
+                  width: '32px',
+                  height: '32px',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
               >
                 -
               </Button>
-              <span style={{ margin: '0 16px', fontSize: '16px' }}>{quantity}</span>
+              <span style={{ fontSize: '16px', minWidth: '24px', textAlign: 'center' }}>{quantity}</span>
               <Button
                 style={{
                   backgroundColor: '#b4c80f',
-                  borderColor: '#b4c80f',
                   color: '#000',
                   borderRadius: '50%',
-                  width: '36px',
-                  height: '36px',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
+                  width: '32px',
+                  height: '32px',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
                 onClick={() => setQuantity(quantity + 1)}
               >
@@ -509,9 +437,10 @@ const CartModal = ({
                 borderColor: '#b4c80f',
                 color: '#000',
                 width: '100%',
-                padding: '18px',
+                padding: '12px',
                 fontSize: '16px',
                 borderRadius: '6px',
+                fontWeight: '500',
               }}
               onClick={handleUpdateCart}
             >

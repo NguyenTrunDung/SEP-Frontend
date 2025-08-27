@@ -72,6 +72,9 @@ export const orderService = {
         queryParams.IsPatientOrder = filters.isOrderPatient;
       }
 
+      // Ensure patientId is included in the response
+      queryParams.includePatientId = true;
+
       if (environment.features.enableLogging) {
         console.log(`🔍 Query parameters sent to API:`, queryParams);
       }
@@ -82,11 +85,17 @@ export const orderService = {
         ...options
       });
 
+      // Normalize the response to ensure patientId is included
+      const normalizedData = response.data.data.map(order => ({
+        ...order,
+        patientId: order.patientId || null, // Ensure patientId is explicitly included, even if null
+      }));
+
       if (environment.features.enableLogging) {
-        console.log(`✅ Received orders for branch ${normalizedBranchId}:`, response.data);
+        console.log(`✅ Received orders for branch ${normalizedBranchId}:`, normalizedData);
       }
 
-      return response.data;
+      return { ...response.data, data: normalizedData };
     } catch (error) {
       console.error('Failed to fetch orders by branch with filters:', error);
       throw error;
@@ -148,7 +157,6 @@ export const orderService = {
           imageUrl: food.imageUrl || item.image || null,
           price: item.price ?? 0,
           total: item.total ?? (item.price ?? 0) * qty,
-          // Include patient information if available
           patientInfo: item.patientInfo || null,
         };
       });
@@ -169,6 +177,7 @@ export const orderService = {
       return {};
     }
   },
+
   async getUserDetails(userId, branchId) {
     try {
       const normalizedBranchId = normalizeBranchId(branchId);
@@ -184,6 +193,7 @@ export const orderService = {
       throw error;
     }
   },
+
   async createOrder(orderData, branchId, options = {}) {
     console.log('this._mapPaymentMethod(orderData.paymentMethod):', this._mapPaymentMethod(orderData.paymentMethod));
     try {
@@ -334,7 +344,6 @@ export const orderService = {
         console.log('🔍 orderService.updateOrderStatus - ID:', orderId, 'newStatus:', newStatus);
       }
 
-      // Use the new PATCH endpoint for status updates only
       const response = await api.patch(`/api/v1/order/UpdateOrderStatus`,
         { status: newStatus },
         { params: { id: orderId } }
@@ -403,13 +412,13 @@ export const orderService = {
         total: orderData.total,
         shippingFee: orderData.shippingFee || 0,
         foodToolFee: orderData.includeUtensils ? 5000 : 0,
-        paymentMethod: 2, // FIXED: VNPay payment method is always 2
+        paymentMethod: 2,
         isPaid: false,
         note: orderData.note,
         locationId: orderData.locationId || null,
         orderDetails: orderData.cartItems.map(item => ({
           foodId: item.FoodId || item.ID,
-          qty: item.quantity, // FIXED: Use 'qty' instead of 'quantity' to match backend expectation
+          qty: item.quantity,
           price: item.price,
           total: item.price * item.quantity,
           note: item.note || null,
@@ -460,6 +469,7 @@ export const orderService = {
       throw error;
     }
   },
+
   async deleteOrder(orderId, branchId, options = {}) {
     try {
       const normalizedBranchId = normalizeBranchId(branchId);
@@ -497,7 +507,6 @@ export const orderService = {
         console.log(`🔍 Fetching patient details for patientId: ${patientId}, branchId: ${branchId}`);
       }
 
-      // Use the existing Patient API endpoint to get patient details
       const response = await api.get(`/api/v1/patient`, {
         params: { id: patientId },
         headers: branchId ? { 'X-Branch-Id': branchId } : {},
@@ -507,19 +516,16 @@ export const orderService = {
         console.log(`✅ Fetched patient details for patientId ${patientId}:`, JSON.stringify(response.data, null, 2));
       }
 
-      return response.data.data; // Return the patient data from the API response
+      return response.data.data;
     } catch (error) {
       console.error(`❌ Failed to fetch patient details for patientId ${patientId}:`, error);
-      // Return null instead of throwing to allow graceful fallback in the UI
       return null;
     }
   },
 
   _mapPaymentMethod(paymentMethod) {
     const paymentMap = {
-      // 'Tiền mặt': 1,
       'Wallet': 1,
-      //'Miễn phí': 3,
       'VNPay': 2
     };
     return paymentMap[paymentMethod] || 1;

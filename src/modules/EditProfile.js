@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Avatar, Typography, Button, Input, message } from 'antd';
+import { Card, Avatar, Typography, Button, Input, message, Select } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { ROLES } from '../constants/roles';
 import './Profile.css';
 
 const { Title } = Typography;
+const { Option } = Select;
 
 const EditProfile = () => {
   const { user, updateUser, loading } = useAuth();
@@ -19,32 +20,49 @@ const EditProfile = () => {
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     phoneNumber: user?.phoneNumber || '',
-    profilePictureUrl: user?.profilePictureUrl || null,
     departmentId: user?.departmentId || '',
-    branch: user?.branch || 'N/A', // Use branch name for display
+    branch: user?.branch || 'N/A',
   });
+  const [previewImage, setPreviewImage] = useState(user?.profilePictureUrl || null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const navigate = useNavigate();
   const { id } = useParams();
 
   const handleAvatarChange = useCallback((e) => {
+    console.log('handleAvatarChange triggered, file:', e.target.files[0]?.name);
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        console.log('File size too large:', file.size);
+        message.error('File quá lớn, tối đa 5MB.');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        console.log('Invalid file type:', file.type);
+        message.error('Vui lòng chọn file hình ảnh.');
+        return;
+      }
+      setSelectedFile(file);
+      console.log('selectedFile set:', file.name);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setEditProfileData((prev) => ({ ...prev, profilePictureUrl: reader.result }));
+        console.log('Image preview loaded');
+        setPreviewImage(reader.result);
       };
       reader.readAsDataURL(file);
+    } else {
+      console.log('No file selected');
     }
   }, []);
 
   useEffect(() => {
+    console.log('useEffect triggered, user:', user);
     const fetchProfileAndBranch = async () => {
       if (user) {
         let updatedUserData = {
           firstName: user.firstName || '',
           lastName: user.lastName || '',
           phoneNumber: user.phoneNumber || '',
-          profilePictureUrl: user.profilePictureUrl || null,
           departmentId: user.departmentId || '',
           branch: user.branch || 'N/A',
         };
@@ -57,9 +75,9 @@ const EditProfile = () => {
           ROLES.NURSE,
         ];
 
-        // Fetch branch information if the user role requires it and branch is not already set
         if (rolesWithBranch.includes(user.role) && !user.branch) {
           try {
+            console.log('Fetching branch data');
             const branchData = await branchService.getCurrentBranch();
             updatedUserData = {
               ...updatedUserData,
@@ -73,6 +91,7 @@ const EditProfile = () => {
         }
 
         setEditProfileData(updatedUserData);
+        setPreviewImage(user.profilePictureUrl || null);
       }
     };
 
@@ -80,10 +99,12 @@ const EditProfile = () => {
   }, [user, updateUser]);
 
   if (loading || isDepartmentsLoading) {
+    console.log('Loading state:', { loading, isDepartmentsLoading });
     return <div className="loading-text">Loading...</div>;
   }
 
   if (!user || user.id !== id) {
+    console.log('User validation failed:', { user, id });
     return <div className="no-user-text">Unauthorized or invalid user ID</div>;
   }
 
@@ -109,38 +130,116 @@ const EditProfile = () => {
     }
   };
 
-  const handleSave = async () => {
+  const uploadImage = async (file) => {
+    console.log('uploadImage called with file:', file?.name);
+    if (!file) {
+      console.log('No file provided to uploadImage');
+      throw new Error('No file selected for upload');
+    }
     try {
-      const updatedUser = {
-        firstName: editProfileData.firstName,
-        lastName: editProfileData.lastName,
-        phoneNumber: editProfileData.phoneNumber,
-        profilePictureUrl: editProfileData.profilePictureUrl,
-      };
+      const formData = new FormData();
+      formData.append('file', file);
+      console.log('Sending image upload request to /api/upload');
+      const response = await authService.api.post('/api/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log('Image upload response:', response.data);
+      if (!response.data?.url) {
+        console.log('No URL in response');
+        throw new Error('No URL returned from image upload');
+      }
+      return response.data.url;
+    } catch (error) {
+      console.error('Image upload failed:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      throw error;
+    }
+  };
 
-      await authService.editProfile(updatedUser);
+  // Mock uploadImage (uncomment to test like ProfilePopup)
+  /*
+  const uploadImage = async (file) => {
+    console.log('Using mock uploadImage, file:', file?.name);
+    return URL.createObjectURL(file);
+  };
+  */
+
+  const handleSave = async () => {
+    console.log('handleSave triggered, editProfileData:', editProfileData, 'selectedFile:', selectedFile?.name);
+    try {
+      if (!user) {
+        console.log('No user data available');
+        message.error('Không có thông tin người dùng.');
+        return;
+      }
+
+      if (editProfileData.firstName.length > 50) {
+        console.log('Validation failed: First name too long');
+        message.error('Họ không được vượt quá 50 ký tự.');
+        return;
+      }
+      if (editProfileData.lastName.length > 50) {
+        console.log('Validation failed: Last name too long');
+        message.error('Tên không được vượt quá 50 ký tự.');
+        return;
+      }
+      if (editProfileData.phoneNumber && editProfileData.phoneNumber.length > 20) {
+        console.log('Validation failed: Phone number too long');
+        message.error('Số điện thoại không được vượt quá 20 ký tự.');
+        return;
+      }
+
+      const updatedUser = {
+        firstName: editProfileData.firstName.trim(),
+        lastName: editProfileData.lastName.trim(),
+        phoneNumber: editProfileData.phoneNumber.trim(),
+        profilePictureUrl: selectedFile ? await uploadImage(selectedFile) : user.profilePictureUrl,
+      };
+      console.log('Sending editProfile request with data:', updatedUser);
+
+      const editProfileResponse = await authService.editProfile(updatedUser);
+      console.log('editProfile response:', editProfileResponse);
 
       if (editProfileData.departmentId && editProfileData.departmentId !== user.departmentId) {
+        console.log('Updating department:', editProfileData.departmentId);
         await departmentService.updateUserDepartment(user.id, editProfileData.departmentId);
       }
 
+      console.log('Fetching updated user data');
       const updatedUserData = await authService.getProfile();
+      console.log('Updated user data:', updatedUserData);
 
       updateUser({
         ...user,
         ...updatedUserData,
         departmentId: editProfileData.departmentId,
-        firstName: editProfileData.firstName,
-        lastName: editProfileData.lastName,
-        phoneNumber: editProfileData.phoneNumber,
-        profilePictureUrl: editProfileData.profilePictureUrl,
-        branch: editProfileData.branch, // Preserve branch info
+        firstName: editProfileData.firstName.trim(),
+        lastName: editProfileData.lastName.trim(),
+        phoneNumber: editProfileData.phoneNumber.trim(),
+        profilePictureUrl: updatedUser.profilePictureUrl,
+        branch: editProfileData.branch,
       });
 
+      console.log('Profile update successful');
       message.success('Cập nhật hồ sơ thành công!');
+      setSelectedFile(null);
+      setPreviewImage(updatedUser.profilePictureUrl);
       navigate(getProfileRoute());
     } catch (error) {
-      message.error(error.response?.data?.message || 'Cập nhật hồ sơ thất bại');
+      console.error('Profile update failed:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      const errorMessage = error.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().join(', ')
+        : error.response?.data?.message || 'Cập nhật hồ sơ thất bại';
+      message.error(errorMessage);
     }
   };
 
@@ -157,7 +256,11 @@ const EditProfile = () => {
     <div className="view-profile-container">
       <Card className="profile-card">
         <div className="profile-header">
-          <Avatar size={64} icon={!editProfileData.profilePictureUrl && <UserOutlined />} src={editProfileData.profilePictureUrl} />
+          <Avatar
+            size={64}
+            icon={!previewImage && <UserOutlined />}
+            src={previewImage}
+          />
           <Title level={3} className="profile-name">Chỉnh sửa hồ sơ</Title>
         </div>
 
@@ -168,6 +271,7 @@ const EditProfile = () => {
               value={editProfileData.firstName}
               onChange={(e) => setEditProfileData((prev) => ({ ...prev, firstName: e.target.value }))}
               className="detail-input"
+              maxLength={50}
             />
           </div>
           <div className="profile-detail">
@@ -176,6 +280,7 @@ const EditProfile = () => {
               value={editProfileData.lastName}
               onChange={(e) => setEditProfileData((prev) => ({ ...prev, lastName: e.target.value }))}
               className="detail-input"
+              maxLength={50}
             />
           </div>
           <div className="profile-detail">
@@ -193,30 +298,32 @@ const EditProfile = () => {
               value={editProfileData.phoneNumber}
               onChange={(e) => setEditProfileData((prev) => ({ ...prev, phoneNumber: e.target.value }))}
               className="detail-input"
+              maxLength={20}
             />
           </div>
           {isNurseOrDoctor && (
             <div className="profile-detail">
               <label className="detail-label">Phòng ban:</label>
-              <select
+              <Select
                 value={editProfileData.departmentId}
-                onChange={(e) => setEditProfileData((prev) => ({ ...prev, departmentId: e.target.value }))}
+                onChange={(value) => setEditProfileData((prev) => ({ ...prev, departmentId: value }))}
                 className="detail-input"
                 disabled={isDepartmentsLoading || !Array.isArray(departments)}
+                placeholder="Chọn phòng ban"
               >
-                <option value="">Chọn phòng ban</option>
+                <Option value="">Chọn phòng ban</Option>
                 {Array.isArray(departments) && departments.length > 0 ? (
                   departments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>
+                    <Option key={dept.id} value={dept.id}>
                       {dept.name}
-                    </option>
+                    </Option>
                   ))
                 ) : (
-                  <option value="" disabled>
+                  <Option value="" disabled>
                     Không có phòng ban
-                  </option>
+                  </Option>
                 )}
-              </select>
+              </Select>
             </div>
           )}
           {showBranch && (
@@ -230,7 +337,7 @@ const EditProfile = () => {
               />
             </div>
           )}
-          <div className="profile-detail">
+          {/* <div className="profile-detail">
             <label className="detail-label">Avatar:</label>
             <input
               type="file"
@@ -238,7 +345,7 @@ const EditProfile = () => {
               onChange={handleAvatarChange}
               className="detail-input"
             />
-          </div>
+          </div> */}
         </div>
 
         <div className="profile-button-group">
@@ -250,7 +357,11 @@ const EditProfile = () => {
             Lưu
           </Button>
           <Button
-            onClick={() => navigate(getProfileRoute())}
+            onClick={() => {
+              setPreviewImage(user?.profilePictureUrl || null);
+              setSelectedFile(null);
+              navigate(getProfileRoute());
+            }}
           >
             Hủy
           </Button>

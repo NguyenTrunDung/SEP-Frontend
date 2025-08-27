@@ -43,7 +43,27 @@ const CreatePatient = ({
 
   const handleSubmit = async () => {
     try {
+      // Required field validation
       const values = await form.validateFields();
+
+      // Additional manual validation for critical fields
+      if (!values.fullName?.trim()) {
+        message.error('Vui lòng điền họ và tên.');
+        return;
+      }
+      if (!values.medicalRecordNumber?.trim()) {
+        message.error('Vui lòng điền mã hồ sơ bệnh án.');
+        return;
+      }
+      if (!values.gender) {
+        message.error('Vui lòng chọn giới tính.');
+        return;
+      }
+      if (!values.age) {
+        message.error('Vui lòng nhập tuổi.');
+        return;
+      }
+
       const birthYear = new Date().getFullYear() - parseInt(values.age, 10);
       const dateOfBirth = moment(`${birthYear}-01-01`).format('YYYY-MM-DD');
 
@@ -65,7 +85,7 @@ const CreatePatient = ({
 
       createPatientMutation.mutate({ patientData: payload, branchId: currentBranchId }, {
         onSuccess: async (response) => {
-          message.success('Tạo bệnh nhân thành công');
+          message.success('Tạo bệnh nhân thành công!');
 
           if (values.diseaseCategories?.length > 0) {
             try {
@@ -74,10 +94,10 @@ const CreatePatient = ({
                 values.diseaseCategories.map(id => parseInt(id, 10)),
                 currentBranchId
               );
-              message.success('Gán nhóm bệnh thành công');
+              message.success('Gán nhóm bệnh thành công!');
             } catch (error) {
               console.error('Gán nhóm bệnh lỗi:', error);
-              message.warning('Tạo bệnh nhân thành công nhưng gán nhóm bệnh thất bại');
+              message.warning('Tạo bệnh nhân thành công nhưng gán nhóm bệnh thất bại.');
             }
           }
 
@@ -85,11 +105,14 @@ const CreatePatient = ({
           if (externalSubmit) externalSubmit(response.data);
           onCancel();
           refetch();
-        }
+        },
+        onError: (error) => {
+          message.error(error?.response?.data?.message || 'Không thể tạo bệnh nhân. Vui lòng thử lại.');
+        },
       });
     } catch (error) {
       console.error('Validation or mutation failed:', error);
-      message.error(`Lỗi khi tạo bệnh nhân: ${error.message || 'Không xác định'}`);
+      message.error('Vui lòng kiểm tra lại thông tin nhập vào.');
     }
   };
 
@@ -143,7 +166,7 @@ const CreatePatient = ({
       >
         <div className="custom-floating">
           <label className={`floating-label ${focus === 'fullName' ? 'focused' : ''}`}>
-            Họ và tên
+            Họ và tên <span style={{ color: 'red' }}>*</span>
           </label>
           <Form.Item
             name="fullName"
@@ -151,7 +174,7 @@ const CreatePatient = ({
           >
             <Input
               className="custom-input"
-              placeholder="Họ và tên"
+              placeholder="Nhập họ và tên"
               onFocus={() => setFocus('fullName')}
               onBlur={() => setFocus('')}
             />
@@ -160,7 +183,7 @@ const CreatePatient = ({
 
         <div className="custom-floating">
           <label className={`floating-label ${focus === 'medicalRecordNumber' ? 'focused' : ''}`}>
-            Mã hồ sơ bệnh án
+            Mã hồ sơ bệnh án <span style={{ color: 'red' }}>*</span>
           </label>
           <Form.Item
             name="medicalRecordNumber"
@@ -168,7 +191,7 @@ const CreatePatient = ({
           >
             <Input
               className="custom-input"
-              placeholder="Mã hồ sơ bệnh án"
+              placeholder="Nhập mã hồ sơ bệnh án"
               onFocus={() => setFocus('medicalRecordNumber')}
               onBlur={() => setFocus('')}
               loading={isCheckingMedicalRecord}
@@ -178,7 +201,7 @@ const CreatePatient = ({
 
         <div className="custom-floating">
           <label className={`floating-label ${focus === 'gender' ? 'focused' : ''}`}>
-            Giới tính
+            Giới tính <span style={{ color: 'red' }}>*</span>
           </label>
           <Form.Item
             name="gender"
@@ -199,7 +222,7 @@ const CreatePatient = ({
 
         <div className="custom-floating">
           <label className={`floating-label ${focus === 'age' ? 'focused' : ''}`}>
-            Tuổi
+            Tuổi <span style={{ color: 'red' }}>*</span>
           </label>
           <Form.Item
             name="age"
@@ -208,7 +231,9 @@ const CreatePatient = ({
             <Input
               type="number"
               className="custom-input"
-              placeholder="Tuổi"
+              placeholder="Nhập tuổi"
+              min={0}
+              max={120}
               onFocus={() => setFocus('age')}
               onBlur={() => setFocus('')}
             />
@@ -247,7 +272,7 @@ const CreatePatient = ({
           <Form.Item name="roomNumber" style={{ marginBottom: 16 }}>
             <Input
               className="custom-input"
-              placeholder="Số phòng"
+              placeholder="Nhập số phòng"
               onFocus={() => setFocus('roomNumber')}
               onBlur={() => setFocus('')}
             />
@@ -261,7 +286,7 @@ const CreatePatient = ({
           <Form.Item name="bedNumber" style={{ marginBottom: 16 }}>
             <Input
               className="custom-input"
-              placeholder="Số giường"
+              placeholder="Nhập số giường"
               onFocus={() => setFocus('bedNumber')}
               onBlur={() => setFocus('')}
             />
@@ -317,7 +342,7 @@ const CreatePatient = ({
           <Form.Item name="attendingPhysician" style={{ marginBottom: 16 }}>
             <Input
               className="custom-input"
-              placeholder="Bác sĩ điều trị"
+              placeholder="Nhập bác sĩ điều trị"
               onFocus={() => setFocus('attendingPhysician')}
               onBlur={() => setFocus('')}
             />
@@ -336,7 +361,7 @@ const CreatePatient = ({
             <Input.TextArea
               className="custom-input"
               rows={4}
-              placeholder="Ghi chú"
+              placeholder="Nhập ghi chú"
               onFocus={() => setFocus('notes')}
               onBlur={() => setFocus('')}
             />

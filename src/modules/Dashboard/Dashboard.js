@@ -7,7 +7,7 @@ import { useRevenue } from '../../hooks/queries/useRevenue';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import * as XLSX from 'xlsx'; // Thêm import thư viện xlsx
+import * as XLSX from 'xlsx';
 
 dayjs.extend(isSameOrBefore);
 dayjs.extend(customParseFormat);
@@ -468,7 +468,7 @@ const Dashboard = ({ branchId = '1' }) => {
     const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Orders');
-    
+
     // Thêm thông tin tổng quan
     const summaryData = [
       { 'Tổng đơn hàng': totalOrders, 'Tổng doanh thu': totalRevenue.toLocaleString('vi-VN'), 'Tổng món ăn bán được': totalItemsSold }
@@ -553,8 +553,8 @@ const Dashboard = ({ branchId = '1' }) => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Row gutter={12} style={{ marginBottom: 16 }} align="middle">
-        <Col>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16, flexWrap: 'nowrap' }} align="middle">
+        <Col xs={9} sm={6} md={3}>
           <DatePicker
             picker={chartType === 'year' ? 'year' : chartType === 'month' ? 'month' : 'date'}
             value={dateRange.startDate}
@@ -563,16 +563,17 @@ const Dashboard = ({ branchId = '1' }) => {
               chartType === 'year'
                 ? 'Chọn năm'
                 : chartType === 'month'
-                ? 'Chọn tháng'
-                : chartType === 'week'
-                ? 'Chọn tuần'
-                : 'Chọn ngày'
+                  ? 'Chọn tháng'
+                  : chartType === 'week'
+                    ? 'Chọn tuần'
+                    : 'Chọn ngày'
             }
             format={chartType === 'year' ? 'YYYY' : chartType === 'month' ? 'MM/YYYY' : 'DD/MM/YYYY'}
             disabledDate={(current) => current && current > dayjs().endOf('day')}
+            style={{ width: '100%' }}
           />
         </Col>
-        <Col>
+        <Col xs={9} sm={6} md={3}>
           <Select
             value={chartType}
             onChange={(value) => {
@@ -586,7 +587,7 @@ const Dashboard = ({ branchId = '1' }) => {
                 ),
               });
             }}
-            style={{ width: 120 }}
+            style={{ width: '100%' }}
           >
             <Option value="day">Ngày</Option>
             <Option value="week">Tuần</Option>
@@ -594,9 +595,14 @@ const Dashboard = ({ branchId = '1' }) => {
             <Option value="year">Năm</Option>
           </Select>
         </Col>
-        <Col>
-          <Button type="primary" onClick={exportToExcel} disabled={isOrdersLoading || isRevenueLoading}>
-            Xuất Excel
+        <Col xs={7} sm={4} md={2}>
+          <Button
+            type="primary"
+            onClick={exportToExcel}
+            disabled={isOrdersLoading || isRevenueLoading}
+            style={{ width: '100%' }}
+          >
+            Xuất File
           </Button>
         </Col>
       </Row>

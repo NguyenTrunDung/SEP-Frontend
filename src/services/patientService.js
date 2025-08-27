@@ -242,13 +242,11 @@ export const patientService = {
       return response.data;
     } catch (error) {
       if (environment.features.enableLogging) {
-        console.error('❌ patientService.updatePatient - Error:', {
-          message: error.message,
-          response: error.response?.data,
-          status: error.response?.status,
-        });
+        // console.error('❌ patientService.updatePatient - Error:', {
+         
+        // });
       }
-      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân');
+      // throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân');
     }
   },
 

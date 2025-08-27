@@ -54,7 +54,8 @@ import DepartmentsPage from '../modules/Admin/Department/DepartmentsPage.js';
 import DeliveryStaff from '../modules/Admin/Shipper/DeliveryStaff.js'
 import PatientView from '../modules/Admin/Kitchen/PatientView.js';
 import CashierLayout from '../layouts/CashierLayout.js';
-import PERMISSIONS from '../constants/permissions.js';
+
+import PatientOrderComponent from '../components/Nurse/Patient/PatientOrderComponent.js';
 
 // Helper function to find any accessible route for user permissions
 const findAnyAccessibleRoute = (userPermissions) => {
@@ -106,7 +107,7 @@ const getSmartRedirectPath = (userRole, userPermissions) => {
     { permission: 'diseasecategories:view', route: '/disease-categories' },
     { permission: 'feedbacks:view', route: '/feedbacks' },
     { permission: 'delivery:view', route: '/shippers' },
-    { permission: PERMISSIONS.ORDERPATIENTS_VIEW, route: '/order-patients' },
+    { permission: 'kitchenorders:view', route: '/kitchen-orders' },
   ];
 
   // Find first route user has permission for
@@ -167,11 +168,11 @@ const routes = [
     ),
   },
 
-  {
-    path: '/cashier-menu',
+{
+    path: '/a',
     element: (
       <AuthRedirect roleHomeRedirects={roleHomeRedirects} getSmartRedirectPath={getSmartRedirectPath}>
-        <CashierLayout />
+        <CashierLayout/>
       </AuthRedirect>
     ),
   },
@@ -303,7 +304,7 @@ const routes = [
     ),
   },
   {
-    path: '/order-patients',
+    path: '/kitchen-orders',
     element: (
       <ProtectedRoute>
         <AdminLayout>
@@ -595,6 +596,16 @@ const routes = [
       <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
         <Navbar />
         <PatientComponent />
+        <FooterComponent />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/nurse/patient-order',
+    element: (
+      <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+        <Navbar />
+        <PatientOrderComponent />
         <FooterComponent />
       </ProtectedRoute>
     ),

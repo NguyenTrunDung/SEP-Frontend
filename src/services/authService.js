@@ -325,17 +325,13 @@ export const authService = {
         }
     },
 
-    /**
-    * Request password reset
-    * POST /api/v1/auth/forgot-password
-    */
     async forgotPassword(email) {
         try {
             const response = await api.post('/api/v1/auth/forgot-password', { email });
             if (environment.features.enableLogging) {
                 console.log('✅ Password reset request sent for email:', email);
             }
-            return response.data;
+            return response.data.Token; // Trả về Token
         } catch (error) {
             if (environment.features.enableLogging) {
                 console.error('❌ Password reset request failed:', error.response?.data?.message || error.message);
@@ -343,17 +339,12 @@ export const authService = {
             throw error;
         }
     },
-
-    /**
-     * Reset password
-     * POST /api/v1/auth/reset-password
-     */
     async resetPassword({ email, token, newPassword }) {
         try {
             const response = await api.post('/api/v1/auth/reset-password', {
-                email,
-                token,
-                newPassword
+                Email: email,
+                Token: token,
+                NewPassword: newPassword
             });
             if (environment.features.enableLogging) {
                 console.log('✅ Password reset successful for email:', email);
@@ -366,7 +357,6 @@ export const authService = {
             throw error;
         }
     },
-
     async register(userData) {
         try {
             const response = await api.post(environment.api.getVersionedPath('/auth/register'), {

@@ -231,9 +231,9 @@ export const useUpdatePatient = () => {
       });
       message.success('Cập nhật bệnh nhân thành công');
     },
-    onError: (error) => {
-      message.error('Lỗi khi cập nhật bệnh nhân: ' + error.message);
-    },
+    // onError: (error) => {
+    //   message.error('Lỗi khi cập nhật bệnh nhân: ' + error.message);
+    // },
   });
 };
 
