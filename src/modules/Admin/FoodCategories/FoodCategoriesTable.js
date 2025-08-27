@@ -27,7 +27,7 @@ import environment from '../../../config/environment';
 import PropTypes from 'prop-types';
 import ReusableTableV2 from '../../../components/common/ReusableTableV2';
 import { PERMISSIONS } from '../../../constants/permissions';
-
+import './FoodTable.css'
 // Sortable Row Component for drag-and-drop (following Ant Design pattern)
 const SortableRow = (props) => {
   const {
@@ -316,30 +316,29 @@ const FoodCategoriesTable = ({
   };
 
   return (
+
     <div className={`reusable-table-container ${className || ''}`}>
       <div className="reusable-table-header">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <SearchOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
+        <div className="header-content">
+          <div className="search-container">
+            <SearchOutlined className="search-icon" />
             <Input
               placeholder="Tìm kiếm danh mục"
               value={searchText}
               onChange={handleSearch}
-              style={{ width: 300 }}
+              style={{ width: 300 }} // Giữ nguyên width: 300px
               allowClear
               disabled={dragDropEnabled}
             />
             {searchText && !dragDropEnabled && (
-              <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>
+              <span className="search-results">
                 {filteredData.length} kết quả
               </span>
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', fontWeight: '500' }}>
-              Kéo thả để sắp xếp:
-            </span>
+          <div className="drag-toggle-container">
+            <span className="drag-toggle-label">Kéo thả để sắp xếp:</span>
             <Switch
               checked={dragDropEnabled}
               onChange={handleDragDropToggle}

@@ -1,12 +1,14 @@
+/* General styles */
 .order-detail-wrapper label {
   font-weight: 500;
   display: block;
   margin-bottom: 4px;
   color: #444;
 }
+
 .custom-view-modal .ant-modal-content {
   height: 100vh;
-  padding: 24px;
+  padding: 16px;
   border-radius: 0;
 }
 
@@ -15,19 +17,21 @@
   overflow-y: auto;
 }
 
-
+/* Input, Picker, and Select styles */
 .order-detail-wrapper .ant-input,
 .order-detail-wrapper .ant-select-selector,
 .order-detail-wrapper .ant-picker,
 .order-detail-wrapper .ant-picker-input > input,
-.order-detail-wrapper .ant-time-picker-input,
 .order-detail-wrapper .ant-input-disabled,
 .order-detail-wrapper .ant-select-disabled,
 .order-detail-wrapper .ant-picker-disabled {
   background-color: white !important;
   color: #000;
   border-radius: 8px;
-    height: 40px;
+  height: 40px;
+  border: 1px solid #d9d9d9 !important;
+  box-sizing: border-box;
+  padding: 0 11px;
 }
 
 .order-detail-wrapper .ant-input,
@@ -36,49 +40,97 @@
 .order-detail-wrapper .ant-switch {
   width: 100%;
 }
+
+/* Button styles */
 .order-detail-wrapper .ant-btn {
-  height: 40px !important;
+  height: 40px;
   font-size: 14px;
   padding: 6px 16px;
+  border-radius: 8px;
+  margin-bottom: 8px;
 }
-/* Tăng chiều cao và giữ border rõ ràng */
+
+/* DatePicker and TimePicker */
 .order-detail-wrapper .ant-picker {
-  height: 40px !important;
-  padding: 0 11px !important;
   display: flex;
   align-items: center;
-  border: 1px solid #d9d9d9 !important;
-  border-radius: 8px;
-  box-sizing: border-box;
 }
 
-/* Fix input bên trong DatePicker */
-.order-detail-wrapper .ant-picker-input > input {
-  height: 100% !important;
-  line-height: 40px !important;
-}
-
-/* Tương tự cho Input và Select nếu cần */
-.order-detail-wrapper .ant-input,
-.order-detail-wrapper .ant-select-selector {
-  height: 40px !important;
-  display: flex;
-  align-items: center;
-  border: 1px solid #d9d9d9 !important;
-  border-radius: 8px;
-  padding: 0 11px !important;
-  box-sizing: border-box;
-}
-
-
-.order-detail-wrapper .ant-btn {
-  margin-right: 8px;
-}
-
+/* Floating label */
 .floating-label {
   font-size: 13px;
   font-weight: 500;
   color: #888;
   margin-bottom: 4px;
   display: block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .order-detail-wrapper .ant-btn {
+    font-size: 12px;
+    height: 36px;
+    padding: 4px 12px;
+  }
+
+  .order-detail-wrapper .ant-input,
+  .order-detail-wrapper .ant-select-selector,
+  .order-detail-wrapper .ant-picker,
+  .order-detail-wrapper .ant-picker-input > input {
+    height: 36px;
+    font-size: 12px;
+  }
+
+  .floating-label {
+    font-size: 12px;
+  }
+
+  .order-detail-wrapper h2 {
+    font-size: 1.25rem;
+  }
+
+  .custom-view-modal .ant-modal-content {
+    padding: 12px;
+  }
+
+  .order-detail-wrapper .ant-table {
+    font-size: 12px;
+  }
+
+  .order-detail-wrapper .ant-table th,
+  .order-detail-wrapper .ant-table td {
+    padding: 8px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .order-detail-wrapper .ant-btn {
+    font-size: 11px;
+    height: 32px;
+    padding: 4px 10px;
+  }
+
+  .order-detail-wrapper .ant-input,
+  .order-detail-wrapper .ant-select-selector,
+  .order-detail-wrapper .ant-picker,
+  .order-detail-wrapper .ant-picker-input > input {
+    height: 32px;
+    font-size: 11px;
+  }
+
+  .floating-label {
+    font-size: 11px;
+  }
+
+  .order-detail-wrapper h2 {
+    font-size: 1rem;
+  }
+
+  .custom-view-modal .ant-modal-content {
+    padding: 8px;
+  }
+
+  .order-detail-wrapper .ant-table {
+    font-size: 11px;
+  }
 }
