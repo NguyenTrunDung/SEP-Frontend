@@ -1,4 +1,5 @@
 import api, { environment } from './api/config';
+import dayjs from 'dayjs';
 
 const normalizeBranchId = (branchId) => {
   const resolvedBranchId =
@@ -71,7 +72,8 @@ export const orderService = {
       if (filters.isOrderPatient !== undefined && filters.isOrderPatient !== null) {
         queryParams.IsPatientOrder = filters.isOrderPatient;
       }
-
+      if (filters.userId) queryParams.userId = filters.userId;
+      if (filters.patientId) queryParams.patientId = filters.patientId;
       // Ensure patientId is included in the response
       queryParams.includePatientId = true;
 
@@ -248,35 +250,88 @@ export const orderService = {
   async createPatientOrder(orderData, branchId, options = {}) {
     try {
       const normalizedBranchId = normalizeBranchId(branchId);
+
+      // Validate input data
+      if (!orderData.patientId) {
+        console.warn('⚠️ patientId is missing, proceeding without patient validation');
+      }
+      if (!Array.isArray(orderData.cartItems) || orderData.cartItems.length === 0) {
+        throw new Error('cartItems cannot be empty');
+      }
+      if (!orderData.receiveDate || !dayjs(orderData.receiveDate).isValid()) {
+        throw new Error('Invalid receiveDate');
+      }
+      if (!orderData.total || orderData.total <= 0) {
+        throw new Error('Total must be greater than 0');
+      }
+      if (!orderData.customerName) {
+        throw new Error('customerName is required');
+      }
+      if (!orderData.customerPhone) {
+        throw new Error('customerPhone is required');
+      }
+
+      // Validate cartItems
+      orderData.cartItems.forEach((item, index) => {
+        if (!item.FoodId && !item.ID) {
+          throw new Error(`Invalid foodId for cart item at index ${index}`);
+        }
+        if (!item.quantity || item.quantity <= 0) {
+          throw new Error(`Invalid quantity for cart item at index ${index}`);
+        }
+        if (item.price == null || item.price < 0) {
+          throw new Error(`Invalid price for cart item at index ${index}`);
+        }
+      });
+
+      // Validate patient existence (optional)
+      let patient = null;
+      if (orderData.patientId) {
+        try {
+          patient = await this.getPatientDetails(orderData.patientId, normalizedBranchId);
+          if (!patient) {
+            console.warn(`⚠️ Patient with ID ${orderData.patientId} not found, proceeding with default values`);
+          }
+        } catch (error) {
+          console.error(`❌ Failed to fetch patient details for patientId ${orderData.patientId}:`, {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+          });
+          console.warn(`⚠️ Proceeding without patient validation due to error`);
+        }
+      }
+
+      // Construct orderDto
       const orderDto = {
-        branchId: normalizedBranchId,
+        branchId: Number(normalizedBranchId),
         userId: orderData.userId || 'NURSE_DEFAULT',
-        patientId: orderData.patientId,
+        patientId: orderData.patientId || null, // Allow null if patientId is not validated
         isPatientOrder: true,
         orderDate: orderData.orderDate || new Date().toISOString(),
-        receiveDate: orderData.receiveDate ? new Date(orderData.receiveDate).toISOString() : null,
+        receiveDate: new Date(orderData.receiveDate).toISOString(),
         receiveTime: orderData.receiveTime || '08:00',
         receiveType: orderData.receiveMethod || 'Giao tận nơi',
         type: orderData.type || 'Patient',
-        status: orderData.status || 'Pending',
-        customerName: orderData.customerName || 'Unknown Patient',
-        customerPhone: orderData.customerPhone || '',
-        customerAddress: orderData.customerAddress || 'Phòng bệnh nhân',
-        total: orderData.total || 0,
-        shippingFee: orderData.shippingFee || 0,
-        foodToolFee: orderData.foodToolFee || 0,
-        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod) || 3,
-        isPaid: orderData.isPaid !== undefined ? orderData.isPaid : true,
-        walletAmountUsed: orderData.walletAmountUsed || 0,
+        status: orderData.status || 'Confirmed',
+        customerName: orderData.customerName || (patient?.fullName ?? 'Unknown Patient'),
+        customerPhone: orderData.customerPhone || (patient?.phone ?? '0000000000'),
+        customerAddress: orderData.customerAddress || (patient?.roomNumber ?? 'Phòng bệnh nhân'),
+        total: Number(orderData.total),
+        shippingFee: Number(orderData.shippingFee) || 0,
+        foodToolFee: Number(orderData.foodToolFee) || 0,
+        paymentMethod: 0, // Free, as per previous fix
+        isPaid: true,
+        walletAmountUsed: 0,
         code: orderData.code || this._generateOrderCode(),
         note: orderData.note || '',
         locationId: orderData.locationId || null,
         orderDetails: orderData.cartItems.map(item => ({
           foodId: Number(item.FoodId || item.ID),
-          menuId: Number(item.menuId || 0),
+          menuId: null,
           qty: Number(item.quantity),
-          price: Number(item.price || 0),
-          total: Number(item.price || 0) * Number(item.quantity),
+          price: Number(item.price),
+          total: Number(item.price) * Number(item.quantity),
           note: item.note || null,
           foodName: item.dishName || item.foodName || 'Unknown Food',
           menuName: item.menuName || 'Thực đơn ngày',
@@ -285,8 +340,16 @@ export const orderService = {
         })),
       };
 
+      // Additional validation for DTO
+      if (!orderDto.orderDetails.length) {
+        throw new Error('OrderDetails cannot be empty');
+      }
+      if (orderDto.branchId <= 0) {
+        throw new Error('Invalid branchId');
+      }
+
       if (environment.features.enableLogging) {
-        console.log(`🔍 Creating patient order for branch: ${normalizedBranchId}`, JSON.stringify(orderDto, null, 2));
+        console.log(`🚀 Creating patient order for branch: ${normalizedBranchId}`, JSON.stringify(orderDto, null, 2));
       }
 
       const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
@@ -301,15 +364,62 @@ export const orderService = {
       return response.data;
     } catch (error) {
       console.error('❌ Failed to create patient order:', {
+        patientId: orderData.patientId,
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
       });
-      const errorMessage = error.response?.data?.message ||
-        error.response?.data?.errors ||
-        error.message ||
-        'Failed to create patient order';
+
+      let errorMessage = 'Failed to create patient order';
+      if (error.response?.data) {
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.errors) {
+          if (Array.isArray(error.response.data.errors)) {
+            errorMessage = error.response.data.errors.join(', ');
+          } else if (typeof error.response.data.errors === 'object') {
+            errorMessage = Object.values(error.response.data.errors)
+              .flat()
+              .join(', ');
+          }
+        }
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+
       throw new Error(errorMessage);
+    }
+  },
+
+  async getPatientDetails(patientId, branchId) {
+    try {
+      if (!patientId || patientId === 'Unknown' || patientId === 'NURSE_DEFAULT') {
+        console.warn(`🔍 No valid patientId provided: ${patientId}, returning null`);
+        return null;
+      }
+
+      const normalizedBranchId = normalizeBranchId(branchId);
+      if (environment.features.enableLogging) {
+        console.log(`🔍 Fetching patient details for patientId: ${patientId}, branchId: ${normalizedBranchId}`);
+      }
+
+      const response = await api.get(`/api/v1/patient`, {
+        params: { id: patientId },
+        headers: normalizedBranchId ? { 'X-Branch-Id': normalizedBranchId } : {},
+      });
+
+      if (environment.features.enableLogging) {
+        console.log(`✅ Fetched patient details for patientId ${patientId}:`, JSON.stringify(response.data, null, 2));
+      }
+
+      return response.data.data;
+    } catch (error) {
+      console.error(`❌ Failed to fetch patient details for patientId ${patientId}:`, {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      return null;
     }
   },
 

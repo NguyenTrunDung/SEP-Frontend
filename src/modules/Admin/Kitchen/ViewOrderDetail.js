@@ -16,6 +16,7 @@ import moment from 'moment';
 import './ViewPatientOrderDetail.css';
 import { useUpdateOrder, useDeleteOrder } from '../../../hooks/queries/useOrders';
 import { orderService } from '../../../services/orderService';
+import { diseaseCategoryFoodRestrictionService } from '../../../services/diseaseCategoryFoodRestrictionService';
 import { useTimezone } from '../../../hooks/useTimezone';
 
 const { Panel } = Collapse;
@@ -35,7 +36,7 @@ const ViewPatientOrderDetail = ({
   const { mutate: updateOrder, isLoading: isUpdating } = useUpdateOrder();
   const { mutate: deleteOrder, isLoading: isDeleting } = useDeleteOrder();
 
-  // Normalize functions (unchanged)
+  // Normalize functions
   const normalizePaymentMethod = (paymentMethod) => {
     const numberToStringMap = { '1': 'Wallet', '2': 'VNPay', '3': 'Miễn phí' };
     if (typeof paymentMethod === 'number' || numberToStringMap[paymentMethod]) {
@@ -59,15 +60,23 @@ const ViewPatientOrderDetail = ({
       'PendingPayment': 'Chờ thanh toán',
     }[status] || 'Đang chờ');
 
-  const normalizeMealSession = (mealSession) =>
-    ({
-      'breakfast': 'Bữa sáng',
-      'lunch': 'Bữa trưa',
-      'dinner': 'Bữa tối',
-      'snack': 'Bữa phụ',
-    }[mealSession?.toLowerCase()] || 'Không xác định');
+  // Hàm normalizeMealTime đồng bộ với OrderHistory.js
+  const normalizeMealTime = (mealTime) => {
+    const mapping = {
+      morning: 'Sáng',
+      noon: 'Trưa',
+      evening: 'Chiều',
+      sang: 'Sáng',
+      trua: 'Trưa',
+      chieu: 'Chiều',
+    };
+    if (Array.isArray(mealTime)) {
+      return mealTime.map(mt => mapping[mt.toLowerCase()] || mt).join(', ');
+    }
+    return mapping[mealTime?.toLowerCase()] || mealTime || 'Không xác định';
+  };
 
-  // Fetch patient name (unchanged)
+  // Fetch patient name
   const fetchPatientName = async (patientId, branchId) => {
     if (!patientId || patientId === 'Unknown' || patientId === 'NURSE_DEFAULT') {
       console.warn(`🔍 No valid patientId provided: ${patientId}, falling back to 'Không có'`);
@@ -111,20 +120,42 @@ const ViewPatientOrderDetail = ({
       }
 
       console.log('🔍 Order details received:', JSON.stringify(orderDetails, null, 2));
+      console.log('🔍 Order details mealSession:', orderDetails.map(order => order.mealSession));
+
       const ordersWithPatientNames = await Promise.all(
-        orderDetails.map(async (order) => ({
-          ...order,
-          patientName: await fetchPatientName(order.patientId, branchId),
-          paymentMethod: normalizePaymentMethod(order.paymentMethod),
-          receiveType: normalizeReceiveType(order.receiveType),
-          status: normalizeStatus(order.status),
-          customerAddress: order.customerAddress || order.shippingAddress || 'Phòng bệnh nhân',
-          note: order.note || '',
-          shippingFee: order.shippingFee || 0,
-          total: typeof order.total === 'number' ? order.total : 0,
-          receiveDate: order.receiveDate ? moment(order.receiveDate) : null,
-          mealSession: normalizeMealSession(order.mealSession),
-        }))
+        orderDetails.map(async (order) => {
+          let mealTime = order.mealSession ? normalizeMealTime(order.mealSession) : 'Không xác định';
+
+          // Lấy mealTime từ API nếu orderDetails có foodId
+          if (order.orderDetails && Array.isArray(order.orderDetails) && order.orderDetails.length > 0) {
+            const foodId = order.orderDetails[0]?.foodId;
+            if (foodId) {
+              try {
+                const nutritionalMealResponse = await diseaseCategoryFoodRestrictionService.getDiseaseCategoryFoodRestriction(foodId);
+                if (nutritionalMealResponse.data && nutritionalMealResponse.data.mealTime) {
+                  mealTime = normalizeMealTime(nutritionalMealResponse.data.mealTime);
+                  console.log(`🔍 Fetched mealTime for foodId ${foodId}: ${mealTime}`);
+                }
+              } catch (error) {
+                console.warn(`⚠️ Failed to fetch mealTime for foodId ${foodId}:`, error);
+              }
+            }
+          }
+
+          return {
+            ...order,
+            patientName: await fetchPatientName(order.patientId, branchId),
+            paymentMethod: normalizePaymentMethod(order.paymentMethod),
+            receiveType: normalizeReceiveType(order.receiveType),
+            status: normalizeStatus(order.status),
+            customerAddress: order.customerAddress || order.shippingAddress || 'Phòng bệnh nhân',
+            note: order.note || '',
+            shippingFee: order.shippingFee || 0,
+            total: typeof order.total === 'number' ? order.total : 0,
+            receiveDate: order.receiveDate ? moment(order.receiveDate) : null,
+            mealTime, // Sử dụng mealTime thay vì mealSession
+          };
+        })
       );
 
       const groupedByPatient = ordersWithPatientNames.reduce((acc, order) => {
@@ -194,10 +225,10 @@ const ViewPatientOrderDetail = ({
     },
     {
       title: 'BUỔI ĂN',
-      dataIndex: 'mealSession',
-      key: 'mealSession',
+      dataIndex: 'mealTime',
+      key: 'mealTime',
       align: 'center',
-      render: (_, record) => record.mealSession || 'Không xác định',
+      render: (_, record) => record.mealTime || 'Không xác định',
       width: 120,
     },
     {
@@ -367,24 +398,6 @@ const ViewPatientOrderDetail = ({
                           </Button>
                         </Col>
                       )}
-                      {/* Uncomment if you want to enable the Cancel button */}
-                      {/* {['Đang chờ', 'Đã xác nhận'].includes(order.status) && (
-                        <Col xs={9} sm={6} md={3}>
-                          <Button
-                            danger
-                            style={{
-                              width: '100%',
-                              backgroundColor: '#ff4d4f',
-                              color: '#fff',
-                              border: 'none',
-                            }}
-                            onClick={() => handleAction(order.id, 'delete')}
-                            loading={isDeleting}
-                          >
-                            Hủy Đơn
-                          </Button>
-                        </Col>
-                      )} */}
                     </Row>
 
                     <Table
@@ -393,7 +406,7 @@ const ViewPatientOrderDetail = ({
                       dataSource={order.orderDetails.map((item, index) => ({
                         ...item,
                         key: index,
-                        mealSession: order.mealSession, // Pass mealSession to table row
+                        mealTime: order.mealTime, // Sử dụng mealTime thay vì mealSession
                       }))}
                       pagination={false}
                       bordered
@@ -437,6 +450,7 @@ ViewPatientOrderDetail.propTypes = {
           Qty: PropTypes.number,
           note: PropTypes.string,
           total: PropTypes.number,
+          foodId: PropTypes.string,
         })
       ),
     })

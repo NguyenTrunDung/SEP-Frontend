@@ -90,8 +90,12 @@ const findAnyAccessibleRoute = (userPermissions) => {
   return null; // No accessible route found
 };
 
-// Smart redirect function based on user permissions
 const getSmartRedirectPath = (userRole, userPermissions) => {
+  // Đảm bảo CASHIER được chuyển hướng đến /cashier nếu có quyền orders:view
+  if (userRole === ROLES.CASHIER && userPermissions.includes('orders:view')) {
+    return '/cashier';
+  }
+
   // Priority order: try to find the first page the user has access to
   const permissionToRouteMap = [
     { permission: 'overview:view', route: '/dashboard' },
@@ -120,7 +124,6 @@ const getSmartRedirectPath = (userRole, userPermissions) => {
   // Enhanced fallback: try role-based redirect only if user has permission for it
   const roleBasedRoute = roleHomeRedirects[userRole];
   if (roleBasedRoute && roleBasedRoute !== '/dashboard') {
-    // For special routes like /nurse/home, /patient/home, /, use them directly
     return roleBasedRoute;
   }
 
@@ -139,7 +142,6 @@ const getSmartRedirectPath = (userRole, userPermissions) => {
   console.warn('User has no permissions for any known routes:', userPermissions);
   return '/unauthorized';
 };
-
 const roleHomeRedirects = {
   [ROLES.SYSTEM_ADMIN]: '/dashboard',
   [ROLES.ADMIN]: '/dashboard',
@@ -150,7 +152,7 @@ const roleHomeRedirects = {
   [ROLES.DOCTOR]: '/nurse/home',
   [ROLES.PATIENT]: '/patient/home',
   [ROLES.STAFF]: '/dashboard',           // ✅ FIXED: Changed from /orders to /dashboard (safer default)
-  [ROLES.CASHIER]: '/dashboard',         // ✅ FIXED: Changed from /orders to /dashboard (safer default)
+  [ROLES.CASHIER]: '/cashier',        // ✅ FIXED: Changed from /orders to /dashboard (safer default)
   [ROLES.KITCHEN]: '/dashboard',         // ✅ FIXED: Changed from /orders to /dashboard (safer default)
   [ROLES.GUEST]: '/'
   // Guests stay on home page
@@ -167,16 +169,14 @@ const routes = [
       </AuthRedirect>
     ),
   },
-
-{
-    path: '/a',
+  {
+    path: '/cashier',
     element: (
-      <AuthRedirect roleHomeRedirects={roleHomeRedirects} getSmartRedirectPath={getSmartRedirectPath}>
-        <CashierLayout/>
-      </AuthRedirect>
+      <ProtectedRoute allowedRoles={[ROLES.CASHIER]}>
+        <CashierLayout />
+      </ProtectedRoute>
     ),
   },
-
 
   // Nurse public home route (for NURSE role)
   {

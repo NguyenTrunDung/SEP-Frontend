@@ -37,83 +37,100 @@ const CreatePatient = ({
   const { diseaseCategories, isLoading: categoriesLoading } = useDiseaseCategories(currentBranchId);
   const { departments, isLoading: departmentsLoading } = useDepartments(currentBranchId);
 
+  // Get userDepartmentId from localStorage
+  const userDepartmentId = localStorage.getItem('userDepartmentId');
+
   useEffect(() => {
     form.resetFields();
-  }, [form, open]);
+
+    // Set default department value if userDepartmentId exists
+    if (userDepartmentId) {
+      form.setFieldsValue({
+        departmentId: userDepartmentId
+      });
+    }
+  }, [form, open, userDepartmentId]);
 
   const handleSubmit = async () => {
-    try {
-      // Required field validation
-      const values = await form.validateFields();
+    // try {
 
-      // Additional manual validation for critical fields
-      if (!values.fullName?.trim()) {
-        message.error('Vui lòng điền họ và tên.');
-        return;
-      }
-      if (!values.medicalRecordNumber?.trim()) {
-        message.error('Vui lòng điền mã hồ sơ bệnh án.');
-        return;
-      }
-      if (!values.gender) {
-        message.error('Vui lòng chọn giới tính.');
-        return;
-      }
-      if (!values.age) {
-        message.error('Vui lòng nhập tuổi.');
-        return;
-      }
+    // } catch (error) {
+    //   console.error('Validation or mutation failed:', error);
+    //   message.error('Vui lòng kiểm tra lại thông tin nhập vào.');
+    // }
 
-      const birthYear = new Date().getFullYear() - parseInt(values.age, 10);
-      const dateOfBirth = moment(`${birthYear}-01-01`).format('YYYY-MM-DD');
+    // Required field validation
+    const values = await form.validateFields();
 
-      const payload = {
-        id: values.medicalRecordNumber.trim(),
-        fullName: values.fullName.trim(),
-        medicalRecordNumber: values.medicalRecordNumber.trim(),
-        gender: values.gender,
-        roomNumber: values.roomNumber?.trim() || '',
-        bedNumber: values.bedNumber?.trim() || '',
-        attendingPhysician: values.attendingPhysician?.trim() || '',
-        notes: values.notes?.trim() || '',
-        admissionDate: values.admissionDate?.format('YYYY-MM-DD') || '',
-        dateOfBirth,
-        requiresDietarySupervision: values.isCurrentlyAdmitted || false,
-        externalSystemId: '',
-        departmentId: values.departmentId ? parseInt(values.departmentId, 10) : null,
-      };
-
-      createPatientMutation.mutate({ patientData: payload, branchId: currentBranchId }, {
-        onSuccess: async (response) => {
-          message.success('Tạo bệnh nhân thành công!');
-
-          if (values.diseaseCategories?.length > 0) {
-            try {
-              await patientService.assignDiseaseCategories(
-                response.data.id,
-                values.diseaseCategories.map(id => parseInt(id, 10)),
-                currentBranchId
-              );
-              message.success('Gán nhóm bệnh thành công!');
-            } catch (error) {
-              console.error('Gán nhóm bệnh lỗi:', error);
-              message.warning('Tạo bệnh nhân thành công nhưng gán nhóm bệnh thất bại.');
-            }
-          }
-
-          form.resetFields();
-          if (externalSubmit) externalSubmit(response.data);
-          onCancel();
-          refetch();
-        },
-        onError: (error) => {
-          message.error(error?.response?.data?.message || 'Không thể tạo bệnh nhân. Vui lòng thử lại.');
-        },
-      });
-    } catch (error) {
-      console.error('Validation or mutation failed:', error);
-      message.error('Vui lòng kiểm tra lại thông tin nhập vào.');
+    // Additional manual validation for critical fields
+    if (!values.fullName?.trim()) {
+      message.error('Vui lòng điền họ và tên.');
+      return;
     }
+    if (!values.medicalRecordNumber?.trim()) {
+      message.error('Vui lòng điền mã hồ sơ bệnh án.');
+      return;
+    }
+    if (!values.gender) {
+      message.error('Vui lòng chọn giới tính.');
+      return;
+    }
+    if (!values.age) {
+      message.error('Vui lòng nhập tuổi.');
+      return;
+    }
+
+    const birthYear = new Date().getFullYear() - parseInt(values.age, 10);
+    const dateOfBirth = moment(`${birthYear}-01-01`).format('YYYY-MM-DD');
+
+    const payload = {
+      id: values.medicalRecordNumber.trim(),
+      fullName: values.fullName.trim(),
+      medicalRecordNumber: values.medicalRecordNumber.trim(),
+      gender: values.gender,
+      roomNumber: values.roomNumber?.trim() || '',
+      bedNumber: values.bedNumber?.trim() || '',
+      attendingPhysician: values.attendingPhysician?.trim() || '',
+      notes: values.notes?.trim() || '',
+      admissionDate: values.admissionDate?.format('YYYY-MM-DD') || '',
+      dateOfBirth,
+      requiresDietarySupervision: values.isCurrentlyAdmitted || false,
+      externalSystemId: '',
+      departmentId: values.departmentId ? parseInt(values.departmentId, 10) : null,
+    };
+
+    createPatientMutation.mutate({ patientData: payload, branchId: currentBranchId }, {
+      onSuccess: async (response) => {
+        message.success('Tạo bệnh nhân thành công!');
+
+        if (values.diseaseCategories?.length > 0) {
+          try {
+            await patientService.assignDiseaseCategories(
+              response.data.id,
+              values.diseaseCategories.map(id => parseInt(id, 10)),
+              currentBranchId
+            );
+            message.success('Gán nhóm bệnh thành công!');
+          } catch (error) {
+            console.error('Gán nhóm bệnh lỗi:', error);
+            message.warning('Tạo bệnh nhân thành công nhưng gán nhóm bệnh thất bại.');
+          }
+        }
+
+        form.resetFields();
+
+        // Call externalSubmit with the response data so PatientComponent can handle modal closing and refresh
+        if (externalSubmit) {
+          externalSubmit(response.data);
+        }
+
+        onCancel();
+        refetch();
+      },
+      onError: (error) => {
+        message.error(error?.response?.data?.message || 'Không thể tạo bệnh nhân. Vui lòng thử lại.');
+      },
+    });
   };
 
   return (
@@ -252,17 +269,35 @@ const CreatePatient = ({
               className="custom-input"
               placeholder="Chọn phòng ban"
               loading={departmentsLoading}
-              allowClear
+              disabled={!!userDepartmentId} // Disable if user has a specific department
+              allowClear={!userDepartmentId} // Don't allow clear if user has specific department
               onFocus={() => setFocus('departmentId')}
               onBlur={() => setFocus('')}
             >
-              {departments.map(dept => (
-                <Option key={dept.id} value={String(dept.id)}>
-                  {dept.name}
-                </Option>
-              ))}
+              {userDepartmentId ? (
+                // Only show the user's department
+                departments
+                  .filter(dept => String(dept.id) === userDepartmentId)
+                  .map(dept => (
+                    <Option key={dept.id} value={String(dept.id)}>
+                      {dept.name}
+                    </Option>
+                  ))
+              ) : (
+                // Show all departments if no userDepartmentId (fallback)
+                departments.map(dept => (
+                  <Option key={dept.id} value={String(dept.id)}>
+                    {dept.name}
+                  </Option>
+                ))
+              )}
             </Select>
           </Form.Item>
+          {userDepartmentId && (
+            <div style={{ fontSize: '12px', color: '#666', marginTop: '-8px', marginBottom: '8px' }}>
+              Phòng ban được tự động chọn dựa trên vai trò của bạn
+            </div>
+          )}
         </div>
 
         <div className="custom-floating">

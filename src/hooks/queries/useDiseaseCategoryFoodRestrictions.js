@@ -94,59 +94,6 @@ export const useDiseaseCategories = (branchId, options = {}) => {
     };
 };
 
-// Mutation hook for creating disease category food restriction
-export const useCreateDiseaseCategoryFoodRestriction = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: (restrictionData) => diseaseCategoryFoodRestrictionService.createDiseaseCategoryFoodRestriction(restrictionData),
-        onSuccess: (data, variables) => {
-            message.success('Tạo hạn chế thực phẩm thành công!');
-
-            // Invalidate and refetch restrictions list
-            const currentBranchId = normalizeBranchId(variables.branchId);
-            queryClient.invalidateQueries({
-                queryKey: DISEASE_CATEGORY_FOOD_RESTRICTION_QUERY_KEYS.list(currentBranchId)
-            });
-        },
-        onError: (error) => {
-            const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi tạo hạn chế thực phẩm!';
-            message.error(errorMessage);
-            console.error('Failed to create disease category food restriction:', error);
-        },
-    });
-};
-
-// Mutation hook for updating disease category food restriction
-export const useUpdateDiseaseCategoryFoodRestriction = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: ({ id, restrictionData }) =>
-            diseaseCategoryFoodRestrictionService.updateDiseaseCategoryFoodRestriction(id, restrictionData),
-        onSuccess: (data, variables) => {
-            message.success('Cập nhật hạn chế thực phẩm thành công!');
-
-            // Invalidate and refetch restrictions list
-            const currentBranchId = normalizeBranchId(variables.restrictionData.branchId);
-            queryClient.invalidateQueries({
-                queryKey: DISEASE_CATEGORY_FOOD_RESTRICTION_QUERY_KEYS.list(currentBranchId)
-            });
-
-            // Update specific restriction in cache
-            queryClient.setQueryData(
-                DISEASE_CATEGORY_FOOD_RESTRICTION_QUERY_KEYS.detail(variables.id),
-                data
-            );
-        },
-        onError: (error) => {
-            const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật hạn chế thực phẩm!';
-            message.error(errorMessage);
-            console.error('Failed to update disease category food restriction:', error);
-        },
-    });
-};
-
 // Mutation hook for deleting disease category food restriction
 export const useDeleteDiseaseCategoryFoodRestriction = () => {
     const queryClient = useQueryClient();
@@ -205,4 +152,4 @@ export const useDiseaseCategoryFoodRestriction = (id, options = {}) => {
         isSuccess: query.isSuccess,
         isFetching: query.isFetching,
     };
-}; 
+};

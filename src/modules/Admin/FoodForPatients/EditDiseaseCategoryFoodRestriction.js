@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Form, Input, InputNumber, Button, Space, Select, Switch, message } from 'antd';
+import { Form, Input, Button, Space, Select, Switch, message } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { useDiseaseCategories } from '../../../hooks/queries/useDiseaseCategoryFoodRestrictions';
-import { diseaseCategoryFoodRestrictionService } from '../../../services/diseaseCategoryFoodRestrictionService';
+import { useFoods } from '../../../hooks/queries/useFoods';
 import PropTypes from 'prop-types';
 import '../Department/Department.css';
 
@@ -13,6 +13,7 @@ const { TextArea } = Input;
 const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData }) => {
     const { form, loading: formLoading, resetForm } = useAntForm(formData || {});
     const { diseaseCategories } = useDiseaseCategories();
+    const { foods } = useFoods();
     const [focus, setFocus] = useState('');
     const prevFormDataRef = useRef(null);
 
@@ -23,7 +24,6 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                 prevFormDataRef.current.id === formData.id &&
                 prevFormDataRef.current.diseaseCategoryId === formData.diseaseCategoryId &&
                 prevFormDataRef.current.nutritionalMealName === formData.nutritionalMealName &&
-                prevFormDataRef.current.price === formData.price &&
                 prevFormDataRef.current.mealTime === formData.mealTime &&
                 prevFormDataRef.current.reason === formData.reason &&
                 prevFormDataRef.current.alternativeRecommendations === formData.alternativeRecommendations &&
@@ -38,12 +38,12 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                 id: formData.id,
                 diseaseCategoryId: formData.diseaseCategoryId,
                 nutritionalMealName: formData.nutritionalMealName,
-                price: formData.price,
                 mealTime: formData.mealTime,
                 reason: formData.reason,
                 alternativeRecommendations: formData.alternativeRecommendations,
                 requiresPhysicianOverride: formData.requiresPhysicianOverride || false,
                 isActive: formData.isActive !== undefined ? formData.isActive : true,
+                branchId: formData.branchId || 1,
             });
             prevFormDataRef.current = formData;
         } else if (!open) {
@@ -53,69 +53,8 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
     }, [open, formData, form, resetForm]);
 
     const handleFormSubmit = async (values) => {
-        try {
-            // Tạo hoặc cập nhật món ăn mới
-            const mealData = {
-                name: values.nutritionalMealName,
-                price: values.price,
-                branchId: values.branchId || 1, // Giả định branchId nếu không có
-            };
-            const mealResponse = await diseaseCategoryFoodRestrictionService.createNutritionalMeal(mealData);
-            const nutritionalMealCode = mealResponse.data.code;
-
-            const updateDto = {
-                id: values.id,
-                diseaseCategoryId: values.diseaseCategoryId,
-                nutritionalMealCode,
-                mealTime: values.mealTime,
-                reason: values.reason?.trim(),
-                alternativeRecommendations: values.alternativeRecommendations?.trim(),
-                requiresPhysicianOverride: values.requiresPhysicianOverride,
-                isActive: values.isActive,
-            };
-
-            if (!updateDto.diseaseCategoryId) {
-                form.setFields([
-                    { name: 'diseaseCategoryId', errors: ['Vui lòng chọn danh mục bệnh!'] },
-                ]);
-                return;
-            }
-            if (!updateDto.nutritionalMealName) {
-                form.setFields([
-                    { name: 'nutritionalMealName', errors: ['Vui lòng nhập tên món ăn!'] },
-                ]);
-                return;
-            }
-            if (updateDto.price === undefined || updateDto.price === null) {
-                form.setFields([
-                    { name: 'price', errors: ['Vui lòng nhập giá tiền!'] },
-                ]);
-                return;
-            }
-            if (!updateDto.mealTime) {
-                form.setFields([
-                    { name: 'mealTime', errors: ['Vui lòng chọn buổi ăn!'] },
-                ]);
-                return;
-            }
-            if (!updateDto.reason) {
-                form.setFields([
-                    { name: 'reason', errors: ['Vui lòng nhập lý do hạn chế!'] },
-                ]);
-                return;
-            }
-
-            console.log('🔍 Submitting food restriction update:', updateDto);
-            await onSubmit(updateDto);
-            handleCancel();
-        } catch (error) {
-            const errorMessage = error.response?.data?.message || 'Lỗi khi cập nhật món ăn hoặc hạn chế thực phẩm!';
-            console.error('❌ Failed to update food restriction:', errorMessage);
-            form.setFields([
-                { name: 'reason', errors: [errorMessage] },
-            ]);
-            message.error(errorMessage);
-        }
+        console.log('🚀 Gửi form với giá trị:', values);
+        await onSubmit?.(values);
     };
 
     const handleCancel = () => {
@@ -148,6 +87,7 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                             fontSize: 14,
                         }}
                         loading={formLoading}
+                        disabled={formLoading}
                     >
                         Lưu
                     </Button>
@@ -175,6 +115,9 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                 <Form.Item name="id" hidden>
                     <Input />
                 </Form.Item>
+                <Form.Item name="branchId" hidden>
+                    <Input />
+                </Form.Item>
 
                 <Form.Item
                     name="diseaseCategoryId"
@@ -198,38 +141,24 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                         className="floating-form-item"
                         name="nutritionalMealName"
                         rules={[
-                            { required: true, message: 'Vui lòng nhập tên món ăn!' },
+                            { required: true, message: 'Vui lòng chọn hoặc nhập tên món ăn!' },
                             { max: 100, message: 'Tên món ăn không được vượt quá 100 ký tự!' },
                         ]}
                         style={{ marginBottom: 0 }}
                     >
-                        <Input
+                        <Select
+                            showSearch
+                            allowClear
+                            placeholder="Chọn hoặc nhập tên món ăn dinh dưỡng"
                             className="floating-input"
-                            placeholder="Nhập tên món ăn dinh dưỡng"
+                            options={foods.map(food => ({
+                                value: food.name,
+                                label: food.name,
+                            }))}
+                            filterOption={(input, option) =>
+                                option.label.toLowerCase().includes(input.toLowerCase())
+                            }
                             onFocus={() => setFocus('nutritionalMealName')}
-                            onBlur={() => setFocus('')}
-                        />
-                    </Form.Item>
-                </div>
-
-                <div className="custom-floating">
-                    <label className="floating-label">Giá tiền</label>
-                    <Form.Item
-                        className="floating-form-item"
-                        name="price"
-                        rules={[
-                            { required: true, message: 'Vui lòng nhập giá tiền!' },
-                            { type: 'number', min: 0, message: 'Giá tiền phải lớn hơn hoặc bằng 0!' },
-                        ]}
-                        style={{ marginBottom: 0 }}
-                    >
-                        <InputNumber
-                            className="floating-input"
-                            placeholder="Nhập giá tiền (VNĐ)"
-                            style={{ width: '100%' }}
-                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                            onFocus={() => setFocus('price')}
                             onBlur={() => setFocus('')}
                         />
                     </Form.Item>
@@ -244,9 +173,9 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                         placeholder="Chọn buổi ăn"
                         style={{ width: '100%' }}
                         options={[
-                            { value: 'morning', label: 'Buổi sáng' },
-                            { value: 'noon', label: 'Buổi trưa' },
-                            { value: 'evening', label: 'Buổi tối' },
+                            { value: 'morning', label: 'Sáng' },
+                            { value: 'noon', label: 'Trưa' },
+                            { value: 'evening', label: 'Chiều' },
                         ]}
                     />
                 </Form.Item>
@@ -318,14 +247,13 @@ EditDiseaseCategoryFoodRestriction.propTypes = {
     formData: PropTypes.shape({
         id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         diseaseCategoryId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-        nutritionalMealCode: PropTypes.string,
         nutritionalMealName: PropTypes.string,
-        price: PropTypes.number,
         mealTime: PropTypes.string,
         reason: PropTypes.string,
         alternativeRecommendations: PropTypes.string,
         requiresPhysicianOverride: PropTypes.bool,
         isActive: PropTypes.bool,
+        branchId: PropTypes.number,
     }),
 };
 

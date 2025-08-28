@@ -24,6 +24,7 @@ import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { ROLES } from "../constants/roles";
 import { PERMISSIONS } from "../constants/permissions";
+import { Navigate } from 'react-router-dom';
 import UserHeader from "../components/common/UserHeader";
 import BranchSwitcher from "../components/common/BranchSwitcher";
 
@@ -164,6 +165,9 @@ const AdminLayout = ({ children }) => {
     flexShrink: 0,
   };
 
+  if (user?.role === ROLES.CASHIER) {
+    return <Navigate to="/cashier" replace />;
+  }
   const menuItems = [
     canAccess([PERMISSIONS.OVERVIEW_VIEW]) && {
       key: "dashboard",
