@@ -12,7 +12,7 @@ const { TextArea } = Input;
 const CreateDiseaseCategoryFoodRestriction = ({
     open,
     onCancel,
-    onSubmit,
+    onSubmit, // Add onSubmit to props
     initialValues = {},
 }) => {
     const { form, loading: formLoading, handleSubmit } = useAntForm();
@@ -35,7 +35,7 @@ const CreateDiseaseCategoryFoodRestriction = ({
     const handleFormSubmit = async (values) => {
         console.log('🚀 Gửi form với giá trị:', values);
         await handleSubmit(async (formData) => {
-            await onSubmit?.(formData);
+            await onSubmit?.(formData); // Now onSubmit is a prop
         });
     };
 
@@ -214,7 +214,7 @@ const CreateDiseaseCategoryFoodRestriction = ({
 CreateDiseaseCategoryFoodRestriction.propTypes = {
     open: PropTypes.bool.isRequired,
     onCancel: PropTypes.func.isRequired,
-    onSubmit: PropTypes.func.isRequired,
+    onSubmit: PropTypes.func, // Add onSubmit to PropTypes
     initialValues: PropTypes.object,
 };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Input, Button, Card, Typography, Divider, Space, Tag, Checkbox } from 'antd';
+import { Form, Input, Button, Card, Typography, Divider, Space, Tag, Checkbox, message } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { TEST_ACCOUNTS } from '../../constants/roles';
@@ -87,7 +87,7 @@ const AuthForm = ({
                     required: true,
                     min: 6,
                     pattern: /^(?=[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{6,}$/,
-                    message: 'Mật khẩu không hợp lệ! Phải có ít nhất 6 ký tự, bắt đầu bằng chữ in hoa, chứa số và ký tự đặc biệt.'
+                    message: 'Mật khẩu không hợp lệ!.'
                 }
             ],
             component: <Input.Password size="large" placeholder="Mật khẩu" />

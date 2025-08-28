@@ -195,28 +195,34 @@ export const orderService = {
       throw error;
     }
   },
-
   async createOrder(orderData, branchId, options = {}) {
-    console.log('this._mapPaymentMethod(orderData.paymentMethod):', this._mapPaymentMethod(orderData.paymentMethod));
     try {
+      const normalizedBranchId = normalizeBranchId(branchId);
+      if (!normalizedBranchId) throw new Error('Branch ID is required');
+
+      // Validate order data
+      if (!orderData.customerName) throw new Error('Customer name is required');
+      if (!orderData.cartItems || !orderData.cartItems.length) throw new Error('Cart items cannot be empty');
+      if (!orderData.total || orderData.total <= 0) throw new Error('Total must be greater than 0');
+
       const orderDto = {
-        branchId: branchId,
-        userId: orderData.userId,
+        branchId: normalizedBranchId,
+        userId: orderData.userId || null,
         isPatientOrder: false,
         orderDate: new Date().toISOString(),
         receiveDate: orderData.receiveDate ? new Date(orderData.receiveDate).toISOString() : null,
-        receiveTime: orderData.receiveTime,
+        receiveTime: orderData.receiveTime || '12:00',
         receiveType: orderData.receiveMethod || 'Giao tận nơi',
-        status: 'Pending',
+        status: orderData.paymentMethod === 'VNPay' ? 'PendingPayment' : 'Pending',
         customerName: orderData.customerName,
-        customerPhone: orderData.customerPhone,
-        customerAddress: orderData.customerAddress,
+        customerPhone: orderData.customerPhone || '0000000000',
+        customerAddress: orderData.customerAddress || 'Không xác định',
         total: orderData.total,
         shippingFee: orderData.shippingFee || 0,
         foodToolFee: orderData.includeUtensils ? 5000 : 0,
-        paymentMethod: 1,
-        isPaid: true,
-        note: orderData.note,
+        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod),
+        isPaid: orderData.isPaid,
+        note: orderData.note || '',
         locationId: orderData.locationId || null,
         orderDetails: orderData.cartItems.map(item => ({
           foodId: item.FoodId || item.ID,
@@ -224,14 +230,14 @@ export const orderService = {
           price: item.price,
           total: item.price * item.quantity,
           note: item.note || null,
-          foodName: item.dishName
+          foodName: item.dishName || 'Unknown Food'
         }))
       };
 
-      console.log('Creating order with data:', orderDto);
+      console.log('Creating order with data:', JSON.stringify(orderDto, null, 2));
 
       const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
-        headers: branchId ? { 'X-Branch-Id': branchId } : {},
+        headers: normalizedBranchId ? { 'X-Branch-Id': normalizedBranchId } : {},
         ...options
       });
 
@@ -635,10 +641,11 @@ export const orderService = {
 
   _mapPaymentMethod(paymentMethod) {
     const paymentMap = {
+      'Cash': 0,
       'Wallet': 1,
       'VNPay': 2
     };
-    return paymentMap[paymentMethod] || 1;
+    const mapped = paymentMap[paymentMethod] ?? 0;
   },
 
   _generateOrderCode() {

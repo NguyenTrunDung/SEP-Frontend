@@ -34,6 +34,12 @@ const EditDiseaseCategoryFoodRestriction = ({ open, onCancel, onSubmit, formData
                 return;
             }
             console.log('🔄 Setting form data:', formData);
+
+            // Convert comma-separated mealTime string to array for frontend
+            const mealTimeArray = formData.mealTime
+                ? formData.mealTime.split(',').map(mt => mt.trim())
+                : [];
+
             form.setFieldsValue({
                 id: formData.id,
                 diseaseCategoryId: formData.diseaseCategoryId,

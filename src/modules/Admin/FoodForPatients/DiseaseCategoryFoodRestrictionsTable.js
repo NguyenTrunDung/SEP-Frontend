@@ -77,7 +77,8 @@ const DiseaseCategoryFoodRestrictionsTable = ({
         // Filter by search text
         if (searchText) {
             filtered = filtered.filter(item =>
-                item.nutritionalMealName?.toLowerCase().includes(searchText.toLowerCase()) ||
+                // Search in both new and legacy fields for backward compatibility
+                (item.name || item.nutritionalMealName)?.toLowerCase().includes(searchText.toLowerCase()) ||
                 item.diseaseCategoryName?.toLowerCase().includes(searchText.toLowerCase()) ||
                 item.reason?.toLowerCase().includes(searchText.toLowerCase())
             );
@@ -88,30 +89,24 @@ const DiseaseCategoryFoodRestrictionsTable = ({
             filtered = filtered.filter(item => item.diseaseCategoryId === selectedDiseaseCategory);
         }
 
-        // Filter by meal time
+        // Filter by meal time (handle comma-separated values from backend)
         if (selectedMealTime !== null) {
-            filtered = filtered.filter(item => item.mealTime === selectedMealTime);
+            filtered = filtered.filter(item => {
+                if (!item.mealTime) return false;
+                // Backend stores comma-separated values like "Sáng,Trưa,Tối"
+                const mealTimes = item.mealTime.split(',').map(mt => mt.trim());
+                return mealTimes.includes(selectedMealTime);
+            });
         }
 
         return filtered;
     }, [dataSource, searchText, selectedDiseaseCategory, selectedMealTime]);
 
-    // Handle debounced search notifications
+    // Handle debounced search notifications  
     useEffect(() => {
         if (debouncedSearchText && debouncedSearchText.trim()) {
-            const searchResults = dataSource.filter(item => {
-                let matches = item.nutritionalMealName?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
-                    item.diseaseCategoryName?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
-                    item.reason?.toLowerCase().includes(debouncedSearchText.toLowerCase());
-
-                if (selectedDiseaseCategory !== null) {
-                    matches = matches && item.diseaseCategoryId === selectedDiseaseCategory;
-                }
-                if (selectedMealTime !== null) {
-                    matches = matches && item.mealTime === selectedMealTime;
-                }
-                return matches;
-            });
+            // Search results are handled by the filteredData useMemo above
+            // This effect is kept for potential future search analytics
         }
     }, [debouncedSearchText, dataSource, selectedDiseaseCategory, selectedMealTime]);
 
@@ -127,7 +122,8 @@ const DiseaseCategoryFoodRestrictionsTable = ({
         if (onDelete) {
             onDelete(record);
         } else {
-            message.success(`Đã xóa hạn chế thực phẩm cho ${record.nutritionalMealName}`);
+            const mealName = record.name || record.nutritionalMealName || 'Unknown';
+            message.success(`Đã xóa hạn chế thực phẩm cho ${mealName}`);
         }
     };
 
@@ -217,8 +213,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
             title: 'DANH MỤC BỆNH',
             dataIndex: 'diseaseCategoryName',
             key: 'diseaseCategoryName',
-            render: (diseaseCategoryName, record) => {
-                const category = diseaseCategories.find(cat => cat.id === record.diseaseCategoryId);
+            render: (diseaseCategoryName) => {
                 return (
                     <div>
                         <span className="vietnamese-text">{diseaseCategoryName || 'Chưa chọn danh mục'}</span>
@@ -273,7 +268,7 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                     <Tooltip title="Xóa">
                         <Popconfirm
                             title="Xóa hạn chế thực phẩm"
-                            description={`Bạn có chắc chắn muốn xóa hạn chế cho ${record.nutritionalMealName}?`}
+                            description={`Bạn có chắc chắn muốn xóa hạn chế cho ${record.name || record.nutritionalMealName || record.foodName || 'Unknown'}?`}
                             onConfirm={() => handleDelete(record)}
                             okText="Xóa"
                             cancelText="Hủy"
@@ -388,10 +383,10 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                     <div className="restriction-detail-content">
                         <Descriptions column={1} bordered>
                             <Descriptions.Item label="Tên món ăn">
-                                {selectedRestriction.nutritionalMealName || '-'}
+                                {selectedRestriction.name || selectedRestriction.nutritionalMealName || selectedRestriction.foodName || '-'}
                             </Descriptions.Item>
                             <Descriptions.Item label="Giá tiền">
-                                {selectedRestriction.price ? `${format.currency(selectedRestriction.price)} VNĐ` : '-'}
+                                {(selectedRestriction.price || selectedRestriction.foodPrice) ? `${format.currency(selectedRestriction.price || selectedRestriction.foodPrice)} VNĐ` : '-'}
                             </Descriptions.Item>
                             <Descriptions.Item label="Buổi ăn">
                                 {{
@@ -438,6 +433,12 @@ DiseaseCategoryFoodRestrictionsTable.propTypes = {
             diseaseCategoryId: PropTypes.number.isRequired,
             nutritionalMealName: PropTypes.string,
             price: PropTypes.number,
+
+            // Legacy fields (for backward compatibility)
+            nutritionalMealCode: PropTypes.string, // Made optional for backward compatibility
+            nutritionalMealName: PropTypes.string,
+            foodName: PropTypes.string,
+            foodPrice: PropTypes.number,
             mealTime: PropTypes.string,
             reason: PropTypes.string,
             alternativeRecommendations: PropTypes.string,

@@ -117,19 +117,23 @@ export const useCreatePatient = () => {
     mutationFn: ({ patientData, branchId }) =>
       patientService.createPatient(patientData, branchId),
     onSuccess: (data, { branchId }) => {
+      // Handle different response structures
+      const patientData = data.data || data;
       const newPatient = {
-        ...data.data,
-        departmentName: departments.find(dept => dept.id === data.data.departmentId)?.name || 'Chưa xác định',
+        ...patientData,
+        departmentName: departments.find(dept => dept.id === patientData.departmentId)?.name || 'Chưa xác định',
       };
+
       queryClient.setQueryData(PATIENT_KEYS.byBranch(branchId), (oldData) => {
         return oldData ? [...oldData, newPatient] : [newPatient];
       });
+
       queryClient.invalidateQueries({
         queryKey: PATIENT_KEYS.byBranch(branchId),
       });
-      message.success('Tạo bệnh nhân thành công');
     },
     onError: (error) => {
+      console.error('Create patient mutation error:', error);
       message.error('Lỗi khi tạo bệnh nhân: ' + error.message);
     },
   });
@@ -204,18 +208,33 @@ export const useUpdatePatient = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ patientId, patientData, branchId }) =>
-      patientService.updatePatient(patientId, patientData, branchId),
+    mutationFn: async ({ patientId, patientData, branchId }) => {
+      console.log('🔍 useUpdatePatient - Starting mutation for patientId:', patientId);
+      try {
+        const response = await patientService.updatePatient(patientId, patientData, branchId);
+        console.log('✅ useUpdatePatient - Mutation response:', response);
+        return response;
+      } catch (error) {
+        console.error('❌ useUpdatePatient - Mutation error:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+        });
+        throw error;
+      }
+    },
     onSuccess: (data, { patientId, branchId }) => {
+      console.log('✅ useUpdatePatient - onSuccess:', { patientId, branchId, data });
       queryClient.setQueryData(PATIENT_KEYS.detail(patientId), { data });
       queryClient.invalidateQueries({
         queryKey: PATIENT_KEYS.byBranch(branchId),
+        exact: true,
       });
-      message.success('Cập nhật bệnh nhân thành công');
     },
-    // onError: (error) => {
-    //   message.error('Lỗi khi cập nhật bệnh nhân: ' + error.message);
-    // },
+    onError: (error) => {
+      console.error('❌ useUpdatePatient - onError:', error);
+      // Error message is handled in handleSubmit to avoid duplicates
+    },
   });
 };
 

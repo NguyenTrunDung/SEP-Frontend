@@ -4,7 +4,7 @@ import { Button, Input, DatePicker, Select, Tooltip } from 'antd';
 import { SearchOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { usePermissions } from '../../hooks/usePermissions';
 import './PageWrapperV2.css';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 const { Option } = Select;
 
@@ -70,19 +70,24 @@ const withPageWrapperV2 = (WrappedComponent) => {
 
     const renderFilterField = (field) => {
       if (field.type === 'date') {
+        const dateValue = filterProps.filters?.[field.name] ? dayjs(filterProps.filters[field.name]) : null;
+
         return (
           <DatePicker
             key={field.name}
             placeholder={field.label}
-            value={filterProps.filters?.[field.name] ? moment(filterProps.filters[field.name]) : null}
-            onChange={(date, dateString) =>
+            value={dateValue}
+            onChange={(date, dateString) => {
               filterProps.onChange({
                 ...filterProps.filters,
                 [field.name]: dateString,
-              })
-            }
+              });
+            }}
             style={{ width: 180 }}
             allowClear
+            disabledDate={(current) => current && current > dayjs().add(1, 'year')}
+            showTime={false}
+            format="YYYY-MM-DD"
           />
         );
       }
@@ -296,7 +301,7 @@ const PageWrapperV2 = ({
         <DatePicker
           key={field.name}
           placeholder={field.label}
-          value={filterProps.filters?.[field.name] ? moment(filterProps.filters[field.name]) : null}
+          value={filterProps.filters?.[field.name] ? dayjs(filterProps.filters[field.name]) : null}
           onChange={(date, dateString) =>
             filterProps.onChange({
               ...filterProps.filters,
@@ -305,6 +310,9 @@ const PageWrapperV2 = ({
           }
           style={{ width: 160 }}
           allowClear
+          disabledDate={(current) => current && current > dayjs().add(1, 'year')}
+          showTime={false}
+          format="YYYY-MM-DD"
         />
       );
     }
