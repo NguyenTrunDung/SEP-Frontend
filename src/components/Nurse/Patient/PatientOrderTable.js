@@ -119,11 +119,7 @@ const PatientOrderTable = ({
         : [];
 
     console.log(`🔍 Patient ${patient.id} diseaseCategoryIds:`, patientDiseaseCategoryIds);
-    console.log(`🔍 Raw restrictions data:`, restrictions.map(r => ({
-      id: r.id,
-      nutritionalMealName: r.nutritionalMealName,
-      mealTime: r.mealTime,
-    })));
+    console.log(`🔍 Raw restrictions data:`, restrictions);
 
     if (!restrictions || restrictions.length === 0) {
       console.warn(`⚠️ No restrictions data available for branch ${currentBranchId}`);
@@ -136,13 +132,7 @@ const PatientOrderTable = ({
         noon: 'Trưa',
         evening: 'Chiều',
       };
-      if (!mealTime) {
-        console.warn('⚠️ mealTime is null or undefined:', mealTime);
-        return [];
-      }
-      return Array.isArray(mealTime)
-        ? mealTime.map(mt => mapping[mt.toLowerCase()] || mt)
-        : [mapping[mealTime.toLowerCase()] || mealTime];
+      return Array.isArray(mealTime) ? mealTime.map(mt => mapping[mt.toLowerCase()] || mt) : [mapping[mealTime.toLowerCase()] || mealTime];
     };
 
     let allowedFoods = restrictions
@@ -209,7 +199,7 @@ const PatientOrderTable = ({
             return;
           }
 
-          const mealTimes = ['Sáng', 'Trưa', 'Chiều']; // Đã sửa từ 'Tối' thành 'Chiều'
+          const mealTimes = ['Sáng', 'Trưa', 'Chiều'];
           newAllAvailableFoods[patientId] = {};
           newFilteredFoods[patientId] = {};
 
@@ -217,7 +207,6 @@ const PatientOrderTable = ({
           mealTimes.forEach(mealTime => {
             newAllAvailableFoods[patientId][mealTime] = allowedFoods.filter(food => food.mealTime.includes(mealTime));
             newFilteredFoods[patientId][mealTime] = allowedFoods.filter(food => food.mealTime.includes(mealTime));
-            console.log(`🔍 Filtered foods for patient ${patientId}, ${mealTime}:`, newFilteredFoods[patientId][mealTime]);
           });
         });
 

@@ -5,7 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import locale from 'antd/locale/vi_VN';
 import NurseLayout from '../NurseLayout';
 import PatientOrderTable from '../Patient/PatientOrderTable';
-import { orderService } from '../../../services/orderService';
+import { orderService } from '../../../services/orderService'
 import { useDiseaseCategoryFoodRestrictions } from '../../../hooks/queries/useDiseaseCategoryFoodRestrictions';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
@@ -118,7 +118,6 @@ const PatientOrderComponent = () => {
   const handleSelectPatient = useCallback(
     (patientId, selectedFoods) => {
       console.log(`🔍 handleSelectPatient: Called for patient ${patientId}, selectedFoods:`, Array.from(selectedFoods));
-      
       setSelectedPatients((prev) => {
         const newSet = new Set(prev);
         if (selectedFoods.size > 0) {
@@ -129,38 +128,16 @@ const PatientOrderComponent = () => {
         console.log(`🔍 handleSelectPatient: Updated selectedPatients:`, Array.from(newSet));
         return newSet;
       });
-      
       setSelectedFoodsByPatient((prev) => {
-        const mealTimes = ['Sáng', 'Trưa', 'Chiều'];
-        
-        // If no foods selected, remove the patient's entry
-        if (selectedFoods.size === 0) {
-          const newFoodsByPatient = { ...prev };
-          delete newFoodsByPatient[patientId];
-          return newFoodsByPatient;
-        }
-
-        // Create a new object with selected foods for each meal time
         const newFoodsByPatient = {
           ...prev,
-          [patientId]: {}
-        };
-
-        // Distribute foods across meal times
-        mealTimes.forEach(mealTime => {
-          const mealTimeFoods = Array.from(selectedFoods).map(foodId => ({
+          [patientId]: Array.from(selectedFoods).map((foodId) => ({
             foodId,
-            quantity: quantity[`${patientId}-${mealTime}-${foodId}`] || 1,
-            note: note[`${patientId}-${mealTime}-${foodId}`] || '',
-            mealTime
-          }));
-
-          if (mealTimeFoods.length > 0) {
-            newFoodsByPatient[patientId][mealTime] = mealTimeFoods;
-          }
-        });
-
-        console.log(`🔍 handleSelectPatient: Updated selectedFoodsByPatient:`, JSON.stringify(newFoodsByPatient, null, 2));
+            quantity: quantity[`${patientId}-${foodId}`] || 1,
+            note: note[`${patientId}-${foodId}`] || '',
+          })),
+        };
+        console.log(`🔍 handleSelectPatient: Updated selectedFoodsByPatient:`, newFoodsByPatient);
         return newFoodsByPatient;
       });
     },
@@ -168,51 +145,35 @@ const PatientOrderComponent = () => {
   );
 
   const handleQuantityChange = useCallback(
-    (patientId, foodId, value, mealTime) => {
-      console.log(`🔍 handleQuantityChange: Called for patient ${patientId}, food ${foodId}, value:`, value, `mealTime: ${mealTime}`);
-      
+    (patientId, foodId, value) => {
+      console.log(`🔍 handleQuantityChange: Called for patient ${patientId}, food ${foodId}, value:`, value);
       setQuantity((prev) => ({
         ...prev,
-        [`${patientId}-${mealTime}-${foodId}`]: value || 1,
+        [`${patientId}-${foodId}`]: value || 1,
       }));
-      
-      setSelectedFoodsByPatient((prev) => {
-        if (!prev[patientId] || !prev[patientId][mealTime]) {
-          return prev;
-        }
-
-        const updatedPatientFoods = { ...prev };
-        updatedPatientFoods[patientId][mealTime] = updatedPatientFoods[patientId][mealTime].map((food) =>
+      setSelectedFoodsByPatient((prev) => ({
+        ...prev,
+        [patientId]: (prev[patientId] || []).map((food) =>
           food.foodId === foodId ? { ...food, quantity: value || 1 } : food
-        );
-
-        return updatedPatientFoods;
-      });
+        ),
+      }));
     },
     []
   );
 
   const handleNoteChange = useCallback(
-    (patientId, foodId, value, mealTime) => {
-      console.log(`🔍 handleNoteChange: Called for patient ${patientId}, food ${foodId}, value:`, value, `mealTime: ${mealTime}`);
-      
+    (patientId, foodId, value) => {
+      console.log(`🔍 handleNoteChange: Called for patient ${patientId}, food ${foodId}, value:`, value);
       setNote((prev) => ({
         ...prev,
-        [`${patientId}-${mealTime}-${foodId}`]: value || '',
+        [`${patientId}-${foodId}`]: value || '',
       }));
-      
-      setSelectedFoodsByPatient((prev) => {
-        if (!prev[patientId] || !prev[patientId][mealTime]) {
-          return prev;
-        }
-
-        const updatedPatientFoods = { ...prev };
-        updatedPatientFoods[patientId][mealTime] = updatedPatientFoods[patientId][mealTime].map((food) =>
+      setSelectedFoodsByPatient((prev) => ({
+        ...prev,
+        [patientId]: (prev[patientId] || []).map((food) =>
           food.foodId === foodId ? { ...food, note: value || '' } : food
-        );
-
-        return updatedPatientFoods;
-      });
+        ),
+      }));
     },
     []
   );
@@ -268,13 +229,9 @@ const PatientOrderComponent = () => {
           }
         }
 
-        const selectedFoods = selectedFoodsByPatient[patientId] || {};
-        
-        // Combine foods from all meal times into a single array
-        const allSelectedFoods = Object.values(selectedFoods).flat();
-        console.log(`🔍 Selected foods for patient ${patientId}:`, allSelectedFoods);
-
-        if (!Array.isArray(allSelectedFoods) || allSelectedFoods.length === 0) {
+        const selectedFoods = selectedFoodsByPatient[patientId] || [];
+        console.log(`🔍 Selected foods for patient ${patientId}:`, selectedFoods);
+        if (!Array.isArray(selectedFoods) || selectedFoods.length === 0) {
           console.warn(`⚠️ No foods selected or invalid data for patient ${patientId}`);
           return { patientId, status: 'failed', reason: 'No foods selected or invalid data' };
         }
@@ -290,11 +247,10 @@ const PatientOrderComponent = () => {
           return { patientId, status: 'failed', reason: 'No disease categories' };
         }
 
-        const allowedFoods = allSelectedFoods
+        const allowedFoods = selectedFoods
           .map((item) => {
             const restriction = restrictions.find(
-              (r) =>
-                parseInt(r.id, 10) === parseInt(item.foodId, 10) &&
+              (r) => parseInt(r.id, 10) === parseInt(item.foodId, 10) &&
                 patientDiseaseCategoryIds.includes(parseInt(r.diseaseCategoryId, 10))
             );
             if (!restriction) {
@@ -307,7 +263,6 @@ const PatientOrderComponent = () => {
               price: Number(restriction.price || 0),
               quantity: item.quantity || 1,
               note: item.note || '',
-              mealTime: item.mealTime || 'Unknown', // Lấy mealTime từ selectedFoods
             };
           })
           .filter((food) => food !== null);
@@ -357,15 +312,12 @@ const PatientOrderComponent = () => {
             price: item.price,
             note: item.note,
             dishName: item.name,
-            mealTime: item.mealTime,
           })),
         };
 
-        console.log(`🚀 Order payload for patient ${patientId}:`, JSON.stringify(orderData, null, 2));
-
+        console.log(`🚀 Prepared orderData for patient ${patientId}:`, JSON.stringify(orderData, null, 2));
         try {
           await createPatientOrderMutation.mutateAsync({ orderData, branchId: currentBranchId });
-          console.log(`✅ Successfully created order for patient ${patientId}`);
           return { patientId, status: 'success' };
         } catch (error) {
           console.error(`❌ Failed to create order for patient ${patientId}:`, {
@@ -403,7 +355,6 @@ const PatientOrderComponent = () => {
       message.error(error.message || 'Lỗi khi đặt món cho bệnh nhân');
     }
   };
-
   if (!currentBranchId) {
     console.log('🔍 No currentBranchId, rendering warning');
     return (

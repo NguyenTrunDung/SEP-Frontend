@@ -427,9 +427,25 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
     }
 
     const existingItem = cartItems.find((item) => item.FoodId === menuItem.id);
+    
+    // Check if adding would exceed 10 items
+    const newTotalQuantity = existingItem 
+      ? existingItem.quantity + quantity 
+      : quantity;
+
+    if (existingItem) {
+      if (newTotalQuantity > 10) {
+        message.warning('Số lượng tối đa là 10 suất.');
+        return;
+      }
+    } else if (quantity > 10) {
+      message.warning('Số lượng tối đa là 10 suất.');
+      return;
+    }
+
     if (existingItem) {
       const updatedItems = cartItems.map((item) =>
-        item.FoodId === menuItem.id ? { ...item, quantity, note } : item
+        item.FoodId === menuItem.id ? { ...item, quantity: newTotalQuantity, note } : item
       );
       setCartItems(updatedItems);
       message.success(`${menuItem.name} đã được cập nhật trong giỏ hàng!`);
@@ -771,7 +787,13 @@ const MenuPage = ({ onCartUpdate, onShowCart }) => {
                             fontSize: '18px',
                             fontWeight: 'bold',
                           }}
-                          onClick={() => setQuantity(quantity + 1)}
+                          onClick={() => {
+                            if (quantity >= 10) {
+                              message.warning('Số lượng tối đa là 10 suất.');
+                            } else {
+                              setQuantity(quantity + 1);
+                            }
+                          }}
                         >
                           +
                         </Button>
