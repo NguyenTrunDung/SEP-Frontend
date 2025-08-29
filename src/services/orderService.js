@@ -274,7 +274,7 @@ export const orderService = {
     }
   },
 
-  async createPatientOrder(orderData, branchId, options = {}) {
+ async createPatientOrder(orderData, branchId, options = {}) {
     try {
       const normalizedBranchId = normalizeBranchId(branchId);
 
@@ -329,16 +329,11 @@ export const orderService = {
         }
       }
 
-      // Xác định paymentMethod và walletAmountUsed
-      const paymentMethod = this._mapPaymentMethod(orderData.paymentMethod);
-      const isWalletPayment = paymentMethod === 1; // Wallet
-      const walletAmountUsed = isWalletPayment ? (orderData.walletAmountUsed || orderData.total) : 0;
-
       // Construct orderDto
       const orderDto = {
         branchId: Number(normalizedBranchId),
         userId: orderData.userId || 'NURSE_DEFAULT',
-        patientId: orderData.patientId || null,
+        patientId: orderData.patientId || null, // Allow null if patientId is not validated
         isPatientOrder: true,
         orderDate: orderData.orderDate || new Date().toISOString(),
         receiveDate: new Date(orderData.receiveDate).toISOString(),
@@ -352,9 +347,9 @@ export const orderService = {
         total: Number(orderData.total),
         shippingFee: Number(orderData.shippingFee) || 0,
         foodToolFee: Number(orderData.foodToolFee) || 0,
-        paymentMethod: paymentMethod,
-        isPaid: isWalletPayment ? true : (orderData.isPaid || false), // Mặc định isPaid: true cho Wallet
-        walletAmountUsed: walletAmountUsed,
+        paymentMethod: 0, // Free, as per previous fix
+        isPaid: true,
+        walletAmountUsed: 0,
         code: orderData.code || this._generateOrderCode(),
         note: orderData.note || '',
         locationId: orderData.locationId || null,
