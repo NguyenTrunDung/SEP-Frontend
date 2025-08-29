@@ -205,8 +205,8 @@ const UserManagement = () => {
         <PageWrapperV2
             title="Quản lý ví người dùng"
             resourceName="users"
-            addPermission={PERMISSIONS.USERS_ADD}
-            viewPermission={PERMISSIONS.USERS_VIEW}
+            addPermission={PERMISSIONS.WALLET_ADD}
+            viewPermission={PERMISSIONS.WALLET_VIEW}
             hideOnNoPermission={true}
             permissionFallback={<div>Bạn không có quyền truy cập trang quản lý ví người dùng.</div>}
             onAdd={handleCreate}
