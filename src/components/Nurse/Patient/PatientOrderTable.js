@@ -199,7 +199,7 @@ const PatientOrderTable = ({
             return;
           }
 
-          const mealTimes = ['Sáng', 'Trưa', 'Tối'];
+          const mealTimes = ['Sáng', 'Trưa', 'Chiều'];
           newAllAvailableFoods[patientId] = {};
           newFilteredFoods[patientId] = {};
 
@@ -256,7 +256,7 @@ const PatientOrderTable = ({
         return map;
       }, {});
 
-      ['Sáng', 'Trưa', 'Tối'].forEach(mealTime => {
+      ['Sáng', 'Trưa', 'Chiều'].forEach(mealTime => {
         if (!Array.isArray(foodsForPatient[mealTime]) || foodsForPatient[mealTime].length === 0) {
           result[patientId][mealTime] = {};
           return;

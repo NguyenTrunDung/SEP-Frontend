@@ -203,6 +203,7 @@ const Navbar = () => {
       newActiveKey = 'contact';
     } else if (currentPath.includes('/nurse/patient')) {
       newActiveKey = 'staff';
+
     } else if (currentPath.includes('/nurse/patient-order')) {
       newActiveKey = 'patient-order';
     } else if (location.hash === '#menu') {

@@ -306,12 +306,16 @@ const CartModal = ({
                         onClick={() => {
                           const updatedItems = cartItems.map((cartItem) =>
                             cartItem.cartId === item.cartId
-                              ? { ...cartItem, quantity: Number(cartItem.quantity) + 1 }
+                              ? { ...cartItem, quantity: Math.min(10, Number(cartItem.quantity) + 1) }
                               : cartItem
                           );
-                          setCartItems(updatedItems);
-                          message.success(`${item.dishName} đã được cập nhật số lượng.`);
-                          handleCartUpdate();
+                          if (Number(item.quantity) >= 10) {
+                            message.warning('Số lượng tối đa là 10 suất.');
+                          } else {
+                            setCartItems(updatedItems);
+                            message.success(`${item.dishName} đã được cập nhật số lượng.`);
+                            handleCartUpdate();
+                          }
                         }}
                       >
                         +
@@ -426,7 +430,13 @@ const CartModal = ({
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
-                onClick={() => setQuantity(quantity + 1)}
+                onClick={() => {
+                  if (quantity >= 10) {
+                    message.warning('Số lượng tối đa là 10 suất.');
+                  } else {
+                    setQuantity(quantity + 1);
+                  }
+                }}
               >
                 +
               </Button>

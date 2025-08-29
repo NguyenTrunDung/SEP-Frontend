@@ -170,9 +170,9 @@ const AreasTable = () => {
                 <div className="area-item" key={item.id}>
                   <span className="area-name">{item.name}</span>
                   <div className="actions">
-                    <Tooltip title="Chỉnh sửa">
+                    {/* <Tooltip title="Chỉnh sửa">
                       <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(item)} />
-                    </Tooltip>
+                    </Tooltip> */}
                     <Popconfirm title={`Xóa ${item.name}?`} onConfirm={() => handleDelete(item)}>
                       <Button type="text" icon={<DeleteOutlined />} danger />
                     </Popconfirm>

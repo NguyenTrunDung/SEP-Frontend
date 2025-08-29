@@ -284,8 +284,8 @@ const CashierLayout = () => {
         note: `Đơn hàng của ${customerName.trim()}`,
         includeUtensils: true,
         shippingFee: 0,
-        paymentMethod: 0,
-        isPaid: true,
+        paymentMethod: 'Cash', // Đảm bảo là Cash
+        isPaid: true, // Cash orders are paid immediately
         locationId: null,
         cartItems: cart.map(item => ({
           FoodId: item.id,
@@ -298,9 +298,10 @@ const CashierLayout = () => {
         }))
       };
 
-      console.log('🚀 Creating order with data:', JSON.stringify(orderData, null, 2));
+      console.log('🚀 Creating cashier order with data:', JSON.stringify(orderData, null, 2));
 
-      const response = await orderService.createOrder(orderData, currentBranchId);
+      // Sử dụng createOrderForCashier thay vì createOrder
+      const response = await orderService.createOrderForCashier(orderData, currentBranchId);
 
       if (!response || !response.data) {
         throw new Error('Đơn hàng không được tạo thành công');
@@ -315,7 +316,7 @@ const CashierLayout = () => {
       setCustomerName('');
       setDeliveryDate(dayjs().format('YYYY-MM-DD'));
     } catch (error) {
-      console.error('❌ Order Creation Error:', {
+      console.error('❌ Cashier Order Creation Error:', {
         message: error.message,
         stack: error.stack,
         response: error.response?.data
@@ -338,27 +339,31 @@ const CashierLayout = () => {
       title: 'Mã đơn hàng',
       dataIndex: 'code',
       key: 'code',
+      align: 'left',
       render: (code, record) => code || record.id,
     },
     {
       title: 'Khách hàng',
       dataIndex: 'customerName',
+      align: 'left',
       key: 'customerName',
     },
     {
       title: 'Tổng tiền',
       dataIndex: 'total',
       key: 'total',
+      align: 'left',
       render: (total) => (total != null ? total.toLocaleString('vi-VN') + 'đ' : 'N/A'),
     },
     {
       title: 'Món ăn',
       key: 'items',
+      align: 'left',
       render: (_, record) => (
         <ul>
           {record.orderDetails?.map((item, index) => (
             <li key={index}>
-              {item.foodName || item.dishName || 'Món ăn'} x {item.qty || item.quantity || 1} - 
+              {item.foodName || item.dishName || 'Món ăn'} x {item.qty || item.quantity || 1} -
               {(item.total || (item.price * (item.qty || item.quantity || 1))).toLocaleString('vi-VN')}đ
             </li>
           ))}

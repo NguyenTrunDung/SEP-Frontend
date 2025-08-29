@@ -1,5 +1,6 @@
 import api, { environment } from './api/config';
 import dayjs from 'dayjs';
+import { diseaseCategoryFoodRestrictionService } from '../services/diseaseCategoryFoodRestrictionService'
 
 const normalizeBranchId = (branchId) => {
   const resolvedBranchId =
@@ -150,7 +151,18 @@ export const orderService = {
       const normalizedData = response.data.data.map(item => {
         const qty = item.Qty ?? item.quantity ?? item.qty ?? 1;
         const food = item.food || {};
-        console.log(`🔍 Normalizing item with patient info for order ${orderId}:`, { item, qty });
+        let mealTime = item.mealSession || 'Không xác định';
+        // Lấy mealTime từ diseaseCategoryFoodRestrictionService nếu cần
+        if (item.foodId) {
+          try {
+            const nutritionalMealResponse = diseaseCategoryFoodRestrictionService.getDiseaseCategoryFoodRestriction(item.foodId);
+            if (nutritionalMealResponse.data && nutritionalMealResponse.data.mealTime) {
+              mealTime = nutritionalMealResponse.data.mealTime;
+            }
+          } catch (error) {
+            console.warn(`⚠️ Failed to fetch mealTime for foodId ${item.foodId}:`, error);
+          }
+        }
         return {
           ...item,
           id: item.id || `item-${Math.random()}`,
@@ -160,6 +172,7 @@ export const orderService = {
           price: item.price ?? 0,
           total: item.total ?? (item.price ?? 0) * qty,
           patientInfo: item.patientInfo || null,
+          mealTime, // Thêm mealTime vào dữ liệu trả về
         };
       });
       console.log(`🔍 Normalized order details with patient info for order ${orderId}:`, normalizedData);
@@ -205,6 +218,11 @@ export const orderService = {
       if (!orderData.cartItems || !orderData.cartItems.length) throw new Error('Cart items cannot be empty');
       if (!orderData.total || orderData.total <= 0) throw new Error('Total must be greater than 0');
 
+      // Xác định paymentMethod và walletAmountUsed
+      const paymentMethod = this._mapPaymentMethod(orderData.paymentMethod);
+      const isWalletPayment = paymentMethod === 1; // Wallet
+      const walletAmountUsed = isWalletPayment ? (orderData.walletAmountUsed || orderData.total) : 0;
+
       const orderDto = {
         branchId: normalizedBranchId,
         userId: orderData.userId || null,
@@ -220,8 +238,9 @@ export const orderService = {
         total: orderData.total,
         shippingFee: orderData.shippingFee || 0,
         foodToolFee: orderData.includeUtensils ? 5000 : 0,
-        paymentMethod: this._mapPaymentMethod(orderData.paymentMethod),
-        isPaid: orderData.isPaid,
+        paymentMethod: paymentMethod,
+        isPaid: isWalletPayment ? true : (orderData.isPaid || false), // Mặc định isPaid: true cho Wallet, giống code cũ
+        walletAmountUsed: walletAmountUsed, // Thêm trường walletAmountUsed
         note: orderData.note || '',
         locationId: orderData.locationId || null,
         orderDetails: orderData.cartItems.map(item => ({
@@ -234,7 +253,9 @@ export const orderService = {
         }))
       };
 
-      console.log('Creating order with data:', JSON.stringify(orderDto, null, 2));
+      if (environment.features.enableLogging) {
+        console.log('Creating order with data:', JSON.stringify(orderDto, null, 2));
+      }
 
       const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
         headers: normalizedBranchId ? { 'X-Branch-Id': normalizedBranchId } : {},
@@ -253,7 +274,7 @@ export const orderService = {
     }
   },
 
-  async createPatientOrder(orderData, branchId, options = {}) {
+ async createPatientOrder(orderData, branchId, options = {}) {
     try {
       const normalizedBranchId = normalizeBranchId(branchId);
 
@@ -491,13 +512,32 @@ export const orderService = {
       const detailedOrders = await Promise.all(
         orders.map(async (order) => {
           const orderDetails = await this.getOrderDetails(order.id);
+          // Lấy thêm mealTime từ diseaseCategoryFoodRestrictionService nếu cần
+          const enhancedOrderDetails = await Promise.all(
+            orderDetails.data.map(async (item) => {
+              let mealTime = item.mealSession || 'Không xác định';
+              if (item.foodId) {
+                try {
+                  const nutritionalMealResponse = await diseaseCategoryFoodRestrictionService.getDiseaseCategoryFoodRestriction(item.foodId);
+                  if (nutritionalMealResponse.data && nutritionalMealResponse.data.mealTime) {
+                    mealTime = nutritionalMealResponse.data.mealTime;
+                  }
+                } catch (error) {
+                  console.warn(`⚠️ Failed to fetch mealTime for foodId ${item.foodId}:`, error);
+                }
+              }
+              return {
+                ...item,
+                foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
+                Qty: item.Qty ?? item.quantity ?? 1,
+                mealTime, // Thêm mealTime vào orderDetails
+              };
+            })
+          );
           return {
             ...order,
-            orderDetails: orderDetails.data.map((item) => ({
-              ...item,
-              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId || 'Unknown'}`,
-              Qty: item.Qty ?? item.quantity ?? 1,
-            })),
+            orderDetails: enhancedOrderDetails,
+            mealSession: order.mealSession || enhancedOrderDetails[0]?.mealTime || 'Không xác định',
           };
         })
       );
@@ -638,16 +678,75 @@ export const orderService = {
       return null;
     }
   },
+  async createOrderForCashier(orderData, branchId, options = {}) {
+    try {
+      const normalizedBranchId = normalizeBranchId(branchId);
+      if (!normalizedBranchId) throw new Error('Branch ID is required');
 
+      // Validate order data
+      if (!orderData.customerName) throw new Error('Customer name is required');
+      if (!orderData.cartItems || !orderData.cartItems.length) throw new Error('Cart items cannot be empty');
+      if (!orderData.total || orderData.total <= 0) throw new Error('Total must be greater than 0');
+
+      // Construct order DTO with Cash payment method
+      const orderDto = {
+        branchId: normalizedBranchId,
+        userId: orderData.userId || null,
+        isPatientOrder: false,
+        orderDate: new Date().toISOString(),
+        receiveDate: orderData.receiveDate ? new Date(orderData.receiveDate).toISOString() : null,
+        receiveTime: orderData.receiveTime || '12:00',
+        receiveType: orderData.receiveMethod || 'Giao tận nơi',
+        status: 'Pending', // Default status for Cash payment
+        customerName: orderData.customerName,
+        customerPhone: orderData.customerPhone || '0000000000',
+        customerAddress: orderData.customerAddress || 'Tại căn teen',
+        total: orderData.total,
+        shippingFee: orderData.shippingFee || 0,
+        foodToolFee: orderData.includeUtensils ? 5000 : 0,
+        paymentMethod: 0, // Hard-coded to Cash
+        isPaid: true, // Cash orders are considered paid immediately
+        walletAmountUsed: 0, // No wallet usage
+        note: orderData.note || '',
+        locationId: orderData.locationId || null,
+        orderDetails: orderData.cartItems.map(item => ({
+          foodId: item.FoodId || item.ID,
+          qty: item.quantity,
+          price: item.price,
+          total: item.price * item.quantity,
+          note: item.note || null,
+          foodName: item.dishName || 'Unknown Food'
+        }))
+      };
+
+      if (environment.features.enableLogging) {
+        console.log('Creating cashier order with data:', JSON.stringify(orderDto, null, 2));
+      }
+
+      const response = await api.post('/api/v1/order/AddOrderV2', orderDto, {
+        headers: normalizedBranchId ? { 'X-Branch-Id': normalizedBranchId } : {},
+        ...options
+      });
+
+      console.log('Cashier order created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to create cashier order:', error);
+      const errorMessage = error.response?.data?.message ||
+        error.response?.data?.errors ||
+        error.message ||
+        'Failed to create cashier order';
+      throw new Error(errorMessage);
+    }
+  },
   _mapPaymentMethod(paymentMethod) {
     const paymentMap = {
       'Cash': 0,
       'Wallet': 1,
       'VNPay': 2
     };
-    const mapped = paymentMap[paymentMethod] ?? 0;
+    return paymentMap[paymentMethod] ?? 1; // Mặc định là Wallet, giống code cũ
   },
-
   _generateOrderCode() {
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.random().toString(36).substr(2, 4).toUpperCase();
