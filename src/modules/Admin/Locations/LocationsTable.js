@@ -88,12 +88,12 @@ const LocationsTable = ({
                         <span className="location-name">{item.name}</span>
                         <div className="actions">
                           <Tooltip title="Chỉnh sửa">
-                            <Button
+                            {/* <Button
                               type="text"
                               icon={<EditOutlined />}
                               onClick={() => onEdit(item)}
                               disabled={String(item.branchId) !== String(branchId)}
-                            />
+                            /> */}
                           </Tooltip>
                           <Tooltip title="Xóa">
                             <Popconfirm

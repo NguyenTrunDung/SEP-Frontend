@@ -43,14 +43,14 @@ const AreasPageContent = ({
       align: 'center',
       render: (_, record) => (
         <div>
-          <Tooltip title="Chỉnh sửa">
+          {/* <Tooltip title="Chỉnh sửa">
             <Button
               type="text"
               icon={<EditOutlined />}
               onClick={() => onEdit(record)}
               disabled={String(record.branchId) !== String(branchId)}
             />
-          </Tooltip>
+          </Tooltip> */}
           <Tooltip title="Xóa">
             <Popconfirm
               title="Xóa khu vực"

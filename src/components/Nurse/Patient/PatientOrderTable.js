@@ -119,7 +119,11 @@ const PatientOrderTable = ({
         : [];
 
     console.log(`🔍 Patient ${patient.id} diseaseCategoryIds:`, patientDiseaseCategoryIds);
-    console.log(`🔍 Raw restrictions data:`, restrictions);
+    console.log(`🔍 Raw restrictions data:`, restrictions.map(r => ({
+      id: r.id,
+      nutritionalMealName: r.nutritionalMealName,
+      mealTime: r.mealTime,
+    })));
 
     if (!restrictions || restrictions.length === 0) {
       console.warn(`⚠️ No restrictions data available for branch ${currentBranchId}`);
@@ -132,7 +136,13 @@ const PatientOrderTable = ({
         noon: 'Trưa',
         evening: 'Chiều',
       };
-      return Array.isArray(mealTime) ? mealTime.map(mt => mapping[mt.toLowerCase()] || mt) : [mapping[mealTime.toLowerCase()] || mealTime];
+      if (!mealTime) {
+        console.warn('⚠️ mealTime is null or undefined:', mealTime);
+        return [];
+      }
+      return Array.isArray(mealTime)
+        ? mealTime.map(mt => mapping[mt.toLowerCase()] || mt)
+        : [mapping[mealTime.toLowerCase()] || mealTime];
     };
 
     let allowedFoods = restrictions
@@ -199,7 +209,7 @@ const PatientOrderTable = ({
             return;
           }
 
-          const mealTimes = ['Sáng', 'Trưa', 'Tối'];
+          const mealTimes = ['Sáng', 'Trưa', 'Chiều']; // Đã sửa từ 'Tối' thành 'Chiều'
           newAllAvailableFoods[patientId] = {};
           newFilteredFoods[patientId] = {};
 
@@ -207,6 +217,7 @@ const PatientOrderTable = ({
           mealTimes.forEach(mealTime => {
             newAllAvailableFoods[patientId][mealTime] = allowedFoods.filter(food => food.mealTime.includes(mealTime));
             newFilteredFoods[patientId][mealTime] = allowedFoods.filter(food => food.mealTime.includes(mealTime));
+            console.log(`🔍 Filtered foods for patient ${patientId}, ${mealTime}:`, newFilteredFoods[patientId][mealTime]);
           });
         });
 
@@ -256,7 +267,7 @@ const PatientOrderTable = ({
         return map;
       }, {});
 
-      ['Sáng', 'Trưa', 'Tối'].forEach(mealTime => {
+      ['Sáng', 'Trưa', 'Chiều'].forEach(mealTime => {
         if (!Array.isArray(foodsForPatient[mealTime]) || foodsForPatient[mealTime].length === 0) {
           result[patientId][mealTime] = {};
           return;

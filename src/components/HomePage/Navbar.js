@@ -69,18 +69,18 @@ const Navbar = () => {
   });
   const [activeKey, setActiveKey] = useState('home');
 
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      localStorage.removeItem('selectedBranch');
-      localStorage.removeItem('currentBranchId');
-    };
+  // useEffect(() => {
+  //   const handleBeforeUnload = () => {
+  //     localStorage.removeItem('selectedBranch');
+  //     localStorage.removeItem('currentBranchId');
+  //   };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+  //   window.addEventListener('beforeunload', handleBeforeUnload);
 
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
+  //   return () => {
+  //     window.removeEventListener('beforeunload', handleBeforeUnload);
+  //   };
+  // }, []);
 
   useEffect(() => {
     const excludeRoutes = ['/login', '/register', '/contact'];
@@ -203,7 +203,7 @@ const Navbar = () => {
       newActiveKey = 'contact';
     } else if (currentPath.includes('/nurse/patient')) {
       newActiveKey = 'staff';
-    } else if (currentPath.includes('/menu') || location.hash === '#menu') {
+    } else if (location.hash === '#menu') {
       newActiveKey = 'menu';
     }
     const hash = location.hash.replace('#', '');
@@ -248,23 +248,35 @@ const Navbar = () => {
     console.log('Menu clicked:', { key, userRole: user?.role });
     setActiveKey(key);
     const menuItem = menuItems.find((item) => item.key === key);
+
     if (menuItem?.route) {
       console.log(`Navigating to: ${menuItem.route}`);
       navigate(menuItem.route);
-      if (menuItem.route === '/' || menuItem.route === '/nurse/home') {
+      // ... existing logic
+    } else if (key === 'cart') {
+      console.log('Handling cart click');
+      handleCartClick();
+    } else if (key === 'menu') {
+      const section = document.getElementById('menu');
+      if (section) {
+        if (location.hash !== '#menu') {
+          window.history.replaceState(null, '', '#menu');
+        }
+        const headerHeight = 139;
+        const top = section.getBoundingClientRect().top + window.pageYOffset - headerHeight;
+        window.scrollTo({ top, behavior: 'smooth' });
+        setActiveKey('menu');
+      } else {
+        navigate('/#menu');
         setTimeout(() => {
-          const section = document.getElementById(key);
-          if (section) {
+          const s = document.getElementById('menu');
+          if (s) {
             const headerHeight = 139;
-            const sectionPosition = section.getBoundingClientRect().top + window.pageYOffset;
-            window.scrollTo({
-              top: sectionPosition - headerHeight,
-              behavior: 'smooth',
-            });
-          } else {
-            console.warn(`No section found for key: ${key}`);
+            const top = s.getBoundingClientRect().top + window.pageYOffset - headerHeight;
+            window.scrollTo({ top, behavior: 'smooth' });
           }
-        }, 100);
+          setActiveKey('menu');
+        }, 120);
       }
     } else if (key === 'cart') {
       console.log('Handling cart click');
