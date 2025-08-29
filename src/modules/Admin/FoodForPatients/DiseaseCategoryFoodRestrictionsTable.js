@@ -65,9 +65,9 @@ const DiseaseCategoryFoodRestrictionsTable = ({
     const mealTimeOptions = useMemo(() => {
         return [
             { value: null, label: 'Tất cả buổi ăn' },
-            { value: 'Sáng', label: 'Buổi sáng' },
-            { value: 'Trưa', label: 'Buổi trưa' },
-            { value: 'Tối', label: 'Buổi tối' },
+            { value: 'morning', label: 'Sáng' },
+            { value: 'noon', label: 'Trưa' },
+            { value: 'evening', label: 'Chiều' },
         ];
     }, []);
 
@@ -180,54 +180,32 @@ const DiseaseCategoryFoodRestrictionsTable = ({
     const columns = [
         {
             title: 'TÊN MÓN ĂN',
-            dataIndex: 'name',
-            key: 'name',
-            sorter: (a, b) => {
-                const nameA = a.name || a.nutritionalMealName || a.foodName || '';
-                const nameB = b.name || b.nutritionalMealName || b.foodName || '';
-                return nameA.localeCompare(nameB);
-            },
-            render: (_, record) => {
-                const mealName = record.name || record.nutritionalMealName || record.foodName || '-';
-                return <span className="vietnamese-text">{mealName}</span>;
-            },
+            dataIndex: 'nutritionalMealName',
+            key: 'nutritionalMealName',
+            sorter: (a, b) => (a.nutritionalMealName || '').localeCompare(b.nutritionalMealName || ''),
+            render: (name) => <span className="vietnamese-text">{name || '-'}</span>,
             align: 'center',
         },
         {
             title: 'GIÁ TIỀN',
             dataIndex: 'price',
             key: 'price',
-            sorter: (a, b) => {
-                const priceA = a.price || a.foodPrice || 0;
-                const priceB = b.price || b.foodPrice || 0;
-                return priceA - priceB;
-            },
-            render: (_, record) => {
-                const price = record.price || record.foodPrice;
-                return <span className="vietnamese-text">{price ? `${format.currency(price)} VNĐ` : '-'}</span>;
-            },
+            sorter: (a, b) => (a.price || 0) - (b.price || 0),
+            render: (price) => <span className="vietnamese-text">{price ? `${format.currency(price)} VNĐ` : '-'}</span>,
             align: 'center',
         },
         {
             title: 'BUỔI ĂN',
             dataIndex: 'mealTime',
             key: 'mealTime',
-            sorter: (a, b) => a.mealTime.localeCompare(b.mealTime),
+            sorter: (a, b) => (a.mealTime || '').localeCompare(b.mealTime || ''),
             render: (mealTime) => {
-                if (!mealTime) return <span className="vietnamese-text">-</span>;
-
-                // Handle comma-separated values from backend
-                const mealTimes = mealTime.split(',').map(mt => mt.trim());
-                const displayTimes = mealTimes.map(mt => {
-                    const timeMap = {
-                        'Sáng': 'Buổi sáng',
-                        'Trưa': 'Buổi trưa',
-                        'Tối': 'Buổi tối'
-                    };
-                    return timeMap[mt] || mt;
-                });
-
-                return <span className="vietnamese-text">{displayTimes.join(', ')}</span>;
+                const mealTimeDisplay = {
+                    morning: 'Sáng',
+                    noon: 'Trưa',
+                    evening: 'Chiều',
+                }[mealTime] || '-';
+                return <span className="vietnamese-text">{mealTimeDisplay}</span>;
             },
             align: 'center',
         },
@@ -318,7 +296,6 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                     flexWrap: 'wrap',
                     marginBottom: '8px'
                 }}>
-                    {/* Search Input */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <SearchOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
                         <Input
@@ -335,7 +312,6 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                         />
                     </div>
 
-                    {/* Disease Category Filter */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <FilterOutlined style={{ fontSize: '16px', color: '#52c41a' }} />
                         <Select
@@ -348,7 +324,6 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                         />
                     </div>
 
-                    {/* Meal Time Filter */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <FilterOutlined style={{ fontSize: '16px', color: '#52c41a' }} />
                         <Select
@@ -361,7 +336,6 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                         />
                     </div>
 
-                    {/* Clear All Filters Button */}
                     {(searchText || selectedDiseaseCategory !== null || selectedMealTime !== null) && (
                         <Button
                             size="small"
@@ -415,21 +389,11 @@ const DiseaseCategoryFoodRestrictionsTable = ({
                                 {(selectedRestriction.price || selectedRestriction.foodPrice) ? `${format.currency(selectedRestriction.price || selectedRestriction.foodPrice)} VNĐ` : '-'}
                             </Descriptions.Item>
                             <Descriptions.Item label="Buổi ăn">
-                                {(() => {
-                                    if (!selectedRestriction.mealTime) return '-';
-
-                                    const mealTimes = selectedRestriction.mealTime.split(',').map(mt => mt.trim());
-                                    const displayTimes = mealTimes.map(mt => {
-                                        const timeMap = {
-                                            'Sáng': 'Buổi sáng',
-                                            'Trưa': 'Buổi trưa',
-                                            'Tối': 'Buổi tối'
-                                        };
-                                        return timeMap[mt] || mt;
-                                    });
-
-                                    return displayTimes.join(', ');
-                                })()}
+                                {{
+                                    morning: 'Sáng',
+                                    noon: 'Trưa',
+                                    evening: 'Chiều',
+                                }[selectedRestriction.mealTime] || '-'}
                             </Descriptions.Item>
                             <Descriptions.Item label="Danh mục bệnh">
                                 {selectedRestriction.diseaseCategoryName || '-'}
@@ -467,8 +431,7 @@ DiseaseCategoryFoodRestrictionsTable.propTypes = {
             id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
             branchId: PropTypes.number.isRequired,
             diseaseCategoryId: PropTypes.number.isRequired,
-            // New fields (primary)
-            name: PropTypes.string,
+            nutritionalMealName: PropTypes.string,
             price: PropTypes.number,
 
             // Legacy fields (for backward compatibility)

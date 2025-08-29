@@ -5,8 +5,8 @@ import { useAuth } from '../../../context/AuthContext';
 import locale from 'antd/locale/vi_VN';
 import NurseLayout from '../NurseLayout';
 import PatientOrderTable from '../Patient/PatientOrderTable';
+import { orderService } from '../../../services/orderService'
 import { useDiseaseCategoryFoodRestrictions } from '../../../hooks/queries/useDiseaseCategoryFoodRestrictions';
-import { foodService } from '../../../services/foodService';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import 'tailwindcss/tailwind.css';
@@ -19,7 +19,6 @@ const PatientOrderComponent = () => {
   const [searchText, setSearchText] = useState('');
   const today = dayjs();
   const [receiveDate, setReceiveDate] = useState(today);
-  const [receiveTime, setReceiveTime] = useState('Sáng');
   const { user } = useAuth();
   const currentBranchId = localStorage.getItem('currentBranchId') || '1';
   const selectedBranchName = localStorage.getItem('selectedBranch')
@@ -50,7 +49,7 @@ const PatientOrderComponent = () => {
 
   useEffect(() => {
     console.log('🔍 PatientOrderComponent - Initial receiveDate:', receiveDate.format('YYYY-MM-DD'), 'isValid:', receiveDate.isValid());
-  }, []);
+  }, [receiveDate]);
 
   useEffect(() => {
     console.log('🔍 PatientOrderComponent - Restrictions state:', {
@@ -80,9 +79,8 @@ const PatientOrderComponent = () => {
       console.warn('⚠️ patientData is not an array:', patientData);
       return [];
     }
-    // Lọc bỏ bệnh nhân đã xuất viện trước ngày nhận hàng
-    return patientData.filter(patient => {
-      if (!patient.dischargeDate) return true; // Giữ bệnh nhân chưa có ngày xuất viện
+    return patientData.filter((patient) => {
+      if (!patient.dischargeDate) return true;
       const dischargeDate = dayjs(patient.dischargeDate);
       const validReceiveDate = receiveDate.isValid() ? receiveDate : today;
       return !dischargeDate.isBefore(validReceiveDate, 'day');
@@ -97,9 +95,7 @@ const PatientOrderComponent = () => {
           <div className="text-base text-gray-600 mb-2">
             🛌 Không có bệnh nhân nào trong khoa của bạn
           </div>
-          <div className="text-sm text-gray-400">
-            Có thể do:
-          </div>
+          <div className="text-sm text-gray-400">Có thể do:</div>
           <ul className="text-left inline-block text-sm text-gray-400">
             <li>Chưa có bệnh nhân nào được phân công cho khoa</li>
             <li>Bệnh nhân đã được xuất viện trước ngày nhận hàng</li>
@@ -119,70 +115,74 @@ const PatientOrderComponent = () => {
     console.log('🔍 handleResetTable: Reset all selections');
   }, []);
 
-  const handleSelectPatient = useCallback((patientId, selectedFoods) => {
-    console.log(`🔍 handleSelectPatient: Called for patient ${patientId}, selectedFoods:`, Array.from(selectedFoods));
-    setSelectedPatients(prev => {
-      const newSet = new Set(prev);
-      if (selectedFoods.size > 0) {
-        newSet.add(patientId);
-      } else {
-        newSet.delete(patientId);
-      }
-      console.log(`🔍 handleSelectPatient: Updated selectedPatients:`, Array.from(newSet));
-      return newSet;
-    });
-    setSelectedFoodsByPatient(prev => {
-      const newFoodsByPatient = {
+  const handleSelectPatient = useCallback(
+    (patientId, selectedFoods) => {
+      console.log(`🔍 handleSelectPatient: Called for patient ${patientId}, selectedFoods:`, Array.from(selectedFoods));
+      setSelectedPatients((prev) => {
+        const newSet = new Set(prev);
+        if (selectedFoods.size > 0) {
+          newSet.add(patientId);
+        } else {
+          newSet.delete(patientId);
+        }
+        console.log(`🔍 handleSelectPatient: Updated selectedPatients:`, Array.from(newSet));
+        return newSet;
+      });
+      setSelectedFoodsByPatient((prev) => {
+        const newFoodsByPatient = {
+          ...prev,
+          [patientId]: Array.from(selectedFoods).map((foodId) => ({
+            foodId,
+            quantity: quantity[`${patientId}-${foodId}`] || 1,
+            note: note[`${patientId}-${foodId}`] || '',
+          })),
+        };
+        console.log(`🔍 handleSelectPatient: Updated selectedFoodsByPatient:`, newFoodsByPatient);
+        return newFoodsByPatient;
+      });
+    },
+    [quantity, note]
+  );
+
+  const handleQuantityChange = useCallback(
+    (patientId, foodId, value) => {
+      console.log(`🔍 handleQuantityChange: Called for patient ${patientId}, food ${foodId}, value:`, value);
+      setQuantity((prev) => ({
         ...prev,
-        [patientId]: Array.from(selectedFoods).map(foodId => ({
-          foodId,
-          quantity: quantity[`${patientId}-${foodId}`] || 1,
-          note: note[`${patientId}-${foodId}`] || '',
-        })),
-      };
-      console.log(`🔍 handleSelectPatient: Updated selectedFoodsByPatient:`, newFoodsByPatient);
-      return newFoodsByPatient;
-    });
-  }, [quantity, note]);
+        [`${patientId}-${foodId}`]: value || 1,
+      }));
+      setSelectedFoodsByPatient((prev) => ({
+        ...prev,
+        [patientId]: (prev[patientId] || []).map((food) =>
+          food.foodId === foodId ? { ...food, quantity: value || 1 } : food
+        ),
+      }));
+    },
+    []
+  );
 
-  const handleQuantityChange = useCallback((patientId, foodId, value) => {
-    console.log(`🔍 handleQuantityChange: Called for patient ${patientId}, food ${foodId}, value:`, value);
-    setQuantity(prev => ({
-      ...prev,
-      [`${patientId}-${foodId}`]: value || 1,
-    }));
-    setSelectedFoodsByPatient(prev => ({
-      ...prev,
-      [patientId]: (prev[patientId] || []).map(food =>
-        food.foodId === foodId ? { ...food, quantity: value || 1 } : food
-      ),
-    }));
-  }, []);
-
-  const handleNoteChange = useCallback((patientId, foodId, value) => {
-    console.log(`🔍 handleNoteChange: Called for patient ${patientId}, food ${foodId}, value:`, value);
-    setNote(prev => ({
-      ...prev,
-      [`${patientId}-${foodId}`]: value || '',
-    }));
-    setSelectedFoodsByPatient(prev => ({
-      ...prev,
-      [patientId]: (prev[patientId] || []).map(food =>
-        food.foodId === foodId ? { ...food, note: value || '' } : food
-      ),
-    }));
-  }, []);
+  const handleNoteChange = useCallback(
+    (patientId, foodId, value) => {
+      console.log(`🔍 handleNoteChange: Called for patient ${patientId}, food ${foodId}, value:`, value);
+      setNote((prev) => ({
+        ...prev,
+        [`${patientId}-${foodId}`]: value || '',
+      }));
+      setSelectedFoodsByPatient((prev) => ({
+        ...prev,
+        [patientId]: (prev[patientId] || []).map((food) =>
+          food.foodId === foodId ? { ...food, note: value || '' } : food
+        ),
+      }));
+    },
+    []
+  );
 
   const handleReceiveDateChange = useCallback((dateString) => {
     console.log('🔍 handleReceiveDateChange: Received dateString:', dateString);
     const validDate = dateString && dayjs(dateString, 'YYYY-MM-DD', true).isValid() ? dayjs(dateString) : dayjs();
     setReceiveDate(validDate);
     console.log(`🔍 handleReceiveDateChange: Set receiveDate to ${validDate.format('YYYY-MM-DD')}, isValid: ${validDate.isValid()}`);
-  }, []);
-
-  const handleReceiveTimeChange = useCallback((value) => {
-    setReceiveTime(value || 'Sáng');
-    console.log(`🔍 handleReceiveTimeChange: Set receiveTime to ${value}`);
   }, []);
 
   const handleSelectAllAndOrder = async () => {
@@ -198,68 +198,84 @@ const PatientOrderComponent = () => {
       return;
     }
 
-    const timeMapping = {
-      'Sáng': '08:00',
-      'Trưa': '12:00',
-      'Tối': '18:00',
-    };
-    const selectedReceiveTime = timeMapping[receiveTime] || '08:00';
+    if (!receiveDate.isValid()) {
+      message.error('Ngày nhận hàng không hợp lệ.');
+      console.error('❌ Invalid receiveDate:', receiveDate);
+      return;
+    }
 
     try {
+      console.log('🔍 Selected patient IDs:', Array.from(selectedPatients));
+      console.log('🔍 Available patients:', patients.map(p => ({ id: p.id, fullName: p.fullName })));
+
       const orderPromises = Array.from(selectedPatients).map(async (patientId) => {
-        const patient = patients.find(p => p.id === patientId);
+        let patient = patients.find((p) => p.id === patientId);
         if (!patient) {
-          console.warn(`⚠️ Patient not found: ${patientId}`);
-          return { patientId, status: 'failed', reason: 'Patient not found' };
+          console.warn(`⚠️ Patient not found in local data: ${patientId}, attempting to fetch from backend`);
+          try {
+            patient = await orderService.getPatientDetails(patientId, currentBranchId);
+            if (!patient) {
+              console.error(`❌ Patient not found in backend: ${patientId}`);
+              return { patientId, status: 'failed', reason: 'Patient not found in backend' };
+            }
+            console.log(`✅ Fetched patient from backend: ${patientId}`, patient);
+          } catch (error) {
+            console.error(`❌ Failed to fetch patient ${patientId} from backend:`, {
+              message: error.message,
+              response: error.response?.data,
+              status: error.response?.status,
+            });
+            return { patientId, status: 'failed', reason: 'Failed to fetch patient from backend' };
+          }
         }
 
         const selectedFoods = selectedFoodsByPatient[patientId] || [];
-        if (!selectedFoods.length) {
-          console.warn(`⚠️ No foods selected for patient ${patientId}`);
-          return { patientId, status: 'failed', reason: 'No foods selected' };
+        console.log(`🔍 Selected foods for patient ${patientId}:`, selectedFoods);
+        if (!Array.isArray(selectedFoods) || selectedFoods.length === 0) {
+          console.warn(`⚠️ No foods selected or invalid data for patient ${patientId}`);
+          return { patientId, status: 'failed', reason: 'No foods selected or invalid data' };
         }
 
-        const foodPromises = selectedFoods.map(item => foodService.getFood(item.foodId));
-        const foodResults = await Promise.allSettled(foodPromises);
-        const allowedFoods = foodResults
-          .filter(result => result.status === 'fulfilled' && result.value)
-          .map((result, index) => ({
-            id: result.value.id,
-            name: result.value.name || `Thực phẩm ID: ${result.value.id}`,
-            priceForPatient: Number(result.value.priceForPatient || 0),
-            categoryId: result.value.categoryId || 'unknown',
-            description: result.value.description || 'No description available',
-            imageUrl: result.value.imageUrl || '/images/placeholder-food.png',
-            quantity: selectedFoods[index].quantity || 1,
-            note: selectedFoods[index].note || '',
-          }));
+        const patientDiseaseCategoryIds = patient.diseaseCategories?.length
+          ? patient.diseaseCategories.map((dc) => parseInt(dc.diseaseCategoryId, 10)).filter((id) => !isNaN(id))
+          : patient.diseaseCategoryIds?.length
+            ? patient.diseaseCategoryIds.map((id) => parseInt(id, 10)).filter((id) => !isNaN(id))
+            : [];
+
+        if (!patientDiseaseCategoryIds.length) {
+          console.warn(`⚠️ No disease categories for patient ${patientId}`);
+          return { patientId, status: 'failed', reason: 'No disease categories' };
+        }
+
+        const allowedFoods = selectedFoods
+          .map((item) => {
+            const restriction = restrictions.find(
+              (r) => parseInt(r.id, 10) === parseInt(item.foodId, 10) &&
+                patientDiseaseCategoryIds.includes(parseInt(r.diseaseCategoryId, 10))
+            );
+            if (!restriction) {
+              console.warn(`⚠️ Food ${item.foodId} not allowed for patient ${patientId}`);
+              return null;
+            }
+            return {
+              foodId: parseInt(restriction.id, 10),
+              name: restriction.nutritionalMealName || `Thực phẩm ID: ${restriction.id}`,
+              price: Number(restriction.price || 0),
+              quantity: item.quantity || 1,
+              note: item.note || '',
+            };
+          })
+          .filter((food) => food !== null);
 
         if (!allowedFoods.length) {
-          console.warn(`⚠️ No valid food details fetched for patient ${patientId}`);
+          console.warn(`⚠️ No valid food details for patient ${patientId}`);
           return { patientId, status: 'failed', reason: 'No valid food details' };
         }
 
-        const cartItems = allowedFoods.map(food => ({
-          foodId: Number(food.id),
-          quantity: food.quantity,
-          note: food.note,
-          food: {
-            id: Number(food.id),
-            name: food.name,
-            priceForPatient: Number(food.priceForPatient || 0),
-            categoryId: Number(food.categoryId || 0),
-            description: food.description,
-            imageUrl: food.imageUrl,
-            branchId: Number(currentBranchId),
-            forPatient: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: nurseId,
-            updatedBy: nurseId,
-          },
-        }));
-
-        const total = cartItems.reduce((sum, item) => sum + Number(item.food.priceForPatient || 0) * item.quantity, 0);
+        const total = allowedFoods.reduce(
+          (sum, item) => sum + item.price * item.quantity,
+          0
+        );
 
         if (total <= 0) {
           console.error(`❌ Invalid total for patient ${patientId}: ${total}`);
@@ -270,79 +286,61 @@ const PatientOrderComponent = () => {
           branchId: Number(currentBranchId),
           userId: nurseId || 'NURSE_DEFAULT',
           patientId: patientId,
+          diseaseCategoryIds: patientDiseaseCategoryIds,
           isPatientOrder: true,
           orderDate: new Date().toISOString(),
           receiveDate: receiveDate.format('YYYY-MM-DD'),
-          receiveTime: selectedReceiveTime,
+          receiveTime: '08:00',
           receiveType: 'Giao tận nơi',
           type: 'Patient',
-          status: 'Pending',
+          status: 'Confirmed',
           customerName: patient.fullName || 'Unknown Patient',
-          customerPhone: patient.phone || '',
+          customerPhone: patient.phone || '0000000000',
           customerAddress: `${patient.roomNumber || ''} ${patient.bedNumber || ''}`.trim() || 'Phòng bệnh nhân',
           total: Number(total),
           shippingFee: 0,
           foodToolFee: 0,
-          paymentMethod: 3,
+          paymentMethod: 0, // Free
           isPaid: true,
           walletAmountUsed: 0,
           code: `ORD${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
-          note: `Đơn hàng tự động cho ${patient.fullName} ngày ${receiveDate.format('DD/MM/YYYY')} (${receiveTime})`,
+          note: `Đơn hàng tự động cho ${patient.fullName || 'Unknown Patient'} ngày ${receiveDate.format('DD/MM/YYYY')}`,
           locationId: null,
-          orderDetails: cartItems.map(item => ({
-            foodId: Number(item.foodId),
-            orderId: 0,
-            qty: Number(item.quantity),
-            price: Number(item.food.priceForPatient),
-            total: Number(item.food.priceForPatient) * item.quantity,
-            note: item.note || null,
-            foodName: item.food.name || 'Unknown Food',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            food: {
-              id: Number(item.foodId),
-              name: item.food.name || 'Unknown Food',
-              description: item.food.description || '',
-              categoryId: Number(item.food.categoryId || 0),
-              category: {
-                id: Number(item.food.categoryId || 0),
-                name: 'Món khác',
-                imageUrl: '',
-                sort: 0,
-                branchId: Number(currentBranchId),
-              },
-              imageUrl: item.food.imageUrl || '',
-              isSetDish: false,
-              isAddOn: false,
-              priceForGuest: Number(item.food.priceForPatient || 0),
-              priceForPatient: Number(item.food.priceForPatient || 0),
-              priceForStaff: Number(item.food.priceForPatient || 0),
-              sort: 0,
-              branchId: Number(currentBranchId),
-              forPatient: true,
-              diseaseCategoryId: 0,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              createdBy: nurseId || 'NURSE_DEFAULT',
-              updatedBy: nurseId || 'NURSE_DEFAULT',
-              image: item.food.imageUrl || '',
-              setDishDetails: '',
-            },
+          cartItems: allowedFoods.map((item) => ({
+            FoodId: item.foodId,
+            quantity: item.quantity,
+            price: item.price,
+            note: item.note,
+            dishName: item.name,
           })),
         };
 
-        console.log(`🚀 Sending order for patient ${patientId}:`, JSON.stringify(orderData, null, 2));
-        await createPatientOrderMutation.mutateAsync({ orderData, branchId: currentBranchId });
-        message.success(`Đặt món thành công cho bệnh nhân ${patient.fullName}`);
-        return { patientId, status: 'success' };
+        console.log(`🚀 Prepared orderData for patient ${patientId}:`, JSON.stringify(orderData, null, 2));
+        try {
+          await createPatientOrderMutation.mutateAsync({ orderData, branchId: currentBranchId });
+          return { patientId, status: 'success' };
+        } catch (error) {
+          console.error(`❌ Failed to create order for patient ${patientId}:`, {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+          });
+          return { patientId, status: 'failed', reason: error.message };
+        }
       });
 
       const results = await Promise.allSettled(orderPromises);
-      const failedOrders = results.filter(result => result.status === 'rejected' || result.value.status === 'failed');
+      const failedOrders = results.filter((result) => result.status === 'rejected' || result.value.status === 'failed');
 
       if (failedOrders.length) {
-        console.error('❌ Some patient orders failed:', failedOrders);
-        message.error(`Lỗi khi đặt món cho ${failedOrders.length} bệnh nhân. Vui lòng kiểm tra log.`);
+        console.error('❌ Some patient orders failed:', JSON.stringify(failedOrders, null, 2));
+        const errorMessages = failedOrders.map((result) => {
+          if (result.status === 'rejected') {
+            return `Patient ${result.reason?.patientId || 'Unknown'}: ${result.reason?.message || 'Unknown error'}`;
+          }
+          return `Patient ${result.value.patientId}: ${result.value.reason}`;
+        });
+        message.error(`Lỗi khi đặt món cho ${failedOrders.length} bệnh nhân: ${errorMessages.join('; ')}`);
       } else {
         message.success('Đặt món thành công cho tất cả bệnh nhân đã chọn!');
         handleResetTable();
@@ -351,14 +349,12 @@ const PatientOrderComponent = () => {
     } catch (error) {
       console.error('❌ Failed to place patient orders:', {
         message: error.message,
-        stack: error.stack,
         response: error.response?.data,
+        status: error.response?.status,
       });
       message.error(error.message || 'Lỗi khi đặt món cho bệnh nhân');
     }
   };
-
-  // Render early if no branch is selected
   if (!currentBranchId) {
     console.log('🔍 No currentBranchId, rendering warning');
     return (
@@ -556,8 +552,6 @@ const PatientOrderComponent = () => {
             resetTable={handleResetTable}
             receiveDate={receiveDate.format('YYYY-MM-DD')}
             onReceiveDateChange={handleReceiveDateChange}
-            receiveTime={receiveTime}
-            onReceiveTimeChange={handleReceiveTimeChange}
           />
         </div>
       </NurseLayout>

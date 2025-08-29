@@ -6,6 +6,7 @@ import { ORDER_QUERY_KEYS } from './useOrders';
 import { getFilteredPatients } from '../../mocks/patientData';
 import { patientService } from '../../services/patientService';
 import { useDepartments } from './useDepartments';
+import { orderService } from '../../services/orderService';
 
 const normalizeBranchId = (branchId) => {
   const resolvedBranchId =
@@ -174,45 +175,31 @@ export const usePatientDetail = (patientId, options = {}) => {
 
 export const useCreatePatientOrder = () => {
   const queryClient = useQueryClient();
-  const currentBranchId = normalizeBranchId();
 
   return useMutation({
-    mutationFn: ({ orderData, branchId }) => {
-      const targetBranchId = normalizeBranchId(branchId);
-      console.log(`🔍 Creating patient order for branch: ${targetBranchId}`, JSON.stringify(orderData, null, 2));
-      return nurseOrderService.createOrderForPatient(orderData, targetBranchId);
-    },
-    onSuccess: (response, variables) => {
-      message.success(response.message || 'Tạo đơn hàng bệnh nhân thành công!');
-      const targetBranchId = normalizeBranchId(variables.branchId);
-      const newOrder = response.data || response;
-      console.log('✅ Order created:', JSON.stringify(newOrder, null, 2));
-      if (newOrder?.id) {
-        queryClient.setQueryData(ORDER_QUERY_KEYS.detail(newOrder.id, targetBranchId), newOrder);
-        queryClient.setQueryData(ORDER_QUERY_KEYS.list(targetBranchId), (oldData) => {
-          return oldData ? [...oldData, newOrder] : [newOrder];
-        });
-        const patientId = variables.orderData.patientId;
-        const orderDetails = newOrder.orderDetails.map(detail => ({
-          foodId: detail.foodId,
-          quantity: detail.qty,
-          notes: detail.note,
-          orderId: detail.orderId,
-          menuId: detail.menuId,
-        }));
-        queryClient.setQueryData(['patientOrders', patientId], orderDetails);
+    mutationFn: async ({ orderData, branchId }) => {
+      if (environment.features.enableMockData) {
+        console.log('🔍 Using mock data for createPatientOrder:', orderData);
+        return { success: true, orderId: `mock-${Date.now()}` };
       }
-      queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.list(targetBranchId), exact: true });
-      queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.lists(), exact: true });
+      return orderService.createPatientOrder(orderData, branchId);
+    },
+    onSuccess: (data, variables) => {
+      if (environment.features.enableLogging) {
+        console.log('✅ Patient order created successfully:', data);
+      }
+      message.success('Đặt món cho bệnh nhân thành công!');
+      queryClient.invalidateQueries({ queryKey: ORDER_QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: PATIENT_KEYS.all });
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.message || error.message || 'Không thể tạo đơn hàng bệnh nhân!';
-      message.error(errorMessage);
       console.error('❌ Failed to create patient order:', {
+        message: error.message,
+        response: error.response?.data,
         status: error.response?.status,
-        data: error.response?.data,
-        errorMessage,
       });
+      const errorMessage = error.message || 'Failed to create patient order';
+      message.error(errorMessage);
     },
   });
 };
@@ -221,18 +208,33 @@ export const useUpdatePatient = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ patientId, patientData, branchId }) =>
-      patientService.updatePatient(patientId, patientData, branchId),
+    mutationFn: async ({ patientId, patientData, branchId }) => {
+      console.log('🔍 useUpdatePatient - Starting mutation for patientId:', patientId);
+      try {
+        const response = await patientService.updatePatient(patientId, patientData, branchId);
+        console.log('✅ useUpdatePatient - Mutation response:', response);
+        return response;
+      } catch (error) {
+        console.error('❌ useUpdatePatient - Mutation error:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+        });
+        throw error;
+      }
+    },
     onSuccess: (data, { patientId, branchId }) => {
+      console.log('✅ useUpdatePatient - onSuccess:', { patientId, branchId, data });
       queryClient.setQueryData(PATIENT_KEYS.detail(patientId), { data });
       queryClient.invalidateQueries({
         queryKey: PATIENT_KEYS.byBranch(branchId),
+        exact: true,
       });
-      message.success('Cập nhật bệnh nhân thành công');
     },
-    // onError: (error) => {
-    //   message.error('Lỗi khi cập nhật bệnh nhân: ' + error.message);
-    // },
+    onError: (error) => {
+      console.error('❌ useUpdatePatient - onError:', error);
+      // Error message is handled in handleSubmit to avoid duplicates
+    },
   });
 };
 

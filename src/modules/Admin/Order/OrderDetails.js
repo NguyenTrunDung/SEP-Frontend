@@ -31,22 +31,25 @@ const ViewOrderDetail = ({
 
   // Normalize paymentMethod to string
   const normalizePaymentMethod = (paymentMethod) => {
-    const numberToStringMap = {
-      '1': 'Wallet',
-      '2': 'VNPay',
+    const map = {
+      0: "Cash",
+      1: "Wallet",
+      2: "VNPay",
+      cash: "Cash",
+      wallet: "Wallet",
+      vnpay: "VNPay",
     };
-    if (
-      typeof paymentMethod === 'number' ||
-      (typeof paymentMethod === 'string' && numberToStringMap[paymentMethod])
-    ) {
-      return numberToStringMap[paymentMethod.toString()] || 'Wallet';
-    }
-    if (typeof paymentMethod === 'string') {
-      if (paymentMethod.toLowerCase() === 'vnpay') return 'VNPay';
-      if (paymentMethod.toLowerCase() === 'wallet') return 'Wallet';
-    }
-    return 'Wallet';
+
+    if (paymentMethod == null) return "Wallet";
+
+    const key =
+      typeof paymentMethod === "number"
+        ? paymentMethod
+        : String(paymentMethod).toLowerCase();
+
+    return map[key] || "Wallet";
   };
+
 
   // Normalize receiveType to display string
   const normalizeReceiveType = (receiveType) => {

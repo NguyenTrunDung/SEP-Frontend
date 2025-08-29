@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
-import { Form, Input, InputNumber, Button, Space, Select, Switch, message } from 'antd';
+import { Form, Input, Button, Space, Select, Switch, message } from 'antd';
 import ReusableModal from '../../../components/common/ReusableModal';
 import ReusableForm from '../../../components/common/ReusableForm';
 import { useAntForm } from '../../../hooks/useAntForm';
 import { useDiseaseCategories } from '../../../hooks/queries/useDiseaseCategoryFoodRestrictions';
-import { diseaseCategoryFoodRestrictionService } from '../../../services/diseaseCategoryFoodRestrictionService';
+import { useFoods } from '../../../hooks/queries/useFoods';
 import PropTypes from 'prop-types';
 
 const { TextArea } = Input;
@@ -12,54 +12,31 @@ const { TextArea } = Input;
 const CreateDiseaseCategoryFoodRestriction = ({
     open,
     onCancel,
+    onSubmit, // Add onSubmit to props
     initialValues = {},
 }) => {
     const { form, loading: formLoading, handleSubmit } = useAntForm();
     const { diseaseCategories } = useDiseaseCategories();
+    const { foods } = useFoods();
 
     useEffect(() => {
         if (open) {
-            form.setFieldsValue(initialValues);
+            form.setFieldsValue({
+                ...initialValues,
+                isActive: initialValues.isActive !== undefined ? initialValues.isActive : true,
+                requiresPhysicianOverride: initialValues.requiresPhysicianOverride || false,
+                branchId: initialValues.branchId || 1,
+            });
         } else {
             form.resetFields();
         }
     }, [open, initialValues, form]);
 
     const handleFormSubmit = async (values) => {
-        console.log('🚀 Form submit with values:', values);
-        const result = await handleSubmit(async (formData) => {
-            try {
-                // Convert mealTime array to comma-separated string for backend
-                const mealTimeString = Array.isArray(formData.mealTime)
-                    ? formData.mealTime.join(',')
-                    : formData.mealTime;
-
-                // Tạo món ăn dinh dưỡng trực tiếp thông qua endpoint create-nutritional-meal
-                const mealData = {
-                    diseaseCategoryId: formData.diseaseCategoryId,
-                    name: formData.nutritionalMealName,
-                    price: formData.price,
-                    reason: formData.reason,
-                    alternativeRecommendations: formData.alternativeRecommendations,
-                    requiresPhysicianOverride: formData.requiresPhysicianOverride || false,
-                    isActive: formData.isActive !== undefined ? formData.isActive : true,
-                    mealTime: mealTimeString
-                };
-
-                await diseaseCategoryFoodRestrictionService.createNutritionalMeal(mealData);
-
-                // Close modal after successful creation
-                handleCancel();
-            } catch (error) {
-                const errorMessage = error.response?.data?.message || 'Lỗi khi tạo món ăn hoặc hạn chế thực phẩm!';
-                message.error(errorMessage);
-                throw error;
-            }
+        console.log('🚀 Gửi form với giá trị:', values);
+        await handleSubmit(async (formData) => {
+            await onSubmit?.(formData); // Now onSubmit is a prop
         });
-
-        if (result.success) {
-            handleCancel();
-        }
     };
 
     const handleCancel = () => {
@@ -83,6 +60,7 @@ const CreateDiseaseCategoryFoodRestriction = ({
                         type="primary"
                         onClick={() => form.submit()}
                         loading={formLoading}
+                        disabled={formLoading}
                         style={{
                             backgroundColor: '#52c41a',
                             border: 'none',
@@ -138,31 +116,23 @@ const CreateDiseaseCategoryFoodRestriction = ({
                 <Form.Item
                     name="nutritionalMealName"
                     rules={[
-                        { required: true, message: 'Vui lòng nhập tên món ăn!' },
+                        { required: true, message: 'Vui lòng chọn hoặc nhập tên món ăn!' },
                         { max: 100, message: 'Tên món ăn không được vượt quá 100 ký tự!' },
                     ]}
                     className="floating-form-item"
                 >
-                    <Input
-                        placeholder="Nhập tên món ăn dinh dưỡng"
+                    <Select
+                        showSearch
+                        allowClear
+                        placeholder="Chọn hoặc nhập tên món ăn dinh dưỡng"
                         className="floating-input"
-                    />
-                </Form.Item>
-
-                <Form.Item
-                    name="price"
-                    rules={[
-                        { required: true, message: 'Vui lòng nhập giá tiền!' },
-                        { type: 'number', min: 0, message: 'Giá tiền phải lớn hơn hoặc bằng 0!' },
-                    ]}
-                    className="floating-form-item"
-                >
-                    <InputNumber
-                        placeholder="Nhập giá tiền (VNĐ)"
-                        className="floating-input"
-                        style={{ width: '100%' }}
-                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                        parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                        options={foods.map(food => ({
+                            value: food.name,
+                            label: food.name,
+                        }))}
+                        filterOption={(input, option) =>
+                            option.label.toLowerCase().includes(input.toLowerCase())
+                        }
                     />
                 </Form.Item>
 
@@ -175,16 +145,20 @@ const CreateDiseaseCategoryFoodRestriction = ({
                         placeholder="Chọn buổi ăn"
                         className="floating-input"
                         options={[
-                            { value: 'Sáng', label: 'Buổi sáng' },
-                            { value: 'Trưa', label: 'Buổi trưa' },
-                            { value: 'Tối', label: 'Buổi tối' },
+                            { value: 'morning', label: 'Sáng' },
+                            { value: 'noon', label: 'Trưa' },
+                            { value: 'evening', label: 'Chiều' },
                         ]}
                     />
                 </Form.Item>
 
                 <Form.Item
                     name="reason"
-                    rules={[{ required: true, message: 'Vui lòng nhập lý do!' }]}
+                    rules={[
+                        { required: true, message: 'Vui lòng nhập lý do!' },
+                        { whitespace: true, message: 'Lý do không được chỉ chứa khoảng trắng!' },
+                        { max: 500, message: 'Lý do không được vượt quá 500 ký tự!' },
+                    ]}
                     className="floating-form-item"
                 >
                     <TextArea
@@ -196,6 +170,7 @@ const CreateDiseaseCategoryFoodRestriction = ({
 
                 <Form.Item
                     name="alternativeRecommendations"
+                    rules={[{ max: 500, message: 'Khuyến nghị không được vượt quá 500 ký tự!' }]}
                     className="floating-form-item"
                 >
                     <TextArea
@@ -223,6 +198,14 @@ const CreateDiseaseCategoryFoodRestriction = ({
                 >
                     <Switch />
                 </Form.Item>
+
+                <Form.Item
+                    name="branchId"
+                    initialValue={1}
+                    hidden
+                >
+                    <Input />
+                </Form.Item>
             </ReusableForm>
         </ReusableModal>
     );
@@ -231,6 +214,7 @@ const CreateDiseaseCategoryFoodRestriction = ({
 CreateDiseaseCategoryFoodRestriction.propTypes = {
     open: PropTypes.bool.isRequired,
     onCancel: PropTypes.func.isRequired,
+    onSubmit: PropTypes.func, // Add onSubmit to PropTypes
     initialValues: PropTypes.object,
 };
 

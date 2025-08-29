@@ -15,7 +15,7 @@ const AuthForm = ({
     onSuccess,
     redirectPath = '/redirect',
     customStyle = {},
-    loginType = 'internal' // Thêm prop loginType
+    loginType = 'internal'
 }) => {
     const [form] = Form.useForm();
     const { login, loading, error } = useAuth() || {};
@@ -31,24 +31,19 @@ const AuthForm = ({
                 return;
             }
 
-            // Gọi login với loginType
             await login(values, loginType);
 
             if (onSuccess) {
                 onSuccess(values);
             }
 
-            // Navigate to appropriate page instead of using /redirect
             if (from && from !== '/redirect') {
-                // If we have a specific 'from' location, go there
                 navigate(from, { replace: true });
             } else {
-                // Otherwise, navigate to /redirect for role-based routing
                 navigate('/redirect', { replace: true });
             }
         } catch (err) {
             console.error('Login error:', err);
-            // Không cần xử lý error ở đây vì AuthContext đã xử lý
         }
     };
 
@@ -62,7 +57,6 @@ const AuthForm = ({
         }
     };
 
-    // Khởi tạo giá trị ban đầu cho form từ localStorage
     React.useEffect(() => {
         const rememberedEmail = localStorage.getItem('rememberedEmail');
         const rememberedPassword = localStorage.getItem('rememberedPassword');
@@ -89,11 +83,12 @@ const AuthForm = ({
             name: 'password',
             label: 'Mật khẩu',
             rules: [
-                { required: true, message: 'Vui lòng nhập mật khẩu!' },
-                { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự!' },
-                { pattern: /^[A-Z].*$/, message: 'Mật khẩu phải bắt đầu bằng chữ in hoa!' },
-                { pattern: /[0-9]/, message: 'Mật khẩu phải chứa ít nhất 1 số!' },
-                { pattern: /[!@#$%^&*(),.?":{}|<>]/, message: 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt!' }
+                {
+                    required: true,
+                    min: 6,
+                    pattern: /^(?=[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{6,}$/,
+                    message: 'Mật khẩu không hợp lệ!.'
+                }
             ],
             component: <Input.Password size="large" placeholder="Mật khẩu" />
         },
@@ -212,7 +207,6 @@ const AuthForm = ({
     );
 };
 
-// Component riêng cho public login
 export const AuthFormPublic = ({
     submitText = 'Đăng Nhập',
     showTestAccounts = false,
@@ -231,14 +225,11 @@ export const AuthFormPublic = ({
                 return;
             }
 
-            // Gọi login với loginType public
             await login(values, 'public');
 
-            // Gọi callback onSuccess để parent component xử lý redirect
             if (onSuccess) {
                 onSuccess(values);
             }
-            // Không tự động navigate ở đây, để parent component xử lý
         } catch (err) {
             console.error('Login error:', err);
         }
@@ -258,11 +249,13 @@ export const AuthFormPublic = ({
             name: 'password',
             label: 'Mật khẩu',
             rules: [
-                { required: true, message: 'Vui lòng nhập mật khẩu!' },
-                { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự!' },
-                { pattern: /^[A-Z].*$/, message: 'Mật khẩu phải bắt đầu bằng chữ in hoa!' },
-                { pattern: /[0-9]/, message: 'Mật khẩu phải chứa ít nhất 1 số!' },
-                { pattern: /[!@#$%^&*(),.?":{}|<>]/, message: 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt!' }
+                {
+                    required: true,
+                    min: 6,
+                    pattern: /^(?=[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{6,}$/,
+                    message: 'Mật khẩu không hợp lệ!'
+                    // Phải có ít nhất 6 ký tự, bắt đầu bằng chữ in hoa, chứa số và ký tự đặc biệt.
+                }
             ],
             component: <Input.Password size="large" placeholder="Mật khẩu" />
         }
@@ -278,7 +271,6 @@ export const AuthFormPublic = ({
                 onFinish={handleSubmit}
                 layout="vertical"
                 requiredMark={false}
-                //onFinishFailed={onFinishFailed}
                 autoComplete="off"
                 size="large"
             >

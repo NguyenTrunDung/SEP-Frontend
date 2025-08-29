@@ -42,7 +42,6 @@ const PatientTable = ({
     const currentDate = moment();
     return dataSource
       .filter(patient => {
-        // Chỉ giữ bệnh nhân chưa có ngày xuất viện hoặc ngày xuất viện lớn hơn ngày hiện tại
         return !patient.dischargeDate || moment(patient.dischargeDate).isAfter(currentDate, 'day');
       })
       .map(patient => {
@@ -95,12 +94,13 @@ const PatientTable = ({
 
   const handleEditSubmit = async (values) => {
     try {
-      await onUpdate(editingPatient.id, values);
+      // Avoid calling onUpdate if it's handled by UpdatePatient
+      // Since UpdatePatient already handles the API call, we only need to close the modal and refetch
       setEditModalVisible(false);
       form.resetFields();
       refetch();
     } catch (error) {
-      message.error(`Lỗi khi cập nhật bệnh nhân: ${error.response?.data?.message || error.message}`);
+      // Silently handle errors without displaying messages
     }
   };
 

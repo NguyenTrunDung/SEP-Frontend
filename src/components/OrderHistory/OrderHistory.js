@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Typography, Spin, Alert, Button, Input, Table, message, Tabs } from 'antd';
+import { Modal, Typography, Spin, Alert, Button, Input, Table, message, Tabs, ConfigProvider } from 'antd';
 import { EyeOutlined, CommentOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { orderService } from '../../services/orderService';
@@ -9,12 +9,17 @@ import FeedbackModal from '../Feedback/Feedback';
 import ViewFeedbackModal from '../Feedback/ViewFeedbackModal';
 import EditFeedbackModal from '../Feedback/EditFeedbackModal';
 import { useCreateFeedback, useFeedbacksByOrder, useDeleteFeedback, useUpdateFeedback } from '../../hooks/queries/useFeedback';
-import api from '../../services/api/config';
-import { environment } from '../../services/api/config';
+import api, { environment } from '../../services/api/config';
 import { getImageUrlWithFallback } from '../../utils/imageUtils';
 import { ROLES } from '../../constants/roles';
 import './OrderHistory.css';
 import { useTimezone } from '../../hooks/useTimezone';
+import { diseaseCategoryFoodRestrictionService } from '../../services/diseaseCategoryFoodRestrictionService';
+import locale from 'antd/lib/locale/vi_VN';
+import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
+
+dayjs.locale('vi');
 
 const { Text } = Typography;
 const { Search } = Input;
@@ -48,30 +53,69 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const { mutateAsync: deleteFeedback } = useDeleteFeedback();
   const { mutateAsync: updateFeedback } = useUpdateFeedback();
 
-  // Helper function to derive mealTime from orderDate if not provided
-  const deriveMealTime = (orderDate) => {
-    if (!orderDate) return 'Không xác định';
-    const date = new Date(orderDate);
-    const hour = date.getHours();
-    if (hour >= 5 && hour < 11) return 'Sáng';
-    if (hour >= 11 && hour < 17) return 'Trưa';
-    return 'Chiều';
+  // Hàm chuẩn hóa mealTime sang tiếng Việt
+  const normalizeMealTime = (mealTime) => {
+    const mapping = {
+      morning: 'Sáng',
+      noon: 'Trưa',
+      evening: 'Chiều',
+      sang: 'Sáng',
+      trua: 'Trưa',
+      chieu: 'Chiều',
+    };
+    if (Array.isArray(mealTime)) {
+      return mealTime.map(mt => mapping[mt.toLowerCase()] || mt).join(', ');
+    }
+    return mapping[mealTime?.toLowerCase()] || mealTime || 'Không xác định';
   };
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!visible || !user) return;
+      if (!visible || !user || !user.id) {
+        console.warn('⚠️ Missing user or visibility, skipping fetchOrders');
+        setError('Thông tin người dùng không hợp lệ.');
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       try {
-        const userOrders = await orderService.filterOrders({ userId: user.id });
+        const filters = { userId: String(user.id) };
+        const userOrders = await orderService.filterOrders(filters);
+
+        if (!userOrders.data || !Array.isArray(userOrders.data)) {
+          console.warn('⚠️ No orders returned from API:', userOrders);
+          setOrders([]);
+          setFilteredOrders({ patient: [], nurse: [] });
+          setError('Không có đơn hàng nào được tìm thấy.');
+          setLoading(false);
+          return;
+        }
+
+        console.log('📥 User orders from API:', userOrders.data);
+
         const detailedOrders = await Promise.all(
-          (userOrders.data || []).map(async (order) => {
-            if (order.userId === user.id || order.userId === String(user.id)) {
-              try {
-                const orderDetails = await orderService.getOrderDetails(order.id);
-                const items = Array.isArray(orderDetails.data)
-                  ? orderDetails.data.map((item) => ({
+          userOrders.data.map(async (order) => {
+            try {
+              const orderDetails = await orderService.getOrderDetails(order.id);
+              let mealTime = 'Không xác định';
+
+              if (orderDetails.data && Array.isArray(orderDetails.data) && orderDetails.data.length > 0) {
+                const foodId = orderDetails.data[0]?.foodId;
+                if (foodId) {
+                  try {
+                    const nutritionalMealResponse = await diseaseCategoryFoodRestrictionService.getDiseaseCategoryFoodRestriction(foodId);
+                    if (nutritionalMealResponse.data && nutritionalMealResponse.data.mealTime) {
+                      mealTime = normalizeMealTime(nutritionalMealResponse.data.mealTime);
+                    }
+                  } catch (error) {
+                    console.warn(`⚠️ Failed to fetch mealTime for foodId ${foodId}:`, error);
+                  }
+                }
+              }
+
+              const items = Array.isArray(orderDetails.data)
+                ? orderDetails.data.map((item) => ({
                     menuItemId: item.id || `item-${Math.random()}`,
                     name: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
                     price: item.price ?? 0,
@@ -79,84 +123,75 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                     subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
                     imageUrl: item.imageUrl || item.food?.imageUrl || null,
                   }))
-                  : [];
-                const feedbackResponse = await api.get('/api/v1/Comment/By-Order', {
-                  params: { OrderId: order.id, branchId: order.branchId },
-                });
-                const feedbacks = feedbackResponse.data.status === 'success' ? feedbackResponse.data.data : [];
-                const normalizedFeedbacks = await Promise.all(
-                  feedbacks.map(async (feedback) => {
-                    let customerName = feedback.userId;
-                    let avatar = null;
-                    try {
-                      const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
-                      customerName = userResponse.data?.firstName && userResponse.data?.lastName
-                        ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
-                        : feedback.userId;
-                      avatar = userResponse.data?.avatar || null;
-                    } catch (error) {
-                      if (environment.features.enableLogging) {
-                        console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error);
-                      }
-                    }
-                    return {
-                      id: feedback.id,
-                      orderId: feedback.orderId,
-                      userId: feedback.userId,
-                      branchId: feedback.branchId,
-                      rating: feedback.star,
-                      content: feedback.commentLines,
-                      reply: feedback.reply || null,
-                      customerName,
-                      avatar,
-                      timestamp: feedback.createdAt || new Date().toISOString(),
-                    };
-                  })
-                );
+                : [];
 
-                return {
-                  ...order,
-                  orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
-                  orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
-                  items,
-                  feedbacks: normalizedFeedbacks,
-                  mealTime: order.mealTime || deriveMealTime(order.orderDate),
-                };
-              } catch (error) {
-                return {
-                  ...order,
-                  orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
-                  orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
-                  items: [],
-                  feedbacks: [],
-                  mealTime: deriveMealTime(order.orderDate),
-                };
-              }
+              const feedbackResponse = await api.get('/api/v1/Comment/By-Order', {
+                params: { OrderId: order.id, branchId: order.branchId },
+              });
+              const feedbacks = feedbackResponse.data.status === 'success' ? feedbackResponse.data.data : [];
+
+              const normalizedFeedbacks = await Promise.all(
+                feedbacks.map(async (feedback) => {
+                  let customerName = feedback.userId;
+                  let avatar = null;
+                  try {
+                    const userResponse = await api.get(`/api/v1/BranchUserManagement/${feedback.userId}/branch/${feedback.branchId}`);
+                    customerName = userResponse.data?.firstName && userResponse.data?.lastName
+                      ? `${userResponse.data.firstName} ${userResponse.data.lastName}`
+                      : feedback.userId;
+                    avatar = userResponse.data?.avatar || null;
+                  } catch (error) {
+                    if (environment.features.enableLogging) {
+                      console.warn(`⚠️ Failed to fetch customerName for userId ${feedback.userId}:`, error);
+                    }
+                  }
+                  return {
+                    id: feedback.id,
+                    orderId: feedback.orderId,
+                    userId: feedback.userId,
+                    branchId: feedback.branchId,
+                    rating: feedback.star,
+                    content: feedback.commentLines,
+                    reply: feedback.reply || null,
+                    customerName,
+                    avatar,
+                    timestamp: feedback.createdAt || new Date().toISOString(),
+                  };
+                })
+              );
+
+              return {
+                ...order,
+                orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
+                orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
+                items,
+                feedbacks: normalizedFeedbacks,
+                mealTime,
+                role: order.isPatientOrder ? 'patient' : (user.role === 'NURSE' ? 'nurse' : 'patient'),
+                status: order.status?.toLowerCase() || 'unknown',
+              };
+            } catch (error) {
+              console.warn(`⚠️ Failed to fetch details for order ${order.id}:`, error);
+              return {
+                ...order,
+                orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
+                orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
+                items: [],
+                feedbacks: [],
+                mealTime: 'Không xác định',
+                role: order.isPatientOrder ? 'patient' : (user.role === 'NURSE' ? 'nurse' : 'patient'),
+                status: order.status?.toLowerCase() || 'unknown',
+              };
             }
-            return {
-              ...order,
-              orderTypeDisplay: order.orderTypeDisplay || (order.isPatientOrder ? 'Đơn hàng bệnh nhân' : order.type || 'Y tá'),
-              feedbacks: [],
-              mealTime: deriveMealTime(order.orderDate),
-            };
           })
         );
 
-        const normalizedOrders = detailedOrders
-          .filter(
-            (order) => order.userId === user.id || order.userId === String(user.id)
-          )
-          .map((order) => ({
-            ...order,
-            status: order.status?.toLowerCase() || 'unknown',
-            role: order.isPatientOrder ? 'patient' : (order.role || (user.role === 'NURSE' ? 'nurse' : 'patient')),
-            mealTime: order.mealTime || deriveMealTime(order.orderDate),
-          }));
+        console.log('📋 Normalized orders:', detailedOrders);
 
-        const patientOrders = normalizedOrders.filter(order => order.role === 'patient');
-        const nurseOrders = normalizedOrders.filter(order => order.role === 'nurse');
+        const patientOrders = detailedOrders.filter(order => order.role === 'patient');
+        const nurseOrders = detailedOrders.filter(order => order.role === 'nurse');
 
-        setOrders(normalizedOrders);
+        setOrders(detailedOrders);
         setFilteredOrders({
           patient: patientOrders,
           nurse: nurseOrders,
@@ -164,6 +199,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         setError(null);
       } catch (err) {
         const errorMessage = err.response?.data?.message || 'Không thể tải lịch sử đơn hàng. Vui lòng thử lại.';
+        console.error('❌ Error fetching orders:', err);
         setError(errorMessage);
       } finally {
         setLoading(false);
@@ -183,16 +219,19 @@ const OrderHistoryModal = ({ visible, onClose }) => {
           (item.foodName || item.name || '').toLowerCase().includes(search.toLowerCase())
         )) ||
         (order.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
-        (order.status === 'completed' ? 'Hoàn thành' : order.status === 'pending' ? 'Đang chờ' : order.status || '').toLowerCase().includes(search.toLowerCase()) ||
+        (order.status === 'completed' ? 'Hoàn thành' :
+         order.status === 'pending' ? 'Đang chờ' :
+         order.status || '').toLowerCase().includes(search.toLowerCase()) ||
         (order.mealTime || '').toLowerCase().includes(search.toLowerCase())
       );
-    } else {
-      if (idFilter) {
-        filtered = filtered.filter(order => String(order.id || '').toLowerCase().includes(idFilter.toLowerCase()));
-      }
-      if (statusFilter) {
-        filtered = filtered.filter(order => order.status === statusFilter);
-      }
+    }
+
+    if (idFilter) {
+      filtered = filtered.filter(order => String(order.id || '').toLowerCase().includes(idFilter.toLowerCase()));
+    }
+
+    if (statusFilter) {
+      filtered = filtered.filter(order => order.status === statusFilter);
     }
 
     return filtered;
@@ -243,18 +282,34 @@ const OrderHistoryModal = ({ visible, onClose }) => {
   const handleViewDetails = async (order) => {
     try {
       const orderDetails = await orderService.getOrderDetails(order.id);
+      let mealTime = 'Không xác định';
+      if (orderDetails.data && Array.isArray(orderDetails.data) && orderDetails.data.length > 0) {
+        const foodId = orderDetails.data[0]?.foodId;
+        if (foodId) {
+          try {
+            const nutritionalMealResponse = await diseaseCategoryFoodRestrictionService.getDiseaseCategoryFoodRestriction(foodId);
+            if (nutritionalMealResponse.data && nutritionalMealResponse.data.mealTime) {
+              mealTime = normalizeMealTime(nutritionalMealResponse.data.mealTime);
+            }
+          } catch (error) {
+            console.warn(`⚠️ Failed to fetch mealTime for foodId ${foodId}:`, error);
+          }
+        }
+      }
+
       const detailedOrder = {
         ...order,
+        mealTime,
         orderDetails: Array.isArray(orderDetails.data)
           ? orderDetails.data.map((item) => ({
-            ...item,
-            menuItemId: item.id || `item-${Math.random()}`,
-            foodName: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
-            price: item.price ?? 0,
-            quantity: item.Qty ?? item.quantity ?? 1,
-            subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
-            imageUrl: item.imageUrl || item.food?.imageUrl || null,
-          }))
+              ...item,
+              menuItemId: item.id || `item-${Math.random()}`,
+              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
+              price: item.price ?? 0,
+              quantity: item.Qty ?? item.quantity ?? 1,
+              subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
+              imageUrl: item.imageUrl || item.food?.imageUrl || null,
+            }))
           : [],
       };
       setSelectedOrder(detailedOrder);
@@ -271,18 +326,34 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     }
     try {
       const orderDetails = await orderService.getOrderDetails(order.id);
+      let mealTime = 'Không xác định';
+      if (orderDetails.data && Array.isArray(orderDetails.data) && orderDetails.data.length > 0) {
+        const foodId = orderDetails.data[0]?.foodId;
+        if (foodId) {
+          try {
+            const nutritionalMealResponse = await diseaseCategoryFoodRestrictionService.getDiseaseCategoryFoodRestriction(foodId);
+            if (nutritionalMealResponse.data && nutritionalMealResponse.data.mealTime) {
+              mealTime = normalizeMealTime(nutritionalMealResponse.data.mealTime);
+            }
+          } catch (error) {
+            console.warn(`⚠️ Failed to fetch mealTime for foodId ${foodId}:`, error);
+          }
+        }
+      }
+
       const detailedOrder = {
         ...order,
+        mealTime,
         orderDetails: Array.isArray(orderDetails.data)
           ? orderDetails.data.map((item) => ({
-            ...item,
-            menuItemId: item.id || `item-${Math.random()}`,
-            foodName: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
-            price: item.price ?? 0,
-            quantity: item.Qty ?? item.quantity ?? 1,
-            subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
-            imageUrl: item.imageUrl || item.food?.imageUrl || null,
-          }))
+              ...item,
+              menuItemId: item.id || `item-${Math.random()}`,
+              foodName: item.foodName || item.name || `Món ăn ID ${item.foodId ?? 'Unknown'}`,
+              price: item.price ?? 0,
+              quantity: item.Qty ?? item.quantity ?? 1,
+              subtotal: item.total ?? (item.price ?? 0) * (item.Qty ?? item.quantity ?? 1),
+              imageUrl: item.imageUrl || item.food?.imageUrl || null,
+            }))
           : [],
       };
       setSelectedOrder(detailedOrder);
@@ -479,15 +550,15 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     },
     ...(tabKey === 'patientOrders'
       ? [
-        {
-          title: 'Tên bệnh nhân',
-          dataIndex: 'customerName',
-          key: 'customerName',
-          width: '20%',
-          render: (customerName) => customerName || 'Không xác định',
-          responsive: ['sm', 'md', 'lg'],
-        },
-      ]
+          {
+            title: 'Tên bệnh nhân',
+            dataIndex: 'customerName',
+            key: 'customerName',
+            width: '20%',
+            render: (customerName) => customerName || 'Không xác định',
+            responsive: ['sm', 'md', 'lg'],
+          },
+        ]
       : []),
     {
       title: 'Thời gian đặt',
@@ -505,7 +576,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
       },
       render: (orderDate) =>
         orderDate
-          ? new Date(orderDate).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+          ? dayjs(orderDate).format('DD/MM/YYYY HH:mm')
           : 'N/A',
       responsive: ['xs', 'sm', 'md', 'lg'],
     },
@@ -572,68 +643,75 @@ const OrderHistoryModal = ({ visible, onClose }) => {
     },
   ];
 
-  const detailColumns = [
-    {
-      title: 'Món ăn',
-      dataIndex: 'foodName',
-      key: 'foodName',
-      align: 'left',
-      width: '35%',
-      render: (foodName, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <img
-            src={getImageUrlWithFallback(record.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production')}
-            alt={foodName || 'Món ăn'}
-            className="food-image"
-            onError={(e) => {
-              e.target.src = '/images/com.jpg';
-            }}
-          />
-          <Text>{foodName || record.name || 'Không xác định'}</Text>
-        </div>
-      ),
-      responsive: ['xs', 'sm', 'md', 'lg'],
-    },
-    {
-      title: 'Buổi ăn',
-      dataIndex: 'mealTime',
-      key: 'mealTime',
-      align: 'left',
-      width: '15%',
-      render: (_, record) => selectedOrder?.mealTime || 'Không xác định',
-      responsive: ['xs', 'sm', 'md', 'lg'],
-    },
-    {
-      title: 'Số lượng',
-      dataIndex: 'quantity',
-      key: 'quantity',
-      align: 'left',
-      width: '15%',
-      render: (quantity) => quantity ?? 1,
-      responsive: ['xs', 'sm', 'md', 'lg'],
-    },
-    {
-      title: 'Đơn giá',
-      dataIndex: 'price',
-      key: 'price',
-      align: 'left',
-      width: '15%',
-      render: (price) => formatAmount(price ?? 0),
-      responsive: ['sm', 'md', 'lg'],
-    },
-    {
-      title: 'Thành tiền',
-      dataIndex: 'subtotal',
-      key: 'subtotal',
-      align: 'left',
-      width: '20%',
-      render: (subtotal, record) => formatAmount(record.total ?? subtotal ?? 0),
-      responsive: ['xs', 'sm', 'md', 'lg'],
-    },
-  ];
+  const detailColumns = (tabKey) => {
+    const baseColumns = [
+      {
+        title: 'Món ăn',
+        dataIndex: 'foodName',
+        key: 'foodName',
+        align: 'left',
+        width: tabKey === 'patientOrders' ? '25%' : '35%',
+        render: (foodName, record) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img
+              src={getImageUrlWithFallback(record.imageUrl, '/images/com.jpg', process.env.NODE_ENV === 'production')}
+              alt={foodName || 'Món ăn'}
+              className="food-image"
+              onError={(e) => {
+                e.target.src = '/images/com.jpg';
+              }}
+            />
+            <Text>{foodName || record.name || 'Không xác định'}</Text>
+          </div>
+        ),
+        responsive: ['xs', 'sm', 'md', 'lg'],
+      },
+      {
+        title: 'Số lượng',
+        dataIndex: 'quantity',
+        key: 'quantity',
+        align: 'left',
+        width: '15%',
+        render: (quantity) => quantity ?? 1,
+        responsive: ['xs', 'sm', 'md', 'lg'],
+      },
+      {
+        title: 'Đơn giá',
+        dataIndex: 'price',
+        key: 'price',
+        align: 'left',
+        width: '15%',
+        render: (price) => formatAmount(price ?? 0),
+        responsive: ['sm', 'md', 'lg'],
+      },
+      {
+        title: 'Thành tiền',
+        dataIndex: 'subtotal',
+        key: 'subtotal',
+        align: 'left',
+        width: '20%',
+        render: (subtotal, record) => formatAmount(record.total ?? subtotal ?? 0),
+        responsive: ['xs', 'sm', 'md', 'lg'],
+      },
+    ];
+
+    if (tabKey === 'patientOrders') {
+      baseColumns.splice(1, 0, {
+        title: 'Buổi ăn',
+        dataIndex: 'mealTime',
+        key: 'mealTime',
+        align: 'left',
+        width: '15%',
+        render: () => selectedOrder?.mealTime || 'Không xác định',
+        responsive: ['xs', 'sm', 'md', 'lg'],
+      });
+    }
+
+    return baseColumns;
+  };
 
   return (
-    <>
+    <ConfigProvider locale={locale}>
       <Modal
         open={visible}
         onCancel={onClose}
@@ -682,7 +760,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
               <TabPane tab="Đơn hàng của tôi" key="nurseOrders">
                 <div className="table-container">
                   {loading ? (
-                    <Spin className="loading-spinner" />
+                    <Spin tip="Đang tải dữ liệu..." />
                   ) : error ? (
                     <Alert message={error} type="error" showIcon className="error-alert" />
                   ) : filteredOrders.nurse.length === 0 ? (
@@ -713,7 +791,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                 <TabPane tab="Đơn hàng bệnh nhân" key="patientOrders">
                   <div className="table-container">
                     {loading ? (
-                      <Spin className="loading-spinner" />
+                      <Spin tip="Đang tải dữ liệu..." />
                     ) : error ? (
                       <Alert message={error} type="error" showIcon className="error-alert" />
                     ) : filteredOrders.patient.length === 0 ? (
@@ -781,7 +859,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                 <Text className="detail-label">Thời gian đặt: </Text>
                 <Text className="detail-value">
                   {selectedOrder.orderDate
-                    ? new Date(selectedOrder.orderDate).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+                    ? dayjs(selectedOrder.orderDate).format('DD/MM/YYYY HH:mm')
                     : 'N/A'}
                 </Text>
               </div>
@@ -789,7 +867,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                 <Text className="detail-label">Thời gian cập nhật: </Text>
                 <Text className="detail-value">
                   {selectedOrder.updatedAt
-                    ? new Date(selectedOrder.updatedAt).toLocaleString('vi-VN', { timeStyle: 'short' })
+                    ? dayjs(selectedOrder.updatedAt).format('HH:mm')
                     : 'N/A'}
                 </Text>
               </div>
@@ -812,9 +890,13 @@ const OrderHistoryModal = ({ visible, onClose }) => {
                   }
                 </Text>
               </div>
+              {/* <div className="order-detail-item">
+                <Text className="detail-label">Buổi ăn: </Text>
+                <Text className="detail-value">{selectedOrder.mealTime || 'Không xác định'}</Text>
+              </div> */}
               <Text className="detail-section-title">Chi tiết món ăn:</Text>
               <Table
-                columns={detailColumns}
+                columns={detailColumns(activeTab)}
                 dataSource={Array.isArray(selectedOrder.orderDetails) ? selectedOrder.orderDetails : []}
                 pagination={false}
                 rowKey="menuItemId"
@@ -857,7 +939,7 @@ const OrderHistoryModal = ({ visible, onClose }) => {
         feedback={editFeedback}
         onUpdate={handleUpdateFeedback}
       />
-    </>
+    </ConfigProvider>
   );
 };
 

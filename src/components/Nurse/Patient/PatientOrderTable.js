@@ -79,16 +79,14 @@ const PatientOrderTable = ({
 
     return dataSource.map(patient => {
       let diseaseCategoryNames = 'Không có nhóm bệnh';
-      if (Array.isArray(patient.diseaseCategories) && patient.diseaseCategories.length > 0) {
-        diseaseCategoryNames = patient.diseaseCategories
-          .map(dc => dc.diseaseCategoryName)
-          .filter(name => name)
-          .join(', ') || 'Không có nhóm bệnh';
-      } else if (Array.isArray(patient.diseaseCategoryIds) && patient.diseaseCategoryIds.length > 0) {
-        const diseaseCategoryIds = patient.diseaseCategoryIds
-          .map(id => parseInt(id, 10))
-          .filter(id => !isNaN(id));
-        diseaseCategoryNames = diseaseCategoryIds
+      const patientDiseaseCategoryIds = patient.diseaseCategories?.length
+        ? patient.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
+        : patient.diseaseCategoryIds?.length
+          ? patient.diseaseCategoryIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
+          : [];
+
+      if (patientDiseaseCategoryIds.length > 0) {
+        diseaseCategoryNames = patientDiseaseCategoryIds
           .map(id => {
             const category = diseaseCategories.find(dc => dc.id === id);
             return category ? category.name : null;
@@ -108,11 +106,12 @@ const PatientOrderTable = ({
     });
   }, [dataSource, departments, diseaseCategories, categoriesLoading, receiveDate]);
 
-  const allowedFoodsForPatient = (patient, mealTime) => {
+  const allowedFoodsForPatient = (patient) => {
     if (!patient || (!patient.diseaseCategories?.length && !patient.diseaseCategoryIds?.length)) {
       console.warn(`⚠️ No disease categories for patient ${patient.id}`);
       return [];
     }
+
     const patientDiseaseCategoryIds = patient.diseaseCategories?.length
       ? patient.diseaseCategories.map(dc => parseInt(dc.diseaseCategoryId, 10)).filter(id => !isNaN(id))
       : patient.diseaseCategoryIds?.length
@@ -120,26 +119,42 @@ const PatientOrderTable = ({
         : [];
 
     console.log(`🔍 Patient ${patient.id} diseaseCategoryIds:`, patientDiseaseCategoryIds);
-    console.log(`🔍 Restrictions for filtering:`, restrictions);
+    console.log(`🔍 Raw restrictions data:`, restrictions);
+
+    if (!restrictions || restrictions.length === 0) {
+      console.warn(`⚠️ No restrictions data available for branch ${currentBranchId}`);
+      return [];
+    }
+
+    const normalizeMealTime = (mealTime) => {
+      const mapping = {
+        morning: 'Sáng',
+        noon: 'Trưa',
+        evening: 'Chiều',
+      };
+      return Array.isArray(mealTime) ? mealTime.map(mt => mapping[mt.toLowerCase()] || mt) : [mapping[mealTime.toLowerCase()] || mealTime];
+    };
 
     let allowedFoods = restrictions
-      ?.filter(restriction => 
+      .filter(restriction => 
         patientDiseaseCategoryIds.includes(parseInt(restriction.diseaseCategoryId, 10)) &&
-        (!restriction.mealTime || restriction.mealTime.includes(mealTime))
+        restriction.isActive !== false
       )
-      ?.map(restriction => ({
-        id: restriction.foodId,
-        name: restriction.foodName || `Thực phẩm ID: ${restriction.foodId}`,
+      .map(restriction => ({
+        id: parseInt(restriction.id, 10),
+        name: restriction.nutritionalMealName || `Thực phẩm ID: ${restriction.id}`,
         categoryId: restriction.foodCategoryId || 'unknown',
-        priceForPatient: Number(restriction.priceForPatient || 0),
-        description: restriction.description || 'No description available',
+        priceForPatient: Number(restriction.price || 0),
+        description: restriction.reason || 'Không có mô tả',
         imageUrl: restriction.imageUrl || '/images/placeholder-food.png',
-        mealTime: restriction.mealTime || ['Sáng', 'Trưa', 'Tối'],
-      })) || [];
+        mealTime: normalizeMealTime(restriction.mealTime),
+      }));
 
-    console.log(`🔍 Allowed foods for patient ${patient.id} for meal time ${mealTime}:`, allowedFoods);
+    allowedFoods = Array.from(new Map(allowedFoods.map(food => [food.id, food])).values());
 
-    return Array.from(new Map(allowedFoods.map(food => [food.id, food])).values());
+    console.log(`🔍 Allowed foods for patient ${patient.id}:`, allowedFoods);
+
+    return allowedFoods;
   };
 
   useEffect(() => {
@@ -188,10 +203,10 @@ const PatientOrderTable = ({
           newAllAvailableFoods[patientId] = {};
           newFilteredFoods[patientId] = {};
 
+          const allowedFoods = allowedFoodsForPatient(patientData);
           mealTimes.forEach(mealTime => {
-            const allowedFoods = allowedFoodsForPatient(patientData, mealTime);
-            newAllAvailableFoods[patientId][mealTime] = allowedFoods;
-            newFilteredFoods[patientId][mealTime] = allowedFoods;
+            newAllAvailableFoods[patientId][mealTime] = allowedFoods.filter(food => food.mealTime.includes(mealTime));
+            newFilteredFoods[patientId][mealTime] = allowedFoods.filter(food => food.mealTime.includes(mealTime));
           });
         });
 
@@ -320,7 +335,7 @@ const PatientOrderTable = ({
       },
     }));
 
-    onSelectPatient(patientId, newSelectedFoods, mealTime);
+    onSelectPatient(patientId, newSelectedFoods);
   };
 
   const handleQuantityChange = (patientId, mealTime, foodId) => (value) => {
@@ -582,7 +597,7 @@ const PatientOrderTable = ({
                 ) : restrictionsLoading || categoriesLoading ? (
                   <p>Đang tải danh sách món ăn...</p>
                 ) : (
-                  ['Sáng', 'Trưa', 'Tối'].map(mealTime => (
+                  ['Sáng', 'Trưa', 'Chiều'].map(mealTime => (
                     <div key={mealTime} style={{ marginBottom: '24px' }}>
                       <div style={{ textAlign: 'left', marginBottom: '8px' }}>
                         <Text strong>Buổi: {mealTime}</Text>

@@ -31,13 +31,14 @@ const UpdatePatient = ({
 }) => {
   const [form] = Form.useForm(externalForm);
   const [focus, setFocus] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false); // Track submission state
   const currentBranchId = branchId || localStorage.getItem('currentBranchId') || '1';
   const updatePatientMutation = useUpdatePatient();
   const { diseaseCategories, isLoading: categoriesLoading } = useDiseaseCategories(currentBranchId);
   const { departments, isLoading: departmentsLoading } = useDepartments(currentBranchId);
 
   useEffect(() => {
-    if (initialValues) {
+    if (open && initialValues) {
       let selectedDiseaseCategoryIds = [];
       if (Array.isArray(initialValues.diseaseCategoryIds) && initialValues.diseaseCategoryIds.length > 0) {
         selectedDiseaseCategoryIds = initialValues.diseaseCategoryIds.map(id => String(id));
@@ -59,12 +60,13 @@ const UpdatePatient = ({
   }, [initialValues, form, open]);
 
   const handleSubmit = async () => {
+    if (isSubmitting) return; // Prevent multiple submissions
+    setIsSubmitting(true); // Disable submission
     try {
       const values = await form.validateFields();
       const birthYear = new Date().getFullYear() - parseInt(values.age || 0, 10);
       const dateOfBirth = moment(`${birthYear}-01-01`).format('YYYY-MM-DD');
 
-      // Lấy danh sách nhóm bệnh và phòng ban ban đầu để giữ nguyên
       const initialDiseaseCategoryIds = (initialValues.diseaseCategoryIds || initialValues.diseaseCategories?.map(dc => String(dc.diseaseCategoryId || dc.id)) || []).map(id => parseInt(id, 10));
       const initialDepartmentId = initialValues.departmentId ? parseInt(initialValues.departmentId, 10) : null;
 
@@ -81,15 +83,15 @@ const UpdatePatient = ({
         notes: values.notes?.trim() || '',
         requiresDietarySupervision: values.isCurrentlyAdmitted || false,
         externalSystemId: '',
-        diseaseCategoryIds: initialDiseaseCategoryIds, // Giữ nguyên danh sách nhóm bệnh ban đầu
-        departmentId: initialDepartmentId, // Giữ nguyên phòng ban ban đầu
+        diseaseCategoryIds: initialDiseaseCategoryIds,
+        departmentId: initialDepartmentId,
         isActive: true,
       };
 
-      updatePatientMutation.mutate(
+      await updatePatientMutation.mutateAsync(
         { patientId: initialValues.id, patientData: payload, branchId: currentBranchId },
         {
-          onSuccess: async (response) => {
+          onSuccess: async () => {
             message.success('Cập nhật bệnh nhân thành công');
             form.resetFields();
             if (externalSubmit) externalSubmit(payload);
@@ -99,7 +101,9 @@ const UpdatePatient = ({
         }
       );
     } catch (error) {
-      console.error('Validation or mutation failed:', error);
+      // Silently handle errors without logging or displaying
+    } finally {
+      setIsSubmitting(false); // Re-enable submission
     }
   };
 
@@ -125,7 +129,8 @@ const UpdatePatient = ({
               height: 28,
               fontSize: 12,
             }}
-            loading={updatePatientMutation.isLoading}
+            loading={isSubmitting || updatePatientMutation.isLoading}
+            disabled={isSubmitting || updatePatientMutation.isLoading} // Disable button during submission
           >
             Lưu
           </Button>

@@ -224,31 +224,34 @@ export const patientService = {
     }
   },
 
-  async updatePatient(patientId, patientData, branchId) {
-    const payload = {
-      ...patientData,
-      branchId: parseInt(branchId, 10),
-      departmentId: patientData.departmentId ? parseInt(patientData.departmentId, 10) : null,
-    };
+async updatePatient(patientId, patientData, branchId) {
+  const payload = {
+    ...patientData,
+    branchId: parseInt(branchId, 10),
+    departmentId: patientData.departmentId ? parseInt(patientData.departmentId, 10) : null,
+    diseaseCategoryIds: patientData.diseaseCategoryIds || [], // Đảm bảo diseaseCategoryIds được gửi
+  };
 
-    try {
-      if (environment.features.enableLogging) {
-        console.log('🔍 patientService.updatePatient - Sending payload:', JSON.stringify(payload, null, 2));
-      }
-      const response = await api.put(`/api/v1/Patient/${patientId}`, payload);
-      if (environment.features.enableLogging) {
-        console.log('✅ patientService.updatePatient - Success:', JSON.stringify(response.data, null, 2));
-      }
-      return response.data;
-    } catch (error) {
-      if (environment.features.enableLogging) {
-        // console.error('❌ patientService.updatePatient - Error:', {
-         
-        // });
-      }
-      // throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân');
+  try {
+    if (environment.features.enableLogging) {
+      console.log('🔍 patientService.updatePatient - Sending payload:', JSON.stringify(payload, null, 2));
     }
-  },
+    const response = await api.put(`/api/v1/Patient/${patientId}`, payload);
+    if (environment.features.enableLogging) {
+      console.log('✅ patientService.updatePatient - Success:', JSON.stringify(response.data, null, 2));
+    }
+    return response.data;
+  } catch (error) {
+    if (environment.features.enableLogging) {
+      console.error('❌ patientService.updatePatient - Error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+    }
+    // throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật bệnh nhân');
+  }
+},
 
   async deletePatient(patientId, branchId) {
     try {
